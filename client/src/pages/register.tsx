@@ -14,7 +14,7 @@ import { Store, ShoppingBag, UtensilsCrossed, Building2, User, Lock, ArrowRight,
 const registerSchema = z.object({
   businessName: z.string().min(2, "Business name must be at least 2 characters"),
   businessType: z.enum(["retail", "restaurant"]),
-  address: z.string().optional(),
+  address: z.string().min(5, "Please enter a valid address"),
   businessPhone: z.string().optional(),
   adminName: z.string().min(2, "Name must be at least 2 characters"),
   adminEmail: z.string().email("Please enter a valid email address"),
@@ -85,7 +85,7 @@ export default function RegisterPage() {
 
   const nextStep = async () => {
     const fieldsToValidate = step === 1 
-      ? ["businessName", "businessType"] as const
+      ? ["businessName", "businessType", "address"] as const
       : ["adminName", "adminEmail", "adminPhone", "adminUsername", "adminPassword", "confirmPassword"] as const;
     
     const isValid = await form.trigger(fieldsToValidate);
@@ -246,7 +246,7 @@ export default function RegisterPage() {
                       name="address"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Address (Optional)</FormLabel>
+                          <FormLabel>Address</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
