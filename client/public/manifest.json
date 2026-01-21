@@ -4,8 +4,8 @@
   "description": "Multi-tenant POS system for Retail and Restaurant businesses",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#3b82f6",
+  "background_color": "#ffffff",
+  "theme_color": "#6E51CD",
   "orientation": "any",
   "icons": [
     {
