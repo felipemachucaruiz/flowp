@@ -155,13 +155,17 @@ export default function SettingsPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [productImagePath, setProductImagePath] = useState<string>("");
   const [businessLogoPath, setBusinessLogoPath] = useState<string>(tenant?.logo || "");
+  const [receiptLogoPath, setReceiptLogoPath] = useState<string>(tenant?.receiptLogo || "");
 
-  // Sync business logo path when tenant data loads/changes
+  // Sync logo paths when tenant data loads/changes
   useEffect(() => {
     if (tenant?.logo !== undefined) {
       setBusinessLogoPath(tenant.logo || "");
     }
-  }, [tenant?.logo]);
+    if (tenant?.receiptLogo !== undefined) {
+      setReceiptLogoPath(tenant.receiptLogo || "");
+    }
+  }, [tenant?.logo, tenant?.receiptLogo]);
 
   const { uploadFile, isUploading: isUploadingImage } = useUpload({
     onSuccess: (response) => {
@@ -182,6 +186,18 @@ export default function SettingsPage() {
     },
     onError: (error) => {
       toast({ title: "Failed to upload logo", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const { uploadFile: uploadReceiptLogo, isUploading: isUploadingReceiptLogo } = useUpload({
+    onSuccess: async (response) => {
+      setReceiptLogoPath(response.objectPath);
+      await apiRequest("PATCH", "/api/settings", { receiptLogo: response.objectPath });
+      toast({ title: "Receipt logo uploaded successfully" });
+      if (refreshTenant) refreshTenant();
+    },
+    onError: (error) => {
+      toast({ title: "Failed to upload receipt logo", description: error.message, variant: "destructive" });
     },
   });
 
@@ -1146,10 +1162,70 @@ export default function SettingsPage() {
             <CardContent>
               <Form {...receiptForm}>
                 <form onSubmit={receiptForm.handleSubmit((data) => receiptSettingsMutation.mutate(data))} className="space-y-6">
-                  <div className="p-3 rounded-lg bg-muted/50 border mb-4">
-                    <p className="text-sm text-muted-foreground">
-                      Logo, address, phone, and Tax ID are set in the Business Information tab above.
+                  <div className="space-y-4 mb-6">
+                    <h3 className="text-sm font-medium">Receipt Logo</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Upload a separate logo for receipts (can be different from company logo)
                     </p>
+                    <div className="flex items-start gap-4">
+                      <div className="relative w-32 h-32 rounded-lg border bg-muted/50 flex items-center justify-center overflow-hidden">
+                        {receiptLogoPath ? (
+                          <img
+                            src={`/objects${receiptLogoPath}`}
+                            alt="Receipt Logo"
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          id="receipt-logo-upload"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) uploadReceiptLogo(file);
+                          }}
+                          data-testid="input-receipt-logo-file"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isUploadingReceiptLogo}
+                          onClick={() => document.getElementById("receipt-logo-upload")?.click()}
+                          data-testid="button-upload-receipt-logo"
+                        >
+                          {isUploadingReceiptLogo ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Upload className="w-4 h-4 mr-2" />
+                          )}
+                          {receiptLogoPath ? "Change Logo" : "Upload Logo"}
+                        </Button>
+                        {receiptLogoPath && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              setReceiptLogoPath("");
+                              await apiRequest("PATCH", "/api/settings", { receiptLogo: "" });
+                              if (refreshTenant) refreshTenant();
+                            }}
+                            data-testid="button-remove-receipt-logo"
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Remove Logo
+                          </Button>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Recommended: 200x200px, PNG or JPG
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="grid gap-6 md:grid-cols-2">

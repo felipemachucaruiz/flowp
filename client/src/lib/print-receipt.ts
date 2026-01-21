@@ -250,7 +250,7 @@ export function printReceipt(tenant: Tenant | null, data: ReceiptData) {
 <body>
   <div class="receipt">
     <div class="header">
-      ${tenant?.receiptShowLogo && tenant?.logo ? `<img src="${tenant.logo}" alt="Logo" class="logo" />` : ""}
+      ${tenant?.receiptShowLogo && (tenant?.receiptLogo || tenant?.logo) ? `<img src="${tenant.receiptLogo || tenant.logo}" alt="Logo" class="logo" />` : ""}
       <div class="company-name">${tenant?.name || "Store"}</div>
       <div class="company-info">
         ${tenant?.receiptShowAddress && tenant?.address ? `<div>${tenant.address}</div>` : ""}
