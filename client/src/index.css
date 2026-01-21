@@ -32,15 +32,15 @@
 
   --sidebar-border: 214 20% 90%;
 
-  --sidebar-primary: 221 83% 53%;
+  --sidebar-primary: 254 55% 56%;
 
   --sidebar-primary-foreground: 0 0% 100%;
 
-  --sidebar-accent: 214 32% 91%;
+  --sidebar-accent: 252 30% 92%;
 
-  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-accent-foreground: 252 100% 22%;
 
-  --sidebar-ring: 221 83% 53%;
+  --sidebar-ring: 254 55% 56%;
 
   --popover: 0 0% 100%;
 
@@ -48,7 +48,7 @@
 
   --popover-border: 214 20% 90%;
 
-  --primary: 221 83% 53%;
+  --primary: 254 55% 56%;
 
   --primary-foreground: 0 0% 100%;
 
@@ -69,8 +69,8 @@
   --destructive-foreground: 0 0% 100%;
 
   --input: 214 20% 85%;
-  --ring: 221 83% 53%;
-  --chart-1: 221 83% 53%;
+  --ring: 254 55% 56%;
+  --chart-1: 254 55% 56%;
   --chart-2: 160 84% 39%;
   --chart-3: 43 96% 56%;
   --chart-4: 280 65% 60%;
@@ -158,15 +158,15 @@
 
   --sidebar-border: 217 33% 17%;
 
-  --sidebar-primary: 217 91% 60%;
+  --sidebar-primary: 254 55% 56%;
 
   --sidebar-primary-foreground: 0 0% 100%;
 
-  --sidebar-accent: 217 33% 17%;
+  --sidebar-accent: 252 50% 20%;
 
   --sidebar-accent-foreground: 210 20% 98%;
 
-  --sidebar-ring: 217 91% 60%;
+  --sidebar-ring: 254 55% 56%;
 
   --popover: 222 47% 11%;
 
@@ -174,7 +174,7 @@
 
   --popover-border: 217 33% 17%;
 
-  --primary: 217 91% 60%;
+  --primary: 254 55% 56%;
 
   --primary-foreground: 0 0% 100%;
 
@@ -196,8 +196,8 @@
 
   /* Used as the border around inputs. Dark mode: Should be a border that is light enough to have high contrast when rendered on a --card background. More contrast than standard --border */
   --input: 217 33% 25%;
-  --ring: 217 91% 60%;
-  --chart-1: 217 91% 60%;
+  --ring: 254 55% 56%;
+  --chart-1: 254 55% 56%;
   --chart-2: 160 84% 39%;
   --chart-3: 43 96% 56%;
   --chart-4: 280 65% 60%;
