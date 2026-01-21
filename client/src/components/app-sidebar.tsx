@@ -34,7 +34,6 @@ import {
   Sun,
   Moon,
   LogOut,
-  ChevronUp,
   User,
 } from "lucide-react";
 
@@ -149,7 +148,6 @@ export function AppSidebar() {
                       {user?.role || "Staff"}
                     </span>
                   </div>
-                  <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
