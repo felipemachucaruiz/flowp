@@ -130,26 +130,26 @@ export function AppSidebar() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <SidebarMenuButton
-                  className="w-full"
+                  className="w-full h-auto py-3"
                   data-testid="button-user-menu"
                 >
-                  <Avatar className="w-6 h-6">
+                  <Avatar className="w-8 h-8">
                     <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                      {user?.name ? getInitials(user.name) : <User className="w-3 h-3" />}
+                      {user?.name ? getInitials(user.name) : <User className="w-4 h-4" />}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex flex-col items-start flex-1 text-left">
-                    <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+                  <div className="flex flex-col items-start flex-1 text-left min-w-0">
+                    <span className="text-xs text-muted-foreground truncate w-full">
                       {tenant?.name || "Store"}
                     </span>
-                    <span className="text-sm font-medium truncate max-w-[120px]">
+                    <span className="text-sm font-medium truncate w-full">
                       {user?.name || "User"}
                     </span>
-                    <span className="text-xs text-muted-foreground capitalize">
+                    <span className="text-xs text-muted-foreground capitalize truncate w-full">
                       {user?.role || "Staff"}
                     </span>
                   </div>
-                  <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                  <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
