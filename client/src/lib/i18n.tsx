@@ -52,6 +52,8 @@ const translations = {
     "pos.order_success": "The order has been processed successfully.",
     "pos.order_error": "Failed to process order. Please try again.",
     "pos.order_number": "Order #",
+    "pos.customer_required": "Customer required",
+    "pos.select_customer_first": "Please select a customer before completing the order.",
     
     // Payment
     "payment.title": "Payment",
@@ -399,6 +401,8 @@ const translations = {
     "pos.order_success": "El pedido ha sido procesado exitosamente.",
     "pos.order_error": "Error al procesar pedido. Intenta de nuevo.",
     "pos.order_number": "Pedido #",
+    "pos.customer_required": "Cliente requerido",
+    "pos.select_customer_first": "Por favor seleccione un cliente antes de completar el pedido.",
     
     // Payment
     "payment.title": "Pago",
@@ -746,6 +750,8 @@ const translations = {
     "pos.order_success": "O pedido foi processado com sucesso.",
     "pos.order_error": "Falha ao processar pedido. Tente novamente.",
     "pos.order_number": "Pedido #",
+    "pos.customer_required": "Cliente obrigatório",
+    "pos.select_customer_first": "Por favor selecione um cliente antes de concluir o pedido.",
     
     // Payment
     "payment.title": "Pagamento",

@@ -301,6 +301,14 @@ export default function POSPage() {
 
   const handlePayment = () => {
     if (cart.length === 0) return;
+    if (!selectedCustomer) {
+      toast({
+        title: t("pos.customer_required"),
+        description: t("pos.select_customer_first"),
+        variant: "destructive",
+      });
+      return;
+    }
 
     const orderData = {
       items: cart,
@@ -308,7 +316,7 @@ export default function POSPage() {
       subtotal: getSubtotal(),
       taxAmount: getTaxAmount(taxRate),
       total: getTotal(taxRate),
-      customerId: selectedCustomer?.id || null,
+      customerId: selectedCustomer.id,
     };
 
     pendingReceiptData.current = {
@@ -885,6 +893,7 @@ export default function POSPage() {
               onClick={handlePayment}
               disabled={
                 createOrderMutation.isPending ||
+                !selectedCustomer ||
                 (paymentMethod === "cash" && parseFloat(cashReceived || "0") < getTotal(taxRate))
               }
               data-testid="button-complete-payment"
