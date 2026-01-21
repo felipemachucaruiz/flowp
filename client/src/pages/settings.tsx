@@ -164,7 +164,7 @@ export default function SettingsPage() {
     onSuccess: async (response) => {
       setReceiptLogoPath(response.objectPath);
       try {
-        await apiRequest("PATCH", "/api/tenant/settings", { logo: response.objectPath });
+        await apiRequest("PATCH", "/api/settings", { logo: response.objectPath });
         if (refreshTenant) refreshTenant();
         toast({ title: "Logo uploaded successfully" });
       } catch {
@@ -262,7 +262,7 @@ export default function SettingsPage() {
   // Mutations
   const businessSettingsMutation = useMutation({
     mutationFn: async (data: z.infer<typeof businessSettingsSchema>) => {
-      return apiRequest("PATCH", "/api/tenant/settings", data);
+      return apiRequest("PATCH", "/api/settings", data);
     },
     onSuccess: () => {
       toast({ title: "Settings updated successfully" });
@@ -276,7 +276,7 @@ export default function SettingsPage() {
 
   const receiptSettingsMutation = useMutation({
     mutationFn: async (data: z.infer<typeof receiptSettingsSchema>) => {
-      return apiRequest("PATCH", "/api/tenant/settings", data);
+      return apiRequest("PATCH", "/api/settings", data);
     },
     onSuccess: () => {
       toast({ title: "Receipt settings updated successfully" });
@@ -1041,7 +1041,7 @@ export default function SettingsPage() {
                             size="sm"
                             onClick={async () => {
                               setReceiptLogoPath("");
-                              await apiRequest("PATCH", "/api/tenant/settings", { logo: "" });
+                              await apiRequest("PATCH", "/api/settings", { logo: "" });
                               if (refreshTenant) refreshTenant();
                             }}
                             data-testid="button-remove-receipt-logo"

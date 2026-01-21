@@ -940,7 +940,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/tenant/settings", async (req: Request, res: Response) => {
+  app.patch("/api/settings", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
       if (!tenantId) {
