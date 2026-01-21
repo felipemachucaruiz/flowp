@@ -16,6 +16,7 @@ import { z } from "zod";
 import { loadPortalSession } from "./middleware/rbac";
 import internalRoutes from "./routes/internal";
 import tenantRoutes from "./routes/tenant";
+import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 // WebSocket clients by tenant for real-time KDS updates
 const wsClients = new Map<string, Set<WebSocket>>();
@@ -58,6 +59,9 @@ export async function registerRoutes(
   // ===== PORTAL ROUTES (Management Portal) =====
   app.use("/api/internal", loadPortalSession, internalRoutes);
   app.use("/api/tenant", loadPortalSession, tenantRoutes);
+
+  // ===== OBJECT STORAGE ROUTES =====
+  registerObjectStorageRoutes(app);
 
   // ===== AUTH ROUTES =====
 

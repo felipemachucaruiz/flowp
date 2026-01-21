@@ -32,7 +32,10 @@ import {
   FileText,
   Check,
   X,
+  Upload,
+  ImageIcon,
 } from "lucide-react";
+import { useUpload } from "@/hooks/use-upload";
 
 const businessSettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
@@ -137,6 +140,18 @@ export default function SettingsPage() {
   const [isEditingMatias, setIsEditingMatias] = useState(false);
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [productImagePath, setProductImagePath] = useState<string>("");
+
+  const { uploadFile, isUploading: isUploadingImage } = useUpload({
+    onSuccess: (response) => {
+      setProductImagePath(response.objectPath);
+      productForm.setValue("image", response.objectPath);
+      toast({ title: "Image uploaded successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Failed to upload image", description: error.message, variant: "destructive" });
+    },
+  });
 
   const isRestaurant = tenant?.type === "restaurant";
 
@@ -398,6 +413,7 @@ export default function SettingsPage() {
   const openProductDialog = (product?: Product) => {
     if (product) {
       setEditingItem(product);
+      setProductImagePath(product.image || "");
       productForm.reset({
         name: product.name,
         categoryId: product.categoryId || "",
@@ -405,10 +421,12 @@ export default function SettingsPage() {
         sku: product.sku || "",
         barcode: product.barcode || "",
         description: product.description || "",
+        image: product.image || "",
       });
     } else {
       setEditingItem(null);
-      productForm.reset({ name: "", categoryId: "", price: "", sku: "", barcode: "", description: "" });
+      setProductImagePath("");
+      productForm.reset({ name: "", categoryId: "", price: "", sku: "", barcode: "", description: "", image: "" });
     }
     setShowProductDialog(true);
   };
@@ -1397,9 +1415,62 @@ export default function SettingsPage() {
                 name="image"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Image URL</FormLabel>
+                    <FormLabel>Product Image</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="https://example.com/image.jpg" data-testid="input-product-image" />
+                      <div className="space-y-2">
+                        {productImagePath && (
+                          <div className="relative w-24 h-24 rounded-md border overflow-hidden">
+                            <img
+                              src={productImagePath}
+                              alt="Product"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            id="product-image-upload"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                await uploadFile(file);
+                              }
+                            }}
+                            data-testid="input-product-image-file"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={isUploadingImage}
+                            onClick={() => document.getElementById("product-image-upload")?.click()}
+                            data-testid="button-upload-product-image"
+                          >
+                            {isUploadingImage ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Upload className="w-4 h-4 mr-2" />
+                            )}
+                            {productImagePath ? "Change Image" : "Upload Image"}
+                          </Button>
+                          {productImagePath && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setProductImagePath("");
+                                field.onChange("");
+                              }}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <input type="hidden" {...field} />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
