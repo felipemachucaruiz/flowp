@@ -1,0 +1,37 @@
+{
+  "name": "POS Pro - Point of Sale System",
+  "short_name": "POS Pro",
+  "description": "Multi-tenant POS system for Retail and Restaurant businesses",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#3b82f6",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance", "productivity"],
+  "shortcuts": [
+    {
+      "name": "New Sale",
+      "url": "/pos",
+      "description": "Start a new sale"
+    },
+    {
+      "name": "Kitchen Display",
+      "url": "/kitchen",
+      "description": "View kitchen orders"
+    }
+  ]
+}

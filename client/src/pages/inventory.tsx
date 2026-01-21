@@ -1,0 +1,489 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import type { Product, StockMovement } from "@shared/schema";
+import {
+  Package,
+  Search,
+  Plus,
+  Minus,
+  ArrowUpRight,
+  ArrowDownRight,
+  TrendingUp,
+  TrendingDown,
+  AlertTriangle,
+  History,
+  Loader2,
+} from "lucide-react";
+
+const adjustmentSchema = z.object({
+  type: z.enum(["adjustment", "purchase", "waste"]),
+  quantity: z.number().int().min(1, "Quantity must be at least 1"),
+  notes: z.string().optional(),
+});
+
+type AdjustmentFormData = z.infer<typeof adjustmentSchema>;
+
+export default function InventoryPage() {
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
+  const [adjustmentDirection, setAdjustmentDirection] = useState<"add" | "remove">("add");
+
+  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
+
+  const { data: stockLevels } = useQuery<Record<string, number>>({
+    queryKey: ["/api/inventory/levels"],
+  });
+
+  const { data: movements, isLoading: movementsLoading } = useQuery<StockMovement[]>({
+    queryKey: ["/api/inventory/movements"],
+  });
+
+  const adjustStockMutation = useMutation({
+    mutationFn: async (data: {
+      productId: string;
+      type: string;
+      quantity: number;
+      notes?: string;
+    }) => {
+      return apiRequest("POST", "/api/inventory/adjust", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Stock adjusted",
+        description: "Inventory has been updated successfully.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/levels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/movements"] });
+      setShowAdjustmentDialog(false);
+      setSelectedProduct(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to adjust stock. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const form = useForm<AdjustmentFormData>({
+    resolver: zodResolver(adjustmentSchema),
+    defaultValues: {
+      type: "adjustment",
+      quantity: 1,
+      notes: "",
+    },
+  });
+
+  const filteredProducts = products?.filter((product) =>
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.barcode?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getStockLevel = (productId: string) => stockLevels?.[productId] || 0;
+
+  const getStockStatus = (level: number) => {
+    if (level <= 0) return { color: "bg-red-500", label: "Out of Stock" };
+    if (level <= 10) return { color: "bg-yellow-500", label: "Low Stock" };
+    return { color: "bg-green-500", label: "In Stock" };
+  };
+
+  const handleAdjustStock = (product: Product, direction: "add" | "remove") => {
+    setSelectedProduct(product);
+    setAdjustmentDirection(direction);
+    form.reset({
+      type: direction === "add" ? "purchase" : "adjustment",
+      quantity: 1,
+      notes: "",
+    });
+    setShowAdjustmentDialog(true);
+  };
+
+  const onSubmitAdjustment = (data: AdjustmentFormData) => {
+    if (!selectedProduct) return;
+
+    adjustStockMutation.mutate({
+      productId: selectedProduct.id,
+      type: data.type,
+      quantity: adjustmentDirection === "add" ? data.quantity : -data.quantity,
+      notes: data.notes,
+    });
+  };
+
+  const getMovementIcon = (type: string) => {
+    switch (type) {
+      case "sale":
+        return <ArrowDownRight className="w-4 h-4 text-red-500" />;
+      case "purchase":
+        return <ArrowUpRight className="w-4 h-4 text-green-500" />;
+      case "adjustment":
+        return <TrendingUp className="w-4 h-4 text-blue-500" />;
+      case "waste":
+        return <TrendingDown className="w-4 h-4 text-orange-500" />;
+      default:
+        return <History className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
+  const stats = {
+    totalProducts: products?.filter((p) => p.trackInventory).length || 0,
+    lowStock: products?.filter((p) => p.trackInventory && getStockLevel(p.id) <= 10 && getStockLevel(p.id) > 0).length || 0,
+    outOfStock: products?.filter((p) => p.trackInventory && getStockLevel(p.id) <= 0).length || 0,
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
+          <p className="text-muted-foreground">
+            Manage stock levels and track movements
+          </p>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Products</p>
+                <p className="text-2xl font-bold">{stats.totalProducts}</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Package className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Low Stock</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.lowStock}</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-yellow-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Out of Stock</p>
+                <p className="text-2xl font-bold text-red-500">{stats.outOfStock}</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="products">
+        <TabsList>
+          <TabsTrigger value="products" data-testid="tab-products">Products</TabsTrigger>
+          <TabsTrigger value="movements" data-testid="tab-movements">History</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="products" className="mt-4 space-y-4">
+          {/* Search */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, SKU, or barcode..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+              data-testid="input-search-inventory"
+            />
+          </div>
+
+          {/* Products List */}
+          {productsLoading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-20" />
+              ))}
+            </div>
+          ) : filteredProducts?.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <Package className="w-12 h-12 mb-4 opacity-30" />
+              <p className="font-medium">No products found</p>
+              <p className="text-sm">Try adjusting your search</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredProducts?.filter((p) => p.trackInventory).map((product) => {
+                const stockLevel = getStockLevel(product.id);
+                const status = getStockStatus(stockLevel);
+
+                return (
+                  <Card key={product.id} className="p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-medium truncate">{product.name}</h3>
+                          <Badge variant="secondary" className="text-xs">
+                            {product.sku || "No SKU"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                          {product.barcode && (
+                            <span>Barcode: {product.barcode}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${status.color}`} />
+                            <span className="font-bold text-lg">{stockLevel}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{status.label}</p>
+                        </div>
+
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => handleAdjustStock(product, "add")}
+                            data-testid={`button-add-stock-${product.id}`}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => handleAdjustStock(product, "remove")}
+                            disabled={stockLevel <= 0}
+                            data-testid={`button-remove-stock-${product.id}`}
+                          >
+                            <Minus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="movements" className="mt-4">
+          {movementsLoading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-16" />
+              ))}
+            </div>
+          ) : movements?.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <History className="w-12 h-12 mb-4 opacity-30" />
+              <p className="font-medium">No movements yet</p>
+              <p className="text-sm">Stock adjustments will appear here</p>
+            </div>
+          ) : (
+            <ScrollArea className="h-[500px]">
+              <div className="space-y-2">
+                {movements?.slice(0, 50).map((movement) => {
+                  const product = products?.find((p) => p.id === movement.productId);
+                  return (
+                    <Card key={movement.id} className="p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                          {getMovementIcon(movement.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium truncate">
+                              {product?.name || "Unknown Product"}
+                            </span>
+                            <Badge variant="secondary" className="text-xs capitalize">
+                              {movement.type}
+                            </Badge>
+                          </div>
+                          {movement.notes && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              {movement.notes}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <span
+                            className={`font-bold ${
+                              movement.quantity > 0 ? "text-green-600" : "text-red-500"
+                            }`}
+                          >
+                            {movement.quantity > 0 ? "+" : ""}
+                            {movement.quantity}
+                          </span>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(movement.createdAt!).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Adjustment Dialog */}
+      <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {adjustmentDirection === "add" ? "Add Stock" : "Remove Stock"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedProduct && (
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmitAdjustment)} className="space-y-4">
+                <div className="p-3 rounded-lg bg-muted">
+                  <p className="font-medium">{selectedProduct.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Current stock: {getStockLevel(selectedProduct.id)}
+                  </p>
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Reason</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-adjustment-type">
+                            <SelectValue placeholder="Select reason" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {adjustmentDirection === "add" ? (
+                            <>
+                              <SelectItem value="purchase">Purchase / Receiving</SelectItem>
+                              <SelectItem value="adjustment">Adjustment</SelectItem>
+                            </>
+                          ) : (
+                            <>
+                              <SelectItem value="adjustment">Adjustment</SelectItem>
+                              <SelectItem value="waste">Waste / Damage</SelectItem>
+                            </>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="quantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Quantity</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                          data-testid="input-adjustment-quantity"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notes (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Add any notes about this adjustment"
+                          {...field}
+                          data-testid="input-adjustment-notes"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowAdjustmentDialog(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={adjustStockMutation.isPending}
+                    data-testid="button-submit-adjustment"
+                  >
+                    {adjustStockMutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        {adjustmentDirection === "add" ? (
+                          <Plus className="w-4 h-4 mr-2" />
+                        ) : (
+                          <Minus className="w-4 h-4 mr-2" />
+                        )}
+                        {adjustmentDirection === "add" ? "Add Stock" : "Remove Stock"}
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

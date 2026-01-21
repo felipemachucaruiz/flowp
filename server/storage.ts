@@ -1,38 +1,442 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import {
+  tenants, users, registers, registerSessions, categories, products,
+  modifierGroups, modifiers, productModifierGroups, floors, tables,
+  orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs,
+  type Tenant, type InsertTenant, type User, type InsertUser,
+  type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
+  type Category, type InsertCategory, type Product, type InsertProduct,
+  type ModifierGroup, type InsertModifierGroup, type Modifier, type InsertModifier,
+  type Floor, type InsertFloor, type Table, type InsertTable,
+  type Order, type InsertOrder, type OrderItem, type InsertOrderItem,
+  type KitchenTicket, type InsertKitchenTicket, type Payment, type InsertPayment,
+  type StockMovement, type InsertStockMovement,
+  RETAIL_FEATURES, RESTAURANT_FEATURES,
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, and, desc, sql, gte } from "drizzle-orm";
+import bcrypt from "bcrypt";
 
 export interface IStorage {
+  // Tenants
+  getTenant(id: string): Promise<Tenant | undefined>;
+  createTenant(tenant: InsertTenant): Promise<Tenant>;
+  
+  // Users
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByUsername(tenantId: string, username: string): Promise<User | undefined>;
+  getUsersByTenant(tenantId: string): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  
+  // Categories
+  getCategoriesByTenant(tenantId: string): Promise<Category[]>;
+  createCategory(category: InsertCategory): Promise<Category>;
+  updateCategory(id: string, data: Partial<InsertCategory>): Promise<Category | undefined>;
+  deleteCategory(id: string): Promise<void>;
+  
+  // Products
+  getProductsByTenant(tenantId: string): Promise<Product[]>;
+  getProduct(id: string): Promise<Product | undefined>;
+  createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: string, data: Partial<InsertProduct>): Promise<Product | undefined>;
+  deleteProduct(id: string): Promise<void>;
+  
+  // Floors
+  getFloorsByTenant(tenantId: string): Promise<Floor[]>;
+  createFloor(floor: InsertFloor): Promise<Floor>;
+  updateFloor(id: string, data: Partial<InsertFloor>): Promise<Floor | undefined>;
+  deleteFloor(id: string): Promise<void>;
+  
+  // Tables
+  getTablesByTenant(tenantId: string): Promise<Table[]>;
+  getTablesByFloor(floorId: string): Promise<Table[]>;
+  createTable(table: InsertTable): Promise<Table>;
+  updateTable(id: string, data: Partial<InsertTable>): Promise<Table | undefined>;
+  deleteTable(id: string): Promise<void>;
+  
+  // Orders
+  getOrdersByTenant(tenantId: string, limit?: number): Promise<Order[]>;
+  getOrder(id: string): Promise<Order | undefined>;
+  createOrder(order: InsertOrder): Promise<Order>;
+  updateOrder(id: string, data: Partial<InsertOrder>): Promise<Order | undefined>;
+  getNextOrderNumber(tenantId: string): Promise<number>;
+  
+  // Order Items
+  getOrderItems(orderId: string): Promise<OrderItem[]>;
+  createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
+  
+  // Kitchen Tickets
+  getKitchenTicketsByTenant(tenantId: string): Promise<KitchenTicket[]>;
+  getActiveKitchenTickets(tenantId: string): Promise<KitchenTicket[]>;
+  createKitchenTicket(ticket: InsertKitchenTicket): Promise<KitchenTicket>;
+  updateKitchenTicket(id: string, data: Partial<InsertKitchenTicket>): Promise<KitchenTicket | undefined>;
+  
+  // Payments
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  
+  // Stock Movements
+  getStockMovementsByTenant(tenantId: string): Promise<StockMovement[]>;
+  createStockMovement(movement: InsertStockMovement): Promise<StockMovement>;
+  getStockLevel(productId: string): Promise<number>;
+  getStockLevels(tenantId: string): Promise<Record<string, number>>;
+  
+  // Reports
+  getDashboardStats(tenantId: string): Promise<{
+    todaySales: number;
+    todayOrders: number;
+    averageOrderValue: number;
+    topProducts: { name: string; quantity: number; revenue: number }[];
+    salesByHour: { hour: string; sales: number }[];
+    salesByCategory: { name: string; value: number }[];
+    recentTrend: number;
+  }>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  // Tenants
+  async getTenant(id: string): Promise<Tenant | undefined> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id));
+    return tenant || undefined;
   }
 
+  async createTenant(tenant: InsertTenant): Promise<Tenant> {
+    const featureFlags = tenant.type === "restaurant" ? RESTAURANT_FEATURES : RETAIL_FEATURES;
+    const [created] = await db.insert(tenants).values({ ...tenant, featureFlags }).returning();
+    return created;
+  }
+
+  // Users
   async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getUserByUsername(tenantId: string, username: string): Promise<User | undefined> {
+    if (tenantId) {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(and(eq(users.tenantId, tenantId), eq(users.username, username)));
+      return user || undefined;
+    } else {
+      // Search across all tenants (for login without tenant context)
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.username, username));
+      return user || undefined;
+    }
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async getUsersByTenant(tenantId: string): Promise<User[]> {
+    return db.select().from(users).where(eq(users.tenantId, tenantId));
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const hashedPassword = await bcrypt.hash(user.password, 10);
+    const [created] = await db.insert(users).values({ ...user, password: hashedPassword }).returning();
+    return created;
+  }
+
+  // Categories
+  async getCategoriesByTenant(tenantId: string): Promise<Category[]> {
+    return db.select().from(categories).where(eq(categories.tenantId, tenantId)).orderBy(categories.sortOrder);
+  }
+
+  async createCategory(category: InsertCategory): Promise<Category> {
+    const [created] = await db.insert(categories).values(category).returning();
+    return created;
+  }
+
+  async updateCategory(id: string, data: Partial<InsertCategory>): Promise<Category | undefined> {
+    const [updated] = await db.update(categories).set(data).where(eq(categories.id, id)).returning();
+    return updated;
+  }
+
+  async deleteCategory(id: string): Promise<void> {
+    await db.delete(categories).where(eq(categories.id, id));
+  }
+
+  // Products
+  async getProductsByTenant(tenantId: string): Promise<Product[]> {
+    return db.select().from(products).where(eq(products.tenantId, tenantId)).orderBy(products.sortOrder);
+  }
+
+  async getProduct(id: string): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product || undefined;
+  }
+
+  async createProduct(product: InsertProduct): Promise<Product> {
+    const [created] = await db.insert(products).values(product).returning();
+    return created;
+  }
+
+  async updateProduct(id: string, data: Partial<InsertProduct>): Promise<Product | undefined> {
+    const [updated] = await db.update(products).set(data).where(eq(products.id, id)).returning();
+    return updated;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    await db.delete(products).where(eq(products.id, id));
+  }
+
+  // Floors
+  async getFloorsByTenant(tenantId: string): Promise<Floor[]> {
+    return db.select().from(floors).where(eq(floors.tenantId, tenantId)).orderBy(floors.sortOrder);
+  }
+
+  async createFloor(floor: InsertFloor): Promise<Floor> {
+    const [created] = await db.insert(floors).values(floor).returning();
+    return created;
+  }
+
+  async updateFloor(id: string, data: Partial<InsertFloor>): Promise<Floor | undefined> {
+    const [updated] = await db.update(floors).set(data).where(eq(floors.id, id)).returning();
+    return updated;
+  }
+
+  async deleteFloor(id: string): Promise<void> {
+    await db.delete(floors).where(eq(floors.id, id));
+  }
+
+  // Tables
+  async getTablesByTenant(tenantId: string): Promise<Table[]> {
+    const tenantFloors = await this.getFloorsByTenant(tenantId);
+    const floorIds = tenantFloors.map(f => f.id);
+    if (floorIds.length === 0) return [];
+    
+    const allTables: Table[] = [];
+    for (const floorId of floorIds) {
+      const floorTables = await db.select().from(tables).where(eq(tables.floorId, floorId));
+      allTables.push(...floorTables);
+    }
+    return allTables;
+  }
+
+  async getTablesByFloor(floorId: string): Promise<Table[]> {
+    return db.select().from(tables).where(eq(tables.floorId, floorId));
+  }
+
+  async createTable(table: InsertTable): Promise<Table> {
+    const [created] = await db.insert(tables).values(table).returning();
+    return created;
+  }
+
+  async updateTable(id: string, data: Partial<InsertTable>): Promise<Table | undefined> {
+    const [updated] = await db.update(tables).set(data).where(eq(tables.id, id)).returning();
+    return updated;
+  }
+
+  async deleteTable(id: string): Promise<void> {
+    await db.delete(tables).where(eq(tables.id, id));
+  }
+
+  // Orders
+  async getOrdersByTenant(tenantId: string, limit = 100): Promise<Order[]> {
+    return db
+      .select()
+      .from(orders)
+      .where(eq(orders.tenantId, tenantId))
+      .orderBy(desc(orders.createdAt))
+      .limit(limit);
+  }
+
+  async getOrder(id: string): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.id, id));
+    return order || undefined;
+  }
+
+  async createOrder(order: InsertOrder): Promise<Order> {
+    const [created] = await db.insert(orders).values(order).returning();
+    return created;
+  }
+
+  async updateOrder(id: string, data: Partial<InsertOrder>): Promise<Order | undefined> {
+    const [updated] = await db.update(orders).set(data).where(eq(orders.id, id)).returning();
+    return updated;
+  }
+
+  async getNextOrderNumber(tenantId: string): Promise<number> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, today)));
+    
+    return (result?.count || 0) + 1;
+  }
+
+  // Order Items
+  async getOrderItems(orderId: string): Promise<OrderItem[]> {
+    return db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  }
+
+  async createOrderItem(item: InsertOrderItem): Promise<OrderItem> {
+    const [created] = await db.insert(orderItems).values(item).returning();
+    return created;
+  }
+
+  // Kitchen Tickets
+  async getKitchenTicketsByTenant(tenantId: string): Promise<KitchenTicket[]> {
+    const tenantOrders = await this.getOrdersByTenant(tenantId, 1000);
+    const orderIds = tenantOrders.map(o => o.id);
+    if (orderIds.length === 0) return [];
+    
+    const allTickets: KitchenTicket[] = [];
+    for (const orderId of orderIds) {
+      const orderTickets = await db
+        .select()
+        .from(kitchenTickets)
+        .where(eq(kitchenTickets.orderId, orderId))
+        .orderBy(desc(kitchenTickets.createdAt));
+      allTickets.push(...orderTickets);
+    }
+    return allTickets.slice(0, 100);
+  }
+
+  async getActiveKitchenTickets(tenantId: string): Promise<KitchenTicket[]> {
+    const allTickets = await this.getKitchenTicketsByTenant(tenantId);
+    return allTickets.filter(t => t.status !== "served");
+  }
+
+  async createKitchenTicket(ticket: InsertKitchenTicket): Promise<KitchenTicket> {
+    const [created] = await db.insert(kitchenTickets).values(ticket).returning();
+    return created;
+  }
+
+  async updateKitchenTicket(id: string, data: Partial<InsertKitchenTicket>): Promise<KitchenTicket | undefined> {
+    const updateData: any = { ...data };
+    if (data.status === "preparing") {
+      updateData.startedAt = new Date();
+    } else if (data.status === "ready" || data.status === "served") {
+      updateData.completedAt = new Date();
+    }
+    const [updated] = await db.update(kitchenTickets).set(updateData).where(eq(kitchenTickets.id, id)).returning();
+    return updated;
+  }
+
+  // Payments
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    const [created] = await db.insert(payments).values(payment).returning();
+    return created;
+  }
+
+  // Stock Movements
+  async getStockMovementsByTenant(tenantId: string): Promise<StockMovement[]> {
+    return db
+      .select()
+      .from(stockMovements)
+      .where(eq(stockMovements.tenantId, tenantId))
+      .orderBy(desc(stockMovements.createdAt))
+      .limit(100);
+  }
+
+  async createStockMovement(movement: InsertStockMovement): Promise<StockMovement> {
+    const [created] = await db.insert(stockMovements).values(movement).returning();
+    return created;
+  }
+
+  async getStockLevel(productId: string): Promise<number> {
+    const [result] = await db
+      .select({ total: sql<number>`COALESCE(SUM(quantity), 0)` })
+      .from(stockMovements)
+      .where(eq(stockMovements.productId, productId));
+    return result?.total || 0;
+  }
+
+  async getStockLevels(tenantId: string): Promise<Record<string, number>> {
+    const results = await db
+      .select({
+        productId: stockMovements.productId,
+        total: sql<number>`COALESCE(SUM(quantity), 0)`,
+      })
+      .from(stockMovements)
+      .where(eq(stockMovements.tenantId, tenantId))
+      .groupBy(stockMovements.productId);
+    
+    const levels: Record<string, number> = {};
+    for (const r of results) {
+      levels[r.productId] = r.total;
+    }
+    return levels;
+  }
+
+  // Reports
+  async getDashboardStats(tenantId: string): Promise<{
+    todaySales: number;
+    todayOrders: number;
+    averageOrderValue: number;
+    topProducts: { name: string; quantity: number; revenue: number }[];
+    salesByHour: { hour: string; sales: number }[];
+    salesByCategory: { name: string; value: number }[];
+    recentTrend: number;
+  }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Today's orders
+    const todayOrders = await db
+      .select()
+      .from(orders)
+      .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, today), eq(orders.status, "completed")));
+
+    const todaySales = todayOrders.reduce((sum, o) => sum + parseFloat(o.total), 0);
+    const averageOrderValue = todayOrders.length > 0 ? todaySales / todayOrders.length : 0;
+
+    // Yesterday's orders for trend
+    const yesterdayOrders = await db
+      .select()
+      .from(orders)
+      .where(
+        and(
+          eq(orders.tenantId, tenantId),
+          gte(orders.createdAt, yesterday),
+          eq(orders.status, "completed")
+        )
+      );
+    const yesterdaySales = yesterdayOrders
+      .filter((o) => new Date(o.createdAt!) < today)
+      .reduce((sum, o) => sum + parseFloat(o.total), 0);
+
+    const recentTrend =
+      yesterdaySales > 0
+        ? Math.round(((todaySales - yesterdaySales) / yesterdaySales) * 100)
+        : 0;
+
+    // Top products (simplified)
+    const topProducts: { name: string; quantity: number; revenue: number }[] = [];
+
+    // Sales by hour (simplified)
+    const salesByHour: { hour: string; sales: number }[] = [];
+    for (let h = 8; h <= 22; h++) {
+      salesByHour.push({ hour: `${h}:00`, sales: 0 });
+    }
+    for (const order of todayOrders) {
+      const hour = new Date(order.createdAt!).getHours();
+      const idx = salesByHour.findIndex((s) => s.hour === `${hour}:00`);
+      if (idx >= 0) {
+        salesByHour[idx].sales += parseFloat(order.total);
+      }
+    }
+
+    // Sales by category (simplified)
+    const salesByCategory: { name: string; value: number }[] = [];
+
+    return {
+      todaySales,
+      todayOrders: todayOrders.length,
+      averageOrderValue,
+      topProducts,
+      salesByHour,
+      salesByCategory,
+      recentTrend,
+    };
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
