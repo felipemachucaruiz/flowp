@@ -124,11 +124,6 @@ const LANGUAGES = [
   { value: "en", label: "English" },
   { value: "es", label: "Español" },
   { value: "pt", label: "Português" },
-  { value: "fr", label: "Français" },
-  { value: "de", label: "Deutsch" },
-  { value: "zh", label: "中文" },
-  { value: "ja", label: "日本語" },
-  { value: "ko", label: "한국어" },
 ];
 
 export default function SettingsPage() {

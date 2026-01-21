@@ -22,6 +22,61 @@ interface ReceiptData {
 }
 
 export function printReceipt(tenant: Tenant | null, data: ReceiptData) {
+  const lang = tenant?.language || "en";
+  
+  const translations: Record<string, Record<string, string>> = {
+    en: {
+      receipt: "Receipt",
+      date: "Date",
+      cashier: "Cashier",
+      subtotal: "Subtotal",
+      tax: "Tax",
+      total: "TOTAL",
+      payment: "Payment",
+      cash: "CASH",
+      card: "CARD",
+      cashReceived: "Cash Received",
+      change: "Change",
+      thankYou: "Thank you for your purchase!",
+      taxId: "Tax ID",
+      tel: "Tel",
+    },
+    es: {
+      receipt: "Recibo",
+      date: "Fecha",
+      cashier: "Cajero",
+      subtotal: "Subtotal",
+      tax: "Impuesto",
+      total: "TOTAL",
+      payment: "Pago",
+      cash: "EFECTIVO",
+      card: "TARJETA",
+      cashReceived: "Efectivo Recibido",
+      change: "Cambio",
+      thankYou: "¡Gracias por su compra!",
+      taxId: "NIT/RUT",
+      tel: "Tel",
+    },
+    pt: {
+      receipt: "Recibo",
+      date: "Data",
+      cashier: "Caixa",
+      subtotal: "Subtotal",
+      tax: "Imposto",
+      total: "TOTAL",
+      payment: "Pagamento",
+      cash: "DINHEIRO",
+      card: "CARTÃO",
+      cashReceived: "Dinheiro Recebido",
+      change: "Troco",
+      thankYou: "Obrigado pela sua compra!",
+      taxId: "CNPJ/CPF",
+      tel: "Tel",
+    },
+  };
+  
+  const t = translations[lang] || translations.en;
+
   const formatCurrency = (amount: number) => {
     const currency = tenant?.currency || "USD";
     const localeMap: Record<string, string> = {
@@ -29,6 +84,10 @@ export function printReceipt(tenant: Tenant | null, data: ReceiptData) {
       MXN: "es-MX",
       USD: "en-US",
       EUR: "de-DE",
+      BRL: "pt-BR",
+      ARS: "es-AR",
+      PEN: "es-PE",
+      CLP: "es-CL",
     };
     const locale = localeMap[currency] || "en-US";
     try {
@@ -43,8 +102,14 @@ export function printReceipt(tenant: Tenant | null, data: ReceiptData) {
     }
   };
 
+  const dateLocaleMap: Record<string, string> = {
+    en: "en-US",
+    es: "es-CO",
+    pt: "pt-BR",
+  };
+
   const formatDate = (date: Date) => {
-    return new Intl.DateTimeFormat(tenant?.language === "es" ? "es-CO" : "en-US", {
+    return new Intl.DateTimeFormat(dateLocaleMap[lang] || "en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -190,16 +255,16 @@ export function printReceipt(tenant: Tenant | null, data: ReceiptData) {
       <div class="company-info">
         ${tenant?.receiptShowAddress && tenant?.address ? `<div>${tenant.address}</div>` : ""}
         ${tenant?.city ? `<div>${tenant.city}${tenant?.country ? `, ${tenant.country}` : ""}</div>` : ""}
-        ${tenant?.receiptShowPhone && tenant?.phone ? `<div>Tel: ${tenant.phone}</div>` : ""}
-        ${tenant?.receiptTaxId ? `<div>Tax ID: ${tenant.receiptTaxId}</div>` : ""}
+        ${tenant?.receiptShowPhone && tenant?.phone ? `<div>${t.tel}: ${tenant.phone}</div>` : ""}
+        ${tenant?.receiptTaxId ? `<div>${t.taxId}: ${tenant.receiptTaxId}</div>` : ""}
       </div>
       ${tenant?.receiptHeaderText ? `<div class="header-text">${tenant.receiptHeaderText}</div>` : ""}
     </div>
     
     <div class="order-info">
-      <div><span>Receipt #:</span><span>${data.orderNumber}</span></div>
-      <div><span>Date:</span><span>${formatDate(data.date)}</span></div>
-      ${data.cashier ? `<div><span>Cashier:</span><span>${data.cashier}</span></div>` : ""}
+      <div><span>${t.receipt} #:</span><span>${data.orderNumber}</span></div>
+      <div><span>${t.date}:</span><span>${formatDate(data.date)}</span></div>
+      ${data.cashier ? `<div><span>${t.cashier}:</span><span>${data.cashier}</span></div>` : ""}
     </div>
     
     <div class="items">
@@ -215,22 +280,22 @@ export function printReceipt(tenant: Tenant | null, data: ReceiptData) {
     </div>
     
     <div class="totals">
-      <div><span>Subtotal:</span><span>${formatCurrency(data.subtotal)}</span></div>
-      <div><span>Tax (${data.taxRate}%):</span><span>${formatCurrency(data.taxAmount)}</span></div>
-      <div class="total"><span>TOTAL:</span><span>${formatCurrency(data.total)}</span></div>
+      <div><span>${t.subtotal}:</span><span>${formatCurrency(data.subtotal)}</span></div>
+      <div><span>${t.tax} (${data.taxRate}%):</span><span>${formatCurrency(data.taxAmount)}</span></div>
+      <div class="total"><span>${t.total}:</span><span>${formatCurrency(data.total)}</span></div>
     </div>
     
     <div class="payment-info">
-      <div><span>Payment:</span><span>${data.paymentMethod.toUpperCase()}</span></div>
+      <div><span>${t.payment}:</span><span>${data.paymentMethod === "cash" ? t.cash : t.card}</span></div>
       ${data.paymentMethod === "cash" && data.cashReceived ? `
-        <div><span>Cash Received:</span><span>${formatCurrency(data.cashReceived)}</span></div>
-        <div><span>Change:</span><span>${formatCurrency(data.change || 0)}</span></div>
+        <div><span>${t.cashReceived}:</span><span>${formatCurrency(data.cashReceived)}</span></div>
+        <div><span>${t.change}:</span><span>${formatCurrency(data.change || 0)}</span></div>
       ` : ""}
     </div>
     
     <div class="footer">
       ${tenant?.receiptFooterText ? `<div class="footer-text">${tenant.receiptFooterText}</div>` : ""}
-      <div class="thank-you">Thank you for your purchase!</div>
+      <div class="thank-you">${t.thankYou}</div>
     </div>
   </div>
   
