@@ -67,6 +67,8 @@ export async function registerRoutes(
       const {
         businessName,
         businessType,
+        country,
+        city,
         address,
         businessPhone,
         adminName,
@@ -85,6 +87,8 @@ export async function registerRoutes(
       const tenant = await storage.createTenant({
         name: businessName,
         type: businessType,
+        country: country || null,
+        city: city || null,
         address: address || null,
         phone: businessPhone || null,
         currency: "$",

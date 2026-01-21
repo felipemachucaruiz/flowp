@@ -9,12 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Store, ShoppingBag, UtensilsCrossed, Building2, User, Lock, ArrowRight, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
+import { Store, ShoppingBag, UtensilsCrossed, Building2, User, Lock, ArrowRight, ArrowLeft, Loader2, CheckCircle2, Globe, MapPin } from "lucide-react";
+import { countries } from "@/lib/countries";
 
 const registerSchema = z.object({
   businessName: z.string().min(2, "Business name must be at least 2 characters"),
   businessType: z.enum(["retail", "restaurant"]),
+  country: z.string().min(1, "Please select a country"),
+  city: z.string().min(2, "Please enter your city"),
   address: z.string().min(5, "Please enter a valid address"),
   businessPhone: z.string().optional(),
   adminName: z.string().min(2, "Name must be at least 2 characters"),
@@ -42,6 +46,8 @@ export default function RegisterPage() {
     defaultValues: {
       businessName: "",
       businessType: "retail",
+      country: "",
+      city: "",
       address: "",
       businessPhone: "",
       adminName: "",
@@ -87,7 +93,7 @@ export default function RegisterPage() {
 
   const nextStep = async () => {
     const fieldsToValidate = step === 1 
-      ? ["businessName", "businessType", "address"] as const
+      ? ["businessName", "businessType", "country", "city", "address"] as const
       : ["adminName", "adminEmail", "adminPhone", "adminUsername", "adminPassword", "confirmPassword"] as const;
     
     const isValid = await form.trigger(fieldsToValidate);
@@ -237,6 +243,56 @@ export default function RegisterPage() {
                                 </div>
                               </label>
                             </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="country"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("register.country")}</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid="select-country">
+                                <div className="flex items-center gap-2">
+                                  <Globe className="w-4 h-4 text-muted-foreground" />
+                                  <SelectValue placeholder={t("register.country_placeholder")} />
+                                </div>
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="max-h-[300px]">
+                              {countries.map((country) => (
+                                <SelectItem key={country.code} value={country.code}>
+                                  {country.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("register.city")}</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input
+                                {...field}
+                                placeholder={t("register.city_placeholder")}
+                                className="pl-10"
+                                data-testid="input-city"
+                              />
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>

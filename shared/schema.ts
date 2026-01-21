@@ -29,6 +29,8 @@ export const tenants = pgTable("tenants", {
   status: tenantStatusEnum("status").default("trial"),
   featureFlags: jsonb("feature_flags").$type<string[]>().default([]),
   logo: text("logo"),
+  country: text("country"),
+  city: text("city"),
   address: text("address"),
   phone: text("phone"),
   currency: text("currency").default("USD"),
