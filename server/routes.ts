@@ -628,6 +628,50 @@ export async function registerRoutes(
     }
   });
 
+  // ===== TENANT ROUTES =====
+
+  app.get("/api/tenant", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      res.json(tenant);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tenant" });
+    }
+  });
+
+  app.patch("/api/tenant/settings", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { currency, taxRate, address, phone } = req.body;
+      
+      const updated = await storage.updateTenant(tenantId, {
+        currency: currency || undefined,
+        taxRate: taxRate || undefined,
+        address: address || undefined,
+        phone: phone || undefined,
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update settings" });
+    }
+  });
+
   // ===== REPORTS ROUTES =====
 
   app.get("/api/reports/dashboard", async (req: Request, res: Response) => {

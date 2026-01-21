@@ -30,6 +30,13 @@ import {
   Printer,
 } from "lucide-react";
 
+const businessSettingsSchema = z.object({
+  currency: z.string().min(1, "Currency is required"),
+  taxRate: z.string().min(0, "Tax rate is required"),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+});
+
 const categorySchema = z.object({
   name: z.string().min(1, "Name is required"),
   color: z.string().default("#3B82F6"),
@@ -54,15 +61,39 @@ const tableSchema = z.object({
   capacity: z.number().int().min(1, "Capacity must be at least 1"),
 });
 
+const CURRENCIES = [
+  { value: "$", label: "USD ($)" },
+  { value: "€", label: "EUR (€)" },
+  { value: "£", label: "GBP (£)" },
+  { value: "¥", label: "JPY (¥)" },
+  { value: "₹", label: "INR (₹)" },
+  { value: "A$", label: "AUD (A$)" },
+  { value: "C$", label: "CAD (C$)" },
+  { value: "CHF", label: "CHF" },
+  { value: "¥", label: "CNY (¥)" },
+  { value: "R$", label: "BRL (R$)" },
+  { value: "₱", label: "PHP (₱)" },
+  { value: "₩", label: "KRW (₩)" },
+  { value: "฿", label: "THB (฿)" },
+  { value: "₫", label: "VND (₫)" },
+  { value: "Rp", label: "IDR (Rp)" },
+  { value: "RM", label: "MYR (RM)" },
+  { value: "S$", label: "SGD (S$)" },
+  { value: "AED", label: "AED" },
+  { value: "SAR", label: "SAR" },
+  { value: "ZAR", label: "ZAR" },
+];
+
 export default function SettingsPage() {
   const { toast } = useToast();
-  const { tenant } = useAuth();
+  const { tenant, refreshTenant } = useAuth();
   const [activeTab, setActiveTab] = useState("business");
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [showProductDialog, setShowProductDialog] = useState(false);
   const [showFloorDialog, setShowFloorDialog] = useState(false);
   const [showTableDialog, setShowTableDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [isEditingBusiness, setIsEditingBusiness] = useState(false);
 
   const isRestaurant = tenant?.type === "restaurant";
 
@@ -106,7 +137,30 @@ export default function SettingsPage() {
     defaultValues: { name: "", floorId: "", capacity: 4 },
   });
 
+  const businessForm = useForm({
+    resolver: zodResolver(businessSettingsSchema),
+    defaultValues: {
+      currency: tenant?.currency || "$",
+      taxRate: tenant?.taxRate?.toString() || "0",
+      address: tenant?.address || "",
+      phone: tenant?.phone || "",
+    },
+  });
+
   // Mutations
+  const businessSettingsMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof businessSettingsSchema>) => {
+      return apiRequest("PATCH", "/api/tenant/settings", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Settings updated successfully" });
+      setIsEditingBusiness(false);
+      if (refreshTenant) refreshTenant();
+    },
+    onError: () => {
+      toast({ title: "Failed to update settings", variant: "destructive" });
+    },
+  });
   const categoryMutation = useMutation({
     mutationFn: async (data: z.infer<typeof categorySchema>) => {
       if (editingItem) {
@@ -267,41 +321,169 @@ export default function SettingsPage() {
         {/* Business Settings */}
         <TabsContent value="business" className="mt-6 space-y-6">
           <Card>
-            <CardHeader>
-              <CardTitle>Business Information</CardTitle>
-              <CardDescription>
-                Your business details shown on receipts
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle>Business Information</CardTitle>
+                <CardDescription>
+                  Your business details shown on receipts
+                </CardDescription>
+              </div>
+              {!isEditingBusiness && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    businessForm.reset({
+                      currency: tenant?.currency || "$",
+                      taxRate: tenant?.taxRate?.toString() || "0",
+                      address: tenant?.address || "",
+                      phone: tenant?.phone || "",
+                    });
+                    setIsEditingBusiness(true);
+                  }}
+                  data-testid="button-edit-business"
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Business Name</p>
-                  <p className="font-medium">{tenant?.name || "Not set"}</p>
+              {isEditingBusiness ? (
+                <Form {...businessForm}>
+                  <form onSubmit={businessForm.handleSubmit((data) => businessSettingsMutation.mutate(data))} className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={businessForm.control}
+                        name="currency"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Currency</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-currency">
+                                  <SelectValue placeholder="Select currency" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {CURRENCIES.map((currency) => (
+                                  <SelectItem key={currency.value} value={currency.value}>
+                                    {currency.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={businessForm.control}
+                        name="taxRate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tax Rate (%)</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="0.00"
+                                data-testid="input-tax-rate"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={businessForm.control}
+                        name="address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Address</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                placeholder="Business address"
+                                data-testid="input-business-address"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={businessForm.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                placeholder="Business phone"
+                                data-testid="input-business-phone"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsEditingBusiness(false)}
+                        data-testid="button-cancel-business"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={businessSettingsMutation.isPending}
+                        data-testid="button-save-business"
+                      >
+                        {businessSettingsMutation.isPending && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        Save Changes
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Business Name</p>
+                    <p className="font-medium">{tenant?.name || "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Business Type</p>
+                    <Badge variant="secondary" className="capitalize">
+                      {tenant?.type || "Not set"}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Address</p>
+                    <p className="font-medium">{tenant?.address || "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Phone</p>
+                    <p className="font-medium">{tenant?.phone || "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Currency</p>
+                    <p className="font-medium">{CURRENCIES.find(c => c.value === tenant?.currency)?.label || tenant?.currency || "$"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Tax Rate</p>
+                    <p className="font-medium">{tenant?.taxRate || "0"}%</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Business Type</p>
-                  <Badge variant="secondary" className="capitalize">
-                    {tenant?.type || "Not set"}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Address</p>
-                  <p className="font-medium">{tenant?.address || "Not set"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{tenant?.phone || "Not set"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Currency</p>
-                  <p className="font-medium">{tenant?.currency || "$"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Tax Rate</p>
-                  <p className="font-medium">{tenant?.taxRate || "0"}%</p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
