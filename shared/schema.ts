@@ -41,6 +41,13 @@ export const tenants = pgTable("tenants", {
   matiasClientId: text("matias_client_id"),
   matiasClientSecret: text("matias_client_secret"),
   matiasEnabled: boolean("matias_enabled").default(false),
+  // Receipt settings
+  receiptShowLogo: boolean("receipt_show_logo").default(true),
+  receiptHeaderText: text("receipt_header_text"),
+  receiptFooterText: text("receipt_footer_text"),
+  receiptShowAddress: boolean("receipt_show_address").default(true),
+  receiptShowPhone: boolean("receipt_show_phone").default(true),
+  receiptTaxId: text("receipt_tax_id"),
   trialEndsAt: timestamp("trial_ends_at"),
   suspendedAt: timestamp("suspended_at"),
   suspendedReason: text("suspended_reason"),

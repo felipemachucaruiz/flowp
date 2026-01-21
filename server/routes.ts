@@ -808,7 +808,11 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const { currency, taxRate, address, phone, language } = req.body;
+      const { 
+        currency, taxRate, address, phone, language, logo,
+        receiptShowLogo, receiptHeaderText, receiptFooterText, 
+        receiptShowAddress, receiptShowPhone, receiptTaxId 
+      } = req.body;
       
       const updated = await storage.updateTenant(tenantId, {
         currency: currency || undefined,
@@ -816,6 +820,13 @@ export async function registerRoutes(
         address: address || undefined,
         phone: phone || undefined,
         language: language || undefined,
+        logo: logo !== undefined ? logo : undefined,
+        receiptShowLogo: receiptShowLogo !== undefined ? receiptShowLogo : undefined,
+        receiptHeaderText: receiptHeaderText !== undefined ? receiptHeaderText : undefined,
+        receiptFooterText: receiptFooterText !== undefined ? receiptFooterText : undefined,
+        receiptShowAddress: receiptShowAddress !== undefined ? receiptShowAddress : undefined,
+        receiptShowPhone: receiptShowPhone !== undefined ? receiptShowPhone : undefined,
+        receiptTaxId: receiptTaxId !== undefined ? receiptTaxId : undefined,
       });
       
       if (!updated) {

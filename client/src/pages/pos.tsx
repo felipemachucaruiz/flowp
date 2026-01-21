@@ -4,6 +4,7 @@ import { usePOS } from "@/lib/pos-context";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { printReceipt } from "@/lib/print-receipt";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -141,6 +142,15 @@ export default function POSPage() {
     };
   }, [products, showPaymentDialog, handleBarcodeInput]);
 
+  const pendingReceiptData = useRef<{
+    items: typeof cart;
+    paymentMethod: string;
+    subtotal: number;
+    taxAmount: number;
+    total: number;
+    cashReceived?: number;
+  } | null>(null);
+
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: {
       items: typeof cart;
@@ -149,9 +159,32 @@ export default function POSPage() {
       taxAmount: number;
       total: number;
     }) => {
-      return apiRequest("POST", "/api/orders", orderData);
+      const response = await apiRequest("POST", "/api/orders", orderData);
+      return response.json() as Promise<{ id: string; orderNumber?: string }>;
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      const receiptData = pendingReceiptData.current;
+      if (receiptData) {
+        printReceipt(tenant, {
+          orderNumber: response.orderNumber || response.id.slice(-8).toUpperCase(),
+          date: new Date(),
+          items: receiptData.items.map(item => ({
+            name: item.product.name,
+            quantity: item.quantity,
+            price: parseFloat(item.product.price),
+            total: parseFloat(item.product.price) * item.quantity,
+          })),
+          subtotal: receiptData.subtotal,
+          taxAmount: receiptData.taxAmount,
+          taxRate: taxRate,
+          total: receiptData.total,
+          paymentMethod: receiptData.paymentMethod,
+          cashReceived: receiptData.cashReceived,
+          change: receiptData.cashReceived ? receiptData.cashReceived - receiptData.total : undefined,
+          cashier: user?.name,
+        });
+        pendingReceiptData.current = null;
+      }
       toast({
         title: t("pos.order_completed"),
         description: t("pos.order_success"),
@@ -161,6 +194,7 @@ export default function POSPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
     },
     onError: () => {
+      pendingReceiptData.current = null;
       toast({
         title: t("common.error"),
         description: t("pos.order_error"),
@@ -187,6 +221,11 @@ export default function POSPage() {
       subtotal: getSubtotal(),
       taxAmount: getTaxAmount(taxRate),
       total: getTotal(taxRate),
+    };
+
+    pendingReceiptData.current = {
+      ...orderData,
+      cashReceived: paymentMethod === "cash" ? parseFloat(cashReceived || "0") : undefined,
     };
 
     createOrderMutation.mutate(orderData);

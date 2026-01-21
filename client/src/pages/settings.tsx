@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +62,15 @@ const matiasConfigSchema = z.object({
   apiUrl: z.string().min(1, "API URL is required"),
   clientId: z.string().min(1, "Client ID is required"),
   clientSecret: z.string().min(1, "Client Secret is required"),
+});
+
+const receiptSettingsSchema = z.object({
+  receiptShowLogo: z.boolean().default(true),
+  receiptHeaderText: z.string().optional(),
+  receiptFooterText: z.string().optional(),
+  receiptShowAddress: z.boolean().default(true),
+  receiptShowPhone: z.boolean().default(true),
+  receiptTaxId: z.string().optional(),
 });
 
 const categorySchema = z.object({
@@ -141,6 +152,7 @@ export default function SettingsPage() {
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [productImagePath, setProductImagePath] = useState<string>("");
+  const [receiptLogoPath, setReceiptLogoPath] = useState<string>(tenant?.logo || "");
 
   const { uploadFile, isUploading: isUploadingImage } = useUpload({
     onSuccess: (response) => {
@@ -150,6 +162,22 @@ export default function SettingsPage() {
     },
     onError: (error) => {
       toast({ title: "Failed to upload image", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const { uploadFile: uploadLogoFile, isUploading: isUploadingLogo } = useUpload({
+    onSuccess: async (response) => {
+      setReceiptLogoPath(response.objectPath);
+      try {
+        await apiRequest("PATCH", "/api/tenant/settings", { logo: response.objectPath });
+        if (refreshTenant) refreshTenant();
+        toast({ title: "Logo uploaded successfully" });
+      } catch {
+        toast({ title: "Logo uploaded but failed to save", variant: "destructive" });
+      }
+    },
+    onError: (error) => {
+      toast({ title: "Failed to upload logo", description: error.message, variant: "destructive" });
     },
   });
 
@@ -242,6 +270,18 @@ export default function SettingsPage() {
     },
   });
 
+  const receiptForm = useForm({
+    resolver: zodResolver(receiptSettingsSchema),
+    defaultValues: {
+      receiptShowLogo: tenant?.receiptShowLogo ?? true,
+      receiptHeaderText: tenant?.receiptHeaderText || "",
+      receiptFooterText: tenant?.receiptFooterText || "",
+      receiptShowAddress: tenant?.receiptShowAddress ?? true,
+      receiptShowPhone: tenant?.receiptShowPhone ?? true,
+      receiptTaxId: tenant?.receiptTaxId || "",
+    },
+  });
+
   // Mutations
   const businessSettingsMutation = useMutation({
     mutationFn: async (data: z.infer<typeof businessSettingsSchema>) => {
@@ -254,6 +294,19 @@ export default function SettingsPage() {
     },
     onError: () => {
       toast({ title: "Failed to update settings", variant: "destructive" });
+    },
+  });
+
+  const receiptSettingsMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof receiptSettingsSchema>) => {
+      return apiRequest("PATCH", "/api/tenant/settings", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Receipt settings updated successfully" });
+      if (refreshTenant) refreshTenant();
+    },
+    onError: () => {
+      toast({ title: "Failed to update receipt settings", variant: "destructive" });
     },
   });
 
@@ -982,15 +1035,242 @@ export default function SettingsPage() {
         )}
 
         {/* Printing Settings */}
-        <TabsContent value="printing" className="mt-6">
+        <TabsContent value="printing" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>{t("printing.title")}</CardTitle>
               <CardDescription>
-                {t("printing.subtitle")}
+                Customize your receipt appearance and content
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
+              <Form {...receiptForm}>
+                <form onSubmit={receiptForm.handleSubmit((data) => receiptSettingsMutation.mutate(data))} className="space-y-6">
+                  <div className="space-y-4 mb-6">
+                    <h3 className="text-sm font-medium">Company Logo</h3>
+                    <div className="flex items-start gap-4">
+                      <div className="relative w-32 h-32 rounded-lg border bg-muted/50 flex items-center justify-center overflow-hidden">
+                        {receiptLogoPath ? (
+                          <img
+                            src={receiptLogoPath}
+                            alt="Company Logo"
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          id="receipt-logo-upload"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              await uploadLogoFile(file);
+                            }
+                          }}
+                          data-testid="input-receipt-logo-file"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isUploadingLogo}
+                          onClick={() => document.getElementById("receipt-logo-upload")?.click()}
+                          data-testid="button-upload-receipt-logo"
+                        >
+                          {isUploadingLogo ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Upload className="w-4 h-4 mr-2" />
+                          )}
+                          {receiptLogoPath ? "Change Logo" : "Upload Logo"}
+                        </Button>
+                        {receiptLogoPath && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={async () => {
+                              setReceiptLogoPath("");
+                              await apiRequest("PATCH", "/api/tenant/settings", { logo: "" });
+                              if (refreshTenant) refreshTenant();
+                            }}
+                            data-testid="button-remove-receipt-logo"
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Remove Logo
+                          </Button>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Recommended: 200x200px, PNG or JPG
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-medium">Display Options</h3>
+                      
+                      <FormField
+                        control={receiptForm.control}
+                        name="receiptShowLogo"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                            <div className="space-y-0.5">
+                              <FormLabel>Show Logo</FormLabel>
+                              <FormDescription className="text-xs">
+                                Display your company logo on receipts
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                data-testid="switch-receipt-show-logo"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={receiptForm.control}
+                        name="receiptShowAddress"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                            <div className="space-y-0.5">
+                              <FormLabel>Show Address</FormLabel>
+                              <FormDescription className="text-xs">
+                                Display your business address
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                data-testid="switch-receipt-show-address"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={receiptForm.control}
+                        name="receiptShowPhone"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                            <div className="space-y-0.5">
+                              <FormLabel>Show Phone</FormLabel>
+                              <FormDescription className="text-xs">
+                                Display your contact phone number
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                data-testid="switch-receipt-show-phone"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={receiptForm.control}
+                        name="receiptTaxId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tax ID / NIT</FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                placeholder="Enter your tax identification number"
+                                data-testid="input-receipt-tax-id"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Your business tax ID shown on receipts
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-medium">Custom Text</h3>
+                      
+                      <FormField
+                        control={receiptForm.control}
+                        name="receiptHeaderText"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Header Message</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                {...field} 
+                                placeholder="Welcome message or promotional text"
+                                rows={3}
+                                data-testid="input-receipt-header"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Displayed at the top of the receipt
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={receiptForm.control}
+                        name="receiptFooterText"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Footer Message</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                {...field} 
+                                placeholder="Thank you message, return policy, etc."
+                                rows={3}
+                                data-testid="input-receipt-footer"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              Displayed at the bottom of the receipt
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button 
+                      type="submit" 
+                      disabled={receiptSettingsMutation.isPending}
+                      data-testid="button-save-receipt-settings"
+                    >
+                      {receiptSettingsMutation.isPending && (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      )}
+                      Save Receipt Settings
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Printing Instructions</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="p-4 rounded-lg bg-muted/50 border border-dashed">
                 <div className="flex items-center gap-3 mb-3">
                   <Printer className="w-5 h-5 text-muted-foreground" />
