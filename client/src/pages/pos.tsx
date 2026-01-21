@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { usePOS } from "@/lib/pos-context";
 import { useAuth } from "@/lib/auth-context";
@@ -27,6 +27,7 @@ import {
   Package,
   Receipt,
   Loader2,
+  ScanBarcode,
 } from "lucide-react";
 
 export default function POSPage() {
@@ -51,8 +52,83 @@ export default function POSPage() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
   const [cashReceived, setCashReceived] = useState("");
+  const [barcodeMode, setBarcodeMode] = useState(false);
 
   const taxRate = parseFloat(tenant?.taxRate?.toString() || "0");
+  const barcodeBuffer = useRef("");
+  const barcodeTimeout = useRef<NodeJS.Timeout | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Barcode scanner handler - detects rapid keyboard input
+  const handleBarcodeInput = useCallback((barcode: string, productsList: Product[] | undefined) => {
+    if (!productsList) return;
+    
+    // Find product by SKU/barcode
+    const product = productsList.find(
+      (p) => p.sku?.toLowerCase() === barcode.toLowerCase() && p.isActive
+    );
+    
+    if (product) {
+      addToCart(product);
+      toast({
+        title: "Product added",
+        description: `${product.name} added to cart`,
+      });
+    } else {
+      toast({
+        title: "Product not found",
+        description: `No product found with barcode: ${barcode}`,
+        variant: "destructive",
+      });
+    }
+    
+    // Clear search after barcode scan
+    setSearchQuery("");
+  }, [addToCart, toast]);
+
+  // Listen for barcode scanner input (rapid keypresses ending with Enter)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in payment dialog or other inputs
+      if (showPaymentDialog) return;
+      
+      // Check if we're in barcode mode or if rapid input is detected
+      if (e.key === "Enter" && barcodeBuffer.current.length > 0) {
+        e.preventDefault();
+        handleBarcodeInput(barcodeBuffer.current, products);
+        barcodeBuffer.current = "";
+        return;
+      }
+      
+      // Only capture alphanumeric characters for barcode
+      if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key)) {
+        // Focus is not on the search input, treat as barcode scan
+        if (document.activeElement !== searchInputRef.current) {
+          barcodeBuffer.current += e.key;
+          
+          // Clear buffer after 100ms of no input (barcode scanners are fast)
+          if (barcodeTimeout.current) {
+            clearTimeout(barcodeTimeout.current);
+          }
+          barcodeTimeout.current = setTimeout(() => {
+            // If buffer has enough characters, it's likely a barcode
+            if (barcodeBuffer.current.length >= 4) {
+              handleBarcodeInput(barcodeBuffer.current, products);
+            }
+            barcodeBuffer.current = "";
+          }, 100);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (barcodeTimeout.current) {
+        clearTimeout(barcodeTimeout.current);
+      }
+    };
+  }, [products, showPaymentDialog, handleBarcodeInput]);
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
@@ -91,9 +167,10 @@ export default function POSPage() {
   });
 
   const filteredProducts = products?.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase());
+    const query = searchQuery.toLowerCase();
+    const matchesName = product.name.toLowerCase().includes(query);
+    const matchesSku = product.sku?.toLowerCase().includes(query);
+    const matchesSearch = matchesName || matchesSku;
     const matchesCategory = !selectedCategory || product.categoryId === selectedCategory;
     return matchesSearch && matchesCategory && product.isActive;
   });
@@ -126,15 +203,27 @@ export default function POSPage() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Search and Categories */}
         <div className="p-4 border-b space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-              data-testid="input-search-products"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                ref={searchInputRef}
+                placeholder="Search products or scan barcode..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                data-testid="input-search-products"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              className="shrink-0"
+              title="Barcode scanner ready - just scan!"
+              data-testid="button-barcode-indicator"
+            >
+              <ScanBarcode className="w-4 h-4" />
+            </Button>
           </div>
 
           <ScrollArea className="w-full">
