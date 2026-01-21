@@ -48,7 +48,23 @@ export default function ReportsPage() {
   });
 
   const formatCurrency = (amount: number) => {
-    return `${tenant?.currency || "$"}${amount.toFixed(2)}`;
+    const currency = tenant?.currency || "USD";
+    const localeMap: Record<string, string> = {
+      COP: "es-CO", MXN: "es-MX", ARS: "es-AR", PEN: "es-PE", CLP: "es-CL",
+      EUR: "de-DE", GBP: "en-GB", JPY: "ja-JP", CNY: "zh-CN", KRW: "ko-KR",
+      USD: "en-US", CAD: "en-CA", AUD: "en-AU", BRL: "pt-BR",
+    };
+    const locale = localeMap[currency] || "en-US";
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: currency,
+        minimumFractionDigits: ["COP", "CLP", "JPY", "KRW"].includes(currency) ? 0 : 2,
+        maximumFractionDigits: ["COP", "CLP", "JPY", "KRW"].includes(currency) ? 0 : 2,
+      }).format(amount);
+    } catch {
+      return `${currency} ${amount.toFixed(2)}`;
+    }
   };
 
   if (isLoading) {

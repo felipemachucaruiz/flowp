@@ -237,6 +237,7 @@ export async function registerRoutes(
       const product = await storage.createProduct(data);
       res.json(product);
     } catch (error) {
+      console.error("Product creation error:", error);
       res.status(400).json({ message: "Failed to create product" });
     }
   });

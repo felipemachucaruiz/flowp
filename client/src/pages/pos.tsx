@@ -191,7 +191,35 @@ export default function POSPage() {
   };
 
   const formatCurrency = (amount: number) => {
-    return `${tenant?.currency || "$"}${amount.toFixed(2)}`;
+    const currency = tenant?.currency || "USD";
+    // Map currency codes to locales for proper formatting
+    const localeMap: Record<string, string> = {
+      COP: "es-CO",
+      MXN: "es-MX",
+      ARS: "es-AR",
+      PEN: "es-PE",
+      CLP: "es-CL",
+      EUR: "de-DE",
+      GBP: "en-GB",
+      JPY: "ja-JP",
+      CNY: "zh-CN",
+      KRW: "ko-KR",
+      USD: "en-US",
+      CAD: "en-CA",
+      AUD: "en-AU",
+      BRL: "pt-BR",
+    };
+    const locale = localeMap[currency] || "en-US";
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: currency,
+        minimumFractionDigits: currency === "COP" || currency === "CLP" || currency === "JPY" || currency === "KRW" ? 0 : 2,
+        maximumFractionDigits: currency === "COP" || currency === "CLP" || currency === "JPY" || currency === "KRW" ? 0 : 2,
+      }).format(amount);
+    } catch {
+      return `${currency} ${amount.toFixed(2)}`;
+    }
   };
 
   const changeAmount = paymentMethod === "cash" && cashReceived
@@ -280,13 +308,24 @@ export default function POSPage() {
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="flex flex-col items-center justify-center p-4 rounded-lg border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[100px]"
+                  className="flex flex-col items-center justify-center p-3 rounded-lg border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[120px]"
                   data-testid={`button-product-${product.id}`}
                 >
-                  <span className="font-medium text-sm text-center line-clamp-2 mb-2">
+                  {product.image ? (
+                    <img 
+                      src={product.image} 
+                      alt={product.name}
+                      className="w-12 h-12 object-cover rounded mb-2"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-muted rounded mb-2 flex items-center justify-center">
+                      <Package className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <span className="font-medium text-sm text-center line-clamp-2 mb-1">
                     {product.name}
                   </span>
-                  <span className="text-primary font-semibold">
+                  <span className="text-primary font-semibold text-sm">
                     {formatCurrency(parseFloat(product.price))}
                   </span>
                 </button>

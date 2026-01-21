@@ -1,6 +1,7 @@
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-provider";
+import { useI18n } from "@/lib/i18n";
 import {
   Sidebar,
   SidebarContent,
@@ -41,41 +42,42 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { user, tenant, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { t } = useI18n();
 
   const isRestaurant = tenant?.type === "restaurant";
 
   const mainMenuItems = [
     {
-      title: "Point of Sale",
+      title: t("nav.pos"),
       url: "/pos",
       icon: ShoppingCart,
     },
     ...(isRestaurant
       ? [
           {
-            title: "Tables",
+            title: t("nav.tables"),
             url: "/tables",
             icon: LayoutGrid,
           },
           {
-            title: "Kitchen",
+            title: t("nav.kitchen"),
             url: "/kitchen",
             icon: ChefHat,
           },
         ]
       : []),
     {
-      title: "Inventory",
+      title: t("nav.inventory"),
       url: "/inventory",
       icon: Package,
     },
     {
-      title: "Reports",
+      title: t("nav.reports"),
       url: "/reports",
       icon: BarChart3,
     },
     {
-      title: "Settings",
+      title: t("nav.settings"),
       url: "/settings",
       icon: Settings,
     },
@@ -185,7 +187,7 @@ export function AppSidebar() {
                   data-testid="button-logout"
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  Sign Out
+                  {t("nav.logout")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

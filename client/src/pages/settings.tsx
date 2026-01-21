@@ -50,6 +50,7 @@ const productSchema = z.object({
   sku: z.string().optional(),
   barcode: z.string().optional(),
   description: z.string().optional(),
+  image: z.string().optional(),
 });
 
 const floorSchema = z.object({
@@ -141,7 +142,7 @@ export default function SettingsPage() {
 
   const productForm = useForm({
     resolver: zodResolver(productSchema),
-    defaultValues: { name: "", categoryId: "", price: "", sku: "", barcode: "", description: "" },
+    defaultValues: { name: "", categoryId: "", price: "", sku: "", barcode: "", description: "", image: "" },
   });
 
   const floorForm = useForm({
@@ -976,6 +977,19 @@ export default function SettingsPage() {
                   )}
                 />
               </div>
+              <FormField
+                control={productForm.control}
+                name="image"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Image URL</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="https://example.com/image.jpg" data-testid="input-product-image" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setShowProductDialog(false)}>
                   Cancel

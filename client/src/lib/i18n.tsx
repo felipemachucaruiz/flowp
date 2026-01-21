@@ -1080,13 +1080,21 @@ interface I18nContextType {
 const I18nContext = createContext<I18nContextType | null>(null);
 
 export function I18nProvider({ children, initialLanguage = "en" }: { children: ReactNode; initialLanguage?: string }) {
-  const [language, setLanguage] = useState<Language>((initialLanguage as Language) || "en");
+  const validLang = (initialLanguage && initialLanguage in translations) ? initialLanguage as Language : "en";
+  const [language, setLanguageState] = useState<Language>(validLang);
 
+  // Sync with initialLanguage prop changes (e.g., when tenant language is updated)
   useEffect(() => {
     if (initialLanguage && initialLanguage in translations) {
-      setLanguage(initialLanguage as Language);
+      setLanguageState(initialLanguage as Language);
     }
   }, [initialLanguage]);
+
+  const setLanguage = (lang: Language) => {
+    if (lang in translations) {
+      setLanguageState(lang);
+    }
+  };
 
   const t = (key: TranslationKey): string => {
     const translation = translations[language]?.[key];
