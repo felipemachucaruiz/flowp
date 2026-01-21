@@ -49,6 +49,7 @@ const translations = {
     "settings.floors": "Floors",
     "settings.tables": "Tables",
     "settings.printing": "Printing",
+    "settings.invoicing": "Invoicing",
     
     // Business Settings
     "business.title": "Business Information",
@@ -182,6 +183,7 @@ const translations = {
     "settings.floors": "Pisos",
     "settings.tables": "Mesas",
     "settings.printing": "Impresión",
+    "settings.invoicing": "Facturación",
     
     // Business Settings
     "business.title": "Información del Negocio",
@@ -315,6 +317,7 @@ const translations = {
     "settings.floors": "Andares",
     "settings.tables": "Mesas",
     "settings.printing": "Impressão",
+    "settings.invoicing": "Faturação",
     
     // Business Settings
     "business.title": "Informações do Negócio",
@@ -448,6 +451,7 @@ const translations = {
     "settings.floors": "Étages",
     "settings.tables": "Tables",
     "settings.printing": "Impression",
+    "settings.invoicing": "Facturation",
     
     // Business Settings
     "business.title": "Informations de l'Entreprise",
@@ -581,6 +585,7 @@ const translations = {
     "settings.floors": "Etagen",
     "settings.tables": "Tische",
     "settings.printing": "Druck",
+    "settings.invoicing": "Rechnungsstellung",
     
     // Business Settings
     "business.title": "Geschäftsinformationen",
@@ -714,6 +719,7 @@ const translations = {
     "settings.floors": "楼层",
     "settings.tables": "餐桌",
     "settings.printing": "打印",
+    "settings.invoicing": "开票",
     
     // Business Settings
     "business.title": "业务信息",
@@ -847,6 +853,7 @@ const translations = {
     "settings.floors": "フロア",
     "settings.tables": "テーブル",
     "settings.printing": "印刷",
+    "settings.invoicing": "請求書",
     
     // Business Settings
     "business.title": "ビジネス情報",
@@ -980,6 +987,7 @@ const translations = {
     "settings.floors": "층",
     "settings.tables": "테이블",
     "settings.printing": "인쇄",
+    "settings.invoicing": "송장",
     
     // Business Settings
     "business.title": "비즈니스 정보",

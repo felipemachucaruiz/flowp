@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
+import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,6 +126,7 @@ const LANGUAGES = [
 export default function SettingsPage() {
   const { toast } = useToast();
   const { tenant, refreshTenant } = useAuth();
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("business");
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [showProductDialog, setShowProductDialog] = useState(false);
@@ -437,9 +439,9 @@ export default function SettingsPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("settings.title")}</h1>
         <p className="text-muted-foreground">
-          Configure your business and POS system
+          {t("settings.subtitle")}
         </p>
       </div>
 
@@ -447,29 +449,29 @@ export default function SettingsPage() {
         <TabsList className="flex-wrap">
           <TabsTrigger value="business" data-testid="tab-business">
             <Store className="w-4 h-4 mr-2" />
-            Business
+            {t("settings.business")}
           </TabsTrigger>
           <TabsTrigger value="products" data-testid="tab-products">
             <Package className="w-4 h-4 mr-2" />
-            Products
+            {t("settings.products")}
           </TabsTrigger>
           {isRestaurant && (
             <TabsTrigger value="tables" data-testid="tab-tables">
               <LayoutGrid className="w-4 h-4 mr-2" />
-              Tables
+              {t("settings.tables")}
             </TabsTrigger>
           )}
           <TabsTrigger value="printing" data-testid="tab-printing">
             <Printer className="w-4 h-4 mr-2" />
-            Printing
+            {t("settings.printing")}
           </TabsTrigger>
           <TabsTrigger value="invoicing" data-testid="tab-invoicing">
             <FileText className="w-4 h-4 mr-2" />
-            Facturación
+            {t("settings.invoicing")}
           </TabsTrigger>
           <TabsTrigger value="users" data-testid="tab-users">
             <Users className="w-4 h-4 mr-2" />
-            Users
+            {t("settings.users")}
           </TabsTrigger>
         </TabsList>
 
@@ -478,9 +480,9 @@ export default function SettingsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Business Information</CardTitle>
+                <CardTitle>{t("business.title")}</CardTitle>
                 <CardDescription>
-                  Your business details shown on receipts
+                  {t("business.subtitle")}
                 </CardDescription>
               </div>
               {!isEditingBusiness && (
@@ -500,7 +502,7 @@ export default function SettingsPage() {
                   data-testid="button-edit-business"
                 >
                   <Pencil className="w-4 h-4 mr-2" />
-                  Edit
+                  {t("business.edit")}
                 </Button>
               )}
             </CardHeader>
@@ -513,7 +515,7 @@ export default function SettingsPage() {
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Company Name</FormLabel>
+                          <FormLabel>{t("business.name")}</FormLabel>
                           <FormControl>
                             <Input {...field} data-testid="input-company-name" />
                           </FormControl>
@@ -527,7 +529,7 @@ export default function SettingsPage() {
                         name="currency"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Currency</FormLabel>
+                            <FormLabel>{t("business.currency")}</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-currency">
@@ -551,7 +553,7 @@ export default function SettingsPage() {
                         name="taxRate"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Tax Rate (%)</FormLabel>
+                            <FormLabel>{t("business.tax_rate")}</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
@@ -572,7 +574,7 @@ export default function SettingsPage() {
                         name="address"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Address</FormLabel>
+                            <FormLabel>{t("business.address")}</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
@@ -589,7 +591,7 @@ export default function SettingsPage() {
                         name="phone"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Phone</FormLabel>
+                            <FormLabel>{t("business.phone")}</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
@@ -606,7 +608,7 @@ export default function SettingsPage() {
                         name="language"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Language</FormLabel>
+                            <FormLabel>{t("business.language")}</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-language">
@@ -633,7 +635,7 @@ export default function SettingsPage() {
                         onClick={() => setIsEditingBusiness(false)}
                         data-testid="button-cancel-business"
                       >
-                        Cancel
+                        {t("business.cancel")}
                       </Button>
                       <Button
                         type="submit"
@@ -643,7 +645,7 @@ export default function SettingsPage() {
                         {businessSettingsMutation.isPending && (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         )}
-                        Save Changes
+                        {t("business.save")}
                       </Button>
                     </div>
                   </form>
@@ -651,33 +653,33 @@ export default function SettingsPage() {
               ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Business Name</p>
-                    <p className="font-medium">{tenant?.name || "Not set"}</p>
+                    <p className="text-sm text-muted-foreground">{t("business.name")}</p>
+                    <p className="font-medium">{tenant?.name || t("business.not_set")}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Business Type</p>
+                    <p className="text-sm text-muted-foreground">{t("business.type")}</p>
                     <Badge variant="secondary" className="capitalize">
                       {tenant?.type || "Not set"}
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Address</p>
-                    <p className="font-medium">{tenant?.address || "Not set"}</p>
+                    <p className="text-sm text-muted-foreground">{t("business.address")}</p>
+                    <p className="font-medium">{tenant?.address || t("business.not_set")}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Phone</p>
-                    <p className="font-medium">{tenant?.phone || "Not set"}</p>
+                    <p className="text-sm text-muted-foreground">{t("business.phone")}</p>
+                    <p className="font-medium">{tenant?.phone || t("business.not_set")}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Currency</p>
+                    <p className="text-sm text-muted-foreground">{t("business.currency")}</p>
                     <p className="font-medium">{CURRENCIES.find(c => c.value === tenant?.currency)?.label || tenant?.currency || "$"}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Tax Rate</p>
+                    <p className="text-sm text-muted-foreground">{t("business.tax_rate")}</p>
                     <p className="font-medium">{tenant?.taxRate || "0"}%</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Language</p>
+                    <p className="text-sm text-muted-foreground">{t("business.language")}</p>
                     <p className="font-medium">{LANGUAGES.find(l => l.value === tenant?.language)?.label || tenant?.language || "English"}</p>
                   </div>
                 </div>
