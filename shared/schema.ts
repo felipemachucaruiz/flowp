@@ -11,6 +11,7 @@ export const orderStatusEnum = pgEnum("order_status", ["pending", "in_progress",
 export const kitchenTicketStatusEnum = pgEnum("kitchen_ticket_status", ["new", "preparing", "ready", "served"]);
 export const stockMovementTypeEnum = pgEnum("stock_movement_type", ["sale", "return", "purchase", "adjustment", "waste", "transfer"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "split"]);
+export const customerIdTypeEnum = pgEnum("customer_id_type", ["pasaporte", "cedula_ciudadania", "cedula_extranjeria", "nit"]);
 
 // Portal enums
 export const tenantStatusEnum = pgEnum("tenant_status", ["trial", "active", "past_due", "suspended", "cancelled"]);
@@ -169,12 +170,27 @@ export const tables = pgTable("tables", {
   posY: integer("pos_y").default(0),
 });
 
+// Customers
+export const customers = pgTable("customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  idType: customerIdTypeEnum("id_type"),
+  idNumber: text("id_number"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Orders
 export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   registerId: varchar("register_id").references(() => registers.id),
   userId: varchar("user_id").references(() => users.id).notNull(),
+  customerId: varchar("customer_id").references(() => customers.id),
   tableId: varchar("table_id").references(() => tables.id),
   orderNumber: integer("order_number").notNull(),
   status: orderStatusEnum("status").default("pending"),
@@ -536,6 +552,7 @@ export const insertCategorySchema = createInsertSchema(categories).omit({ id: tr
 export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true });
 export const insertFloorSchema = createInsertSchema(floors).omit({ id: true });
 export const insertTableSchema = createInsertSchema(tables).omit({ id: true });
+export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, completedAt: true });
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });
 export const insertKitchenTicketSchema = createInsertSchema(kitchenTickets).omit({ id: true, createdAt: true, startedAt: true, completedAt: true });
@@ -579,6 +596,8 @@ export type Category = typeof categories.$inferSelect;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type Customer = typeof customers.$inferSelect;
+export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 export type ModifierGroup = typeof modifierGroups.$inferSelect;
 export type InsertModifierGroup = z.infer<typeof insertModifierGroupSchema>;
 export type Modifier = typeof modifiers.$inferSelect;
