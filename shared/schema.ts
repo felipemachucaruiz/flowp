@@ -38,10 +38,6 @@ export const tenants = pgTable("tenants", {
   taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("0"),
   language: text("language").default("en"),
   timezone: text("timezone").default("America/Bogota"),
-  matiasApiUrl: text("matias_api_url"),
-  matiasClientId: text("matias_client_id"),
-  matiasClientSecret: text("matias_client_secret"),
-  matiasEnabled: boolean("matias_enabled").default(false),
   // Receipt settings
   receiptShowLogo: boolean("receipt_show_logo").default(true),
   receiptHeaderText: text("receipt_header_text"),
