@@ -68,7 +68,6 @@ const receiptSettingsSchema = z.object({
   receiptFooterText: z.string().optional(),
   receiptShowAddress: z.boolean().default(true),
   receiptShowPhone: z.boolean().default(true),
-  receiptTaxId: z.string().optional(),
 });
 
 const categorySchema = z.object({
@@ -272,7 +271,6 @@ export default function SettingsPage() {
       receiptFooterText: tenant?.receiptFooterText || "",
       receiptShowAddress: tenant?.receiptShowAddress ?? true,
       receiptShowPhone: tenant?.receiptShowPhone ?? true,
-      receiptTaxId: tenant?.receiptTaxId || "",
     },
   });
 
@@ -1148,69 +1146,10 @@ export default function SettingsPage() {
             <CardContent>
               <Form {...receiptForm}>
                 <form onSubmit={receiptForm.handleSubmit((data) => receiptSettingsMutation.mutate(data))} className="space-y-6">
-                  <div className="space-y-4 mb-6">
-                    <h3 className="text-sm font-medium">Company Logo</h3>
-                    <div className="flex items-start gap-4">
-                      <div className="relative w-32 h-32 rounded-lg border bg-muted/50 flex items-center justify-center overflow-hidden">
-                        {receiptLogoPath ? (
-                          <img
-                            src={receiptLogoPath}
-                            alt="Company Logo"
-                            className="w-full h-full object-contain"
-                          />
-                        ) : (
-                          <ImageIcon className="w-8 h-8 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          id="receipt-logo-upload"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              await uploadLogoFile(file);
-                            }
-                          }}
-                          data-testid="input-receipt-logo-file"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={isUploadingLogo}
-                          onClick={() => document.getElementById("receipt-logo-upload")?.click()}
-                          data-testid="button-upload-receipt-logo"
-                        >
-                          {isUploadingLogo ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          ) : (
-                            <Upload className="w-4 h-4 mr-2" />
-                          )}
-                          {receiptLogoPath ? "Change Logo" : "Upload Logo"}
-                        </Button>
-                        {receiptLogoPath && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={async () => {
-                              setReceiptLogoPath("");
-                              await apiRequest("PATCH", "/api/settings", { logo: "" });
-                              if (refreshTenant) refreshTenant();
-                            }}
-                            data-testid="button-remove-receipt-logo"
-                          >
-                            <X className="w-4 h-4 mr-2" />
-                            Remove Logo
-                          </Button>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                          Recommended: 200x200px, PNG or JPG
-                        </p>
-                      </div>
-                    </div>
+                  <div className="p-3 rounded-lg bg-muted/50 border mb-4">
+                    <p className="text-sm text-muted-foreground">
+                      Logo, address, phone, and Tax ID are set in the Business Information tab above.
+                    </p>
                   </div>
 
                   <div className="grid gap-6 md:grid-cols-2">
@@ -1283,25 +1222,6 @@ export default function SettingsPage() {
                         )}
                       />
 
-                      <FormField
-                        control={receiptForm.control}
-                        name="receiptTaxId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Tax ID / NIT</FormLabel>
-                            <FormControl>
-                              <Input 
-                                {...field} 
-                                placeholder="Enter your tax identification number"
-                                data-testid="input-receipt-tax-id"
-                              />
-                            </FormControl>
-                            <FormDescription className="text-xs">
-                              Your business tax ID shown on receipts
-                            </FormDescription>
-                          </FormItem>
-                        )}
-                      />
                     </div>
 
                     <div className="space-y-4">
