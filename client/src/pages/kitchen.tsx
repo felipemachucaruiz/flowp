@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,16 +19,17 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
-  new: { color: "bg-red-500", icon: AlertCircle, label: "New" },
-  preparing: { color: "bg-yellow-500", icon: PlayCircle, label: "Preparing" },
-  ready: { color: "bg-green-500", icon: CheckCircle2, label: "Ready" },
-  served: { color: "bg-gray-500", icon: CheckCircle2, label: "Served" },
-};
-
 export default function KitchenPage() {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
+    new: { color: "bg-red-500", icon: AlertCircle, label: t("kitchen.new") },
+    preparing: { color: "bg-yellow-500", icon: PlayCircle, label: t("kitchen.preparing") },
+    ready: { color: "bg-green-500", icon: CheckCircle2, label: t("kitchen.ready") },
+    served: { color: "bg-gray-500", icon: CheckCircle2, label: t("kitchen.served") },
+  };
 
   // Update current time every second for elapsed time calculation
   useEffect(() => {
@@ -67,8 +69,8 @@ export default function KitchenPage() {
 
     updateTicketMutation.mutate({ ticketId, status: nextStatus });
     toast({
-      title: "Ticket updated",
-      description: `Ticket moved to ${statusConfig[nextStatus]?.label || nextStatus}`,
+      title: t("kitchen.ticket_updated"),
+      description: `${t("kitchen.ticket_moved_to")} ${statusConfig[nextStatus]?.label || nextStatus}`,
     });
   };
 
@@ -129,7 +131,7 @@ export default function KitchenPage() {
                 {config.label}
               </Badge>
               {ticket.tableId && (
-                <Badge variant="outline">Table</Badge>
+                <Badge variant="outline">{t("kitchen.table")}</Badge>
               )}
             </div>
             <div
@@ -169,7 +171,7 @@ export default function KitchenPage() {
                   )}
                   {item.notes && (
                     <p className="text-sm text-muted-foreground mt-1 italic">
-                      Note: {item.notes}
+                      {t("kitchen.note")}: {item.notes}
                     </p>
                   )}
                 </div>
@@ -189,19 +191,19 @@ export default function KitchenPage() {
               {ticket.status === "new" && (
                 <>
                   <PlayCircle className="w-4 h-4 mr-2" />
-                  Start Preparing
+                  {t("kitchen.start_preparing")}
                 </>
               )}
               {ticket.status === "preparing" && (
                 <>
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Mark Ready
+                  {t("kitchen.mark_ready")}
                 </>
               )}
               {ticket.status === "ready" && (
                 <>
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Mark Served
+                  {t("kitchen.mark_served")}
                 </>
               )}
             </Button>
@@ -220,9 +222,9 @@ export default function KitchenPage() {
             <ChefHat className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Kitchen Display</h1>
+            <h1 className="text-xl font-bold">{t("kitchen.title")}</h1>
             <p className="text-sm text-muted-foreground">
-              {activeTickets.length} active tickets
+              {activeTickets.length} {t("kitchen.active_tickets")}
             </p>
           </div>
         </div>
@@ -243,21 +245,21 @@ export default function KitchenPage() {
         <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10">
           <AlertCircle className="w-6 h-6 text-red-500" />
           <div>
-            <p className="text-sm text-muted-foreground">New</p>
+            <p className="text-sm text-muted-foreground">{t("kitchen.new")}</p>
             <p className="text-2xl font-bold text-red-500">{newTickets.length}</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10">
           <PlayCircle className="w-6 h-6 text-yellow-600" />
           <div>
-            <p className="text-sm text-muted-foreground">Preparing</p>
+            <p className="text-sm text-muted-foreground">{t("kitchen.preparing")}</p>
             <p className="text-2xl font-bold text-yellow-600">{preparingTickets.length}</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10">
           <CheckCircle2 className="w-6 h-6 text-green-500" />
           <div>
-            <p className="text-sm text-muted-foreground">Ready</p>
+            <p className="text-sm text-muted-foreground">{t("kitchen.ready")}</p>
             <p className="text-2xl font-bold text-green-500">{readyTickets.length}</p>
           </div>
         </div>
@@ -268,8 +270,8 @@ export default function KitchenPage() {
         {activeTickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <ChefHat className="w-16 h-16 mb-4 opacity-30" />
-            <p className="text-xl font-medium">No active orders</p>
-            <p className="text-sm">New orders will appear here automatically</p>
+            <p className="text-xl font-medium">{t("kitchen.no_active_orders")}</p>
+            <p className="text-sm">{t("kitchen.orders_appear_here")}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 h-full">
@@ -278,7 +280,7 @@ export default function KitchenPage() {
               <div className="p-3 bg-red-500/10 border-b">
                 <h2 className="font-semibold flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-red-500" />
-                  New Orders ({newTickets.length})
+                  {t("kitchen.new_orders")} ({newTickets.length})
                 </h2>
               </div>
               <ScrollArea className="flex-1 p-3">
@@ -295,7 +297,7 @@ export default function KitchenPage() {
               <div className="p-3 bg-yellow-500/10 border-b">
                 <h2 className="font-semibold flex items-center gap-2">
                   <PlayCircle className="w-4 h-4 text-yellow-600" />
-                  Preparing ({preparingTickets.length})
+                  {t("kitchen.preparing")} ({preparingTickets.length})
                 </h2>
               </div>
               <ScrollArea className="flex-1 p-3">
@@ -312,7 +314,7 @@ export default function KitchenPage() {
               <div className="p-3 bg-green-500/10 border-b">
                 <h2 className="font-semibold flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-green-500" />
-                  Ready ({readyTickets.length})
+                  {t("kitchen.ready")} ({readyTickets.length})
                 </h2>
               </div>
               <ScrollArea className="flex-1 p-3">

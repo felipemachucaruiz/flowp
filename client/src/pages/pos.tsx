@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { usePOS } from "@/lib/pos-context";
 import { useAuth } from "@/lib/auth-context";
+import { useI18n } from "@/lib/i18n";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,7 @@ import {
 
 export default function POSPage() {
   const { toast } = useToast();
+  const { t } = useI18n();
   const { tenant, user } = useAuth();
   const {
     cart,
@@ -80,13 +82,13 @@ export default function POSPage() {
     if (product) {
       addToCart(product);
       toast({
-        title: "Product added",
-        description: `${product.name} added to cart`,
+        title: t("pos.product_added"),
+        description: `${product.name} ${t("pos.added_to_cart")}`,
       });
     } else {
       toast({
-        title: "Product not found",
-        description: `No product found with barcode: ${barcode}`,
+        title: t("pos.product_not_found"),
+        description: `${t("pos.no_product_barcode")}: ${barcode}`,
         variant: "destructive",
       });
     }
@@ -151,8 +153,8 @@ export default function POSPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Order completed!",
-        description: "The order has been processed successfully.",
+        title: t("pos.order_completed"),
+        description: t("pos.order_success"),
       });
       clearCart();
       setShowPaymentDialog(false);
@@ -160,8 +162,8 @@ export default function POSPage() {
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to process order. Please try again.",
+        title: t("common.error"),
+        description: t("pos.order_error"),
         variant: "destructive",
       });
     },
@@ -237,7 +239,7 @@ export default function POSPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 ref={searchInputRef}
-                placeholder="Search products or scan barcode..."
+                placeholder={t("pos.search_placeholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -263,7 +265,7 @@ export default function POSPage() {
                 onClick={() => setSelectedCategory(null)}
                 data-testid="button-category-all"
               >
-                All
+                {t("pos.all")}
               </Button>
               {categoriesLoading ? (
                 <>
@@ -299,8 +301,8 @@ export default function POSPage() {
           ) : filteredProducts?.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
               <Package className="w-12 h-12 mb-4 opacity-50" />
-              <p className="text-lg font-medium">No products found</p>
-              <p className="text-sm">Try adjusting your search or category filter</p>
+              <p className="text-lg font-medium">{t("pos.no_products")}</p>
+              <p className="text-sm">{t("pos.adjust_search")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
@@ -339,7 +341,7 @@ export default function POSPage() {
           <div className="p-4 border-t bg-muted/30">
             <div className="flex items-center gap-2 mb-2">
               <Pause className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Held Orders</span>
+              <span className="text-sm font-medium">{t("pos.held_orders")}</span>
             </div>
             <div className="flex gap-2 flex-wrap">
               {heldOrders.map((order, index) => (
@@ -350,7 +352,7 @@ export default function POSPage() {
                   onClick={() => resumeOrder(order.id)}
                   data-testid={`button-held-order-${order.id}`}
                 >
-                  Order #{index + 1} ({order.items.length} items)
+                  {t("pos.order")} #{index + 1} ({order.items.length} {t("pos.items")})
                 </Button>
               ))}
             </div>
@@ -364,10 +366,10 @@ export default function POSPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5 text-primary" />
-              <h2 className="font-semibold">Current Order</h2>
+              <h2 className="font-semibold">{t("pos.current_order")}</h2>
             </div>
             {cart.length > 0 && (
-              <Badge variant="secondary">{cart.length} items</Badge>
+              <Badge variant="secondary">{cart.length} {t("pos.items")}</Badge>
             )}
           </div>
         </div>
@@ -375,9 +377,9 @@ export default function POSPage() {
         {cart.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-muted-foreground">
             <Receipt className="w-16 h-16 mb-4 opacity-30" />
-            <p className="text-center font-medium">No items yet</p>
+            <p className="text-center font-medium">{t("pos.no_items")}</p>
             <p className="text-sm text-center mt-1">
-              Tap products to add them to the order
+              {t("pos.tap_products")}
             </p>
           </div>
         ) : (
@@ -392,7 +394,7 @@ export default function POSPage() {
                           {item.product.name}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          {formatCurrency(parseFloat(item.product.price))} each
+                          {formatCurrency(parseFloat(item.product.price))} {t("pos.each")}
                         </p>
                         {item.modifiers.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1">

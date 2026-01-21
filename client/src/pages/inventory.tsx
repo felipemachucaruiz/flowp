@@ -4,6 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +42,7 @@ type AdjustmentFormData = z.infer<typeof adjustmentSchema>;
 
 export default function InventoryPage() {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
@@ -69,8 +71,8 @@ export default function InventoryPage() {
     },
     onSuccess: () => {
       toast({
-        title: "Stock adjusted",
-        description: "Inventory has been updated successfully.",
+        title: t("inventory.stock_adjusted"),
+        description: t("inventory.stock_updated_success"),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/levels"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/movements"] });
@@ -79,8 +81,8 @@ export default function InventoryPage() {
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to adjust stock. Please try again.",
+        title: t("common.error"),
+        description: t("inventory.stock_adjust_error"),
         variant: "destructive",
       });
     },
@@ -104,9 +106,9 @@ export default function InventoryPage() {
   const getStockLevel = (productId: string) => stockLevels?.[productId] || 0;
 
   const getStockStatus = (level: number) => {
-    if (level <= 0) return { color: "bg-red-500", label: "Out of Stock" };
-    if (level <= 10) return { color: "bg-yellow-500", label: "Low Stock" };
-    return { color: "bg-green-500", label: "In Stock" };
+    if (level <= 0) return { color: "bg-red-500", label: t("inventory.out_of_stock") };
+    if (level <= 10) return { color: "bg-yellow-500", label: t("inventory.low_stock") };
+    return { color: "bg-green-500", label: t("inventory.in_stock") };
   };
 
   const handleAdjustStock = (product: Product, direction: "add" | "remove") => {
@@ -157,9 +159,9 @@ export default function InventoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("inventory.title")}</h1>
           <p className="text-muted-foreground">
-            Manage stock levels and track movements
+            {t("inventory.subtitle")}
           </p>
         </div>
       </div>
@@ -170,7 +172,7 @@ export default function InventoryPage() {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Products</p>
+                <p className="text-sm text-muted-foreground">{t("inventory.total_products")}</p>
                 <p className="text-2xl font-bold">{stats.totalProducts}</p>
               </div>
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -183,7 +185,7 @@ export default function InventoryPage() {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Low Stock</p>
+                <p className="text-sm text-muted-foreground">{t("inventory.low_stock")}</p>
                 <p className="text-2xl font-bold text-yellow-600">{stats.lowStock}</p>
               </div>
               <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
@@ -196,7 +198,7 @@ export default function InventoryPage() {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Out of Stock</p>
+                <p className="text-sm text-muted-foreground">{t("inventory.out_of_stock")}</p>
                 <p className="text-2xl font-bold text-red-500">{stats.outOfStock}</p>
               </div>
               <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
@@ -209,8 +211,8 @@ export default function InventoryPage() {
 
       <Tabs defaultValue="products">
         <TabsList>
-          <TabsTrigger value="products" data-testid="tab-products">Products</TabsTrigger>
-          <TabsTrigger value="movements" data-testid="tab-movements">History</TabsTrigger>
+          <TabsTrigger value="products" data-testid="tab-products">{t("nav.products")}</TabsTrigger>
+          <TabsTrigger value="movements" data-testid="tab-movements">{t("inventory.history")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="products" className="mt-4 space-y-4">
@@ -218,7 +220,7 @@ export default function InventoryPage() {
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name, SKU, or barcode..."
+              placeholder={t("inventory.search_placeholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -236,8 +238,8 @@ export default function InventoryPage() {
           ) : filteredProducts?.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Package className="w-12 h-12 mb-4 opacity-30" />
-              <p className="font-medium">No products found</p>
-              <p className="text-sm">Try adjusting your search</p>
+              <p className="font-medium">{t("inventory.no_products")}</p>
+              <p className="text-sm">{t("inventory.adjust_search")}</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -309,8 +311,8 @@ export default function InventoryPage() {
           ) : movements?.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <History className="w-12 h-12 mb-4 opacity-30" />
-              <p className="font-medium">No movements yet</p>
-              <p className="text-sm">Stock adjustments will appear here</p>
+              <p className="font-medium">{t("inventory.no_movements")}</p>
+              <p className="text-sm">{t("inventory.movements_appear_here")}</p>
             </div>
           ) : (
             <ScrollArea className="h-[500px]">
@@ -366,7 +368,7 @@ export default function InventoryPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {adjustmentDirection === "add" ? "Add Stock" : "Remove Stock"}
+              {adjustmentDirection === "add" ? t("inventory.add_stock") : t("inventory.remove_stock")}
             </DialogTitle>
           </DialogHeader>
 
@@ -376,7 +378,7 @@ export default function InventoryPage() {
                 <div className="p-3 rounded-lg bg-muted">
                   <p className="font-medium">{selectedProduct.name}</p>
                   <p className="text-sm text-muted-foreground">
-                    Current stock: {getStockLevel(selectedProduct.id)}
+                    {t("inventory.current_stock")}: {getStockLevel(selectedProduct.id)}
                   </p>
                 </div>
 
@@ -385,23 +387,23 @@ export default function InventoryPage() {
                   name="type"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Reason</FormLabel>
+                      <FormLabel>{t("inventory.reason")}</FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-adjustment-type">
-                            <SelectValue placeholder="Select reason" />
+                            <SelectValue placeholder={t("inventory.select_reason")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {adjustmentDirection === "add" ? (
                             <>
-                              <SelectItem value="purchase">Purchase / Receiving</SelectItem>
-                              <SelectItem value="adjustment">Adjustment</SelectItem>
+                              <SelectItem value="purchase">{t("inventory.purchase")}</SelectItem>
+                              <SelectItem value="adjustment">{t("inventory.adjustment")}</SelectItem>
                             </>
                           ) : (
                             <>
-                              <SelectItem value="adjustment">Adjustment</SelectItem>
-                              <SelectItem value="waste">Waste / Damage</SelectItem>
+                              <SelectItem value="adjustment">{t("inventory.adjustment")}</SelectItem>
+                              <SelectItem value="waste">{t("inventory.waste")}</SelectItem>
                             </>
                           )}
                         </SelectContent>
@@ -416,7 +418,7 @@ export default function InventoryPage() {
                   name="quantity"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Quantity</FormLabel>
+                      <FormLabel>{t("inventory.quantity")}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -436,10 +438,10 @@ export default function InventoryPage() {
                   name="notes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
+                      <FormLabel>{t("inventory.notes")} ({t("common.optional")})</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Add any notes about this adjustment"
+                          placeholder={t("inventory.notes_placeholder")}
                           {...field}
                           data-testid="input-adjustment-notes"
                         />
@@ -455,7 +457,7 @@ export default function InventoryPage() {
                     variant="outline"
                     onClick={() => setShowAdjustmentDialog(false)}
                   >
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
                   <Button
                     type="submit"
@@ -465,7 +467,7 @@ export default function InventoryPage() {
                     {adjustStockMutation.isPending ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
+                        {t("common.saving")}
                       </>
                     ) : (
                       <>
@@ -474,7 +476,7 @@ export default function InventoryPage() {
                         ) : (
                           <Minus className="w-4 h-4 mr-2" />
                         )}
-                        {adjustmentDirection === "add" ? "Add Stock" : "Remove Stock"}
+                        {adjustmentDirection === "add" ? t("inventory.add_stock") : t("inventory.remove_stock")}
                       </>
                     )}
                   </Button>

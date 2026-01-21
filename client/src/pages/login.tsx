@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/lib/auth-context";
+import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [, navigate] = useLocation();
   const { login } = useAuth();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LoginFormData>({
@@ -38,21 +40,21 @@ export default function LoginPage() {
       const success = await login(data.username, data.password);
       if (success) {
         toast({
-          title: "Welcome back!",
-          description: "You have successfully logged in.",
+          title: t("login.welcome_back"),
+          description: t("login.login_success"),
         });
         navigate("/pos");
       } else {
         toast({
-          title: "Login failed",
-          description: "Invalid username or password.",
+          title: t("login.login_failed"),
+          description: t("login.invalid_credentials"),
           variant: "destructive",
         });
       }
     } catch {
       toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
+        title: t("common.error"),
+        description: t("login.error"),
         variant: "destructive",
       });
     } finally {
@@ -70,15 +72,15 @@ export default function LoginPage() {
           </div>
           <h1 className="text-3xl font-bold tracking-tight">POS Pro</h1>
           <p className="text-muted-foreground">
-            Sign in to your account to continue
+            {t("login.subtitle")}
           </p>
         </div>
 
         <Card className="border-0 shadow-lg">
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl">Sign In</CardTitle>
+            <CardTitle className="text-xl">{t("login.title")}</CardTitle>
             <CardDescription>
-              Enter your credentials to access the system
+              {t("login.credentials_prompt")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -89,13 +91,13 @@ export default function LoginPage() {
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel>{t("login.username")}</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input
                             {...field}
-                            placeholder="Enter your username"
+                            placeholder={t("login.username_placeholder")}
                             className="pl-10"
                             data-testid="input-username"
                             autoComplete="username"
@@ -112,14 +114,14 @@ export default function LoginPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password</FormLabel>
+                      <FormLabel>{t("login.password")}</FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input
                             {...field}
                             type="password"
-                            placeholder="Enter your password"
+                            placeholder={t("login.password_placeholder")}
                             className="pl-10"
                             data-testid="input-password"
                             autoComplete="current-password"
@@ -140,11 +142,11 @@ export default function LoginPage() {
                   {isLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Signing in...
+                      {t("login.signing_in")}
                     </>
                   ) : (
                     <>
-                      Sign In
+                      {t("login.sign_in")}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </>
                   )}
@@ -156,13 +158,13 @@ export default function LoginPage() {
 
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
-            Don't have an account?{" "}
+            {t("login.no_account")}{" "}
             <button
               onClick={() => navigate("/register")}
               className="text-primary hover:underline font-medium"
               data-testid="link-register"
             >
-              Register your business
+              {t("login.register_link")}
             </button>
           </p>
         </div>

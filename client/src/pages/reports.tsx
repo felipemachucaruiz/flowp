@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth-context";
+import { useI18n } from "@/lib/i18n";
 import {
   BarChart,
   Bar,
@@ -42,6 +43,7 @@ const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"
 
 export default function ReportsPage() {
   const { tenant } = useAuth();
+  const { t } = useI18n();
 
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/reports/dashboard"],
@@ -99,9 +101,9 @@ export default function ReportsPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t("reports.title")}</h1>
         <p className="text-muted-foreground">
-          Sales analytics and business insights
+          {t("reports.subtitle")}
         </p>
       </div>
 
@@ -111,7 +113,7 @@ export default function ReportsPage() {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Today's Sales</p>
+                <p className="text-sm text-muted-foreground">{t("reports.today_sales")}</p>
                 <p className="text-2xl font-bold">
                   {formatCurrency(defaultStats.todaySales)}
                 </p>
@@ -124,7 +126,7 @@ export default function ReportsPage() {
                     ) : (
                       <ArrowDownRight className="w-3 h-3" />
                     )}
-                    {Math.abs(defaultStats.recentTrend)}% vs yesterday
+                    {Math.abs(defaultStats.recentTrend)}% {t("reports.vs_yesterday")}
                   </div>
                 )}
               </div>
@@ -139,9 +141,9 @@ export default function ReportsPage() {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Orders</p>
+                <p className="text-sm text-muted-foreground">{t("reports.orders")}</p>
                 <p className="text-2xl font-bold">{defaultStats.todayOrders}</p>
-                <p className="text-xs text-muted-foreground mt-1">Today</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("reports.today")}</p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
                 <ShoppingCart className="w-6 h-6 text-blue-500" />
@@ -154,11 +156,11 @@ export default function ReportsPage() {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Average Order</p>
+                <p className="text-sm text-muted-foreground">{t("reports.avg_order")}</p>
                 <p className="text-2xl font-bold">
                   {formatCurrency(defaultStats.averageOrderValue)}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Per order</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("reports.per_order")}</p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
                 <TrendingUp className="w-6 h-6 text-green-500" />
@@ -171,12 +173,12 @@ export default function ReportsPage() {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Top Product</p>
+                <p className="text-sm text-muted-foreground">{t("reports.top_product")}</p>
                 <p className="text-lg font-bold truncate max-w-[140px]">
                   {defaultStats.topProducts[0]?.name || "N/A"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {defaultStats.topProducts[0]?.quantity || 0} sold
+                  {defaultStats.topProducts[0]?.quantity || 0} {t("reports.sold")}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
@@ -189,8 +191,8 @@ export default function ReportsPage() {
 
       <Tabs defaultValue="overview">
         <TabsList>
-          <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-          <TabsTrigger value="products" data-testid="tab-products">Products</TabsTrigger>
+          <TabsTrigger value="overview" data-testid="tab-overview">{t("reports.overview")}</TabsTrigger>
+          <TabsTrigger value="products" data-testid="tab-products">{t("nav.products")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
@@ -200,7 +202,7 @@ export default function ReportsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="w-5 h-5" />
-                  Sales by Hour
+                  {t("reports.sales_by_hour")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -224,7 +226,7 @@ export default function ReportsPage() {
                           border: "1px solid hsl(var(--border))",
                           borderRadius: "var(--radius)",
                         }}
-                        formatter={(value: number) => [formatCurrency(value), "Sales"]}
+                        formatter={(value: number) => [formatCurrency(value), t("reports.sales")]}
                       />
                       <Bar
                         dataKey="sales"
@@ -237,8 +239,8 @@ export default function ReportsPage() {
                   <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
                       <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                      <p>No sales data yet</p>
-                      <p className="text-sm">Make some sales to see charts</p>
+                      <p>{t("reports.no_sales_data")}</p>
+                      <p className="text-sm">{t("reports.make_sales_charts")}</p>
                     </div>
                   </div>
                 )}
@@ -250,7 +252,7 @@ export default function ReportsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="w-5 h-5" />
-                  Sales by Category
+                  {t("reports.sales_by_category")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -277,7 +279,7 @@ export default function ReportsPage() {
                           border: "1px solid hsl(var(--border))",
                           borderRadius: "var(--radius)",
                         }}
-                        formatter={(value: number) => [formatCurrency(value), "Sales"]}
+                        formatter={(value: number) => [formatCurrency(value), t("reports.sales")]}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -285,8 +287,8 @@ export default function ReportsPage() {
                   <div className="h-[300px] flex items-center justify-center text-muted-foreground">
                     <div className="text-center">
                       <Package className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                      <p>No category data yet</p>
-                      <p className="text-sm">Sales will be categorized here</p>
+                      <p>{t("reports.no_category_data")}</p>
+                      <p className="text-sm">{t("reports.sales_categorized_here")}</p>
                     </div>
                   </div>
                 )}
@@ -298,7 +300,7 @@ export default function ReportsPage() {
         <TabsContent value="products" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Top Selling Products</CardTitle>
+              <CardTitle>{t("reports.top_selling")}</CardTitle>
             </CardHeader>
             <CardContent>
               {defaultStats.topProducts.length > 0 ? (
@@ -314,12 +316,12 @@ export default function ReportsPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{product.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {product.quantity} units sold
+                          {product.quantity} {t("reports.units_sold")}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-bold">{formatCurrency(product.revenue)}</p>
-                        <p className="text-xs text-muted-foreground">Revenue</p>
+                        <p className="text-xs text-muted-foreground">{t("reports.revenue")}</p>
                       </div>
                     </div>
                   ))}
@@ -327,8 +329,8 @@ export default function ReportsPage() {
               ) : (
                 <div className="py-16 text-center text-muted-foreground">
                   <Package className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                  <p className="font-medium">No sales data yet</p>
-                  <p className="text-sm">Top products will appear here</p>
+                  <p className="font-medium">{t("reports.no_sales_data")}</p>
+                  <p className="text-sm">{t("reports.top_products_appear")}</p>
                 </div>
               )}
             </CardContent>

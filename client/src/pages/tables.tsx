@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { usePOS } from "@/lib/pos-context";
+import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,18 +20,19 @@ import {
   Plus,
 } from "lucide-react";
 
-const statusColors: Record<string, { bg: string; text: string; label: string }> = {
-  free: { bg: "bg-green-500/10", text: "text-green-600", label: "Available" },
-  occupied: { bg: "bg-blue-500/10", text: "text-blue-600", label: "Occupied" },
-  dirty: { bg: "bg-orange-500/10", text: "text-orange-600", label: "Needs Cleaning" },
-  reserved: { bg: "bg-purple-500/10", text: "text-purple-600", label: "Reserved" },
-};
-
 export default function TablesPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useI18n();
   const { setSelectedTable } = usePOS();
   const [activeFloor, setActiveFloor] = useState<string | null>(null);
+
+  const statusColors: Record<string, { bg: string; text: string; label: string }> = {
+    free: { bg: "bg-green-500/10", text: "text-green-600", label: t("tables.available") },
+    occupied: { bg: "bg-blue-500/10", text: "text-blue-600", label: t("tables.occupied") },
+    dirty: { bg: "bg-orange-500/10", text: "text-orange-600", label: t("tables.needs_cleaning") },
+    reserved: { bg: "bg-purple-500/10", text: "text-purple-600", label: t("tables.reserved") },
+  };
 
   const { data: floors, isLoading: floorsLoading } = useQuery<Floor[]>({
     queryKey: ["/api/floors"],
@@ -70,8 +72,8 @@ export default function TablesPage() {
       // Mark as clean
       updateTableMutation.mutate({ tableId: table.id, status: "free" });
       toast({
-        title: "Table cleaned",
-        description: `${table.name} is now available.`,
+        title: t("tables.table_cleaned"),
+        description: `${table.name} ${t("tables.now_available")}`,
       });
     }
   };
@@ -120,13 +122,13 @@ export default function TablesPage() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 text-muted-foreground">
         <LayoutGrid className="w-16 h-16 mb-4 opacity-30" />
-        <p className="text-xl font-medium mb-2">No floors configured</p>
+        <p className="text-xl font-medium mb-2">{t("tables.no_floors")}</p>
         <p className="text-center mb-6">
-          Set up your floor plan in Settings to manage tables
+          {t("tables.setup_floors")}
         </p>
         <Button onClick={() => navigate("/settings")} data-testid="button-goto-settings">
           <Plus className="w-4 h-4 mr-2" />
-          Add Floors
+          {t("tables.add_floors")}
         </Button>
       </div>
     );
@@ -137,14 +139,14 @@ export default function TablesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tables</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t("tables.title")}</h1>
           <p className="text-muted-foreground">
-            Manage your floor plan and table assignments
+            {t("tables.subtitle")}
           </p>
         </div>
         <Button onClick={() => navigate("/kitchen")} variant="outline" data-testid="button-goto-kitchen">
           <ChefHat className="w-4 h-4 mr-2" />
-          Kitchen View
+          {t("tables.kitchen_view")}
         </Button>
       </div>
 
@@ -168,7 +170,7 @@ export default function TablesPage() {
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Tables</p>
+                  <p className="text-sm text-muted-foreground">{t("tables.total_tables")}</p>
                   <p className="text-2xl font-bold">{stats.total}</p>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
@@ -181,7 +183,7 @@ export default function TablesPage() {
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Available</p>
+                  <p className="text-sm text-muted-foreground">{t("tables.available")}</p>
                   <p className="text-2xl font-bold text-green-600">{stats.free}</p>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
@@ -194,7 +196,7 @@ export default function TablesPage() {
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Occupied</p>
+                  <p className="text-sm text-muted-foreground">{t("tables.occupied")}</p>
                   <p className="text-2xl font-bold text-blue-600">{stats.occupied}</p>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
@@ -207,7 +209,7 @@ export default function TablesPage() {
             <CardContent className="pt-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Needs Cleaning</p>
+                  <p className="text-sm text-muted-foreground">{t("tables.needs_cleaning")}</p>
                   <p className="text-2xl font-bold text-orange-600">{stats.dirty}</p>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
@@ -230,8 +232,8 @@ export default function TablesPage() {
             ) : currentFloorTables.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                 <LayoutGrid className="w-12 h-12 mb-4 opacity-30" />
-                <p className="font-medium">No tables on this floor</p>
-                <p className="text-sm">Add tables in Settings</p>
+                <p className="font-medium">{t("tables.no_tables_floor")}</p>
+                <p className="text-sm">{t("tables.add_tables_settings")}</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -247,7 +249,7 @@ export default function TablesPage() {
                       <div className="flex items-start justify-between mb-3">
                         <h3 className="font-bold text-lg">{table.name}</h3>
                         <Badge variant="secondary" className="text-xs">
-                          {table.capacity} seats
+                          {table.capacity} {t("tables.seats")}
                         </Badge>
                       </div>
                       <div className={`flex items-center gap-2 ${status.text}`}>
@@ -265,7 +267,7 @@ export default function TablesPage() {
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 pt-4 border-t">
-        <span className="text-sm text-muted-foreground">Status:</span>
+        <span className="text-sm text-muted-foreground">{t("tables.legend_status")}</span>
         {Object.entries(statusColors).map(([key, value]) => (
           <div key={key} className="flex items-center gap-2">
             <div className={`w-3 h-3 rounded-full ${value.bg}`} />

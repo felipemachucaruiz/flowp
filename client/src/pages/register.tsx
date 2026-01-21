@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +33,7 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 export default function RegisterPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { t } = useI18n();
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -64,18 +66,18 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Registration failed");
+        throw new Error(error.message || t("register.failed"));
       }
 
       toast({
-        title: "Registration successful!",
-        description: "Your business has been set up. You can now log in.",
+        title: t("register.success"),
+        description: t("register.success_message"),
       });
       navigate("/login");
     } catch (error) {
       toast({
-        title: "Registration failed",
-        description: error instanceof Error ? error.message : "Something went wrong",
+        title: t("register.failed"),
+        description: error instanceof Error ? error.message : t("common.error"),
         variant: "destructive",
       });
     } finally {
@@ -102,7 +104,7 @@ export default function RegisterPage() {
           </div>
           <h1 className="text-3xl font-bold tracking-tight">POS Pro</h1>
           <p className="text-muted-foreground">
-            Set up your business in minutes
+            {t("register.title")}
           </p>
         </div>
 
@@ -134,12 +136,12 @@ export default function RegisterPage() {
         <Card className="border-0 shadow-lg">
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-xl">
-              {step === 1 ? "Business Details" : "Admin Account"}
+              {step === 1 ? t("register.step_business") : t("register.step_admin")}
             </CardTitle>
             <CardDescription>
               {step === 1
-                ? "Tell us about your business"
-                : "Create your administrator account"}
+                ? t("register.business_prompt")
+                : t("register.admin_prompt")}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -152,13 +154,13 @@ export default function RegisterPage() {
                       name="businessName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Business Name</FormLabel>
+                          <FormLabel>{t("register.business_name")}</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                               <Input
                                 {...field}
-                                placeholder="Enter your business name"
+                                placeholder={t("register.business_name_placeholder")}
                                 className="pl-10"
                                 data-testid="input-business-name"
                               />
@@ -174,7 +176,7 @@ export default function RegisterPage() {
                       name="businessType"
                       render={({ field }) => (
                         <FormItem className="space-y-3">
-                          <FormLabel>Business Type</FormLabel>
+                          <FormLabel>{t("register.business_type")}</FormLabel>
                           <FormControl>
                             <RadioGroup
                               onValueChange={field.onChange}
@@ -201,9 +203,9 @@ export default function RegisterPage() {
                                   <ShoppingBag className="w-6 h-6" />
                                 </div>
                                 <div className="text-center">
-                                  <div className="font-medium">Retail</div>
+                                  <div className="font-medium">{t("register.type_retail")}</div>
                                   <div className="text-xs text-muted-foreground">
-                                    Shops, stores
+                                    {t("register.type_retail_desc")}
                                   </div>
                                 </div>
                               </label>
@@ -228,9 +230,9 @@ export default function RegisterPage() {
                                   <UtensilsCrossed className="w-6 h-6" />
                                 </div>
                                 <div className="text-center">
-                                  <div className="font-medium">Restaurant</div>
+                                  <div className="font-medium">{t("register.type_restaurant")}</div>
                                   <div className="text-xs text-muted-foreground">
-                                    Cafes, bars
+                                    {t("register.type_restaurant_desc")}
                                   </div>
                                 </div>
                               </label>
@@ -246,11 +248,11 @@ export default function RegisterPage() {
                       name="address"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Address</FormLabel>
+                          <FormLabel>{t("register.address")}</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
-                              placeholder="Business address"
+                              placeholder={t("register.address_placeholder")}
                               data-testid="input-address"
                             />
                           </FormControl>
@@ -264,11 +266,11 @@ export default function RegisterPage() {
                       name="businessPhone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Business Phone (Optional)</FormLabel>
+                          <FormLabel>{t("register.business_phone")} ({t("common.optional")})</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
-                              placeholder="Business phone"
+                              placeholder={t("register.business_phone")}
                               data-testid="input-business-phone"
                             />
                           </FormControl>
@@ -283,7 +285,7 @@ export default function RegisterPage() {
                       onClick={nextStep}
                       data-testid="button-next"
                     >
-                      Continue
+                      {t("common.continue")}
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
                   </>
@@ -296,13 +298,13 @@ export default function RegisterPage() {
                       name="adminName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Your Name</FormLabel>
+                          <FormLabel>{t("register.your_name")}</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                               <Input
                                 {...field}
-                                placeholder="Enter your name"
+                                placeholder={t("register.your_name_placeholder")}
                                 className="pl-10"
                                 data-testid="input-admin-name"
                               />
@@ -318,12 +320,12 @@ export default function RegisterPage() {
                       name="adminEmail"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email</FormLabel>
+                          <FormLabel>{t("register.email")}</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               type="email"
-                              placeholder="Enter your email"
+                              placeholder={t("register.email_placeholder")}
                               data-testid="input-admin-email"
                               autoComplete="email"
                             />
@@ -338,12 +340,12 @@ export default function RegisterPage() {
                       name="adminPhone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Phone Number</FormLabel>
+                          <FormLabel>{t("register.phone")}</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               type="tel"
-                              placeholder="Enter your phone number"
+                              placeholder={t("register.phone_placeholder")}
                               data-testid="input-admin-phone"
                               autoComplete="tel"
                             />
@@ -358,13 +360,13 @@ export default function RegisterPage() {
                       name="adminUsername"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Username</FormLabel>
+                          <FormLabel>{t("register.username")}</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                               <Input
                                 {...field}
-                                placeholder="Choose a username"
+                                placeholder={t("register.username_placeholder")}
                                 className="pl-10"
                                 data-testid="input-admin-username"
                                 autoComplete="username"
@@ -381,14 +383,14 @@ export default function RegisterPage() {
                       name="adminPassword"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Password</FormLabel>
+                          <FormLabel>{t("register.password")}</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                               <Input
                                 {...field}
                                 type="password"
-                                placeholder="Create a password"
+                                placeholder={t("register.password_placeholder")}
                                 className="pl-10"
                                 data-testid="input-admin-password"
                                 autoComplete="new-password"
@@ -405,14 +407,14 @@ export default function RegisterPage() {
                       name="confirmPassword"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Confirm Password</FormLabel>
+                          <FormLabel>{t("register.confirm_password")}</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                               <Input
                                 {...field}
                                 type="password"
-                                placeholder="Confirm your password"
+                                placeholder={t("register.confirm_password_placeholder")}
                                 className="pl-10"
                                 data-testid="input-confirm-password"
                                 autoComplete="new-password"
@@ -433,7 +435,7 @@ export default function RegisterPage() {
                         data-testid="button-back"
                       >
                         <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back
+                        {t("common.back")}
                       </Button>
                       <Button
                         type="submit"
@@ -444,11 +446,11 @@ export default function RegisterPage() {
                         {isLoading ? (
                           <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Creating...
+                            {t("register.creating")}
                           </>
                         ) : (
                           <>
-                            Create Account
+                            {t("register.create_account")}
                             <ArrowRight className="w-4 h-4 ml-2" />
                           </>
                         )}
@@ -463,13 +465,13 @@ export default function RegisterPage() {
 
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
-            Already have an account?{" "}
+            {t("register.have_account")}{" "}
             <button
               onClick={() => navigate("/login")}
               className="text-primary hover:underline font-medium"
               data-testid="link-login"
             >
-              Sign in
+              {t("register.sign_in_link")}
             </button>
           </p>
         </div>
