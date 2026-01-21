@@ -694,14 +694,14 @@ export default function SettingsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Categories</CardTitle>
+                <CardTitle>{t("categories.title")}</CardTitle>
                 <CardDescription>
-                  Organize your products into categories
+                  {t("categories.subtitle")}
                 </CardDescription>
               </div>
               <Button onClick={() => openCategoryDialog()} data-testid="button-add-category">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Category
+                {t("categories.add")}
               </Button>
             </CardHeader>
             <CardContent>
@@ -713,7 +713,7 @@ export default function SettingsPage() {
                 </div>
               ) : categories?.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No categories yet. Add one to get started.
+                  {t("categories.empty")}
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -759,14 +759,14 @@ export default function SettingsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <div>
-                <CardTitle>Products</CardTitle>
+                <CardTitle>{t("products.title")}</CardTitle>
                 <CardDescription>
-                  Manage your product catalog
+                  {t("products.subtitle")}
                 </CardDescription>
               </div>
               <Button onClick={() => openProductDialog()} data-testid="button-add-product">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Product
+                {t("products.add")}
               </Button>
             </CardHeader>
             <CardContent>
@@ -778,7 +778,7 @@ export default function SettingsPage() {
                 </div>
               ) : products?.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No products yet. Add one to get started.
+                  {t("products.empty")}
                 </p>
               ) : (
                 <ScrollArea className="h-[400px]">
@@ -967,24 +967,23 @@ export default function SettingsPage() {
         <TabsContent value="printing" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Receipt Printing</CardTitle>
+              <CardTitle>{t("printing.title")}</CardTitle>
               <CardDescription>
-                Configure your receipt printer settings
+                {t("printing.subtitle")}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="p-4 rounded-lg bg-muted/50 border border-dashed">
                 <div className="flex items-center gap-3 mb-3">
                   <Printer className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-medium">Browser Printing</span>
+                  <span className="font-medium">{t("printing.browser_printing")}</span>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">
-                  This system uses browser-native printing. When completing a sale, 
-                  a print-optimized receipt will open for printing.
+                  {t("printing.browser_description")}
                 </p>
                 <div className="text-sm space-y-2">
-                  <p><strong>Supported paper sizes:</strong> 58mm, 80mm thermal paper</p>
-                  <p><strong>Tip:</strong> Set your browser to use the thermal printer as default for faster printing.</p>
+                  <p><strong>{t("printing.supported_sizes")}:</strong> 58mm, 80mm</p>
+                  <p><strong>{t("printing.tip")}:</strong> {t("printing.tip_text")}</p>
                 </div>
               </div>
             </CardContent>
@@ -1155,9 +1154,9 @@ export default function SettingsPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2">
               <div>
-                <CardTitle>User Management</CardTitle>
+                <CardTitle>{t("users.title")}</CardTitle>
                 <CardDescription>
-                  Manage users and their access roles
+                  {t("users.subtitle")}
                 </CardDescription>
               </div>
               <Button
@@ -1177,7 +1176,7 @@ export default function SettingsPage() {
                 data-testid="button-add-user"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add User
+                {t("users.add")}
               </Button>
             </CardHeader>
             <CardContent>
@@ -1189,7 +1188,7 @@ export default function SettingsPage() {
                 </div>
               ) : users?.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
-                  No users found. Add your first user.
+                  {t("users.empty")}
                 </p>
               ) : (
                 <ScrollArea className="h-[400px]">
@@ -1236,7 +1235,7 @@ export default function SettingsPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => {
-                              if (confirm("Are you sure you want to delete this user?")) {
+                              if (confirm(t("users.delete_confirm"))) {
                                 deleteUserMutation.mutate(user.id);
                               }
                             }}
@@ -1260,7 +1259,7 @@ export default function SettingsPage() {
       <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingItem ? "Edit Category" : "Add Category"}</DialogTitle>
+            <DialogTitle>{editingItem ? t("categories.edit") : t("categories.add")}</DialogTitle>
           </DialogHeader>
           <Form {...categoryForm}>
             <form onSubmit={categoryForm.handleSubmit((data) => categoryMutation.mutate(data))} className="space-y-4">
@@ -1269,7 +1268,7 @@ export default function SettingsPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{t("common.name")}</FormLabel>
                     <FormControl>
                       <Input {...field} data-testid="input-category-name" />
                     </FormControl>
@@ -1282,7 +1281,7 @@ export default function SettingsPage() {
                 name="color"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Color</FormLabel>
+                    <FormLabel>{t("common.color")}</FormLabel>
                     <FormControl>
                       <div className="flex gap-2">
                         <Input type="color" {...field} className="w-12 h-10 p-1" />
@@ -1295,11 +1294,11 @@ export default function SettingsPage() {
               />
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setShowCategoryDialog(false)}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={categoryMutation.isPending} data-testid="button-save-category">
                   {categoryMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Save
+                  {t("common.save")}
                 </Button>
               </DialogFooter>
             </form>
@@ -1311,7 +1310,7 @@ export default function SettingsPage() {
       <Dialog open={showProductDialog} onOpenChange={setShowProductDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingItem ? "Edit Product" : "Add Product"}</DialogTitle>
+            <DialogTitle>{editingItem ? t("products.edit") : t("products.add")}</DialogTitle>
           </DialogHeader>
           <Form {...productForm}>
             <form onSubmit={productForm.handleSubmit((data) => productMutation.mutate(data))} className="space-y-4">
@@ -1320,7 +1319,7 @@ export default function SettingsPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{t("common.name")}</FormLabel>
                     <FormControl>
                       <Input {...field} data-testid="input-product-name" />
                     </FormControl>
@@ -1333,11 +1332,11 @@ export default function SettingsPage() {
                 name="categoryId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Category</FormLabel>
+                    <FormLabel>{t("common.category")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-product-category">
-                          <SelectValue placeholder="Select category" />
+                          <SelectValue placeholder={t("products.select_category")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -1357,7 +1356,7 @@ export default function SettingsPage() {
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Price</FormLabel>
+                    <FormLabel>{t("common.price")}</FormLabel>
                     <FormControl>
                       <Input {...field} type="number" step="0.01" data-testid="input-product-price" />
                     </FormControl>
@@ -1371,7 +1370,7 @@ export default function SettingsPage() {
                   name="sku"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>SKU</FormLabel>
+                      <FormLabel>{t("common.sku")}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-product-sku" />
                       </FormControl>
@@ -1384,7 +1383,7 @@ export default function SettingsPage() {
                   name="barcode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Barcode</FormLabel>
+                      <FormLabel>{t("common.barcode")}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-product-barcode" />
                       </FormControl>

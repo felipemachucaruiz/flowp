@@ -90,6 +90,7 @@ const translations = {
     
     // Products
     "products.title": "Products",
+    "products.subtitle": "Manage your product catalog",
     "products.add": "Add Product",
     "products.edit": "Edit Product",
     "products.name": "Name",
@@ -100,15 +101,19 @@ const translations = {
     "products.delete": "Delete",
     "products.no_products": "No products yet",
     "products.add_first": "Add your first product to get started",
+    "products.empty": "No products yet. Add one to get started.",
+    "products.select_category": "Select category",
     
     // Categories
     "categories.title": "Categories",
+    "categories.subtitle": "Organize your products into categories",
     "categories.add": "Add Category",
     "categories.edit": "Edit Category",
     "categories.name": "Name",
     "categories.color": "Color",
     "categories.no_categories": "No categories yet",
     "categories.add_first": "Add your first category",
+    "categories.empty": "No categories yet. Add one to get started.",
     
     // Tables
     "tables.title": "Tables",
@@ -276,7 +281,8 @@ const translations = {
     "sidebar.business": "Business",
     
     // Users
-    "users.title": "Users",
+    "users.title": "User Management",
+    "users.subtitle": "Manage users and their access roles",
     "users.add": "Add User",
     "users.edit": "Edit User",
     "users.name": "Name",
@@ -287,6 +293,7 @@ const translations = {
     "users.active": "Active",
     "users.no_users": "No users yet",
     "users.add_first": "Add your first user",
+    "users.empty": "No users found. Add your first user.",
     "users.role_admin": "Administrator",
     "users.role_manager": "Manager",
     "users.role_cashier": "Cashier",
@@ -296,6 +303,15 @@ const translations = {
     "users.created": "User created successfully",
     "users.updated": "User updated successfully",
     "users.deleted": "User deleted successfully",
+    
+    // Printing
+    "printing.title": "Receipt Printing",
+    "printing.subtitle": "Configure your receipt printer settings",
+    "printing.browser_printing": "Browser Printing",
+    "printing.browser_description": "This system uses browser-native printing. When completing a sale, a print-optimized receipt will open for printing.",
+    "printing.supported_sizes": "Supported paper sizes",
+    "printing.tip": "Tip",
+    "printing.tip_text": "Set your browser to use the thermal printer as default for faster printing.",
     
     // Common
     "common.save": "Save",
@@ -315,6 +331,20 @@ const translations = {
     "common.no_results": "No results found",
     "common.required": "Required",
     "common.optional": "Optional",
+    "common.name": "Name",
+    "common.color": "Color",
+    "common.category": "Category",
+    "common.price": "Price",
+    "common.sku": "SKU",
+    "common.barcode": "Barcode",
+    
+    // POS additional keys
+    "pos.search_placeholder": "Search products or scan barcode...",
+    "pos.all": "All",
+    "pos.adjust_search": "Try adjusting your search or category filter",
+    "pos.no_items": "No items yet",
+    "pos.tap_products": "Tap products to add them to the order",
+    "pos.order": "Order",
   },
   es: {
     // Navigation
@@ -403,6 +433,7 @@ const translations = {
     
     // Products
     "products.title": "Productos",
+    "products.subtitle": "Administra tu catálogo de productos",
     "products.add": "Agregar Producto",
     "products.edit": "Editar Producto",
     "products.name": "Nombre",
@@ -413,15 +444,19 @@ const translations = {
     "products.delete": "Eliminar",
     "products.no_products": "No hay productos aún",
     "products.add_first": "Agrega tu primer producto para comenzar",
+    "products.empty": "No hay productos aún. Agrega uno para comenzar.",
+    "products.select_category": "Seleccionar categoría",
     
     // Categories
     "categories.title": "Categorías",
+    "categories.subtitle": "Organiza tus productos en categorías",
     "categories.add": "Agregar Categoría",
     "categories.edit": "Editar Categoría",
     "categories.name": "Nombre",
     "categories.color": "Color",
     "categories.no_categories": "No hay categorías aún",
     "categories.add_first": "Agrega tu primera categoría",
+    "categories.empty": "No hay categorías aún. Agrega una para comenzar.",
     
     // Tables
     "tables.title": "Mesas",
@@ -589,7 +624,8 @@ const translations = {
     "sidebar.business": "Negocio",
     
     // Users
-    "users.title": "Usuarios",
+    "users.title": "Gestión de Usuarios",
+    "users.subtitle": "Administra usuarios y sus roles de acceso",
     "users.add": "Agregar Usuario",
     "users.edit": "Editar Usuario",
     "users.name": "Nombre",
@@ -600,6 +636,7 @@ const translations = {
     "users.active": "Activo",
     "users.no_users": "No hay usuarios aún",
     "users.add_first": "Agrega tu primer usuario",
+    "users.empty": "No se encontraron usuarios. Agrega tu primer usuario.",
     "users.role_admin": "Administrador",
     "users.role_manager": "Gerente",
     "users.role_cashier": "Cajero",
@@ -609,6 +646,15 @@ const translations = {
     "users.created": "Usuario creado exitosamente",
     "users.updated": "Usuario actualizado exitosamente",
     "users.deleted": "Usuario eliminado exitosamente",
+    
+    // Printing
+    "printing.title": "Impresión de Recibos",
+    "printing.subtitle": "Configura los ajustes de tu impresora de recibos",
+    "printing.browser_printing": "Impresión del Navegador",
+    "printing.browser_description": "Este sistema usa impresión nativa del navegador. Al completar una venta, un recibo optimizado se abrirá para imprimir.",
+    "printing.supported_sizes": "Tamaños de papel soportados",
+    "printing.tip": "Consejo",
+    "printing.tip_text": "Configura tu navegador para usar la impresora térmica como predeterminada para una impresión más rápida.",
     
     // Common
     "common.save": "Guardar",
@@ -628,6 +674,20 @@ const translations = {
     "common.no_results": "No se encontraron resultados",
     "common.required": "Requerido",
     "common.optional": "Opcional",
+    "common.name": "Nombre",
+    "common.color": "Color",
+    "common.category": "Categoría",
+    "common.price": "Precio",
+    "common.sku": "SKU",
+    "common.barcode": "Código de Barras",
+    
+    // POS additional keys
+    "pos.search_placeholder": "Buscar productos o escanear código...",
+    "pos.all": "Todos",
+    "pos.adjust_search": "Intenta ajustar tu búsqueda o filtro de categoría",
+    "pos.no_items": "Sin artículos aún",
+    "pos.tap_products": "Toca productos para agregarlos al pedido",
+    "pos.order": "Pedido",
   },
   pt: {
     // Navigation
@@ -716,6 +776,7 @@ const translations = {
     
     // Products
     "products.title": "Produtos",
+    "products.subtitle": "Gerencie seu catálogo de produtos",
     "products.add": "Adicionar Produto",
     "products.edit": "Editar Produto",
     "products.name": "Nome",
@@ -726,15 +787,19 @@ const translations = {
     "products.delete": "Excluir",
     "products.no_products": "Nenhum produto ainda",
     "products.add_first": "Adicione seu primeiro produto para começar",
+    "products.empty": "Nenhum produto ainda. Adicione um para começar.",
+    "products.select_category": "Selecionar categoria",
     
     // Categories
     "categories.title": "Categorias",
+    "categories.subtitle": "Organize seus produtos em categorias",
     "categories.add": "Adicionar Categoria",
     "categories.edit": "Editar Categoria",
     "categories.name": "Nome",
     "categories.color": "Cor",
     "categories.no_categories": "Nenhuma categoria ainda",
     "categories.add_first": "Adicione sua primeira categoria",
+    "categories.empty": "Nenhuma categoria ainda. Adicione uma para começar.",
     
     // Tables
     "tables.title": "Mesas",
@@ -902,7 +967,8 @@ const translations = {
     "sidebar.business": "Negócio",
     
     // Users
-    "users.title": "Usuários",
+    "users.title": "Gestão de Usuários",
+    "users.subtitle": "Gerencie usuários e seus níveis de acesso",
     "users.add": "Adicionar Usuário",
     "users.edit": "Editar Usuário",
     "users.name": "Nome",
@@ -913,6 +979,7 @@ const translations = {
     "users.active": "Ativo",
     "users.no_users": "Nenhum usuário ainda",
     "users.add_first": "Adicione seu primeiro usuário",
+    "users.empty": "Nenhum usuário encontrado. Adicione seu primeiro usuário.",
     "users.role_admin": "Administrador",
     "users.role_manager": "Gerente",
     "users.role_cashier": "Caixa",
@@ -922,6 +989,15 @@ const translations = {
     "users.created": "Usuário criado com sucesso",
     "users.updated": "Usuário atualizado com sucesso",
     "users.deleted": "Usuário excluído com sucesso",
+    
+    // Printing
+    "printing.title": "Impressão de Recibos",
+    "printing.subtitle": "Configure as definições da sua impressora de recibos",
+    "printing.browser_printing": "Impressão do Navegador",
+    "printing.browser_description": "Este sistema usa impressão nativa do navegador. Ao completar uma venda, um recibo otimizado será aberto para impressão.",
+    "printing.supported_sizes": "Tamanhos de papel suportados",
+    "printing.tip": "Dica",
+    "printing.tip_text": "Configure seu navegador para usar a impressora térmica como padrão para impressão mais rápida.",
     
     // Common
     "common.save": "Salvar",
@@ -941,6 +1017,20 @@ const translations = {
     "common.no_results": "Nenhum resultado encontrado",
     "common.required": "Obrigatório",
     "common.optional": "Opcional",
+    "common.name": "Nome",
+    "common.color": "Cor",
+    "common.category": "Categoria",
+    "common.price": "Preço",
+    "common.sku": "SKU",
+    "common.barcode": "Código de Barras",
+    
+    // POS additional keys
+    "pos.search_placeholder": "Buscar produtos ou escanear código...",
+    "pos.all": "Todos",
+    "pos.adjust_search": "Tente ajustar sua busca ou filtro de categoria",
+    "pos.no_items": "Sem itens ainda",
+    "pos.tap_products": "Toque nos produtos para adicioná-los ao pedido",
+    "pos.order": "Pedido",
   },
 };
 

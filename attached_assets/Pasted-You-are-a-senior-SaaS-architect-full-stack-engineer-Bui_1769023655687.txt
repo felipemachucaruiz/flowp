@@ -1,0 +1,71 @@
+You are a senior SaaS architect + full-stack engineer. Build a Management Portal for a multi-tenant POS SaaS (Retail + Restaurant) that includes customer management, support tooling, SaaS billing controls, and electronic billing monitoring (Matias/DIAN integration observability).
+
+The POS is a PWA used in stores. The Management Portal is a separate web app for admins (internal) and tenant admins (customers).
+
+=====================================================
+1) PORTAL MODES (TWO PORTALS IN ONE APP)
+=====================================================
+A) Internal Admin Portal (our staff):
+- SuperAdmin: full access
+- SupportAgent: tenant support + read billing, cannot access secrets
+- BillingOps: subscription plans, invoices, payments, suspensions
+
+B) Tenant Portal (customer admins):
+- Owner/Admin: manages business settings, users, locations, registers
+- Accountant: electronic billing statuses, reports
+- Manager: limited access
+
+Implement strict RBAC and tenant isolation.
+
+=====================================================
+2) CORE FEATURES
+=====================================================
+2.1 Tenant Management (Internal)
+- Create tenant (Retail or Restaurant)
+- Enable feature flags based on tenant.type
+- Suspend/unsuspend tenant (manual + automatic for non-payment)
+- View tenant health (last sync, active registers, error rates)
+
+2.2 Onboarding & Configuration (Tenant Portal)
+- Company profile, locations, warehouses, registers/devices
+- Receipt template config and printer config per register
+- Users, roles, permissions
+- Import/export CSV for products/customers
+
+2.3 Electronic Billing Monitoring (Matias/DIAN)
+- View electronic documents list with filters:
+  tenant, date, status, type, sale_id, track_id, CUFE
+- Document details page:
+  request payload, response payload, status history, error messages
+- Actions:
+  retry emission, re-poll status, download PDF/XML, mark as reviewed
+- Alerts:
+  high rejection rate, token failures, numbering conflicts, DIAN downtime indicators
+
+2.4 SaaS Billing (your subscription business)
+- Plans (Starter/Pro/Enterprise) with feature limits:
+  locations, registers, users, restaurant module, KDS, advanced reports
+- Subscription lifecycle:
+  trial -> active -> past_due -> suspended -> cancelled
+- Payment provider integration placeholder:
+  implement a clean BillingProvider interface (Stripe-like)
+- Invoices and payment history per tenant
+- Automatic suspension rules after N days past_due
+- Admin overrides + audit trail
+
+2.5 Support Tooling
+- Support tickets (internal + tenant created):
+  status, priority, assignee, notes, attachments
+- Impersonation ("Support Mode"):
+  internal support can view tenant portal as tenant admin (read-only by default; require explicit escalation for write)
+- Diagnostics export:
+  generate a sanitized bundle: recent errors, register status, electronic document failures (no secrets)
+- Activity log:
+  who changed what and when
+
+=====================================================
+3) DATA MODEL (PostgreSQL + Prisma recommended)
+=====================================================
+Must include:
+- tenants (type, status, feature_flags, created_at)
+- tenant_settings (receipt template, timezone, currency)
