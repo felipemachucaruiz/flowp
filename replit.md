@@ -4,9 +4,32 @@
 A production-ready, multi-tenant POS + Inventory system delivered as a Progressive Web App (PWA), optimized for Windows devices with one-click receipt printing support. The system supports both Retail and Restaurant tenants with feature flags controlling module availability.
 
 ## Current State
-- **Status**: MVP Complete
+- **Status**: MVP Complete + Management Portal Phase 1
 - **Last Updated**: January 21, 2026
 - **Stack**: React + TypeScript frontend, Express + PostgreSQL backend
+
+## Management Portal (Phase 1 Complete)
+Internal admin portal for SaaS management with role-based access control.
+
+### Features Implemented
+- **RBAC Schema**: portal_roles, portal_permissions, user_portal_roles tables
+- **Tenant Management**: Status tracking (trial, active, past_due, suspended, cancelled)
+- **Admin Dashboard**: Stats overview for tenants, e-billing, support
+- **Tenant List**: View all tenants with suspend/unsuspend actions
+- **Admin Sidebar**: Navigation for dashboard, tenants, e-billing, billing, support
+
+### API Namespaces
+- `/api/internal/*` - Internal admin routes (SuperAdmin, SupportAgent, BillingOps)
+- `/api/tenant/*` - Tenant portal routes (Owner, Admin, Accountant, Manager)
+
+### Roles (7 Total)
+- **Internal**: SuperAdmin, SupportAgent, BillingOps
+- **Tenant**: Owner, Admin, Accountant, Manager
+
+### Security Notes (Phase 2)
+- Current auth uses localStorage (frontend-only session state)
+- Phase 2 will add JWT/session-based server authentication
+- RBAC permission enforcement needs token validation middleware
 
 ## Key Features
 
