@@ -15,8 +15,10 @@ const registerSchema = z.object({
   businessName: z.string().min(2, "Business name must be at least 2 characters"),
   businessType: z.enum(["retail", "restaurant"]),
   address: z.string().optional(),
-  phone: z.string().optional(),
+  businessPhone: z.string().optional(),
   adminName: z.string().min(2, "Name must be at least 2 characters"),
+  adminEmail: z.string().email("Please enter a valid email address"),
+  adminPhone: z.string().min(10, "Please enter a valid phone number"),
   adminUsername: z.string().min(3, "Username must be at least 3 characters"),
   adminPassword: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
@@ -39,8 +41,10 @@ export default function RegisterPage() {
       businessName: "",
       businessType: "retail",
       address: "",
-      phone: "",
+      businessPhone: "",
       adminName: "",
+      adminEmail: "",
+      adminPhone: "",
       adminUsername: "",
       adminPassword: "",
       confirmPassword: "",
@@ -82,7 +86,7 @@ export default function RegisterPage() {
   const nextStep = async () => {
     const fieldsToValidate = step === 1 
       ? ["businessName", "businessType"] as const
-      : ["adminName", "adminUsername", "adminPassword", "confirmPassword"] as const;
+      : ["adminName", "adminEmail", "adminPhone", "adminUsername", "adminPassword", "confirmPassword"] as const;
     
     const isValid = await form.trigger(fieldsToValidate);
     if (isValid) setStep(step + 1);
@@ -257,15 +261,15 @@ export default function RegisterPage() {
 
                     <FormField
                       control={form.control}
-                      name="phone"
+                      name="businessPhone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Phone (Optional)</FormLabel>
+                          <FormLabel>Business Phone (Optional)</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
                               placeholder="Business phone"
-                              data-testid="input-phone"
+                              data-testid="input-business-phone"
                             />
                           </FormControl>
                           <FormMessage />
@@ -303,6 +307,46 @@ export default function RegisterPage() {
                                 data-testid="input-admin-name"
                               />
                             </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="adminEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="email"
+                              placeholder="Enter your email"
+                              data-testid="input-admin-email"
+                              autoComplete="email"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="adminPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="tel"
+                              placeholder="Enter your phone number"
+                              data-testid="input-admin-phone"
+                              autoComplete="tel"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

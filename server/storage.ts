@@ -65,6 +65,7 @@ export interface IStorage {
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
   
   // Kitchen Tickets
+  getKitchenTicket(id: string): Promise<KitchenTicket | undefined>;
   getKitchenTicketsByTenant(tenantId: string): Promise<KitchenTicket[]>;
   getActiveKitchenTickets(tenantId: string): Promise<KitchenTicket[]>;
   createKitchenTicket(ticket: InsertKitchenTicket): Promise<KitchenTicket>;
@@ -279,6 +280,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Kitchen Tickets
+  async getKitchenTicket(id: string): Promise<KitchenTicket | undefined> {
+    const [ticket] = await db.select().from(kitchenTickets).where(eq(kitchenTickets.id, id));
+    return ticket;
+  }
+
   async getKitchenTicketsByTenant(tenantId: string): Promise<KitchenTicket[]> {
     const tenantOrders = await this.getOrdersByTenant(tenantId, 1000);
     const orderIds = tenantOrders.map(o => o.id);

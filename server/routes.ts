@@ -61,18 +61,25 @@ export async function registerRoutes(
         businessName,
         businessType,
         address,
-        phone,
+        businessPhone,
         adminName,
+        adminEmail,
+        adminPhone,
         adminUsername,
         adminPassword,
       } = req.body;
+
+      // Validate required fields
+      if (!adminEmail || !adminPhone) {
+        return res.status(400).json({ message: "Email and phone number are required" });
+      }
 
       // Create tenant
       const tenant = await storage.createTenant({
         name: businessName,
         type: businessType,
         address: address || null,
-        phone: phone || null,
+        phone: businessPhone || null,
         currency: "$",
         taxRate: "0",
         logo: null,
@@ -85,6 +92,8 @@ export async function registerRoutes(
         username: adminUsername,
         password: adminPassword,
         name: adminName,
+        email: adminEmail,
+        phone: adminPhone,
         role: "admin",
         pin: null,
         isActive: true,

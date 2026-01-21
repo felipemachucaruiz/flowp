@@ -33,6 +33,8 @@ export const users = pgTable("users", {
   username: text("username").notNull(),
   password: text("password").notNull(),
   name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone").notNull(),
   role: userRoleEnum("role").notNull().default("cashier"),
   pin: text("pin"),
   isActive: boolean("is_active").default(true),
