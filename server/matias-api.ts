@@ -83,34 +83,46 @@ class MatiasApiClient {
   }
 
   async login(): Promise<MatiasAuthResponse> {
-    const response = await fetch(`${this.baseUrl}/auth/login`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-      body: JSON.stringify({
-        email: this.email,
-        password: this.password,
-        remember_me: 0,
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error((error as { message?: string }).message || "Authentication failed");
-    }
-
-    const data = await response.json() as MatiasAuthResponse;
+    const loginUrl = `${this.baseUrl}/auth/login`;
+    console.log(`Attempting Matias API login to: ${loginUrl}`);
     
-    if (!data.success) {
-      throw new Error(data.message || "Authentication failed");
-    }
+    try {
+      const response = await fetch(loginUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({
+          email: this.email,
+          password: this.password,
+          remember_me: 0,
+        }),
+      });
 
-    this.accessToken = data.access_token;
-    this.tokenExpiresAt = new Date(data.expires_at);
-    
-    return data;
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        const errorMessage = (error as { message?: string }).message || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json() as MatiasAuthResponse;
+      
+      if (!data.success) {
+        throw new Error(data.message || "Authentication failed");
+      }
+
+      this.accessToken = data.access_token;
+      this.tokenExpiresAt = new Date(data.expires_at);
+      
+      console.log("Matias API login successful");
+      return data;
+    } catch (error) {
+      if (error instanceof TypeError && (error.message === "fetch failed" || error.message.includes("fetch"))) {
+        throw new Error(`Unable to connect to Matias API at ${loginUrl}. Please verify the URL is correct and accessible.`);
+      }
+      throw error;
+    }
   }
 
   async logout(): Promise<void> {

@@ -205,7 +205,7 @@ export default function SettingsPage() {
     },
   });
 
-  const userForm = useForm({
+  const userForm = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
     defaultValues: {
       name: "",
@@ -213,7 +213,7 @@ export default function SettingsPage() {
       phone: "",
       username: "",
       password: "",
-      role: "cashier" as const,
+      role: "cashier",
       pin: "",
     },
   });
