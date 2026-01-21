@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { POSProvider } from "@/lib/pos-context";
+import { I18nProvider } from "@/lib/i18n";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 
@@ -39,7 +40,7 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, tenant } = useAuth();
 
   if (!user) {
     return <>{children}</>;
@@ -96,19 +97,29 @@ function Router() {
   );
 }
 
+function AppContent() {
+  const { tenant } = useAuth();
+  
+  return (
+    <I18nProvider initialLanguage={tenant?.language || "en"}>
+      <POSProvider>
+        <TooltipProvider>
+          <AppLayout>
+            <Router />
+          </AppLayout>
+          <Toaster />
+        </TooltipProvider>
+      </POSProvider>
+    </I18nProvider>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <POSProvider>
-            <TooltipProvider>
-              <AppLayout>
-                <Router />
-              </AppLayout>
-              <Toaster />
-            </TooltipProvider>
-          </POSProvider>
+          <AppContent />
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

@@ -653,13 +653,14 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const { currency, taxRate, address, phone } = req.body;
+      const { currency, taxRate, address, phone, language } = req.body;
       
       const updated = await storage.updateTenant(tenantId, {
         currency: currency || undefined,
         taxRate: taxRate || undefined,
         address: address || undefined,
         phone: phone || undefined,
+        language: language || undefined,
       });
       
       if (!updated) {

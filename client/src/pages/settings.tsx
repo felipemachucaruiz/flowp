@@ -35,6 +35,7 @@ const businessSettingsSchema = z.object({
   taxRate: z.string().min(0, "Tax rate is required"),
   address: z.string().optional(),
   phone: z.string().optional(),
+  language: z.string().min(1, "Language is required"),
 });
 
 const categorySchema = z.object({
@@ -62,26 +63,42 @@ const tableSchema = z.object({
 });
 
 const CURRENCIES = [
-  { value: "$", label: "USD ($)" },
-  { value: "€", label: "EUR (€)" },
-  { value: "£", label: "GBP (£)" },
-  { value: "¥", label: "JPY (¥)" },
-  { value: "₹", label: "INR (₹)" },
-  { value: "A$", label: "AUD (A$)" },
-  { value: "C$", label: "CAD (C$)" },
+  { value: "USD", label: "USD ($)" },
+  { value: "EUR", label: "EUR (€)" },
+  { value: "GBP", label: "GBP (£)" },
+  { value: "JPY", label: "JPY (¥)" },
+  { value: "INR", label: "INR (₹)" },
+  { value: "AUD", label: "AUD (A$)" },
+  { value: "CAD", label: "CAD (C$)" },
   { value: "CHF", label: "CHF" },
-  { value: "¥", label: "CNY (¥)" },
-  { value: "R$", label: "BRL (R$)" },
-  { value: "₱", label: "PHP (₱)" },
-  { value: "₩", label: "KRW (₩)" },
-  { value: "฿", label: "THB (฿)" },
-  { value: "₫", label: "VND (₫)" },
-  { value: "Rp", label: "IDR (Rp)" },
-  { value: "RM", label: "MYR (RM)" },
-  { value: "S$", label: "SGD (S$)" },
+  { value: "CNY", label: "CNY (¥)" },
+  { value: "COP", label: "COP ($)" },
+  { value: "BRL", label: "BRL (R$)" },
+  { value: "PHP", label: "PHP (₱)" },
+  { value: "KRW", label: "KRW (₩)" },
+  { value: "THB", label: "THB (฿)" },
+  { value: "VND", label: "VND (₫)" },
+  { value: "IDR", label: "IDR (Rp)" },
+  { value: "MYR", label: "MYR (RM)" },
+  { value: "SGD", label: "SGD (S$)" },
   { value: "AED", label: "AED" },
   { value: "SAR", label: "SAR" },
   { value: "ZAR", label: "ZAR" },
+  { value: "MXN", label: "MXN ($)" },
+  { value: "ARS", label: "ARS ($)" },
+  { value: "PEN", label: "PEN (S/)" },
+  { value: "CLP", label: "CLP ($)" },
+];
+
+const LANGUAGES = [
+  { value: "en", label: "English" },
+  { value: "es", label: "Español" },
+  { value: "pt", label: "Português" },
+  { value: "fr", label: "Français" },
+  { value: "de", label: "Deutsch" },
+  { value: "zh", label: "中文" },
+  { value: "ja", label: "日本語" },
+  { value: "ko", label: "한국어" },
 ];
 
 export default function SettingsPage() {
@@ -140,10 +157,11 @@ export default function SettingsPage() {
   const businessForm = useForm({
     resolver: zodResolver(businessSettingsSchema),
     defaultValues: {
-      currency: tenant?.currency || "$",
+      currency: tenant?.currency || "USD",
       taxRate: tenant?.taxRate?.toString() || "0",
       address: tenant?.address || "",
       phone: tenant?.phone || "",
+      language: tenant?.language || "en",
     },
   });
 
@@ -333,10 +351,11 @@ export default function SettingsPage() {
                   variant="outline" 
                   onClick={() => {
                     businessForm.reset({
-                      currency: tenant?.currency || "$",
+                      currency: tenant?.currency || "USD",
                       taxRate: tenant?.taxRate?.toString() || "0",
                       address: tenant?.address || "",
                       phone: tenant?.phone || "",
+                      language: tenant?.language || "en",
                     });
                     setIsEditingBusiness(true);
                   }}
@@ -431,6 +450,30 @@ export default function SettingsPage() {
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={businessForm.control}
+                        name="language"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Language</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-language">
+                                  <SelectValue placeholder="Select language" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {LANGUAGES.map((lang) => (
+                                  <SelectItem key={lang.value} value={lang.value}>
+                                    {lang.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                     <div className="flex gap-2 justify-end">
                       <Button
@@ -481,6 +524,10 @@ export default function SettingsPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Tax Rate</p>
                     <p className="font-medium">{tenant?.taxRate || "0"}%</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Language</p>
+                    <p className="font-medium">{LANGUAGES.find(l => l.value === tenant?.language)?.label || tenant?.language || "English"}</p>
                   </div>
                 </div>
               )}

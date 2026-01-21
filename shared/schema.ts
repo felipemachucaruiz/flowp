@@ -21,8 +21,9 @@ export const tenants = pgTable("tenants", {
   logo: text("logo"),
   address: text("address"),
   phone: text("phone"),
-  currency: text("currency").default("$"),
+  currency: text("currency").default("USD"),
   taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("0"),
+  language: text("language").default("en"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
