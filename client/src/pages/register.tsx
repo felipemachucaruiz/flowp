@@ -11,7 +11,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Store, ShoppingBag, UtensilsCrossed, Building2, User, Lock, ArrowRight, ArrowLeft, Loader2, CheckCircle2, Globe, MapPin } from "lucide-react";
+import { ShoppingBag, UtensilsCrossed, Building2, User, Lock, ArrowRight, ArrowLeft, Loader2, CheckCircle2, Globe, MapPin } from "lucide-react";
+import flowpLogo from "@assets/Sin_título-1_1769033877071.webp";
 import { countries } from "@/lib/countries";
 
 const registerSchema = z.object({
@@ -105,10 +106,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-lg space-y-6">
         {/* Logo and branding */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-primary text-primary-foreground mb-4">
-            <Store className="w-8 h-8" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">Flowp</h1>
+          <img src={flowpLogo} alt="Flowp" className="h-12 mx-auto mb-4" />
           <p className="text-muted-foreground">
             {t("register.title")}
           </p>

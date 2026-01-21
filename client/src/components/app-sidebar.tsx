@@ -23,8 +23,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import flowpLogo from "@assets/Sin_título-1_1769033877071.webp";
 import {
-  Store,
   ShoppingCart,
   LayoutGrid,
   ChefHat,
@@ -96,17 +96,7 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary text-primary-foreground">
-            <Store className="w-5 h-5" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-semibold text-sm truncate max-w-[140px]">
-              {tenant?.name || "Flowp"}
-            </span>
-            <span className="text-xs text-muted-foreground capitalize">
-              {tenant?.type || "Business"}
-            </span>
-          </div>
+          <img src={flowpLogo} alt="Flowp" className="h-8" />
         </div>
       </SidebarHeader>
 

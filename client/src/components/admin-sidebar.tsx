@@ -11,6 +11,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import flowpLogo from "@assets/Sin_título-1_1769033877071.webp";
 import {
   LayoutDashboard,
   Building2,
@@ -19,7 +20,6 @@ import {
   Users,
   Settings,
   LogOut,
-  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -65,11 +65,7 @@ export function AdminSidebar() {
     <Sidebar data-testid="admin-sidebar">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
-          <Shield className="h-6 w-6 text-primary" />
-          <div>
-            <h2 className="font-bold text-sm">Flowp Admin</h2>
-            <p className="text-xs text-muted-foreground">Management Portal</p>
-          </div>
+          <img src={flowpLogo} alt="Flowp" className="h-8" />
         </div>
       </SidebarHeader>
       <SidebarContent>

@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Store, Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import { Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import flowpLogo from "@assets/Sin_título-1_1769033877071.webp";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -67,10 +68,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Logo and branding */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-primary text-primary-foreground mb-4">
-            <Store className="w-8 h-8" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight">Flowp</h1>
+          <img src={flowpLogo} alt="Flowp" className="h-12 mx-auto mb-4" />
           <p className="text-muted-foreground">
             {t("login.subtitle")}
           </p>
