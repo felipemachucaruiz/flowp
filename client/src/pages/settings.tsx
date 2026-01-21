@@ -28,6 +28,9 @@ import {
   Trash2,
   Loader2,
   Printer,
+  FileText,
+  Check,
+  X,
 } from "lucide-react";
 
 const businessSettingsSchema = z.object({
@@ -36,6 +39,12 @@ const businessSettingsSchema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   language: z.string().min(1, "Language is required"),
+});
+
+const matiasConfigSchema = z.object({
+  apiUrl: z.string().url("Please enter a valid URL"),
+  email: z.string().email("Please enter a valid email"),
+  password: z.string().min(1, "Password is required"),
 });
 
 const categorySchema = z.object({
@@ -112,6 +121,7 @@ export default function SettingsPage() {
   const [showTableDialog, setShowTableDialog] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [isEditingBusiness, setIsEditingBusiness] = useState(false);
+  const [isEditingMatias, setIsEditingMatias] = useState(false);
 
   const isRestaurant = tenant?.type === "restaurant";
 
@@ -131,6 +141,16 @@ export default function SettingsPage() {
 
   const { data: tables, isLoading: tablesLoading } = useQuery<Table[]>({
     queryKey: ["/api/tables"],
+    enabled: isRestaurant,
+  });
+
+  const { data: matiasStatus, isLoading: matiasLoading } = useQuery<{
+    enabled: boolean;
+    configured: boolean;
+    apiUrl: string | null;
+    email: string | null;
+  }>({
+    queryKey: ["/api/matias/status"],
     enabled: isRestaurant,
   });
 
@@ -166,6 +186,15 @@ export default function SettingsPage() {
     },
   });
 
+  const matiasForm = useForm({
+    resolver: zodResolver(matiasConfigSchema),
+    defaultValues: {
+      apiUrl: matiasStatus?.apiUrl || "",
+      email: matiasStatus?.email || "",
+      password: "",
+    },
+  });
+
   // Mutations
   const businessSettingsMutation = useMutation({
     mutationFn: async (data: z.infer<typeof businessSettingsSchema>) => {
@@ -180,6 +209,34 @@ export default function SettingsPage() {
       toast({ title: "Failed to update settings", variant: "destructive" });
     },
   });
+
+  const matiasConfigMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof matiasConfigSchema>) => {
+      return apiRequest("POST", "/api/matias/configure", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Electronic invoicing configured successfully" });
+      setIsEditingMatias(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/matias/status"] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to configure electronic invoicing", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const matiasDisableMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/matias/disable", {});
+    },
+    onSuccess: () => {
+      toast({ title: "Electronic invoicing disabled" });
+      queryClient.invalidateQueries({ queryKey: ["/api/matias/status"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to disable electronic invoicing", variant: "destructive" });
+    },
+  });
+
   const categoryMutation = useMutation({
     mutationFn: async (data: z.infer<typeof categorySchema>) => {
       if (editingItem) {
@@ -334,6 +391,10 @@ export default function SettingsPage() {
           <TabsTrigger value="printing" data-testid="tab-printing">
             <Printer className="w-4 h-4 mr-2" />
             Printing
+          </TabsTrigger>
+          <TabsTrigger value="invoicing" data-testid="tab-invoicing">
+            <FileText className="w-4 h-4 mr-2" />
+            Facturación
           </TabsTrigger>
         </TabsList>
 
@@ -835,6 +896,165 @@ export default function SettingsPage() {
                   <p><strong>Tip:</strong> Set your browser to use the thermal printer as default for faster printing.</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Electronic Invoicing Settings */}
+        <TabsContent value="invoicing" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Facturación Electrónica Colombia</CardTitle>
+                  <CardDescription>
+                    Configuración de la API de Matias para facturación electrónica DIAN
+                  </CardDescription>
+                </div>
+                {matiasStatus?.enabled ? (
+                  <Badge variant="default" className="bg-green-500">
+                    <Check className="w-3 h-3 mr-1" />
+                    Conectado
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary">
+                    <X className="w-3 h-3 mr-1" />
+                    No configurado
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {matiasLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              ) : isEditingMatias || !matiasStatus?.configured ? (
+                <Form {...matiasForm}>
+                  <form onSubmit={matiasForm.handleSubmit((data) => matiasConfigMutation.mutate(data))} className="space-y-4">
+                    <FormField
+                      control={matiasForm.control}
+                      name="apiUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>URL de la API</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              placeholder="https://api.matias-api.com" 
+                              data-testid="input-matias-url"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={matiasForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Correo electrónico</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="email"
+                              placeholder="correo@empresa.com" 
+                              data-testid="input-matias-email"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={matiasForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Contraseña</FormLabel>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              type="password"
+                              placeholder="••••••••" 
+                              data-testid="input-matias-password"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      {matiasStatus?.configured && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsEditingMatias(false)}
+                        >
+                          Cancelar
+                        </Button>
+                      )}
+                      <Button
+                        type="submit"
+                        disabled={matiasConfigMutation.isPending}
+                        data-testid="button-save-matias"
+                      >
+                        {matiasConfigMutation.isPending && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        Conectar
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">URL de la API</p>
+                      <p className="font-medium truncate">{matiasStatus.apiUrl}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Correo electrónico</p>
+                      <p className="font-medium">{matiasStatus.email}</p>
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-lg bg-muted/50 border border-dashed">
+                    <div className="flex items-center gap-3 mb-3">
+                      <FileText className="w-5 h-5 text-muted-foreground" />
+                      <span className="font-medium">Documentos Soportados</span>
+                    </div>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>Factura Electrónica (Resolución 000165/2024)</li>
+                      <li>Nota Crédito</li>
+                      <li>Documento Soporte</li>
+                    </ul>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditingMatias(true)}
+                      data-testid="button-edit-matias"
+                    >
+                      <Pencil className="w-4 h-4 mr-2" />
+                      Editar configuración
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => matiasDisableMutation.mutate()}
+                      disabled={matiasDisableMutation.isPending}
+                      data-testid="button-disable-matias"
+                    >
+                      {matiasDisableMutation.isPending && (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      )}
+                      Desconectar
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

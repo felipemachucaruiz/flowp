@@ -24,6 +24,10 @@ export const tenants = pgTable("tenants", {
   currency: text("currency").default("USD"),
   taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("0"),
   language: text("language").default("en"),
+  matiasApiUrl: text("matias_api_url"),
+  matiasApiEmail: text("matias_api_email"),
+  matiasApiPassword: text("matias_api_password"),
+  matiasEnabled: boolean("matias_enabled").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
