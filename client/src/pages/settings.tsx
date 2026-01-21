@@ -43,9 +43,13 @@ const businessSettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
   currency: z.string().min(1, "Currency is required"),
   taxRate: z.string().min(0, "Tax rate is required"),
+  country: z.string().min(1, "Country is required"),
+  city: z.string().optional(),
   address: z.string().optional(),
   phone: z.string().optional(),
   language: z.string().min(1, "Language is required"),
+  taxId: z.string().min(1, "Tax ID is required"),
+  logo: z.string().optional(),
 });
 
 const userSchema = z.object({
@@ -126,6 +130,17 @@ const LANGUAGES = [
   { value: "pt", label: "Português" },
 ];
 
+const COUNTRIES = [
+  { value: "CO", label: "Colombia", taxIdLabel: "NIT" },
+  { value: "MX", label: "México", taxIdLabel: "RFC" },
+  { value: "AR", label: "Argentina", taxIdLabel: "CUIT" },
+  { value: "PE", label: "Perú", taxIdLabel: "RUC" },
+  { value: "CL", label: "Chile", taxIdLabel: "RUT" },
+  { value: "BR", label: "Brasil", taxIdLabel: "CNPJ" },
+  { value: "US", label: "United States", taxIdLabel: "EIN" },
+  { value: "ES", label: "España", taxIdLabel: "CIF/NIF" },
+];
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const { tenant, refreshTenant } = useAuth();
@@ -140,12 +155,12 @@ export default function SettingsPage() {
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [productImagePath, setProductImagePath] = useState<string>("");
-  const [receiptLogoPath, setReceiptLogoPath] = useState<string>(tenant?.logo || "");
+  const [businessLogoPath, setBusinessLogoPath] = useState<string>(tenant?.logo || "");
 
-  // Sync receipt logo path when tenant data loads/changes
+  // Sync business logo path when tenant data loads/changes
   useEffect(() => {
     if (tenant?.logo !== undefined) {
-      setReceiptLogoPath(tenant.logo || "");
+      setBusinessLogoPath(tenant.logo || "");
     }
   }, [tenant?.logo]);
 
@@ -160,16 +175,11 @@ export default function SettingsPage() {
     },
   });
 
-  const { uploadFile: uploadLogoFile, isUploading: isUploadingLogo } = useUpload({
+  const { uploadFile: uploadBusinessLogo, isUploading: isUploadingBusinessLogo } = useUpload({
     onSuccess: async (response) => {
-      setReceiptLogoPath(response.objectPath);
-      try {
-        await apiRequest("PATCH", "/api/settings", { logo: response.objectPath });
-        if (refreshTenant) refreshTenant();
-        toast({ title: "Logo uploaded successfully" });
-      } catch {
-        toast({ title: "Logo uploaded but failed to save", variant: "destructive" });
-      }
+      setBusinessLogoPath(response.objectPath);
+      businessForm.setValue("logo", response.objectPath);
+      toast({ title: "Logo uploaded successfully" });
     },
     onError: (error) => {
       toast({ title: "Failed to upload logo", description: error.message, variant: "destructive" });
@@ -228,11 +238,18 @@ export default function SettingsPage() {
       name: tenant?.name || "",
       currency: tenant?.currency || "USD",
       taxRate: tenant?.taxRate?.toString() || "0",
+      country: tenant?.country || "",
+      city: tenant?.city || "",
       address: tenant?.address || "",
       phone: tenant?.phone || "",
       language: tenant?.language || "en",
+      taxId: tenant?.receiptTaxId || "",
+      logo: tenant?.logo || "",
     },
   });
+
+  const selectedCountry = businessForm.watch("country");
+  const taxIdLabel = COUNTRIES.find(c => c.value === selectedCountry)?.taxIdLabel || "Tax ID";
 
   const userForm = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
@@ -262,7 +279,8 @@ export default function SettingsPage() {
   // Mutations
   const businessSettingsMutation = useMutation({
     mutationFn: async (data: z.infer<typeof businessSettingsSchema>) => {
-      return apiRequest("PATCH", "/api/settings", data);
+      const { taxId, ...rest } = data;
+      return apiRequest("PATCH", "/api/settings", { ...rest, receiptTaxId: taxId });
     },
     onSuccess: () => {
       toast({ title: "Settings updated successfully" });
@@ -510,10 +528,15 @@ export default function SettingsPage() {
                       name: tenant?.name || "",
                       currency: tenant?.currency || "USD",
                       taxRate: tenant?.taxRate?.toString() || "0",
+                      country: tenant?.country || "",
+                      city: tenant?.city || "",
                       address: tenant?.address || "",
                       phone: tenant?.phone || "",
                       language: tenant?.language || "en",
+                      taxId: tenant?.receiptTaxId || "",
+                      logo: tenant?.logo || "",
                     });
+                    setBusinessLogoPath(tenant?.logo || "");
                     setIsEditingBusiness(true);
                   }}
                   data-testid="button-edit-business"
@@ -527,27 +550,134 @@ export default function SettingsPage() {
               {isEditingBusiness ? (
                 <Form {...businessForm}>
                   <form onSubmit={businessForm.handleSubmit((data) => businessSettingsMutation.mutate(data))} className="space-y-4">
-                    <FormField
-                      control={businessForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("business.name")}</FormLabel>
-                          <FormControl>
-                            <Input {...field} data-testid="input-company-name" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <div className="flex gap-6 items-start">
+                      <div className="flex-shrink-0">
+                        <p className="text-sm font-medium mb-2">Company Logo</p>
+                        <div className="w-32 h-32 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden bg-muted/50">
+                          {businessLogoPath ? (
+                            <img
+                              src={`/objects${businessLogoPath}`}
+                              alt="Company logo"
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isUploadingBusinessLogo}
+                            onClick={() => {
+                              const input = document.createElement("input");
+                              input.type = "file";
+                              input.accept = "image/*";
+                              input.onchange = (e) => {
+                                const file = (e.target as HTMLInputElement).files?.[0];
+                                if (file) uploadBusinessLogo(file);
+                              };
+                              input.click();
+                            }}
+                            data-testid="button-upload-business-logo"
+                          >
+                            {isUploadingBusinessLogo ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              "Upload"
+                            )}
+                          </Button>
+                          {businessLogoPath && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setBusinessLogoPath("");
+                                businessForm.setValue("logo", "");
+                              }}
+                              data-testid="button-remove-business-logo"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <FormField
+                          control={businessForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("business.name")}</FormLabel>
+                              <FormControl>
+                                <Input {...field} data-testid="input-company-name" />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={businessForm.control}
+                        name="country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Country</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger data-testid="select-country">
+                                  <SelectValue placeholder="Select country" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {COUNTRIES.map((country) => (
+                                  <SelectItem key={country.value} value={country.value}>
+                                    {country.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={businessForm.control}
+                        name="city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>City</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="City" data-testid="input-city" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={businessForm.control}
+                        name="taxId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{taxIdLabel} *</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder={taxIdLabel} data-testid="input-tax-id" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                       <FormField
                         control={businessForm.control}
                         name="currency"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t("business.currency")}</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-currency">
                                   <SelectValue placeholder="Select currency" />
@@ -626,7 +756,7 @@ export default function SettingsPage() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>{t("business.language")}</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-language">
                                   <SelectValue placeholder="Select language" />
@@ -668,36 +798,62 @@ export default function SettingsPage() {
                   </form>
                 </Form>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t("business.name")}</p>
-                    <p className="font-medium">{tenant?.name || t("business.not_set")}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t("business.type")}</p>
-                    <Badge variant="secondary" className="capitalize">
-                      {tenant?.type || "Not set"}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t("business.address")}</p>
-                    <p className="font-medium">{tenant?.address || t("business.not_set")}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t("business.phone")}</p>
-                    <p className="font-medium">{tenant?.phone || t("business.not_set")}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t("business.currency")}</p>
-                    <p className="font-medium">{CURRENCIES.find(c => c.value === tenant?.currency)?.label || tenant?.currency || "$"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t("business.tax_rate")}</p>
-                    <p className="font-medium">{tenant?.taxRate || "0"}%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t("business.language")}</p>
-                    <p className="font-medium">{LANGUAGES.find(l => l.value === tenant?.language)?.label || tenant?.language || "English"}</p>
+                <div className="flex gap-6">
+                  {tenant?.logo && (
+                    <div className="flex-shrink-0">
+                      <p className="text-sm text-muted-foreground mb-2">Logo</p>
+                      <div className="w-24 h-24 border rounded-lg overflow-hidden bg-muted/50">
+                        <img
+                          src={`/objects${tenant.logo}`}
+                          alt="Company logo"
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex-1 grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("business.name")}</p>
+                      <p className="font-medium">{tenant?.name || t("business.not_set")}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("business.type")}</p>
+                      <Badge variant="secondary" className="capitalize">
+                        {tenant?.type || "Not set"}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Country</p>
+                      <p className="font-medium">{COUNTRIES.find(c => c.value === tenant?.country)?.label || tenant?.country || t("business.not_set")}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">City</p>
+                      <p className="font-medium">{tenant?.city || t("business.not_set")}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{COUNTRIES.find(c => c.value === tenant?.country)?.taxIdLabel || "Tax ID"}</p>
+                      <p className="font-medium">{tenant?.receiptTaxId || t("business.not_set")}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("business.address")}</p>
+                      <p className="font-medium">{tenant?.address || t("business.not_set")}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("business.phone")}</p>
+                      <p className="font-medium">{tenant?.phone || t("business.not_set")}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("business.currency")}</p>
+                      <p className="font-medium">{CURRENCIES.find(c => c.value === tenant?.currency)?.label || tenant?.currency || "$"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("business.tax_rate")}</p>
+                      <p className="font-medium">{tenant?.taxRate || "0"}%</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("business.language")}</p>
+                      <p className="font-medium">{LANGUAGES.find(l => l.value === tenant?.language)?.label || tenant?.language || "English"}</p>
+                    </div>
                   </div>
                 </div>
               )}
