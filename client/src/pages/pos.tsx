@@ -508,8 +508,8 @@ export default function POSPage() {
       </div>
 
       {/* Cart Section */}
-      <div className="w-80 lg:w-96 border-l bg-card flex flex-col">
-        <div className="p-4 border-b">
+      <div className="w-80 lg:w-[420px] border-l bg-card flex flex-col">
+        <div className="p-4 pr-6 border-b">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5 text-primary" />
@@ -532,7 +532,7 @@ export default function POSPage() {
         ) : (
           <>
             <ScrollArea className="flex-1">
-              <div className="p-4 space-y-3">
+              <div className="p-4 pr-6 space-y-3">
                 {cart.map((item) => (
                   <Card key={item.id} className="p-3">
                     <div className="flex items-start gap-3">
@@ -608,7 +608,7 @@ export default function POSPage() {
             </ScrollArea>
 
             {/* Order Summary */}
-            <div className="border-t p-4 space-y-3 bg-muted/30">
+            <div className="border-t p-4 pr-6 space-y-3 bg-muted/30">
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
