@@ -1,10 +1,11 @@
 import {
   tenants, users, registers, registerSessions, categories, products,
   modifierGroups, modifiers, productModifierGroups, floors, tables,
-  orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs,
+  orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs, customers,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
   type Category, type InsertCategory, type Product, type InsertProduct,
+  type Customer, type InsertCustomer,
   type ModifierGroup, type InsertModifierGroup, type Modifier, type InsertModifier,
   type Floor, type InsertFloor, type Table, type InsertTable,
   type Order, type InsertOrder, type OrderItem, type InsertOrderItem,
@@ -13,7 +14,7 @@ import {
   RETAIL_FEATURES, RESTAURANT_FEATURES,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, gte } from "drizzle-orm";
+import { eq, and, desc, sql, gte, or, ilike } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 export interface IStorage {
@@ -43,6 +44,14 @@ export interface IStorage {
   updateProduct(id: string, data: Partial<InsertProduct>): Promise<Product | undefined>;
   deleteProduct(id: string): Promise<void>;
   
+  // Customers
+  getCustomersByTenant(tenantId: string): Promise<Customer[]>;
+  getCustomer(id: string): Promise<Customer | undefined>;
+  searchCustomers(tenantId: string, query: string): Promise<Customer[]>;
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: string, data: Partial<InsertCustomer>): Promise<Customer | undefined>;
+  deleteCustomer(id: string): Promise<void>;
+  
   // Floors
   getFloorsByTenant(tenantId: string): Promise<Floor[]>;
   createFloor(floor: InsertFloor): Promise<Floor>;
@@ -58,6 +67,7 @@ export interface IStorage {
   
   // Orders
   getOrdersByTenant(tenantId: string, limit?: number): Promise<Order[]>;
+  getOrdersWithDetails(tenantId: string, startDate: Date | null): Promise<any[]>;
   getOrder(id: string): Promise<Order | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: string, data: Partial<InsertOrder>): Promise<Order | undefined>;
@@ -198,6 +208,48 @@ export class DatabaseStorage implements IStorage {
     await db.delete(products).where(eq(products.id, id));
   }
 
+  // Customers
+  async getCustomersByTenant(tenantId: string): Promise<Customer[]> {
+    return db.select().from(customers).where(eq(customers.tenantId, tenantId)).orderBy(desc(customers.createdAt));
+  }
+
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    return customer || undefined;
+  }
+
+  async searchCustomers(tenantId: string, query: string): Promise<Customer[]> {
+    if (!query.trim()) {
+      return this.getCustomersByTenant(tenantId);
+    }
+    const searchPattern = `%${query}%`;
+    return db.select().from(customers).where(
+      and(
+        eq(customers.tenantId, tenantId),
+        or(
+          ilike(customers.name, searchPattern),
+          ilike(customers.email, searchPattern),
+          ilike(customers.phone, searchPattern),
+          ilike(customers.idNumber, searchPattern)
+        )
+      )
+    ).orderBy(customers.name);
+  }
+
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    const [created] = await db.insert(customers).values(customer).returning();
+    return created;
+  }
+
+  async updateCustomer(id: string, data: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const [updated] = await db.update(customers).set(data).where(eq(customers.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteCustomer(id: string): Promise<void> {
+    await db.delete(customers).where(eq(customers.id, id));
+  }
+
   // Floors
   async getFloorsByTenant(tenantId: string): Promise<Floor[]> {
     return db.select().from(floors).where(eq(floors.tenantId, tenantId)).orderBy(floors.sortOrder);
@@ -257,6 +309,60 @@ export class DatabaseStorage implements IStorage {
       .where(eq(orders.tenantId, tenantId))
       .orderBy(desc(orders.createdAt))
       .limit(limit);
+  }
+
+  async getOrdersWithDetails(tenantId: string, startDate: Date | null): Promise<any[]> {
+    let query = db
+      .select()
+      .from(orders)
+      .where(
+        startDate
+          ? and(eq(orders.tenantId, tenantId), gte(orders.createdAt, startDate))
+          : eq(orders.tenantId, tenantId)
+      )
+      .orderBy(desc(orders.createdAt))
+      .limit(200);
+    
+    const orderList = await query;
+    
+    const ordersWithDetails = await Promise.all(
+      orderList.map(async (order) => {
+        const items = await db
+          .select({
+            id: orderItems.id,
+            productId: orderItems.productId,
+            quantity: orderItems.quantity,
+            unitPrice: orderItems.unitPrice,
+            productName: products.name,
+          })
+          .from(orderItems)
+          .leftJoin(products, eq(orderItems.productId, products.id))
+          .where(eq(orderItems.orderId, order.id));
+        
+        const orderPayments = await db
+          .select()
+          .from(payments)
+          .where(eq(payments.orderId, order.id));
+        
+        let customer = null;
+        if (order.customerId) {
+          const [cust] = await db
+            .select()
+            .from(customers)
+            .where(eq(customers.id, order.customerId));
+          customer = cust || null;
+        }
+        
+        return {
+          ...order,
+          items,
+          payments: orderPayments,
+          customer,
+        };
+      })
+    );
+    
+    return ordersWithDetails;
   }
 
   async getOrder(id: string): Promise<Order | undefined> {

@@ -14,7 +14,9 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Category, Product } from "@shared/schema";
+import type { Category, Product, Customer } from "@shared/schema";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Search,
   Plus,
@@ -30,6 +32,9 @@ import {
   Receipt,
   Loader2,
   ScanBarcode,
+  User,
+  UserPlus,
+  Check,
 } from "lucide-react";
 
 export default function POSPage() {
@@ -56,6 +61,13 @@ export default function POSPage() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
   const [cashReceived, setCashReceived] = useState("");
   const [barcodeMode, setBarcodeMode] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
+  const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerIdType, setNewCustomerIdType] = useState<string>("");
+  const [newCustomerIdNumber, setNewCustomerIdNumber] = useState("");
 
   const taxRate = parseFloat(tenant?.taxRate?.toString() || "0");
   const barcodeBuffer = useRef("");
@@ -69,6 +81,47 @@ export default function POSPage() {
 
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+  });
+
+  const { data: customers } = useQuery<Customer[]>({
+    queryKey: ["/api/customers/search", customerSearchQuery],
+    queryFn: async () => {
+      const response = await fetch(`/api/customers/search?q=${encodeURIComponent(customerSearchQuery)}`, {
+        headers: { "x-tenant-id": tenant?.id || "" },
+      });
+      return response.json();
+    },
+    enabled: !!tenant?.id,
+  });
+
+  // Create new customer mutation
+  const createCustomerMutation = useMutation({
+    mutationFn: async (data: { name: string; phone?: string; idType?: string; idNumber?: string }) => {
+      return apiRequest("/api/customers", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: (newCustomer: Customer) => {
+      setSelectedCustomer(newCustomer);
+      setShowNewCustomerForm(false);
+      setNewCustomerName("");
+      setNewCustomerPhone("");
+      setNewCustomerIdType("");
+      setNewCustomerIdNumber("");
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/search"] });
+      toast({
+        title: "Customer created",
+        description: `${newCustomer.name} has been added`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create customer",
+        variant: "destructive",
+      });
+    },
   });
 
   // Barcode scanner handler - detects rapid keyboard input
@@ -221,14 +274,26 @@ export default function POSPage() {
       subtotal: getSubtotal(),
       taxAmount: getTaxAmount(taxRate),
       total: getTotal(taxRate),
+      customerId: selectedCustomer?.id || null,
     };
 
     pendingReceiptData.current = {
       ...orderData,
       cashReceived: paymentMethod === "cash" ? parseFloat(cashReceived || "0") : undefined,
+      customer: selectedCustomer,
     };
 
     createOrderMutation.mutate(orderData);
+  };
+
+  const handleCreateCustomer = () => {
+    if (!newCustomerName.trim()) return;
+    createCustomerMutation.mutate({
+      name: newCustomerName.trim(),
+      phone: newCustomerPhone.trim() || undefined,
+      idType: newCustomerIdType || undefined,
+      idNumber: newCustomerIdNumber.trim() || undefined,
+    });
   };
 
   const formatCurrency = (amount: number) => {
@@ -544,7 +609,18 @@ export default function POSPage() {
       </div>
 
       {/* Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+      <Dialog open={showPaymentDialog} onOpenChange={(open) => {
+        setShowPaymentDialog(open);
+        if (!open) {
+          setSelectedCustomer(null);
+          setCustomerSearchQuery("");
+          setShowNewCustomerForm(false);
+          setNewCustomerName("");
+          setNewCustomerPhone("");
+          setNewCustomerIdType("");
+          setNewCustomerIdNumber("");
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Complete Payment</DialogTitle>
@@ -557,6 +633,147 @@ export default function POSPage() {
                 {formatCurrency(getTotal(taxRate))}
               </p>
             </div>
+
+            {/* Customer Selection */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Customer (Optional)
+              </Label>
+              {selectedCustomer ? (
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-primary/5 border-primary/30">
+                  <div>
+                    <p className="font-medium">{selectedCustomer.name}</p>
+                    {selectedCustomer.phone && (
+                      <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
+                    )}
+                    {selectedCustomer.idNumber && (
+                      <p className="text-xs text-muted-foreground">
+                        {selectedCustomer.idType?.replace("_", " ")}: {selectedCustomer.idNumber}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedCustomer(null)}
+                    data-testid="button-remove-customer"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : showNewCustomerForm ? (
+                <div className="space-y-3 p-3 rounded-lg border">
+                  <Input
+                    placeholder="Customer name *"
+                    value={newCustomerName}
+                    onChange={(e) => setNewCustomerName(e.target.value)}
+                    data-testid="input-new-customer-name"
+                  />
+                  <Input
+                    placeholder="Phone number"
+                    value={newCustomerPhone}
+                    onChange={(e) => setNewCustomerPhone(e.target.value)}
+                    data-testid="input-new-customer-phone"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Select value={newCustomerIdType} onValueChange={setNewCustomerIdType}>
+                      <SelectTrigger data-testid="select-customer-id-type">
+                        <SelectValue placeholder="ID Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cedula_ciudadania">Cédula Ciudadanía</SelectItem>
+                        <SelectItem value="cedula_extranjeria">Cédula Extranjería</SelectItem>
+                        <SelectItem value="pasaporte">Pasaporte</SelectItem>
+                        <SelectItem value="nit">NIT</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="ID Number"
+                      value={newCustomerIdNumber}
+                      onChange={(e) => setNewCustomerIdNumber(e.target.value)}
+                      data-testid="input-new-customer-id"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowNewCustomerForm(false)}
+                      className="flex-1"
+                      data-testid="button-cancel-new-customer"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleCreateCustomer}
+                      disabled={!newCustomerName.trim() || createCustomerMutation.isPending}
+                      className="flex-1"
+                      data-testid="button-save-new-customer"
+                    >
+                      {createCustomerMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-1" />
+                          Save
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Search by name, phone, or ID..."
+                      value={customerSearchQuery}
+                      onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                      data-testid="input-customer-search"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setShowNewCustomerForm(true)}
+                      title="Add new customer"
+                      data-testid="button-add-new-customer"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {customers && customers.length > 0 && customerSearchQuery && (
+                    <div className="max-h-32 overflow-y-auto border rounded-lg divide-y">
+                      {customers.slice(0, 5).map((customer) => (
+                        <button
+                          key={customer.id}
+                          onClick={() => {
+                            setSelectedCustomer(customer);
+                            setCustomerSearchQuery("");
+                          }}
+                          className="w-full px-3 py-2 text-left hover-elevate flex justify-between items-center"
+                          data-testid={`button-select-customer-${customer.id}`}
+                        >
+                          <div>
+                            <p className="font-medium text-sm">{customer.name}</p>
+                            {customer.phone && (
+                              <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                            )}
+                          </div>
+                          {customer.idNumber && (
+                            <span className="text-xs text-muted-foreground">
+                              {customer.idNumber}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <Separator />
 
             <div className="grid grid-cols-2 gap-3">
               <button

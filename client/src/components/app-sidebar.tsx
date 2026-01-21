@@ -30,6 +30,7 @@ import {
   ChefHat,
   Package,
   BarChart3,
+  Receipt,
   Settings,
   Sun,
   Moon,
@@ -74,6 +75,11 @@ export function AppSidebar() {
       title: t("nav.reports"),
       url: "/reports",
       icon: BarChart3,
+    },
+    {
+      title: t("nav.sales_history") || "Sales History",
+      url: "/sales-history",
+      icon: Receipt,
     },
     {
       title: t("nav.settings"),

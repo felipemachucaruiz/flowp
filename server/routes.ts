@@ -7,6 +7,7 @@ import {
   insertTenantSchema,
   insertCategorySchema,
   insertProductSchema,
+  insertCustomerSchema,
   insertFloorSchema,
   insertTableSchema,
   RETAIL_FEATURES,
@@ -436,6 +437,114 @@ export async function registerRoutes(
     }
   });
 
+  // ===== CUSTOMERS ROUTES =====
+
+  app.get("/api/customers", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json([]);
+      }
+      const customers = await storage.getCustomersByTenant(tenantId);
+      res.json(customers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch customers" });
+    }
+  });
+
+  app.get("/api/customers/search", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json([]);
+      }
+      const query = req.query.q as string || "";
+      const customers = await storage.searchCustomers(tenantId, query);
+      res.json(customers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to search customers" });
+    }
+  });
+
+  app.get("/api/customers/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      const customer = await storage.getCustomer(id);
+      if (!customer || customer.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json(customer);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch customer" });
+    }
+  });
+
+  app.post("/api/customers", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const data = insertCustomerSchema.parse({ ...req.body, tenantId });
+      const customer = await storage.createCustomer(data);
+      res.json(customer);
+    } catch (error) {
+      console.error("Customer creation error:", error);
+      res.status(400).json({ message: "Failed to create customer" });
+    }
+  });
+
+  app.patch("/api/customers/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      const existing = await storage.getCustomer(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      // Only allow specific fields to be updated
+      const { name, email, phone, address, idType, idNumber, notes } = req.body;
+      const updateData: Record<string, any> = {};
+      if (name !== undefined) updateData.name = name;
+      if (email !== undefined) updateData.email = email;
+      if (phone !== undefined) updateData.phone = phone;
+      if (address !== undefined) updateData.address = address;
+      if (idType !== undefined) updateData.idType = idType;
+      if (idNumber !== undefined) updateData.idNumber = idNumber;
+      if (notes !== undefined) updateData.notes = notes;
+      
+      const customer = await storage.updateCustomer(id, updateData);
+      res.json(customer);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update customer" });
+    }
+  });
+
+  app.delete("/api/customers/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      const existing = await storage.getCustomer(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      await storage.deleteCustomer(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete customer" });
+    }
+  });
+
   // ===== FLOORS ROUTES =====
 
   app.get("/api/floors", async (req: Request, res: Response) => {
@@ -598,6 +707,35 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/orders/history", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json([]);
+      }
+      
+      const filter = req.query.filter as string || "today";
+      
+      // Calculate date filter
+      const now = new Date();
+      let startDate: Date | null = null;
+      
+      if (filter === "today") {
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      } else if (filter === "week") {
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (filter === "month") {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+      
+      const orders = await storage.getOrdersWithDetails(tenantId, startDate);
+      res.json(orders);
+    } catch (error) {
+      console.error("Orders history error:", error);
+      res.status(500).json({ message: "Failed to fetch order history" });
+    }
+  });
+
   app.post("/api/orders", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
@@ -607,7 +745,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const { items, paymentMethod, subtotal, taxAmount, total } = req.body;
+      const { items, paymentMethod, subtotal, taxAmount, total, customerId } = req.body;
 
       // Get next order number
       const orderNumber = await storage.getNextOrderNumber(tenantId);
@@ -623,6 +761,7 @@ export async function registerRoutes(
         total: total.toString(),
         discountAmount: "0",
         registerId: null,
+        customerId: customerId || null,
         tableId: null,
         notes: null,
       });
