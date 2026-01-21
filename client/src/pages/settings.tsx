@@ -54,9 +54,9 @@ const userSchema = z.object({
 });
 
 const matiasConfigSchema = z.object({
-  apiUrl: z.string().url("Please enter a valid URL"),
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(1, "Password is required"),
+  apiUrl: z.string().min(1, "API URL is required"),
+  clientId: z.string().min(1, "Client ID is required"),
+  clientSecret: z.string().min(1, "Client Secret is required"),
 });
 
 const categorySchema = z.object({
@@ -163,7 +163,7 @@ export default function SettingsPage() {
     enabled: boolean;
     configured: boolean;
     apiUrl: string | null;
-    email: string | null;
+    clientId: string | null;
   }>({
     queryKey: ["/api/matias/status"],
   });
@@ -221,9 +221,9 @@ export default function SettingsPage() {
   const matiasForm = useForm({
     resolver: zodResolver(matiasConfigSchema),
     defaultValues: {
-      apiUrl: matiasStatus?.apiUrl || "",
-      email: matiasStatus?.email || "",
-      password: "",
+      apiUrl: matiasStatus?.apiUrl || "https://api.matias.com",
+      clientId: matiasStatus?.clientId || "",
+      clientSecret: "",
     },
   });
 
@@ -1043,16 +1043,16 @@ export default function SettingsPage() {
                     />
                     <FormField
                       control={matiasForm.control}
-                      name="email"
+                      name="clientId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Correo electrónico</FormLabel>
+                          <FormLabel>Client ID</FormLabel>
                           <FormControl>
                             <Input 
                               {...field} 
-                              type="email"
-                              placeholder="correo@empresa.com" 
-                              data-testid="input-matias-email"
+                              type="text"
+                              placeholder="your-client-id" 
+                              data-testid="input-matias-client-id"
                             />
                           </FormControl>
                           <FormMessage />
@@ -1061,16 +1061,16 @@ export default function SettingsPage() {
                     />
                     <FormField
                       control={matiasForm.control}
-                      name="password"
+                      name="clientSecret"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Contraseña</FormLabel>
+                          <FormLabel>Client Secret</FormLabel>
                           <FormControl>
                             <Input 
                               {...field} 
                               type="password"
                               placeholder="••••••••" 
-                              data-testid="input-matias-password"
+                              data-testid="input-matias-client-secret"
                             />
                           </FormControl>
                           <FormMessage />
@@ -1108,8 +1108,8 @@ export default function SettingsPage() {
                       <p className="font-medium truncate">{matiasStatus.apiUrl}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Correo electrónico</p>
-                      <p className="font-medium">{matiasStatus.email}</p>
+                      <p className="text-sm text-muted-foreground">Client ID</p>
+                      <p className="font-medium">{matiasStatus.clientId}</p>
                     </div>
                   </div>
                   <div className="p-4 rounded-lg bg-muted/50 border border-dashed">

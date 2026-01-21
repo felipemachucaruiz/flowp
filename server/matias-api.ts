@@ -1,21 +1,13 @@
 interface MatiasConfig {
   baseUrl: string;
-  email: string;
-  password: string;
+  clientId: string;
+  clientSecret: string;
 }
 
-interface MatiasAuthResponse {
+interface MatiasOAuthResponse {
   access_token: string;
-  user: {
-    id: number;
-    first_name: string;
-    last_name: string;
-    email: string;
-    name: string;
-  };
-  expires_at: string;
-  message: string;
-  success: boolean;
+  token_type: string;
+  expires_in: number;
 }
 
 interface MatiasInvoiceItem {
@@ -64,15 +56,15 @@ interface MatiasInvoiceResponse {
 
 class MatiasApiClient {
   private baseUrl: string;
-  private email: string;
-  private password: string;
+  private clientId: string;
+  private clientSecret: string;
   private accessToken: string | null = null;
   private tokenExpiresAt: Date | null = null;
 
   constructor(config: MatiasConfig) {
     this.baseUrl = config.baseUrl.replace(/\/$/, "");
-    this.email = config.email;
-    this.password = config.password;
+    this.clientId = config.clientId;
+    this.clientSecret = config.clientSecret;
   }
 
   private async ensureAuthenticated(): Promise<void> {
@@ -82,64 +74,61 @@ class MatiasApiClient {
     await this.login();
   }
 
-  async login(): Promise<MatiasAuthResponse> {
-    const loginUrl = `${this.baseUrl}/auth/login`;
-    console.log(`Attempting Matias API login to: ${loginUrl}`);
+  async login(): Promise<MatiasOAuthResponse> {
+    const tokenUrl = `${this.baseUrl}/oauth/token`;
+    console.log(`Attempting Matias API OAuth login to: ${tokenUrl}`);
     
     try {
-      const response = await fetch(loginUrl, {
+      const params = new URLSearchParams();
+      params.append("client_id", this.clientId);
+      params.append("client_secret", this.clientSecret);
+      params.append("grant_type", "client_credentials");
+
+      const response = await fetch(tokenUrl, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
           "Accept": "application/json",
         },
-        body: JSON.stringify({
-          email: this.email,
-          password: this.password,
-          remember_me: 0,
-        }),
+        body: params.toString(),
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        const errorMessage = (error as { message?: string }).message || `HTTP ${response.status}: ${response.statusText}`;
+        const errorText = await response.text();
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error_description || errorData.error || errorData.message || errorMessage;
+        } catch {
+          if (errorText) errorMessage = errorText;
+        }
         throw new Error(errorMessage);
       }
 
-      const data = await response.json() as MatiasAuthResponse;
+      const data = await response.json() as MatiasOAuthResponse;
       
-      if (!data.success) {
-        throw new Error(data.message || "Authentication failed");
+      if (!data.access_token) {
+        throw new Error("No access token received");
       }
 
       this.accessToken = data.access_token;
-      this.tokenExpiresAt = new Date(data.expires_at);
+      // Set expiration (subtract 60 seconds for safety margin)
+      const expiresIn = data.expires_in || 3600;
+      this.tokenExpiresAt = new Date(Date.now() + (expiresIn - 60) * 1000);
       
-      console.log("Matias API login successful");
+      console.log("Matias API OAuth login successful");
       return data;
     } catch (error) {
       if (error instanceof TypeError && (error.message === "fetch failed" || error.message.includes("fetch"))) {
-        throw new Error(`Unable to connect to Matias API at ${loginUrl}. Please verify the URL is correct and accessible.`);
+        throw new Error(`Unable to connect to Matias API at ${tokenUrl}. Please verify the URL is correct and accessible.`);
       }
       throw error;
     }
   }
 
   async logout(): Promise<void> {
-    if (!this.accessToken) return;
-
-    try {
-      await fetch(`${this.baseUrl}/auth/logout`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${this.accessToken}`,
-          "Accept": "application/json",
-        },
-      });
-    } finally {
-      this.accessToken = null;
-      this.tokenExpiresAt = null;
-    }
+    this.accessToken = null;
+    this.tokenExpiresAt = null;
   }
 
   private async request<T>(
@@ -152,7 +141,7 @@ class MatiasApiClient {
     await this.ensureAuthenticated();
 
     const { method = "GET", body } = options;
-
+    
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method,
       headers: {
@@ -163,87 +152,75 @@ class MatiasApiClient {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    const data = await response.json() as T;
-
     if (!response.ok) {
-      throw new Error((data as { message?: string }).message || `Request failed: ${response.status}`);
+      const error = await response.json().catch(() => ({}));
+      throw new Error((error as { message?: string }).message || `API Error: ${response.status}`);
     }
 
-    return data;
+    return response.json() as Promise<T>;
   }
 
   async createInvoice(invoice: MatiasInvoiceRequest): Promise<MatiasInvoiceResponse> {
-    return this.request<MatiasInvoiceResponse>("/invoices", {
+    return this.request<MatiasInvoiceResponse>("/api/invoices", {
       method: "POST",
       body: invoice,
     });
   }
 
-  async getInvoice(invoiceId: number): Promise<MatiasInvoiceResponse> {
-    return this.request<MatiasInvoiceResponse>(`/invoices/${invoiceId}`);
-  }
-
-  async getInvoices(page = 1, perPage = 15): Promise<{ data: unknown[]; meta: { total: number; per_page: number; current_page: number } }> {
-    return this.request(`/invoices?page=${page}&per_page=${perPage}`);
-  }
-
-  async createCreditNote(originalInvoiceId: number, reason: string, items?: MatiasInvoiceItem[]): Promise<MatiasInvoiceResponse> {
-    return this.request<MatiasInvoiceResponse>("/credit-notes", {
+  async createCreditNote(
+    invoiceId: number,
+    items: MatiasInvoiceItem[],
+    reason: string
+  ): Promise<MatiasInvoiceResponse> {
+    return this.request<MatiasInvoiceResponse>("/api/credit-notes", {
       method: "POST",
       body: {
-        invoice_id: originalInvoiceId,
-        reason,
+        invoice_id: invoiceId,
         items,
+        reason,
       },
     });
   }
 
-  async getCompanyInfo(): Promise<unknown> {
-    return this.request("/company");
+  async getInvoice(id: number): Promise<MatiasInvoiceResponse> {
+    return this.request<MatiasInvoiceResponse>(`/api/invoices/${id}`);
   }
 
-  async getResolutions(): Promise<{ data: unknown[] }> {
-    return this.request("/resolutions");
+  async getCities(): Promise<{ id: number; name: string; department: string }[]> {
+    return this.request<{ id: number; name: string; department: string }[]>("/api/cities");
   }
 
-  async getCities(): Promise<{ data: { id: number; name: string; department: string }[] }> {
-    return this.request("/cities");
+  async getPaymentMethods(): Promise<{ id: number; name: string; code: string }[]> {
+    return this.request<{ id: number; name: string; code: string }[]>("/api/payment-methods");
   }
 
-  async getPaymentMethods(): Promise<{ data: { id: number; name: string }[] }> {
-    return this.request("/payment-methods");
+  async getPaymentForms(): Promise<{ id: number; name: string; code: string }[]> {
+    return this.request<{ id: number; name: string; code: string }[]>("/api/payment-forms");
   }
 
-  async getPaymentForms(): Promise<{ data: { id: number; name: string }[] }> {
-    return this.request("/payment-forms");
+  async getIdentityDocumentTypes(): Promise<{ id: number; name: string; code: string }[]> {
+    return this.request<{ id: number; name: string; code: string }[]>("/api/identity-document-types");
   }
 
-  async getIdentityDocumentTypes(): Promise<{ data: { id: number; name: string; code: string }[] }> {
-    return this.request("/identity-document-types");
+  async getResolutions(): Promise<{ id: number; prefix: string; from: number; to: number; current: number }[]> {
+    return this.request<{ id: number; prefix: string; from: number; to: number; current: number }[]>("/api/resolutions");
   }
 
-  async getTaxLevels(): Promise<{ data: { id: number; name: string }[] }> {
-    return this.request("/tax-levels");
+  async getInvoices(page: number = 1, perPage: number = 15): Promise<{ data: unknown[]; total: number; page: number; per_page: number }> {
+    return this.request<{ data: unknown[]; total: number; page: number; per_page: number }>(`/api/invoices?page=${page}&per_page=${perPage}`);
   }
 
-  async getTaxRegimes(): Promise<{ data: { id: number; name: string }[] }> {
-    return this.request("/tax-regimes");
+  async getTaxLevels(): Promise<{ id: number; name: string; code: string }[]> {
+    return this.request<{ id: number; name: string; code: string }[]>("/api/tax-levels");
   }
 
-  isAuthenticated(): boolean {
-    return !!(this.accessToken && this.tokenExpiresAt && this.tokenExpiresAt > new Date());
+  async getTaxRegimes(): Promise<{ id: number; name: string; code: string }[]> {
+    return this.request<{ id: number; name: string; code: string }[]>("/api/tax-regimes");
+  }
+
+  async getCompanyInfo(): Promise<{ id: number; name: string; nit: string; address: string; phone: string }> {
+    return this.request<{ id: number; name: string; nit: string; address: string; phone: string }>("/api/company");
   }
 }
 
-let matiasClient: MatiasApiClient | null = null;
-
-export function initializeMatiasClient(config: MatiasConfig): MatiasApiClient {
-  matiasClient = new MatiasApiClient(config);
-  return matiasClient;
-}
-
-export function getMatiasClient(): MatiasApiClient | null {
-  return matiasClient;
-}
-
-export { MatiasApiClient, MatiasConfig, MatiasInvoiceRequest, MatiasInvoiceItem, MatiasCustomer, MatiasInvoiceResponse };
+export { MatiasApiClient, MatiasConfig, MatiasInvoiceRequest, MatiasInvoiceResponse, MatiasInvoiceItem, MatiasCustomer };

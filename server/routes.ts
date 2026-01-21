@@ -830,18 +830,18 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
       
-      const { apiUrl, email, password } = req.body;
+      const { apiUrl, clientId, clientSecret } = req.body;
       
-      if (!apiUrl || !email || !password) {
-        return res.status(400).json({ message: "API URL, email, and password are required" });
+      if (!apiUrl || !clientId || !clientSecret) {
+        return res.status(400).json({ message: "API URL, Client ID, and Client Secret are required" });
       }
 
       // Test the connection first
       const { MatiasApiClient } = await import("./matias-api");
       const testClient = new MatiasApiClient({
         baseUrl: apiUrl,
-        email,
-        password,
+        clientId,
+        clientSecret,
       });
 
       try {
@@ -856,8 +856,8 @@ export async function registerRoutes(
       // Save credentials to tenant
       await storage.updateTenant(tenantId, {
         matiasApiUrl: apiUrl,
-        matiasApiEmail: email,
-        matiasApiPassword: password,
+        matiasClientId: clientId,
+        matiasClientSecret: clientSecret,
         matiasEnabled: true,
       });
 
@@ -883,11 +883,12 @@ export async function registerRoutes(
 
       res.json({
         enabled: tenant.matiasEnabled || false,
-        configured: !!(tenant.matiasApiUrl && tenant.matiasApiEmail),
+        configured: !!(tenant.matiasApiUrl && tenant.matiasClientId),
         apiUrl: tenant.matiasApiUrl || null,
-        email: tenant.matiasApiEmail || null,
+        clientId: tenant.matiasClientId || null,
       });
     } catch (error) {
+      console.error("Matias status error:", error);
       res.status(500).json({ message: "Failed to get Matias status" });
     }
   });
@@ -919,15 +920,15 @@ export async function registerRoutes(
       }
 
       const tenant = await storage.getTenant(tenantId);
-      if (!tenant || !tenant.matiasEnabled || !tenant.matiasApiUrl || !tenant.matiasApiEmail || !tenant.matiasApiPassword) {
+      if (!tenant || !tenant.matiasEnabled || !tenant.matiasApiUrl || !tenant.matiasClientId || !tenant.matiasClientSecret) {
         return res.status(400).json({ message: "Matias API not configured. Please configure it in Settings." });
       }
 
       const { MatiasApiClient } = await import("./matias-api");
       const client = new MatiasApiClient({
         baseUrl: tenant.matiasApiUrl,
-        email: tenant.matiasApiEmail,
-        password: tenant.matiasApiPassword,
+        clientId: tenant.matiasClientId,
+        clientSecret: tenant.matiasClientSecret,
       });
 
       const invoice = await client.createInvoice(req.body);
@@ -947,15 +948,15 @@ export async function registerRoutes(
       }
 
       const tenant = await storage.getTenant(tenantId);
-      if (!tenant || !tenant.matiasEnabled || !tenant.matiasApiUrl || !tenant.matiasApiEmail || !tenant.matiasApiPassword) {
+      if (!tenant || !tenant.matiasEnabled || !tenant.matiasApiUrl || !tenant.matiasClientId || !tenant.matiasClientSecret) {
         return res.status(400).json({ message: "Matias API not configured" });
       }
 
       const { MatiasApiClient } = await import("./matias-api");
       const client = new MatiasApiClient({
         baseUrl: tenant.matiasApiUrl,
-        email: tenant.matiasApiEmail,
-        password: tenant.matiasApiPassword,
+        clientId: tenant.matiasClientId,
+        clientSecret: tenant.matiasClientSecret,
       });
 
       const page = parseInt(req.query.page as string) || 1;
@@ -978,15 +979,15 @@ export async function registerRoutes(
       }
 
       const tenant = await storage.getTenant(tenantId);
-      if (!tenant || !tenant.matiasEnabled || !tenant.matiasApiUrl || !tenant.matiasApiEmail || !tenant.matiasApiPassword) {
+      if (!tenant || !tenant.matiasEnabled || !tenant.matiasApiUrl || !tenant.matiasClientId || !tenant.matiasClientSecret) {
         return res.status(400).json({ message: "Matias API not configured" });
       }
 
       const { MatiasApiClient } = await import("./matias-api");
       const client = new MatiasApiClient({
         baseUrl: tenant.matiasApiUrl,
-        email: tenant.matiasApiEmail,
-        password: tenant.matiasApiPassword,
+        clientId: tenant.matiasClientId,
+        clientSecret: tenant.matiasClientSecret,
       });
 
       const { type } = req.params;
