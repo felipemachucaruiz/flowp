@@ -59,6 +59,15 @@ export default function POSPage() {
   const barcodeTimeout = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Move queries above the useEffect that uses them
+  const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+  });
+
+  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
+
   // Barcode scanner handler - detects rapid keyboard input
   const handleBarcodeInput = useCallback((barcode: string, productsList: Product[] | undefined) => {
     if (!productsList) return;
@@ -129,14 +138,6 @@ export default function POSPage() {
       }
     };
   }, [products, showPaymentDialog, handleBarcodeInput]);
-
-  const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
-  });
-
-  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
-    queryKey: ["/api/products"],
-  });
 
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: {
