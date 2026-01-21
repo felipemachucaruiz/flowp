@@ -178,6 +178,39 @@ export const customers = pgTable("customers", {
   idType: customerIdTypeEnum("id_type"),
   idNumber: text("id_number"),
   notes: text("notes"),
+  // Loyalty program fields
+  loyaltyPoints: integer("loyalty_points").default(0),
+  totalSpent: decimal("total_spent", { precision: 12, scale: 2 }).default("0"),
+  orderCount: integer("order_count").default(0),
+  lastPurchaseAt: timestamp("last_purchase_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Loyalty points transaction types
+export const loyaltyTransactionTypeEnum = pgEnum("loyalty_transaction_type", ["earned", "redeemed", "expired", "adjustment"]);
+
+// Loyalty points history
+export const loyaltyTransactions = pgTable("loyalty_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  customerId: varchar("customer_id").references(() => customers.id).notNull(),
+  orderId: varchar("order_id"),
+  type: loyaltyTransactionTypeEnum("type").notNull(),
+  points: integer("points").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Loyalty rewards catalog
+export const loyaltyRewards = pgTable("loyalty_rewards", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description"),
+  pointsCost: integer("points_cost").notNull(),
+  discountType: text("discount_type").default("fixed"), // fixed, percentage
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull(),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -549,7 +582,9 @@ export const insertCategorySchema = createInsertSchema(categories).omit({ id: tr
 export const insertProductSchema = createInsertSchema(products).omit({ id: true, createdAt: true });
 export const insertFloorSchema = createInsertSchema(floors).omit({ id: true });
 export const insertTableSchema = createInsertSchema(tables).omit({ id: true });
-export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true });
+export const insertCustomerSchema = createInsertSchema(customers).omit({ id: true, createdAt: true, loyaltyPoints: true, totalSpent: true, orderCount: true, lastPurchaseAt: true });
+export const insertLoyaltyTransactionSchema = createInsertSchema(loyaltyTransactions).omit({ id: true, createdAt: true });
+export const insertLoyaltyRewardSchema = createInsertSchema(loyaltyRewards).omit({ id: true, createdAt: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, completedAt: true });
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });
 export const insertKitchenTicketSchema = createInsertSchema(kitchenTickets).omit({ id: true, createdAt: true, startedAt: true, completedAt: true });
@@ -595,6 +630,10 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+export type LoyaltyTransaction = typeof loyaltyTransactions.$inferSelect;
+export type InsertLoyaltyTransaction = z.infer<typeof insertLoyaltyTransactionSchema>;
+export type LoyaltyReward = typeof loyaltyRewards.$inferSelect;
+export type InsertLoyaltyReward = z.infer<typeof insertLoyaltyRewardSchema>;
 export type ModifierGroup = typeof modifierGroups.$inferSelect;
 export type InsertModifierGroup = z.infer<typeof insertModifierGroupSchema>;
 export type Modifier = typeof modifiers.$inferSelect;

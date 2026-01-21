@@ -1,0 +1,784 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/lib/auth-context";
+import { useI18n } from "@/lib/i18n";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { Customer, Order, LoyaltyTransaction, LoyaltyReward } from "@shared/schema";
+import {
+  Search,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  Calendar,
+  ShoppingBag,
+  Star,
+  Gift,
+  Plus,
+  Edit,
+  Trash2,
+  Award,
+  TrendingUp,
+  Clock,
+  CreditCard,
+  ChevronRight,
+  Users,
+  History,
+} from "lucide-react";
+import { format } from "date-fns";
+
+interface CustomerWithOrders extends Customer {
+  orders?: Order[];
+  loyaltyTransactions?: LoyaltyTransaction[];
+}
+
+export default function CustomersPage() {
+  const { tenant } = useAuth();
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithOrders | null>(null);
+  const [showCustomerDialog, setShowCustomerDialog] = useState(false);
+  const [showRewardDialog, setShowRewardDialog] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+
+  const [customerForm, setCustomerForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    idType: "",
+    idNumber: "",
+    notes: "",
+  });
+
+  const [rewardForm, setRewardForm] = useState({
+    name: "",
+    description: "",
+    pointsCost: "",
+    discountType: "fixed",
+    discountValue: "",
+  });
+
+  const { data: customers, isLoading: customersLoading } = useQuery<Customer[]>({
+    queryKey: ["/api/customers", searchQuery],
+    queryFn: async () => {
+      const response = await fetch(`/api/customers/search?q=${encodeURIComponent(searchQuery)}`, {
+        headers: { "x-tenant-id": tenant?.id || "" },
+      });
+      return response.json();
+    },
+    enabled: !!tenant?.id,
+  });
+
+  const { data: rewards, isLoading: rewardsLoading } = useQuery<LoyaltyReward[]>({
+    queryKey: ["/api/loyalty/rewards"],
+    enabled: !!tenant?.id,
+  });
+
+  const { data: customerDetails, isLoading: detailsLoading } = useQuery<CustomerWithOrders>({
+    queryKey: ["/api/customers", selectedCustomer?.id, "details"],
+    queryFn: async () => {
+      const response = await fetch(`/api/customers/${selectedCustomer?.id}/details`, {
+        headers: { "x-tenant-id": tenant?.id || "" },
+      });
+      return response.json();
+    },
+    enabled: !!selectedCustomer?.id && !!tenant?.id,
+  });
+
+  const createCustomerMutation = useMutation({
+    mutationFn: async (data: typeof customerForm) => {
+      return apiRequest("POST", "/api/customers", data);
+    },
+    onSuccess: () => {
+      toast({ title: "Customer created successfully" });
+      setShowCustomerDialog(false);
+      resetCustomerForm();
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to create customer", variant: "destructive" });
+    },
+  });
+
+  const updateCustomerMutation = useMutation({
+    mutationFn: async (data: typeof customerForm & { id: string }) => {
+      const { id, ...rest } = data;
+      return apiRequest("PATCH", `/api/customers/${id}`, rest);
+    },
+    onSuccess: () => {
+      toast({ title: "Customer updated successfully" });
+      setShowCustomerDialog(false);
+      setEditingCustomer(null);
+      resetCustomerForm();
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to update customer", variant: "destructive" });
+    },
+  });
+
+  const createRewardMutation = useMutation({
+    mutationFn: async (data: typeof rewardForm) => {
+      return apiRequest("POST", "/api/loyalty/rewards", {
+        ...data,
+        pointsCost: parseInt(data.pointsCost),
+        discountValue: parseFloat(data.discountValue),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Reward created successfully" });
+      setShowRewardDialog(false);
+      resetRewardForm();
+      queryClient.invalidateQueries({ queryKey: ["/api/loyalty/rewards"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to create reward", variant: "destructive" });
+    },
+  });
+
+  const resetCustomerForm = () => {
+    setCustomerForm({
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      idType: "",
+      idNumber: "",
+      notes: "",
+    });
+  };
+
+  const resetRewardForm = () => {
+    setRewardForm({
+      name: "",
+      description: "",
+      pointsCost: "",
+      discountType: "fixed",
+      discountValue: "",
+    });
+  };
+
+  const formatCurrency = (amount: number | string) => {
+    const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
+    const currency = tenant?.currency || "USD";
+    const localeMap: Record<string, string> = {
+      COP: "es-CO", MXN: "es-MX", ARS: "es-AR", PEN: "es-PE", CLP: "es-CL",
+      EUR: "de-DE", GBP: "en-GB", JPY: "ja-JP", CNY: "zh-CN", KRW: "ko-KR",
+      USD: "en-US", CAD: "en-CA", AUD: "en-AU", BRL: "pt-BR",
+    };
+    const locale = localeMap[currency] || "en-US";
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: currency,
+        minimumFractionDigits: ["COP", "CLP", "JPY", "KRW"].includes(currency) ? 0 : 2,
+        maximumFractionDigits: ["COP", "CLP", "JPY", "KRW"].includes(currency) ? 0 : 2,
+      }).format(numAmount);
+    } catch {
+      return `${currency} ${numAmount.toFixed(2)}`;
+    }
+  };
+
+  const handleEditCustomer = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setCustomerForm({
+      name: customer.name,
+      email: customer.email || "",
+      phone: customer.phone || "",
+      address: customer.address || "",
+      idType: customer.idType || "",
+      idNumber: customer.idNumber || "",
+      notes: customer.notes || "",
+    });
+    setShowCustomerDialog(true);
+  };
+
+  const handleSaveCustomer = () => {
+    if (editingCustomer) {
+      updateCustomerMutation.mutate({ ...customerForm, id: editingCustomer.id });
+    } else {
+      createCustomerMutation.mutate(customerForm);
+    }
+  };
+
+  const idTypeLabels: Record<string, string> = {
+    cedula_ciudadania: "Cédula Ciudadanía",
+    cedula_extranjeria: "Cédula Extranjería",
+    pasaporte: "Pasaporte",
+    nit: "NIT",
+  };
+
+  return (
+    <div className="flex h-full">
+      {/* Customer List Sidebar */}
+      <div className="w-80 lg:w-96 border-r flex flex-col bg-card">
+        <div className="p-4 border-b space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              <h1 className="text-lg font-semibold">{t("nav.customers")}</h1>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => {
+                resetCustomerForm();
+                setEditingCustomer(null);
+                setShowCustomerDialog(true);
+              }}
+              data-testid="button-add-customer"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Add
+            </Button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search customers..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+              data-testid="input-search-customers"
+            />
+          </div>
+        </div>
+
+        <ScrollArea className="flex-1">
+          {customersLoading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
+            </div>
+          ) : customers && customers.length > 0 ? (
+            <div className="p-2">
+              {customers.map((customer) => (
+                <button
+                  key={customer.id}
+                  onClick={() => setSelectedCustomer(customer)}
+                  className={`w-full p-3 rounded-lg text-left hover-elevate transition-colors ${
+                    selectedCustomer?.id === customer.id ? "bg-primary/10 border border-primary/30" : ""
+                  }`}
+                  data-testid={`button-customer-${customer.id}`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <User className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{customer.name}</p>
+                      {customer.phone && (
+                        <p className="text-sm text-muted-foreground truncate">{customer.phone}</p>
+                      )}
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="text-xs">
+                          <Star className="w-3 h-3 mr-1" />
+                          {customer.loyaltyPoints || 0} pts
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {customer.orderCount || 0} orders
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+              <Users className="w-12 h-12 mb-3 opacity-30" />
+              <p className="font-medium">No customers found</p>
+              <p className="text-sm">Add your first customer</p>
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+
+      {/* Customer Details */}
+      <div className="flex-1 overflow-hidden">
+        {selectedCustomer ? (
+          <div className="h-full flex flex-col">
+            <div className="p-6 border-b bg-card">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="w-8 h-8 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold">{selectedCustomer.name}</h2>
+                    <div className="flex items-center gap-4 mt-1 text-muted-foreground">
+                      {selectedCustomer.phone && (
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-4 h-4" />
+                          {selectedCustomer.phone}
+                        </span>
+                      )}
+                      {selectedCustomer.email && (
+                        <span className="flex items-center gap-1">
+                          <Mail className="w-4 h-4" />
+                          {selectedCustomer.email}
+                        </span>
+                      )}
+                    </div>
+                    {selectedCustomer.idType && selectedCustomer.idNumber && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {idTypeLabels[selectedCustomer.idType] || selectedCustomer.idType}: {selectedCustomer.idNumber}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEditCustomer(selectedCustomer)}
+                  data-testid="button-edit-customer"
+                >
+                  <Edit className="w-4 h-4 mr-1" />
+                  Edit
+                </Button>
+              </div>
+
+              {/* Stats Cards */}
+              <div className="grid grid-cols-4 gap-4 mt-6">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                      <Star className="w-4 h-4" />
+                      <span className="text-sm">Loyalty Points</span>
+                    </div>
+                    <p className="text-2xl font-bold text-primary">
+                      {selectedCustomer.loyaltyPoints || 0}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                      <TrendingUp className="w-4 h-4" />
+                      <span className="text-sm">Total Spent</span>
+                    </div>
+                    <p className="text-2xl font-bold">
+                      {formatCurrency(selectedCustomer.totalSpent || 0)}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                      <ShoppingBag className="w-4 h-4" />
+                      <span className="text-sm">Total Orders</span>
+                    </div>
+                    <p className="text-2xl font-bold">{selectedCustomer.orderCount || 0}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm">Last Purchase</span>
+                    </div>
+                    <p className="text-lg font-semibold">
+                      {selectedCustomer.lastPurchaseAt
+                        ? format(new Date(selectedCustomer.lastPurchaseAt), "MMM d, yyyy")
+                        : "Never"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            <Tabs defaultValue="history" className="flex-1 overflow-hidden">
+              <div className="px-6 border-b">
+                <TabsList className="h-12">
+                  <TabsTrigger value="history" className="gap-2" data-testid="tab-history">
+                    <History className="w-4 h-4" />
+                    Purchase History
+                  </TabsTrigger>
+                  <TabsTrigger value="loyalty" className="gap-2" data-testid="tab-loyalty">
+                    <Star className="w-4 h-4" />
+                    Loyalty Points
+                  </TabsTrigger>
+                  <TabsTrigger value="notes" className="gap-2" data-testid="tab-notes">
+                    <Edit className="w-4 h-4" />
+                    Notes
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="history" className="flex-1 p-6 overflow-auto m-0">
+                {detailsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-20 w-full" />
+                    ))}
+                  </div>
+                ) : customerDetails?.orders && customerDetails.orders.length > 0 ? (
+                  <div className="space-y-3">
+                    {customerDetails.orders.map((order) => (
+                      <Card key={order.id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">Order #{order.orderNumber}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(order.createdAt!), "MMM d, yyyy 'at' h:mm a")}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-lg">{formatCurrency(order.total || 0)}</p>
+                              <Badge variant={order.status === "completed" ? "default" : "secondary"}>
+                                {order.status}
+                              </Badge>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                    <ShoppingBag className="w-12 h-12 mb-3 opacity-30" />
+                    <p className="font-medium">No purchase history</p>
+                    <p className="text-sm">This customer hasn't made any purchases yet</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="loyalty" className="flex-1 p-6 overflow-auto m-0">
+                {detailsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 w-full" />
+                    ))}
+                  </div>
+                ) : customerDetails?.loyaltyTransactions && customerDetails.loyaltyTransactions.length > 0 ? (
+                  <div className="space-y-3">
+                    {customerDetails.loyaltyTransactions.map((transaction) => (
+                      <Card key={transaction.id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                transaction.type === "earned" ? "bg-green-100 text-green-600" :
+                                transaction.type === "redeemed" ? "bg-purple-100 text-purple-600" :
+                                "bg-gray-100 text-gray-600"
+                              }`}>
+                                {transaction.type === "earned" ? <TrendingUp className="w-5 h-5" /> :
+                                 transaction.type === "redeemed" ? <Gift className="w-5 h-5" /> :
+                                 <Star className="w-5 h-5" />}
+                              </div>
+                              <div>
+                                <p className="font-medium capitalize">{transaction.type}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {transaction.description || `Points ${transaction.type}`}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className={`font-bold text-lg ${
+                                transaction.type === "earned" ? "text-green-600" :
+                                transaction.type === "redeemed" ? "text-purple-600" :
+                                ""
+                              }`}>
+                                {transaction.type === "earned" ? "+" : "-"}{transaction.points} pts
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(transaction.createdAt!), "MMM d, yyyy")}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+                    <Star className="w-12 h-12 mb-3 opacity-30" />
+                    <p className="font-medium">No loyalty activity</p>
+                    <p className="text-sm">Points will appear here after purchases</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="notes" className="flex-1 p-6 overflow-auto m-0">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-muted-foreground">
+                      {selectedCustomer.notes || "No notes for this customer"}
+                    </p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+        ) : (
+          <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
+            <User className="w-16 h-16 mb-4 opacity-30" />
+            <p className="text-lg font-medium">Select a customer</p>
+            <p className="text-sm">Choose a customer from the list to view details</p>
+          </div>
+        )}
+      </div>
+
+      {/* Rewards Panel */}
+      <div className="w-72 border-l bg-card flex flex-col">
+        <div className="p-4 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-primary" />
+              <h2 className="font-semibold">Loyalty Rewards</h2>
+            </div>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setShowRewardDialog(true)}
+              data-testid="button-add-reward"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        <ScrollArea className="flex-1">
+          {rewardsLoading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+          ) : rewards && rewards.length > 0 ? (
+            <div className="p-4 space-y-3">
+              {rewards.map((reward) => (
+                <Card key={reward.id} className="hover-elevate">
+                  <CardContent className="p-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Award className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{reward.name}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {reward.description || "No description"}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge variant="secondary" className="text-xs">
+                            <Star className="w-3 h-3 mr-1" />
+                            {reward.pointsCost} pts
+                          </Badge>
+                          <span className="text-xs text-green-600 font-medium">
+                            {reward.discountType === "percentage"
+                              ? `${reward.discountValue}% off`
+                              : formatCurrency(reward.discountValue || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-64 p-4 text-muted-foreground text-center">
+              <Gift className="w-10 h-10 mb-3 opacity-30" />
+              <p className="font-medium text-sm">No rewards yet</p>
+              <p className="text-xs">Create rewards for your loyalty program</p>
+            </div>
+          )}
+        </ScrollArea>
+      </div>
+
+      {/* Customer Dialog */}
+      <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingCustomer ? "Edit Customer" : "Add Customer"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Name *</Label>
+              <Input
+                value={customerForm.name}
+                onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
+                placeholder="Customer name"
+                data-testid="input-customer-name"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Phone</Label>
+                <Input
+                  value={customerForm.phone}
+                  onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
+                  placeholder="Phone number"
+                  data-testid="input-customer-phone"
+                />
+              </div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  value={customerForm.email}
+                  onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
+                  placeholder="Email address"
+                  data-testid="input-customer-email"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>ID Type</Label>
+                <Select
+                  value={customerForm.idType}
+                  onValueChange={(value) => setCustomerForm({ ...customerForm, idType: value })}
+                >
+                  <SelectTrigger data-testid="select-customer-id-type">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cedula_ciudadania">Cédula Ciudadanía</SelectItem>
+                    <SelectItem value="cedula_extranjeria">Cédula Extranjería</SelectItem>
+                    <SelectItem value="pasaporte">Pasaporte</SelectItem>
+                    <SelectItem value="nit">NIT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>ID Number</Label>
+                <Input
+                  value={customerForm.idNumber}
+                  onChange={(e) => setCustomerForm({ ...customerForm, idNumber: e.target.value })}
+                  placeholder="ID number"
+                  data-testid="input-customer-id-number"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Address</Label>
+              <Input
+                value={customerForm.address}
+                onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
+                placeholder="Address"
+                data-testid="input-customer-address"
+              />
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea
+                value={customerForm.notes}
+                onChange={(e) => setCustomerForm({ ...customerForm, notes: e.target.value })}
+                placeholder="Additional notes"
+                rows={3}
+                data-testid="input-customer-notes"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCustomerDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveCustomer}
+              disabled={!customerForm.name.trim() || createCustomerMutation.isPending || updateCustomerMutation.isPending}
+              data-testid="button-save-customer"
+            >
+              {editingCustomer ? "Save Changes" : "Add Customer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reward Dialog */}
+      <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Loyalty Reward</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Reward Name *</Label>
+              <Input
+                value={rewardForm.name}
+                onChange={(e) => setRewardForm({ ...rewardForm, name: e.target.value })}
+                placeholder="e.g., Free Product, 10% Discount"
+                data-testid="input-reward-name"
+              />
+            </div>
+            <div>
+              <Label>Description</Label>
+              <Textarea
+                value={rewardForm.description}
+                onChange={(e) => setRewardForm({ ...rewardForm, description: e.target.value })}
+                placeholder="Describe the reward"
+                rows={2}
+                data-testid="input-reward-description"
+              />
+            </div>
+            <div>
+              <Label>Points Required *</Label>
+              <Input
+                type="number"
+                value={rewardForm.pointsCost}
+                onChange={(e) => setRewardForm({ ...rewardForm, pointsCost: e.target.value })}
+                placeholder="100"
+                data-testid="input-reward-points"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Discount Type</Label>
+                <Select
+                  value={rewardForm.discountType}
+                  onValueChange={(value) => setRewardForm({ ...rewardForm, discountType: value })}
+                >
+                  <SelectTrigger data-testid="select-reward-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixed">Fixed Amount</SelectItem>
+                    <SelectItem value="percentage">Percentage</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Discount Value *</Label>
+                <Input
+                  type="number"
+                  value={rewardForm.discountValue}
+                  onChange={(e) => setRewardForm({ ...rewardForm, discountValue: e.target.value })}
+                  placeholder={rewardForm.discountType === "percentage" ? "10" : "5000"}
+                  data-testid="input-reward-value"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRewardDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => createRewardMutation.mutate(rewardForm)}
+              disabled={!rewardForm.name.trim() || !rewardForm.pointsCost || !rewardForm.discountValue || createRewardMutation.isPending}
+              data-testid="button-save-reward"
+            >
+              Create Reward
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

@@ -36,6 +36,7 @@ import {
   Moon,
   LogOut,
   User,
+  Users,
 } from "lucide-react";
 
 export function AppSidebar() {
@@ -70,6 +71,11 @@ export function AppSidebar() {
       title: t("nav.inventory"),
       url: "/inventory",
       icon: Package,
+    },
+    {
+      title: t("nav.customers") || "Customers",
+      url: "/customers",
+      icon: Users,
     },
     {
       title: t("nav.reports"),

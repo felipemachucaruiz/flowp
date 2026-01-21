@@ -2,10 +2,13 @@ import {
   tenants, users, registers, registerSessions, categories, products,
   modifierGroups, modifiers, productModifierGroups, floors, tables,
   orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs, customers,
+  loyaltyTransactions, loyaltyRewards,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
   type Category, type InsertCategory, type Product, type InsertProduct,
   type Customer, type InsertCustomer,
+  type LoyaltyTransaction, type InsertLoyaltyTransaction,
+  type LoyaltyReward, type InsertLoyaltyReward,
   type ModifierGroup, type InsertModifierGroup, type Modifier, type InsertModifier,
   type Floor, type InsertFloor, type Table, type InsertTable,
   type Order, type InsertOrder, type OrderItem, type InsertOrderItem,
@@ -51,6 +54,15 @@ export interface IStorage {
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: string, data: Partial<InsertCustomer>): Promise<Customer | undefined>;
   deleteCustomer(id: string): Promise<void>;
+  getOrdersByCustomer(customerId: string): Promise<Order[]>;
+  getLoyaltyTransactionsByCustomer(customerId: string): Promise<LoyaltyTransaction[]>;
+  
+  // Loyalty Rewards
+  getLoyaltyRewardsByTenant(tenantId: string): Promise<LoyaltyReward[]>;
+  createLoyaltyReward(reward: InsertLoyaltyReward): Promise<LoyaltyReward>;
+  updateLoyaltyReward(id: string, data: Partial<InsertLoyaltyReward>): Promise<LoyaltyReward | undefined>;
+  deleteLoyaltyReward(id: string): Promise<void>;
+  createLoyaltyTransaction(transaction: InsertLoyaltyTransaction): Promise<LoyaltyTransaction>;
   
   // Floors
   getFloorsByTenant(tenantId: string): Promise<Floor[]>;
@@ -248,6 +260,38 @@ export class DatabaseStorage implements IStorage {
 
   async deleteCustomer(id: string): Promise<void> {
     await db.delete(customers).where(eq(customers.id, id));
+  }
+
+  async getOrdersByCustomer(customerId: string): Promise<Order[]> {
+    return db.select().from(orders).where(eq(orders.customerId, customerId)).orderBy(desc(orders.createdAt));
+  }
+
+  async getLoyaltyTransactionsByCustomer(customerId: string): Promise<LoyaltyTransaction[]> {
+    return db.select().from(loyaltyTransactions).where(eq(loyaltyTransactions.customerId, customerId)).orderBy(desc(loyaltyTransactions.createdAt));
+  }
+
+  // Loyalty Rewards
+  async getLoyaltyRewardsByTenant(tenantId: string): Promise<LoyaltyReward[]> {
+    return db.select().from(loyaltyRewards).where(eq(loyaltyRewards.tenantId, tenantId));
+  }
+
+  async createLoyaltyReward(reward: InsertLoyaltyReward): Promise<LoyaltyReward> {
+    const [created] = await db.insert(loyaltyRewards).values(reward).returning();
+    return created;
+  }
+
+  async updateLoyaltyReward(id: string, data: Partial<InsertLoyaltyReward>): Promise<LoyaltyReward | undefined> {
+    const [updated] = await db.update(loyaltyRewards).set(data).where(eq(loyaltyRewards.id, id)).returning();
+    return updated || undefined;
+  }
+
+  async deleteLoyaltyReward(id: string): Promise<void> {
+    await db.delete(loyaltyRewards).where(eq(loyaltyRewards.id, id));
+  }
+
+  async createLoyaltyTransaction(transaction: InsertLoyaltyTransaction): Promise<LoyaltyTransaction> {
+    const [created] = await db.insert(loyaltyTransactions).values(transaction).returning();
+    return created;
   }
 
   // Floors

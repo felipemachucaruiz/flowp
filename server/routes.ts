@@ -489,12 +489,24 @@ export async function registerRoutes(
       if (!tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      const data = insertCustomerSchema.parse({ ...req.body, tenantId });
+      // Handle empty strings as undefined for optional fields
+      const cleanedBody = {
+        ...req.body,
+        tenantId,
+        idType: req.body.idType || undefined,
+        idNumber: req.body.idNumber || undefined,
+        phone: req.body.phone || undefined,
+        email: req.body.email || undefined,
+      };
+      const data = insertCustomerSchema.parse(cleanedBody);
       const customer = await storage.createCustomer(data);
       res.json(customer);
-    } catch (error) {
-      console.error("Customer creation error:", error);
-      res.status(400).json({ message: "Failed to create customer" });
+    } catch (error: any) {
+      console.error("Customer creation error:", error?.message || error);
+      if (error?.issues) {
+        console.error("Validation issues:", JSON.stringify(error.issues, null, 2));
+      }
+      res.status(400).json({ message: "Failed to create customer", error: error?.message });
     }
   });
 
@@ -542,6 +554,84 @@ export async function registerRoutes(
       res.json({ success: true });
     } catch (error) {
       res.status(400).json({ message: "Failed to delete customer" });
+    }
+  });
+
+  // Customer details with orders and loyalty transactions
+  app.get("/api/customers/:id/details", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      const customer = await storage.getCustomer(id);
+      if (!customer || customer.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      const orders = await storage.getOrdersByCustomer(id);
+      const loyaltyTransactions = await storage.getLoyaltyTransactionsByCustomer(id);
+      res.json({ ...customer, orders, loyaltyTransactions });
+    } catch (error) {
+      console.error("Customer details error:", error);
+      res.status(500).json({ message: "Failed to fetch customer details" });
+    }
+  });
+
+  // ===== LOYALTY REWARDS ROUTES =====
+
+  app.get("/api/loyalty/rewards", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const rewards = await storage.getLoyaltyRewardsByTenant(tenantId);
+      res.json(rewards);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch rewards" });
+    }
+  });
+
+  app.post("/api/loyalty/rewards", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const reward = await storage.createLoyaltyReward({ ...req.body, tenantId });
+      res.json(reward);
+    } catch (error) {
+      console.error("Create reward error:", error);
+      res.status(400).json({ message: "Failed to create reward" });
+    }
+  });
+
+  app.patch("/api/loyalty/rewards/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      const reward = await storage.updateLoyaltyReward(id, req.body);
+      res.json(reward);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update reward" });
+    }
+  });
+
+  app.delete("/api/loyalty/rewards/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      await storage.deleteLoyaltyReward(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete reward" });
     }
   });
 
@@ -800,6 +890,37 @@ export async function registerRoutes(
         amount: total.toString(),
         reference: null,
       });
+
+      // Award loyalty points and update customer stats if customer is associated
+      if (customerId) {
+        const customer = await storage.getCustomer(customerId);
+        // Security: Verify customer belongs to the same tenant
+        if (customer && customer.tenantId === tenantId) {
+          // Calculate points - 1 point per 1000 currency units (configurable per business)
+          const orderTotal = parseFloat(total.toString());
+          const pointsEarned = Math.floor(orderTotal / 1000);
+          
+          if (pointsEarned > 0) {
+            // Create loyalty transaction
+            await storage.createLoyaltyTransaction({
+              tenantId,
+              customerId,
+              orderId: order.id,
+              type: "earned",
+              points: pointsEarned,
+              description: `Points earned from order #${orderNumber}`,
+            });
+          }
+          
+          // Update customer stats
+          await storage.updateCustomer(customerId, {
+            loyaltyPoints: (customer.loyaltyPoints || 0) + pointsEarned,
+            totalSpent: (parseFloat(customer.totalSpent?.toString() || "0") + orderTotal).toString(),
+            orderCount: (customer.orderCount || 0) + 1,
+            lastPurchaseAt: new Date(),
+          });
+        }
+      }
 
       res.json(order);
     } catch (error) {
