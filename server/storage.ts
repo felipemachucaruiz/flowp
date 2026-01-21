@@ -583,14 +583,13 @@ export class DatabaseStorage implements IStorage {
 
     // Get all order items with product info for today's orders
     const orderIds = todayOrders.map(o => o.id);
-    let allOrderItems: any[] = [];
+    let allOrderItems: { productId: string; quantity: number; unitPrice: string }[] = [];
     if (orderIds.length > 0) {
       allOrderItems = await db
         .select({
           productId: orderItems.productId,
           quantity: orderItems.quantity,
           unitPrice: orderItems.unitPrice,
-          productName: orderItems.productName,
         })
         .from(orderItems)
         .where(inArray(orderItems.orderId, orderIds));
@@ -619,7 +618,7 @@ export class DatabaseStorage implements IStorage {
     const productSales = new Map<string, { name: string; quantity: number; revenue: number }>();
     for (const item of allOrderItems) {
       const product = productMap.get(item.productId);
-      const productName = item.productName || product?.name || "Unknown";
+      const productName = product?.name || "Unknown";
       const existing = productSales.get(item.productId) || { name: productName, quantity: 0, revenue: 0 };
       existing.quantity += item.quantity;
       existing.revenue += parseFloat(item.unitPrice) * item.quantity;
