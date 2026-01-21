@@ -10,6 +10,8 @@ import { I18nProvider } from "@/lib/i18n";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -61,11 +63,17 @@ function AdminRoute({ component: Component }: { component: () => JSX.Element }) 
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const [, navigate] = useLocation();
 
   if (!user) {
     return <>{children}</>;
   }
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   const style = {
     "--sidebar-width": "16rem",
@@ -77,8 +85,12 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex h-12 items-center gap-2 border-b px-4 bg-card shrink-0">
+          <header className="flex h-12 items-center justify-between gap-2 border-b px-4 bg-card shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout">
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
           </header>
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
@@ -88,11 +100,17 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isInternal } = useAuth();
+  const { user, isInternal, logout } = useAuth();
+  const [, navigate] = useLocation();
 
   if (!user || !isInternal) {
     return <>{children}</>;
   }
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   const style = {
     "--sidebar-width": "16rem",
@@ -104,8 +122,12 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen w-full">
         <AdminSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex h-12 items-center gap-2 border-b px-4 bg-card shrink-0">
+          <header className="flex h-12 items-center justify-between gap-2 border-b px-4 bg-card shrink-0">
             <SidebarTrigger data-testid="button-admin-sidebar-toggle" />
+            <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-admin-logout">
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
           </header>
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
