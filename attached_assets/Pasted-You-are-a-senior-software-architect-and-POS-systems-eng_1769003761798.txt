@@ -1,0 +1,273 @@
+You are a senior software architect and POS systems engineer. Design a production-ready, multi-tenant POS + Inventory system delivered as a Progressive Web App (PWA), optimized for Windows devices, with one-click receipt printing support.
+
+The system must support BOTH Retail and Restaurant tenants. Restaurant-specific features (tables, kitchen tickets, modifiers) must be enabled ONLY if the tenant selects "Restaurant" during registration.
+
+=====================================================
+1) DELIVERY MODEL: PWA (CRITICAL)
+=====================================================
+The application must be a full PWA with:
+- Installable on Windows (Chrome / Edge)
+- Offline-capable (core POS flows)
+- App-like behavior (fullscreen, no browser UI)
+- Local storage + IndexedDB for offline queues
+- Service Worker for caching + sync
+
+PWA must support:
+- Fast startup
+- Touch-friendly UI
+- Tablet and desktop layouts
+
+=====================================================
+2) PRINTING REQUIREMENTS (VERY IMPORTANT)
+=====================================================
+The POS must support ONE-CLICK receipt printing on Windows.
+
+### Printing strategy:
+- Use browser-native printing when possible
+- Support ESC/POS thermal printers (58mm / 80mm)
+- Silent / minimal-click printing via:
+  - Dedicated print window
+  - Pre-formatted receipt templates
+- Allow configuration per register:
+  - Printer name
+  - Paper size
+  - Auto-print on sale completion
+
+If direct ESC/POS access is not available via browser:
+- Propose a lightweight local helper service (optional):
+  - Local print bridge (Node.js / Electron / WebSocket)
+  - Receives print jobs from PWA
+  - Sends raw ESC/POS commands
+
+Receipt features:
+- Logo
+- Store info
+- Items
+- Taxes
+- Payments
+- QR code (optional)
+- Footer message
+
+=====================================================
+3) TENANT TYPES & FEATURE FLAGS
+=====================================================
+At tenant registration, user selects:
+- RETAIL
+- RESTAURANT
+
+Feature flags are stored per tenant and control:
+- API access
+- UI rendering
+- Business logic
+
+Always enabled:
+- pos.core
+- inventory.core
+- purchasing.core
+- customers.core
+- reporting.core
+
+Retail-only:
+- retail.barcode
+- retail.returns
+- retail.bulk_discounts
+
+Restaurant-only:
+- restaurant.tables
+- restaurant.floors
+- restaurant.kitchen_tickets
+- restaurant.modifiers
+- restaurant.courses
+- restaurant.split_checks
+- restaurant.tips
+
+=====================================================
+4) CORE STACK (RECOMMENDED)
+=====================================================
+Frontend:
+- React + TypeScript
+- Vite
+- Tailwind
+- PWA manifest + Service Worker
+
+Backend:
+- Node.js + TypeScript
+- NestJS
+- REST APIs
+- WebSockets (KDS + live orders)
+
+Database:
+- PostgreSQL
+- Prisma ORM
+
+Auth:
+- JWT + refresh tokens
+- Device-based register identification
+
+=====================================================
+5) POS CORE (ALL TENANTS)
+=====================================================
+- Fast POS screen
+- Barcode scanning
+- Cart
+- Discounts
+- Taxes
+- Split payments
+- Cash drawer sessions (open/close)
+- Hold / resume sale
+- Refunds / voids (with permissions)
+- Automatic receipt printing
+- Audit logging
+
+=====================================================
+6) RESTAURANT MODULE (ONLY IF ENABLED)
+=====================================================
+### A) Floors & Tables
+- Floor layouts
+- Table states (free, occupied, dirty)
+- Table merging and moving
+
+### B) Menu System
+- Menu categories
+- Menu items
+- Modifiers & modifier groups
+- Combos
+- Courses
+
+### C) Kitchen Display System (KDS)
+- Auto kitchen ticket creation
+- Real-time updates via WebSockets
+- Ticket states: new → preparing → ready → served
+- Station routing (bar, grill, kitchen)
+- Notes per item
+- Optional kitchen printer support
+
+=====================================================
+7) INVENTORY (LEDGER-BASED)
+=====================================================
+Inventory must use an IMMUTABLE LEDGER model:
+- stock_movements table
+- Movement types: sale, return, purchase, adjustment, waste, transfer
+
+Restaurant-aware inventory:
+- Ingredient tracking (design-ready)
+- Menu item → ingredient mapping
+- Automatic ingredient deduction
+
+=====================================================
+8) DATABASE DESIGN
+=====================================================
+Provide:
+- ERD explanation
+- Tables grouped by domain
+
+Mandatory tables:
+- tenants (type, feature_flags)
+- registers (device_id, printer_config)
+- users, roles, permissions
+- products
+- menu_items
+- modifiers
+- floors, tables
+- orders, order_items
+- kitchen_tickets
+- stock_movements
+- purchase_orders, receipts
+- payments, refunds
+- audit_logs
+
+All tables must include:
+- id (UUID)
+- tenant_id
+- created_at / updated_at
+- created_by / updated_by
+
+=====================================================
+9) API DESIGN
+=====================================================
+- Feature-flag aware endpoints
+- Role-protected routes
+- Offline-safe idempotent endpoints
+
+Examples:
+- POST /pos/sale
+- POST /pos/print
+- POST /restaurant/table/open
+- POST /restaurant/kitchen/send
+- GET /restaurant/kds/tickets
+
+=====================================================
+10) UI SCREENS (DYNAMIC)
+=====================================================
+Common:
+- Login
+- Register open/close
+- POS
+- Inventory
+- Reports
+- Settings
+
+Retail-only:
+- Product management
+- Returns
+
+Restaurant-only:
+- Floor view
+- Table view
+- Menu builder
+- Kitchen screen (KDS)
+
+UI must adapt automatically based on tenant feature flags.
+
+=====================================================
+11) BUSINESS RULES
+=====================================================
+- Offline sales must queue and sync safely
+- Receipt printing must work even offline
+- Refunds reverse stock movements
+- Kitchen tickets are immutable once completed
+- Manager approval required for voids/refunds
+- Concurrency-safe stock deduction
+
+=====================================================
+12) IMPLEMENTATION ROADMAP
+=====================================================
+MVP:
+- PWA shell
+- Tenant registration (retail vs restaurant)
+- Core POS
+- Inventory ledger
+- Receipt printing
+- Basic tables + KDS
+
+V1:
+- Purchasing
+- Reports
+- Advanced modifiers
+- Split checks
+- Ingredient tracking
+
+V2:
+- Offline-first improvements
+- Cloud sync conflict resolution
+- Mobile/tablet optimization
+- Advanced analytics
+
+=====================================================
+13) OUTPUT FORMAT (MANDATORY)
+=====================================================
+Return your answer with these headings:
+1. Overview
+2. PWA & Printing Architecture
+3. Tenant Types & Feature Flags
+4. Roles & Permissions Matrix
+5. Data Model (ERD)
+6. Inventory Ledger Design
+7. API Endpoints
+8. UI Screens & Flows
+9. Kitchen Ticket System (KDS)
+10. Business Rules
+11. Implementation Roadmap
+12. Risks & Mitigations
+
+Do not skip any section.
