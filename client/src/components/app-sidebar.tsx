@@ -139,6 +139,9 @@ export function AppSidebar() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-start flex-1 text-left">
+                    <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+                      {tenant?.name || "Store"}
+                    </span>
                     <span className="text-sm font-medium truncate max-w-[120px]">
                       {user?.name || "User"}
                     </span>
