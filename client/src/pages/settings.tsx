@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -146,6 +146,13 @@ export default function SettingsPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [productImagePath, setProductImagePath] = useState<string>("");
   const [receiptLogoPath, setReceiptLogoPath] = useState<string>(tenant?.logo || "");
+
+  // Sync receipt logo path when tenant data loads/changes
+  useEffect(() => {
+    if (tenant?.logo !== undefined) {
+      setReceiptLogoPath(tenant.logo || "");
+    }
+  }, [tenant?.logo]);
 
   const { uploadFile, isUploading: isUploadingImage } = useUpload({
     onSuccess: (response) => {
