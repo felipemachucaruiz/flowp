@@ -288,7 +288,7 @@ export default function ReportsPage() {
                     <div className="text-center">
                       <Package className="w-12 h-12 mx-auto mb-4 opacity-30" />
                       <p>{t("reports.no_category_data")}</p>
-                      <p className="text-sm">{t("reports.sales_categorized_here")}</p>
+                      <p className="text-sm">{t("reports.category_sales_appear")}</p>
                     </div>
                   </div>
                 )}

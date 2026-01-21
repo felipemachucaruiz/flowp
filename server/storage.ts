@@ -14,7 +14,7 @@ import {
   RETAIL_FEATURES, RESTAURANT_FEATURES,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, gte, or, ilike } from "drizzle-orm";
+import { eq, and, desc, sql, gte, or, ilike, inArray } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 export interface IStorage {
@@ -537,10 +537,55 @@ export class DatabaseStorage implements IStorage {
         ? Math.round(((todaySales - yesterdaySales) / yesterdaySales) * 100)
         : 0;
 
-    // Top products (simplified)
-    const topProducts: { name: string; quantity: number; revenue: number }[] = [];
+    // Get all order items with product info for today's orders
+    const orderIds = todayOrders.map(o => o.id);
+    let allOrderItems: any[] = [];
+    if (orderIds.length > 0) {
+      allOrderItems = await db
+        .select({
+          productId: orderItems.productId,
+          quantity: orderItems.quantity,
+          unitPrice: orderItems.unitPrice,
+          productName: orderItems.productName,
+        })
+        .from(orderItems)
+        .where(inArray(orderItems.orderId, orderIds));
+    }
 
-    // Sales by hour (simplified)
+    // Get products with category info
+    const allProducts = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        categoryId: products.categoryId,
+      })
+      .from(products)
+      .where(eq(products.tenantId, tenantId));
+
+    const productMap = new Map(allProducts.map(p => [p.id, p]));
+
+    // Get categories
+    const allCategories = await db
+      .select()
+      .from(categories)
+      .where(eq(categories.tenantId, tenantId));
+    const categoryMap = new Map(allCategories.map(c => [c.id, c.name]));
+
+    // Top products
+    const productSales = new Map<string, { name: string; quantity: number; revenue: number }>();
+    for (const item of allOrderItems) {
+      const product = productMap.get(item.productId);
+      const productName = item.productName || product?.name || "Unknown";
+      const existing = productSales.get(item.productId) || { name: productName, quantity: 0, revenue: 0 };
+      existing.quantity += item.quantity;
+      existing.revenue += parseFloat(item.unitPrice) * item.quantity;
+      productSales.set(item.productId, existing);
+    }
+    const topProducts = Array.from(productSales.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    // Sales by hour
     const salesByHour: { hour: string; sales: number }[] = [];
     for (let h = 8; h <= 22; h++) {
       salesByHour.push({ hour: `${h}:00`, sales: 0 });
@@ -553,8 +598,20 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Sales by category (simplified)
-    const salesByCategory: { name: string; value: number }[] = [];
+    // Sales by category
+    const categorySales = new Map<string, number>();
+    for (const item of allOrderItems) {
+      const product = productMap.get(item.productId);
+      const categoryId = product?.categoryId;
+      if (categoryId) {
+        const categoryName = categoryMap.get(categoryId) || "Other";
+        const existing = categorySales.get(categoryName) || 0;
+        categorySales.set(categoryName, existing + parseFloat(item.unitPrice) * item.quantity);
+      }
+    }
+    const salesByCategory = Array.from(categorySales.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
 
     return {
       todaySales,
