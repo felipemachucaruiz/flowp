@@ -27,13 +27,21 @@ declare global {
 }
 
 export async function loadPortalSession(req: Request, res: Response, next: NextFunction) {
-  const user = (req as any).user;
+  // Get user from header (frontend sends x-user-id after login)
+  const userId = req.headers["x-user-id"] as string;
   
-  if (!user) {
+  if (!userId) {
     return next();
   }
 
   try {
+    // Look up the user from the database
+    const [user] = await db.select().from(users).where(eq(users.id, userId));
+    
+    if (!user) {
+      return next();
+    }
+
     const userRoles = await db
       .select({
         roleName: portalRoles.name,
@@ -43,7 +51,7 @@ export async function loadPortalSession(req: Request, res: Response, next: NextF
       })
       .from(userPortalRoles)
       .innerJoin(portalRoles, eq(userPortalRoles.roleId, portalRoles.id))
-      .where(eq(userPortalRoles.userId, user.id));
+      .where(eq(userPortalRoles.userId, userId));
 
     const roleIds = userRoles.map(r => r.roleId);
     
