@@ -9,6 +9,7 @@ import { POSProvider } from "@/lib/pos-context";
 import { I18nProvider } from "@/lib/i18n";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { AdminSidebar } from "@/components/admin-sidebar";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -20,9 +21,11 @@ import InventoryPage from "@/pages/inventory";
 import ReportsPage from "@/pages/reports";
 import SettingsPage from "@/pages/settings";
 
+import AdminDashboard from "@/pages/admin/dashboard";
+import AdminTenants from "@/pages/admin/tenants";
+
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { user, isLoading } = useAuth();
-  const [, navigate] = useLocation();
 
   if (isLoading) {
     return (
@@ -39,8 +42,26 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
   return <Component />;
 }
 
+function AdminRoute({ component: Component }: { component: () => JSX.Element }) {
+  const { user, isLoading, isInternal } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user || !isInternal) {
+    return <Redirect to="/login" />;
+  }
+
+  return <Component />;
+}
+
 function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, tenant } = useAuth();
+  const { user } = useAuth();
 
   if (!user) {
     return <>{children}</>;
@@ -66,33 +87,89 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AdminLayout({ children }: { children: React.ReactNode }) {
+  const { user, isInternal } = useAuth();
+
+  if (!user || !isInternal) {
+    return <>{children}</>;
+  }
+
+  const style = {
+    "--sidebar-width": "16rem",
+    "--sidebar-width-icon": "3rem",
+  };
+
+  return (
+    <SidebarProvider style={style as React.CSSProperties}>
+      <div className="flex h-screen w-full">
+        <AdminSidebar />
+        <div className="flex flex-col flex-1 min-w-0">
+          <header className="flex h-12 items-center gap-2 border-b px-4 bg-card shrink-0">
+            <SidebarTrigger data-testid="button-admin-sidebar-toggle" />
+          </header>
+          <main className="flex-1 overflow-auto">{children}</main>
+        </div>
+      </div>
+    </SidebarProvider>
+  );
+}
+
+function AdminRouter() {
+  return (
+    <AdminLayout>
+      <Switch>
+        <Route path="/admin">
+          <AdminRoute component={AdminDashboard} />
+        </Route>
+        <Route path="/admin/tenants">
+          <AdminRoute component={AdminTenants} />
+        </Route>
+        <Route component={NotFound} />
+      </Switch>
+    </AdminLayout>
+  );
+}
+
+function TenantRouter() {
+  return (
+    <AppLayout>
+      <Switch>
+        <Route path="/">
+          <Redirect to="/pos" />
+        </Route>
+        <Route path="/pos">
+          <ProtectedRoute component={POSPage} />
+        </Route>
+        <Route path="/tables">
+          <ProtectedRoute component={TablesPage} />
+        </Route>
+        <Route path="/kitchen">
+          <ProtectedRoute component={KitchenPage} />
+        </Route>
+        <Route path="/inventory">
+          <ProtectedRoute component={InventoryPage} />
+        </Route>
+        <Route path="/reports">
+          <ProtectedRoute component={ReportsPage} />
+        </Route>
+        <Route path="/settings">
+          <ProtectedRoute component={SettingsPage} />
+        </Route>
+        <Route component={NotFound} />
+      </Switch>
+    </AppLayout>
+  );
+}
+
 function Router() {
+  const [location] = useLocation();
+  const isAdminRoute = location.startsWith("/admin");
+
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
-      <Route path="/">
-        <Redirect to="/pos" />
-      </Route>
-      <Route path="/pos">
-        <ProtectedRoute component={POSPage} />
-      </Route>
-      <Route path="/tables">
-        <ProtectedRoute component={TablesPage} />
-      </Route>
-      <Route path="/kitchen">
-        <ProtectedRoute component={KitchenPage} />
-      </Route>
-      <Route path="/inventory">
-        <ProtectedRoute component={InventoryPage} />
-      </Route>
-      <Route path="/reports">
-        <ProtectedRoute component={ReportsPage} />
-      </Route>
-      <Route path="/settings">
-        <ProtectedRoute component={SettingsPage} />
-      </Route>
-      <Route component={NotFound} />
+      {isAdminRoute ? <AdminRouter /> : <TenantRouter />}
     </Switch>
   );
 }
@@ -104,9 +181,7 @@ function AppContent() {
     <I18nProvider initialLanguage={tenant?.language || "en"}>
       <POSProvider>
         <TooltipProvider>
-          <AppLayout>
-            <Router />
-          </AppLayout>
+          <Router />
           <Toaster />
         </TooltipProvider>
       </POSProvider>

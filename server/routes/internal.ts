@@ -1,0 +1,254 @@
+import { Router, Request, Response } from "express";
+import { db } from "../db";
+import { 
+  tenants, users, portalRoles, userPortalRoles, 
+  locations, registers, electronicDocuments, supportTickets,
+  subscriptions, subscriptionPlans, invoices
+} from "@shared/schema";
+import { eq, desc, sql, and, count } from "drizzle-orm";
+import { requireInternal, requirePermission, enforceTenantIsolation } from "../middleware/rbac";
+
+const router = Router();
+
+router.use(requireInternal);
+router.use(enforceTenantIsolation);
+
+router.get("/dashboard", async (req: Request, res: Response) => {
+  try {
+    const [tenantStats] = await db
+      .select({
+        total: count(),
+        active: sql<number>`COUNT(*) FILTER (WHERE status = 'active')`,
+        trial: sql<number>`COUNT(*) FILTER (WHERE status = 'trial')`,
+        suspended: sql<number>`COUNT(*) FILTER (WHERE status = 'suspended')`,
+      })
+      .from(tenants);
+
+    const [docStats] = await db
+      .select({
+        total: count(),
+        pending: sql<number>`COUNT(*) FILTER (WHERE status = 'pending')`,
+        accepted: sql<number>`COUNT(*) FILTER (WHERE status = 'accepted')`,
+        rejected: sql<number>`COUNT(*) FILTER (WHERE status = 'rejected')`,
+        error: sql<number>`COUNT(*) FILTER (WHERE status = 'error')`,
+      })
+      .from(electronicDocuments);
+
+    const [ticketStats] = await db
+      .select({
+        open: sql<number>`COUNT(*) FILTER (WHERE status = 'open')`,
+        inProgress: sql<number>`COUNT(*) FILTER (WHERE status = 'in_progress')`,
+        pending: sql<number>`COUNT(*) FILTER (WHERE status = 'pending')`,
+      })
+      .from(supportTickets);
+
+    res.json({
+      tenants: tenantStats,
+      electronicBilling: docStats,
+      support: ticketStats,
+    });
+  } catch (error) {
+    console.error("Dashboard error:", error);
+    res.status(500).json({ error: "Failed to load dashboard" });
+  }
+});
+
+router.get("/tenants", requirePermission("tenants:read"), async (req: Request, res: Response) => {
+  try {
+    const { status, type, search, limit = "50", offset = "0" } = req.query;
+    
+    let query = db.select().from(tenants).orderBy(desc(tenants.createdAt));
+    
+    const results = await query.limit(parseInt(limit as string)).offset(parseInt(offset as string));
+    res.json(results);
+  } catch (error) {
+    console.error("List tenants error:", error);
+    res.status(500).json({ error: "Failed to list tenants" });
+  }
+});
+
+router.get("/tenants/:id", requirePermission("tenants:read"), async (req: Request, res: Response) => {
+  try {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, req.params.id));
+    
+    if (!tenant) {
+      return res.status(404).json({ error: "Tenant not found" });
+    }
+
+    const locationCount = await db.select({ count: count() }).from(locations).where(eq(locations.tenantId, tenant.id));
+    const registerCount = await db.select({ count: count() }).from(registers).where(eq(registers.tenantId, tenant.id));
+    const userCount = await db.select({ count: count() }).from(users).where(eq(users.tenantId, tenant.id));
+
+    res.json({
+      ...tenant,
+      stats: {
+        locations: locationCount[0]?.count || 0,
+        registers: registerCount[0]?.count || 0,
+        users: userCount[0]?.count || 0,
+      },
+    });
+  } catch (error) {
+    console.error("Get tenant error:", error);
+    res.status(500).json({ error: "Failed to get tenant" });
+  }
+});
+
+router.post("/tenants/:id/suspend", requirePermission("tenants:suspend"), async (req: Request, res: Response) => {
+  try {
+    const { reason } = req.body;
+    
+    const [updated] = await db
+      .update(tenants)
+      .set({
+        status: "suspended",
+        suspendedAt: new Date(),
+        suspendedReason: reason,
+      })
+      .where(eq(tenants.id, req.params.id))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "Tenant not found" });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Suspend tenant error:", error);
+    res.status(500).json({ error: "Failed to suspend tenant" });
+  }
+});
+
+router.post("/tenants/:id/unsuspend", requirePermission("tenants:suspend"), async (req: Request, res: Response) => {
+  try {
+    const [updated] = await db
+      .update(tenants)
+      .set({
+        status: "active",
+        suspendedAt: null,
+        suspendedReason: null,
+      })
+      .where(eq(tenants.id, req.params.id))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "Tenant not found" });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Unsuspend tenant error:", error);
+    res.status(500).json({ error: "Failed to unsuspend tenant" });
+  }
+});
+
+router.get("/tenants/:id/users", requirePermission("users:read"), async (req: Request, res: Response) => {
+  try {
+    const tenantUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.tenantId, req.params.id))
+      .orderBy(desc(users.createdAt));
+
+    res.json(tenantUsers);
+  } catch (error) {
+    console.error("List tenant users error:", error);
+    res.status(500).json({ error: "Failed to list users" });
+  }
+});
+
+router.get("/documents", requirePermission("electronic_billing:read"), async (req: Request, res: Response) => {
+  try {
+    const { tenantId, status, limit = "50", offset = "0" } = req.query;
+    
+    const docs = await db
+      .select()
+      .from(electronicDocuments)
+      .orderBy(desc(electronicDocuments.createdAt))
+      .limit(parseInt(limit as string))
+      .offset(parseInt(offset as string));
+
+    res.json(docs);
+  } catch (error) {
+    console.error("List documents error:", error);
+    res.status(500).json({ error: "Failed to list documents" });
+  }
+});
+
+router.get("/documents/:id", requirePermission("electronic_billing:read"), async (req: Request, res: Response) => {
+  try {
+    const [doc] = await db
+      .select()
+      .from(electronicDocuments)
+      .where(eq(electronicDocuments.id, req.params.id));
+
+    if (!doc) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+
+    res.json(doc);
+  } catch (error) {
+    console.error("Get document error:", error);
+    res.status(500).json({ error: "Failed to get document" });
+  }
+});
+
+router.post("/documents/:id/retry", requirePermission("electronic_billing:retry"), async (req: Request, res: Response) => {
+  try {
+    const [updated] = await db
+      .update(electronicDocuments)
+      .set({
+        status: "pending",
+        retryCount: sql`retry_count + 1`,
+        lastRetryAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(electronicDocuments.id, req.params.id))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Retry document error:", error);
+    res.status(500).json({ error: "Failed to retry document" });
+  }
+});
+
+router.get("/tickets", requirePermission("support.tickets:read"), async (req: Request, res: Response) => {
+  try {
+    const tickets = await db
+      .select()
+      .from(supportTickets)
+      .orderBy(desc(supportTickets.createdAt))
+      .limit(50);
+
+    res.json(tickets);
+  } catch (error) {
+    console.error("List tickets error:", error);
+    res.status(500).json({ error: "Failed to list tickets" });
+  }
+});
+
+router.get("/plans", requirePermission("billing.plans:read"), async (req: Request, res: Response) => {
+  try {
+    const plans = await db.select().from(subscriptionPlans).orderBy(subscriptionPlans.sortOrder);
+    res.json(plans);
+  } catch (error) {
+    console.error("List plans error:", error);
+    res.status(500).json({ error: "Failed to list plans" });
+  }
+});
+
+router.get("/roles", async (req: Request, res: Response) => {
+  try {
+    const roles = await db.select().from(portalRoles);
+    res.json(roles);
+  } catch (error) {
+    console.error("List roles error:", error);
+    res.status(500).json({ error: "Failed to list roles" });
+  }
+});
+
+export default router;

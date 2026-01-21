@@ -13,6 +13,9 @@ import {
   RESTAURANT_FEATURES,
 } from "@shared/schema";
 import { z } from "zod";
+import { loadPortalSession } from "./middleware/rbac";
+import internalRoutes from "./routes/internal";
+import tenantRoutes from "./routes/tenant";
 
 // WebSocket clients by tenant for real-time KDS updates
 const wsClients = new Map<string, Set<WebSocket>>();
@@ -51,6 +54,10 @@ export async function registerRoutes(
       });
     }
   });
+
+  // ===== PORTAL ROUTES (Management Portal) =====
+  app.use("/api/internal", loadPortalSession, internalRoutes);
+  app.use("/api/tenant", loadPortalSession, tenantRoutes);
 
   // ===== AUTH ROUTES =====
 
@@ -127,6 +134,21 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
+      // Handle internal admin users (no tenant)
+      if (user.isInternal) {
+        return res.json({
+          user: { ...user, password: undefined },
+          tenant: null,
+          isInternal: true,
+          redirectTo: "/admin",
+        });
+      }
+
+      // Regular tenant user - require tenant
+      if (!user.tenantId) {
+        return res.status(401).json({ message: "User has no tenant assigned" });
+      }
+
       const tenant = await storage.getTenant(user.tenantId);
 
       if (!tenant) {
@@ -136,6 +158,7 @@ export async function registerRoutes(
       res.json({
         user: { ...user, password: undefined },
         tenant,
+        isInternal: false,
       });
     } catch (error) {
       console.error("Login error:", error);

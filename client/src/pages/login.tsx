@@ -37,13 +37,13 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     try {
-      const success = await login(data.username, data.password);
-      if (success) {
+      const result = await login(data.username, data.password);
+      if (result.success) {
         toast({
           title: t("login.welcome_back"),
           description: t("login.login_success"),
         });
-        navigate("/pos");
+        navigate(result.redirectTo || "/pos");
       } else {
         toast({
           title: t("login.login_failed"),

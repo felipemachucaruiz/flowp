@@ -1,0 +1,409 @@
+import { Router, Request, Response } from "express";
+import { db } from "../db";
+import { 
+  tenants, users, locations, registers, 
+  electronicDocuments, supportTickets, ticketComments,
+  subscriptions, invoices, auditLogs, orders
+} from "@shared/schema";
+import { eq, desc, sql, and, count, sum, gte } from "drizzle-orm";
+import { requireTenant, requirePermission, enforceTenantIsolation } from "../middleware/rbac";
+
+const router = Router();
+
+router.use(requireTenant);
+router.use(enforceTenantIsolation);
+
+router.get("/dashboard", async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [orderStats] = await db
+      .select({
+        todayCount: sql<number>`COUNT(*) FILTER (WHERE created_at >= ${today})`,
+        todayTotal: sql<string>`COALESCE(SUM(total) FILTER (WHERE created_at >= ${today}), 0)`,
+      })
+      .from(orders)
+      .where(eq(orders.tenantId, tenantId));
+
+    const [docStats] = await db
+      .select({
+        pending: sql<number>`COUNT(*) FILTER (WHERE status = 'pending')`,
+        error: sql<number>`COUNT(*) FILTER (WHERE status = 'error' OR status = 'rejected')`,
+      })
+      .from(electronicDocuments)
+      .where(eq(electronicDocuments.tenantId, tenantId));
+
+    const [ticketStats] = await db
+      .select({
+        open: sql<number>`COUNT(*) FILTER (WHERE status = 'open' OR status = 'in_progress')`,
+      })
+      .from(supportTickets)
+      .where(eq(supportTickets.tenantId, tenantId));
+
+    res.json({
+      orders: {
+        todayCount: orderStats?.todayCount || 0,
+        todayTotal: orderStats?.todayTotal || "0",
+      },
+      electronicBilling: {
+        pending: docStats?.pending || 0,
+        errors: docStats?.error || 0,
+      },
+      support: {
+        openTickets: ticketStats?.open || 0,
+      },
+    });
+  } catch (error) {
+    console.error("Dashboard error:", error);
+    res.status(500).json({ error: "Failed to load dashboard" });
+  }
+});
+
+router.get("/profile", async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    
+    if (!tenant) {
+      return res.status(404).json({ error: "Tenant not found" });
+    }
+
+    res.json({
+      id: tenant.id,
+      name: tenant.name,
+      type: tenant.type,
+      status: tenant.status,
+      logo: tenant.logo,
+      address: tenant.address,
+      phone: tenant.phone,
+      currency: tenant.currency,
+      taxRate: tenant.taxRate,
+      language: tenant.language,
+      timezone: tenant.timezone,
+    });
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json({ error: "Failed to get profile" });
+  }
+});
+
+router.patch("/profile", async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const { name, logo, address, phone, currency, taxRate, language, timezone } = req.body;
+
+    const [updated] = await db
+      .update(tenants)
+      .set({ name, logo, address, phone, currency, taxRate, language, timezone })
+      .where(eq(tenants.id, tenantId))
+      .returning();
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+router.get("/locations", requirePermission("settings.locations:manage"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const locs = await db.select().from(locations).where(eq(locations.tenantId, tenantId));
+    res.json(locs);
+  } catch (error) {
+    console.error("List locations error:", error);
+    res.status(500).json({ error: "Failed to list locations" });
+  }
+});
+
+router.post("/locations", requirePermission("settings.locations:manage"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const { name, address, city, country, timezone, isDefault } = req.body;
+
+    const [location] = await db
+      .insert(locations)
+      .values({ tenantId, name, address, city, country, timezone, isDefault })
+      .returning();
+
+    res.status(201).json(location);
+  } catch (error) {
+    console.error("Create location error:", error);
+    res.status(500).json({ error: "Failed to create location" });
+  }
+});
+
+router.get("/registers", requirePermission("settings.registers:manage"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const regs = await db.select().from(registers).where(eq(registers.tenantId, tenantId));
+    res.json(regs);
+  } catch (error) {
+    console.error("List registers error:", error);
+    res.status(500).json({ error: "Failed to list registers" });
+  }
+});
+
+router.get("/users", requirePermission("settings.users:manage"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const tenantUsers = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        isActive: users.isActive,
+        createdAt: users.createdAt,
+      })
+      .from(users)
+      .where(eq(users.tenantId, tenantId));
+
+    res.json(tenantUsers);
+  } catch (error) {
+    console.error("List users error:", error);
+    res.status(500).json({ error: "Failed to list users" });
+  }
+});
+
+router.get("/documents", requirePermission("electronic_billing:read"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const docs = await db
+      .select()
+      .from(electronicDocuments)
+      .where(eq(electronicDocuments.tenantId, tenantId))
+      .orderBy(desc(electronicDocuments.createdAt))
+      .limit(100);
+
+    res.json(docs);
+  } catch (error) {
+    console.error("List documents error:", error);
+    res.status(500).json({ error: "Failed to list documents" });
+  }
+});
+
+router.get("/documents/:id", requirePermission("electronic_billing:read"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const [doc] = await db
+      .select()
+      .from(electronicDocuments)
+      .where(and(
+        eq(electronicDocuments.id, req.params.id),
+        eq(electronicDocuments.tenantId, tenantId)
+      ));
+
+    if (!doc) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+
+    res.json(doc);
+  } catch (error) {
+    console.error("Get document error:", error);
+    res.status(500).json({ error: "Failed to get document" });
+  }
+});
+
+router.get("/subscription", requirePermission("billing.subscriptions:read"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.tenantId, tenantId))
+      .orderBy(desc(subscriptions.createdAt))
+      .limit(1);
+
+    res.json(subscription || null);
+  } catch (error) {
+    console.error("Get subscription error:", error);
+    res.status(500).json({ error: "Failed to get subscription" });
+  }
+});
+
+router.get("/invoices", requirePermission("billing.invoices:read"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const invs = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.tenantId, tenantId))
+      .orderBy(desc(invoices.issuedAt));
+
+    res.json(invs);
+  } catch (error) {
+    console.error("List invoices error:", error);
+    res.status(500).json({ error: "Failed to list invoices" });
+  }
+});
+
+router.get("/tickets", requirePermission("support.tickets:read"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const tickets = await db
+      .select()
+      .from(supportTickets)
+      .where(eq(supportTickets.tenantId, tenantId))
+      .orderBy(desc(supportTickets.createdAt));
+
+    res.json(tickets);
+  } catch (error) {
+    console.error("List tickets error:", error);
+    res.status(500).json({ error: "Failed to list tickets" });
+  }
+});
+
+router.post("/tickets", requirePermission("support.tickets:manage"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const { subject, description, priority, category } = req.body;
+
+    const [ticket] = await db
+      .insert(supportTickets)
+      .values({
+        tenantId,
+        createdBy: req.portalSession!.userId,
+        subject,
+        description,
+        priority: priority || "medium",
+        category,
+      })
+      .returning();
+
+    res.status(201).json(ticket);
+  } catch (error) {
+    console.error("Create ticket error:", error);
+    res.status(500).json({ error: "Failed to create ticket" });
+  }
+});
+
+router.get("/tickets/:id", requirePermission("support.tickets:read"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const [ticket] = await db
+      .select()
+      .from(supportTickets)
+      .where(and(
+        eq(supportTickets.id, req.params.id),
+        eq(supportTickets.tenantId, tenantId)
+      ));
+
+    if (!ticket) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    const comments = await db
+      .select()
+      .from(ticketComments)
+      .where(and(
+        eq(ticketComments.ticketId, ticket.id),
+        eq(ticketComments.isInternal, false)
+      ))
+      .orderBy(ticketComments.createdAt);
+
+    res.json({ ...ticket, comments });
+  } catch (error) {
+    console.error("Get ticket error:", error);
+    res.status(500).json({ error: "Failed to get ticket" });
+  }
+});
+
+router.post("/tickets/:id/comments", requirePermission("support.tickets:manage"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const [ticket] = await db
+      .select()
+      .from(supportTickets)
+      .where(and(
+        eq(supportTickets.id, req.params.id),
+        eq(supportTickets.tenantId, tenantId)
+      ));
+
+    if (!ticket) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+
+    const { content } = req.body;
+
+    const [comment] = await db
+      .insert(ticketComments)
+      .values({
+        ticketId: ticket.id,
+        userId: req.portalSession!.userId,
+        content,
+        isInternal: false,
+      })
+      .returning();
+
+    res.status(201).json(comment);
+  } catch (error) {
+    console.error("Add comment error:", error);
+    res.status(500).json({ error: "Failed to add comment" });
+  }
+});
+
+export default router;

@@ -12,11 +12,21 @@ export const kitchenTicketStatusEnum = pgEnum("kitchen_ticket_status", ["new", "
 export const stockMovementTypeEnum = pgEnum("stock_movement_type", ["sale", "return", "purchase", "adjustment", "waste", "transfer"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "split"]);
 
+// Portal enums
+export const tenantStatusEnum = pgEnum("tenant_status", ["trial", "active", "past_due", "suspended", "cancelled"]);
+export const portalRoleTypeEnum = pgEnum("portal_role_type", ["internal", "tenant"]);
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["trial", "active", "past_due", "suspended", "cancelled"]);
+export const ticketStatusEnum = pgEnum("ticket_status", ["open", "in_progress", "pending", "resolved", "closed"]);
+export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "high", "urgent"]);
+export const documentStatusEnum = pgEnum("document_status", ["pending", "sent", "accepted", "rejected", "error"]);
+export const impersonationModeEnum = pgEnum("impersonation_mode", ["read_only", "write"]);
+
 // Tenants
 export const tenants = pgTable("tenants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   type: tenantTypeEnum("type").notNull(),
+  status: tenantStatusEnum("status").default("trial"),
   featureFlags: jsonb("feature_flags").$type<string[]>().default([]),
   logo: text("logo"),
   address: text("address"),
@@ -24,25 +34,30 @@ export const tenants = pgTable("tenants", {
   currency: text("currency").default("USD"),
   taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("0"),
   language: text("language").default("en"),
+  timezone: text("timezone").default("America/Bogota"),
   matiasApiUrl: text("matias_api_url"),
   matiasClientId: text("matias_client_id"),
   matiasClientSecret: text("matias_client_secret"),
   matiasEnabled: boolean("matias_enabled").default(false),
+  trialEndsAt: timestamp("trial_ends_at"),
+  suspendedAt: timestamp("suspended_at"),
+  suspendedReason: text("suspended_reason"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Users
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
   username: text("username").notNull(),
   password: text("password").notNull(),
   name: text("name").notNull(),
   email: text("email").notNull(),
-  phone: text("phone").notNull(),
+  phone: text("phone"),
   role: userRoleEnum("role").notNull().default("cashier"),
   pin: text("pin"),
   isActive: boolean("is_active").default(true),
+  isInternal: boolean("is_internal").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -217,6 +232,235 @@ export const stockMovements = pgTable("stock_movements", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ============================================
+// MANAGEMENT PORTAL TABLES
+// ============================================
+
+// Portal Roles (for RBAC)
+export const portalRoles = pgTable("portal_roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  type: portalRoleTypeEnum("type").notNull(),
+  description: text("description"),
+  isSystem: boolean("is_system").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Portal Permissions
+export const portalPermissions = pgTable("portal_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  resource: text("resource").notNull(),
+  action: text("action").notNull(),
+  description: text("description"),
+});
+
+// Role-Permission mapping
+export const rolePermissions = pgTable("role_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  roleId: varchar("role_id").references(() => portalRoles.id).notNull(),
+  permissionId: varchar("permission_id").references(() => portalPermissions.id).notNull(),
+});
+
+// User-Portal Role mapping
+export const userPortalRoles = pgTable("user_portal_roles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  roleId: varchar("role_id").references(() => portalRoles.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  grantedBy: varchar("granted_by").references(() => users.id),
+  grantedAt: timestamp("granted_at").defaultNow(),
+});
+
+// Locations (multi-store support)
+export const locations = pgTable("locations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  name: text("name").notNull(),
+  address: text("address"),
+  city: text("city"),
+  country: text("country").default("CO"),
+  timezone: text("timezone").default("America/Bogota"),
+  isActive: boolean("is_active").default(true),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Warehouses
+export const warehouses = pgTable("warehouses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  locationId: varchar("location_id").references(() => locations.id),
+  name: text("name").notNull(),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Devices (registered devices per register)
+export const devices = pgTable("devices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  registerId: varchar("register_id").references(() => registers.id).notNull(),
+  deviceType: text("device_type"),
+  deviceId: text("device_id"),
+  appVersion: text("app_version"),
+  osVersion: text("os_version"),
+  lastSeenAt: timestamp("last_seen_at"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Impersonation Sessions (for support mode)
+export const impersonationSessions = pgTable("impersonation_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  adminUserId: varchar("admin_user_id").references(() => users.id).notNull(),
+  targetTenantId: varchar("target_tenant_id").references(() => tenants.id).notNull(),
+  targetUserId: varchar("target_user_id").references(() => users.id),
+  mode: impersonationModeEnum("mode").default("read_only"),
+  reason: text("reason"),
+  ticketId: varchar("ticket_id"),
+  startedAt: timestamp("started_at").defaultNow(),
+  endedAt: timestamp("ended_at"),
+  actionsTaken: jsonb("actions_taken").$type<{ action: string; timestamp: string; details?: string }[]>().default([]),
+});
+
+// Support Tickets
+export const supportTickets = pgTable("support_tickets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  status: ticketStatusEnum("status").default("open"),
+  priority: ticketPriorityEnum("priority").default("medium"),
+  category: text("category"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+// Ticket Comments
+export const ticketComments = pgTable("ticket_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").references(() => supportTickets.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  isInternal: boolean("is_internal").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Ticket Attachments
+export const ticketAttachments = pgTable("ticket_attachments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketId: varchar("ticket_id").references(() => supportTickets.id).notNull(),
+  commentId: varchar("comment_id").references(() => ticketComments.id),
+  fileName: text("file_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileSize: integer("file_size"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Subscription Plans
+export const subscriptionPlans = pgTable("subscription_plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  priceMonthly: decimal("price_monthly", { precision: 10, scale: 2 }).notNull(),
+  priceYearly: decimal("price_yearly", { precision: 10, scale: 2 }),
+  currency: text("currency").default("USD"),
+  maxLocations: integer("max_locations").default(1),
+  maxRegisters: integer("max_registers").default(2),
+  maxUsers: integer("max_users").default(5),
+  features: jsonb("features").$type<string[]>().default([]),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Subscriptions
+export const subscriptions = pgTable("subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  planId: varchar("plan_id").references(() => subscriptionPlans.id).notNull(),
+  status: subscriptionStatusEnum("status").default("trial"),
+  billingPeriod: text("billing_period").default("monthly"),
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  trialEndsAt: timestamp("trial_ends_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Invoices (SaaS billing)
+export const invoices = pgTable("invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  subscriptionId: varchar("subscription_id").references(() => subscriptions.id),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  currency: text("currency").default("USD"),
+  status: text("status").default("pending"),
+  issuedAt: timestamp("issued_at").defaultNow(),
+  dueDate: timestamp("due_date"),
+  paidAt: timestamp("paid_at"),
+  pdfUrl: text("pdf_url"),
+});
+
+// SaaS Payments
+export const saasPayments = pgTable("saas_payments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: varchar("invoice_id").references(() => invoices.id),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  method: text("method"),
+  providerRef: text("provider_ref"),
+  status: text("status").default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Electronic Documents (DIAN/Matias)
+export const electronicDocuments = pgTable("electronic_documents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  orderId: varchar("order_id").references(() => orders.id),
+  documentType: text("document_type").notNull(),
+  trackId: text("track_id"),
+  cufe: text("cufe"),
+  status: documentStatusEnum("status").default("pending"),
+  requestPayload: jsonb("request_payload"),
+  responsePayload: jsonb("response_payload"),
+  errorMessage: text("error_message"),
+  retryCount: integer("retry_count").default(0),
+  lastRetryAt: timestamp("last_retry_at"),
+  reviewed: boolean("reviewed").default(false),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  pdfUrl: text("pdf_url"),
+  xmlUrl: text("xml_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Document Status History
+export const documentStatusHistory = pgTable("document_status_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  documentId: varchar("document_id").references(() => electronicDocuments.id).notNull(),
+  status: documentStatusEnum("status").notNull(),
+  message: text("message"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Billing Provider Config (encrypted credentials)
+export const billingProviderConfig = pgTable("billing_provider_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  provider: text("provider").notNull(),
+  apiUrl: text("api_url"),
+  clientIdEncrypted: text("client_id_encrypted"),
+  clientSecretEncrypted: text("client_secret_encrypted"),
+  accessTokenCached: text("access_token_cached"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  isEnabled: boolean("is_enabled").default(false),
+  lastSuccessfulEmissionAt: timestamp("last_successful_emission_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Audit Logs
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -292,6 +536,27 @@ export const insertModifierGroupSchema = createInsertSchema(modifierGroups).omit
 export const insertModifierSchema = createInsertSchema(modifiers).omit({ id: true });
 export const insertRegisterSessionSchema = createInsertSchema(registerSessions).omit({ id: true, openedAt: true, closedAt: true });
 
+// Portal Insert Schemas
+export const insertPortalRoleSchema = createInsertSchema(portalRoles).omit({ id: true, createdAt: true });
+export const insertPortalPermissionSchema = createInsertSchema(portalPermissions).omit({ id: true });
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({ id: true });
+export const insertUserPortalRoleSchema = createInsertSchema(userPortalRoles).omit({ id: true, grantedAt: true });
+export const insertLocationSchema = createInsertSchema(locations).omit({ id: true, createdAt: true });
+export const insertWarehouseSchema = createInsertSchema(warehouses).omit({ id: true, createdAt: true });
+export const insertDeviceSchema = createInsertSchema(devices).omit({ id: true, createdAt: true });
+export const insertImpersonationSessionSchema = createInsertSchema(impersonationSessions).omit({ id: true, startedAt: true });
+export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({ id: true, createdAt: true, updatedAt: true, resolvedAt: true });
+export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({ id: true, createdAt: true });
+export const insertTicketAttachmentSchema = createInsertSchema(ticketAttachments).omit({ id: true, createdAt: true });
+export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({ id: true, createdAt: true });
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true });
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({ id: true, issuedAt: true });
+export const insertSaasPaymentSchema = createInsertSchema(saasPayments).omit({ id: true, createdAt: true });
+export const insertElectronicDocumentSchema = createInsertSchema(electronicDocuments).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDocumentStatusHistorySchema = createInsertSchema(documentStatusHistory).omit({ id: true, createdAt: true });
+export const insertBillingProviderConfigSchema = createInsertSchema(billingProviderConfig).omit({ id: true, createdAt: true });
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
+
 // Types
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
@@ -323,6 +588,46 @@ export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type StockMovement = typeof stockMovements.$inferSelect;
 export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
+
+// Portal Types
+export type PortalRole = typeof portalRoles.$inferSelect;
+export type InsertPortalRole = z.infer<typeof insertPortalRoleSchema>;
+export type PortalPermission = typeof portalPermissions.$inferSelect;
+export type InsertPortalPermission = z.infer<typeof insertPortalPermissionSchema>;
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+export type UserPortalRole = typeof userPortalRoles.$inferSelect;
+export type InsertUserPortalRole = z.infer<typeof insertUserPortalRoleSchema>;
+export type Location = typeof locations.$inferSelect;
+export type InsertLocation = z.infer<typeof insertLocationSchema>;
+export type Warehouse = typeof warehouses.$inferSelect;
+export type InsertWarehouse = z.infer<typeof insertWarehouseSchema>;
+export type Device = typeof devices.$inferSelect;
+export type InsertDevice = z.infer<typeof insertDeviceSchema>;
+export type ImpersonationSession = typeof impersonationSessions.$inferSelect;
+export type InsertImpersonationSession = z.infer<typeof insertImpersonationSessionSchema>;
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type InsertSupportTicket = z.infer<typeof insertSupportTicketSchema>;
+export type TicketComment = typeof ticketComments.$inferSelect;
+export type InsertTicketComment = z.infer<typeof insertTicketCommentSchema>;
+export type TicketAttachment = typeof ticketAttachments.$inferSelect;
+export type InsertTicketAttachment = z.infer<typeof insertTicketAttachmentSchema>;
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
+export type Subscription = typeof subscriptions.$inferSelect;
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+export type SaasPayment = typeof saasPayments.$inferSelect;
+export type InsertSaasPayment = z.infer<typeof insertSaasPaymentSchema>;
+export type ElectronicDocument = typeof electronicDocuments.$inferSelect;
+export type InsertElectronicDocument = z.infer<typeof insertElectronicDocumentSchema>;
+export type DocumentStatusHistory = typeof documentStatusHistory.$inferSelect;
+export type InsertDocumentStatusHistory = z.infer<typeof insertDocumentStatusHistorySchema>;
+export type BillingProviderConfig = typeof billingProviderConfig.$inferSelect;
+export type InsertBillingProviderConfig = z.infer<typeof insertBillingProviderConfigSchema>;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 // Feature flags for tenant types
 export const RETAIL_FEATURES = [

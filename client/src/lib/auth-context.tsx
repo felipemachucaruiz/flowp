@@ -5,7 +5,8 @@ interface AuthContextType {
   user: User | null;
   tenant: Tenant | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  isInternal: boolean;
+  login: (username: string, password: string) => Promise<{ success: boolean; redirectTo?: string }>;
   logout: () => void;
   setTenant: (tenant: Tenant) => void;
   refreshTenant: () => Promise<void>;
@@ -17,20 +18,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInternal, setIsInternal] = useState(false);
 
   useEffect(() => {
     // Check for stored auth on mount
     const storedUser = localStorage.getItem("pos_user");
     const storedTenant = localStorage.getItem("pos_tenant");
+    const storedIsInternal = localStorage.getItem("pos_is_internal");
     
-    if (storedUser && storedTenant) {
+    if (storedUser) {
       setUser(JSON.parse(storedUser));
-      setTenant(JSON.parse(storedTenant));
+      if (storedTenant) {
+        setTenant(JSON.parse(storedTenant));
+      }
+      setIsInternal(storedIsInternal === "true");
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; redirectTo?: string }> => {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
@@ -38,24 +44,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ username, password }),
       });
       
-      if (!response.ok) return false;
+      if (!response.ok) return { success: false };
       
       const data = await response.json();
       setUser(data.user);
       setTenant(data.tenant);
+      setIsInternal(data.isInternal || false);
+      
       localStorage.setItem("pos_user", JSON.stringify(data.user));
-      localStorage.setItem("pos_tenant", JSON.stringify(data.tenant));
-      return true;
+      if (data.tenant) {
+        localStorage.setItem("pos_tenant", JSON.stringify(data.tenant));
+      }
+      localStorage.setItem("pos_is_internal", data.isInternal ? "true" : "false");
+      
+      return { 
+        success: true, 
+        redirectTo: data.redirectTo || (data.isInternal ? "/admin" : "/pos")
+      };
     } catch {
-      return false;
+      return { success: false };
     }
   };
 
   const logout = () => {
     setUser(null);
     setTenant(null);
+    setIsInternal(false);
     localStorage.removeItem("pos_user");
     localStorage.removeItem("pos_tenant");
+    localStorage.removeItem("pos_is_internal");
   };
 
   const refreshTenant = async () => {
@@ -75,7 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, tenant, isLoading, login, logout, setTenant, refreshTenant }}>
+    <AuthContext.Provider value={{ user, tenant, isLoading, isInternal, login, logout, setTenant, refreshTenant }}>
       {children}
     </AuthContext.Provider>
   );

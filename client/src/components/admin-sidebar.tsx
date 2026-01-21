@@ -1,0 +1,105 @@
+import { Link, useLocation } from "wouter";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+  SidebarFooter,
+} from "@/components/ui/sidebar";
+import {
+  LayoutDashboard,
+  Building2,
+  FileText,
+  CreditCard,
+  Users,
+  Settings,
+  LogOut,
+  Shield,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-context";
+
+const adminMenuItems = [
+  {
+    title: "Dashboard",
+    url: "/admin",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Tenants",
+    url: "/admin/tenants",
+    icon: Building2,
+  },
+  {
+    title: "E-Billing",
+    url: "/admin/ebilling",
+    icon: FileText,
+  },
+  {
+    title: "Billing",
+    url: "/admin/billing",
+    icon: CreditCard,
+  },
+  {
+    title: "Support",
+    url: "/admin/support",
+    icon: Users,
+  },
+];
+
+export function AdminSidebar() {
+  const [location] = useLocation();
+  const { logout } = useAuth();
+
+  return (
+    <Sidebar data-testid="admin-sidebar">
+      <SidebarHeader className="border-b p-4">
+        <div className="flex items-center gap-2">
+          <Shield className="h-6 w-6 text-primary" />
+          <div>
+            <h2 className="font-bold text-sm">POS Pro Admin</h2>
+            <p className="text-xs text-muted-foreground">Management Portal</p>
+          </div>
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminMenuItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={location === item.url}
+                  >
+                    <Link href={item.url} data-testid={`link-admin-${item.title.toLowerCase()}`}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter className="border-t p-4">
+        <Button
+          variant="ghost"
+          className="w-full justify-start"
+          onClick={logout}
+          data-testid="button-admin-logout"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          Logout
+        </Button>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
