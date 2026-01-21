@@ -143,6 +143,129 @@ export async function registerRoutes(
     }
   });
 
+  // ===== USERS ROUTES =====
+
+  app.get("/api/users", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json([]);
+      }
+      const users = await storage.getUsersByTenant(tenantId);
+      res.json(users.map(u => ({ ...u, password: undefined })));
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.post("/api/users", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { name, email, phone, username, password, role, pin } = req.body;
+      
+      if (!name || !email || !phone || !username || !password) {
+        return res.status(400).json({ message: "All fields are required" });
+      }
+
+      // Check if username exists
+      const existingUser = await storage.getUserByUsername(tenantId, username);
+      if (existingUser) {
+        return res.status(400).json({ message: "Username already exists" });
+      }
+
+      // storage.createUser handles password hashing
+      const user = await storage.createUser({
+        tenantId,
+        name,
+        email,
+        phone,
+        username,
+        password,
+        role: role || "cashier",
+        pin: pin || null,
+      });
+
+      res.json({ ...user, password: undefined });
+    } catch (error) {
+      console.error("User creation error:", error);
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  app.patch("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { id } = req.params;
+      const { name, email, phone, username, password, role, pin } = req.body;
+      
+      // Verify user belongs to tenant
+      const users = await storage.getUsersByTenant(tenantId);
+      const existingUser = users.find(u => u.id === id);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const updateData: Record<string, unknown> = { name, email, phone, role, pin };
+      
+      if (username && username !== existingUser.username) {
+        const usernameExists = await storage.getUserByUsername(tenantId, username);
+        if (usernameExists) {
+          return res.status(400).json({ message: "Username already exists" });
+        }
+        updateData.username = username;
+      }
+
+      if (password) {
+        const bcrypt = await import("bcrypt");
+        updateData.password = await bcrypt.hash(password, 10);
+      }
+
+      const user = await storage.updateUser(id, updateData);
+      res.json({ ...user, password: undefined });
+    } catch (error) {
+      console.error("User update error:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+
+  app.delete("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { id } = req.params;
+      
+      // Verify user belongs to tenant
+      const users = await storage.getUsersByTenant(tenantId);
+      const existingUser = users.find(u => u.id === id);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Don't allow deleting yourself
+      const currentUserId = req.headers["x-user-id"] as string;
+      if (id === currentUserId) {
+        return res.status(400).json({ message: "Cannot delete your own account" });
+      }
+
+      await storage.deleteUser(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("User deletion error:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // ===== CATEGORIES ROUTES =====
 
   app.get("/api/categories", async (req: Request, res: Response) => {

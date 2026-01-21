@@ -27,6 +27,8 @@ export interface IStorage {
   getUserByUsername(tenantId: string, username: string): Promise<User | undefined>;
   getUsersByTenant(tenantId: string): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: string): Promise<void>;
   
   // Categories
   getCategoriesByTenant(tenantId: string): Promise<Category[]>;
@@ -142,6 +144,15 @@ export class DatabaseStorage implements IStorage {
     const hashedPassword = await bcrypt.hash(user.password, 10);
     const [created] = await db.insert(users).values({ ...user, password: hashedPassword }).returning();
     return created;
+  }
+
+  async updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined> {
+    const [updated] = await db.update(users).set(data).where(eq(users.id, id)).returning();
+    return updated;
+  }
+
+  async deleteUser(id: string): Promise<void> {
+    await db.delete(users).where(eq(users.id, id));
   }
 
   // Categories

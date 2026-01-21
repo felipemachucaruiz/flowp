@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import type { Category, Product, Floor, Table } from "@shared/schema";
+import type { Category, Product, Floor, Table, User } from "@shared/schema";
 import {
   Settings as SettingsIcon,
   Store,
@@ -34,11 +34,22 @@ import {
 } from "lucide-react";
 
 const businessSettingsSchema = z.object({
+  name: z.string().min(1, "Company name is required"),
   currency: z.string().min(1, "Currency is required"),
   taxRate: z.string().min(0, "Tax rate is required"),
   address: z.string().optional(),
   phone: z.string().optional(),
   language: z.string().min(1, "Language is required"),
+});
+
+const userSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Valid email is required"),
+  phone: z.string().min(1, "Phone is required"),
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  role: z.enum(["admin", "manager", "cashier", "kitchen"]),
+  pin: z.string().optional(),
 });
 
 const matiasConfigSchema = z.object({
@@ -122,6 +133,8 @@ export default function SettingsPage() {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [isEditingBusiness, setIsEditingBusiness] = useState(false);
   const [isEditingMatias, setIsEditingMatias] = useState(false);
+  const [showUserDialog, setShowUserDialog] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
 
   const isRestaurant = tenant?.type === "restaurant";
 
@@ -151,7 +164,10 @@ export default function SettingsPage() {
     email: string | null;
   }>({
     queryKey: ["/api/matias/status"],
-    enabled: isRestaurant,
+  });
+
+  const { data: users, isLoading: usersLoading } = useQuery<User[]>({
+    queryKey: ["/api/users"],
   });
 
   // Forms
@@ -178,11 +194,25 @@ export default function SettingsPage() {
   const businessForm = useForm({
     resolver: zodResolver(businessSettingsSchema),
     defaultValues: {
+      name: tenant?.name || "",
       currency: tenant?.currency || "USD",
       taxRate: tenant?.taxRate?.toString() || "0",
       address: tenant?.address || "",
       phone: tenant?.phone || "",
       language: tenant?.language || "en",
+    },
+  });
+
+  const userForm = useForm({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      username: "",
+      password: "",
+      role: "cashier" as const,
+      pin: "",
     },
   });
 
@@ -250,6 +280,47 @@ export default function SettingsPage() {
       setShowCategoryDialog(false);
       setEditingItem(null);
       categoryForm.reset();
+    },
+  });
+
+  const userMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof userSchema>) => {
+      if (editingUser) {
+        // When editing, password is optional - only send if provided
+        const updateData = { ...data };
+        if (!updateData.password) {
+          delete updateData.password;
+        }
+        return apiRequest("PATCH", `/api/users/${editingUser.id}`, updateData);
+      }
+      // When creating, password is required
+      if (!data.password) {
+        throw new Error("Password is required for new users");
+      }
+      return apiRequest("POST", "/api/users", data);
+    },
+    onSuccess: () => {
+      toast({ title: editingUser ? "User updated" : "User created" });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      setShowUserDialog(false);
+      setEditingUser(null);
+      userForm.reset();
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to save user", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return apiRequest("DELETE", `/api/users/${userId}`, {});
+    },
+    onSuccess: () => {
+      toast({ title: "User deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete user", variant: "destructive" });
     },
   });
 
@@ -396,6 +467,10 @@ export default function SettingsPage() {
             <FileText className="w-4 h-4 mr-2" />
             Facturación
           </TabsTrigger>
+          <TabsTrigger value="users" data-testid="tab-users">
+            <Users className="w-4 h-4 mr-2" />
+            Users
+          </TabsTrigger>
         </TabsList>
 
         {/* Business Settings */}
@@ -413,6 +488,7 @@ export default function SettingsPage() {
                   variant="outline" 
                   onClick={() => {
                     businessForm.reset({
+                      name: tenant?.name || "",
                       currency: tenant?.currency || "USD",
                       taxRate: tenant?.taxRate?.toString() || "0",
                       address: tenant?.address || "",
@@ -432,6 +508,19 @@ export default function SettingsPage() {
               {isEditingBusiness ? (
                 <Form {...businessForm}>
                   <form onSubmit={businessForm.handleSubmit((data) => businessSettingsMutation.mutate(data))} className="space-y-4">
+                    <FormField
+                      control={businessForm.control}
+                      name="name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-company-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={businessForm.control}
@@ -1058,6 +1147,111 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Users Management */}
+        <TabsContent value="users" className="mt-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <div>
+                <CardTitle>User Management</CardTitle>
+                <CardDescription>
+                  Manage users and their access roles
+                </CardDescription>
+              </div>
+              <Button
+                onClick={() => {
+                  setEditingUser(null);
+                  userForm.reset({
+                    name: "",
+                    email: "",
+                    phone: "",
+                    username: "",
+                    password: "",
+                    role: "cashier",
+                    pin: "",
+                  });
+                  setShowUserDialog(true);
+                }}
+                data-testid="button-add-user"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add User
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {usersLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              ) : users?.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  No users found. Add your first user.
+                </p>
+              ) : (
+                <ScrollArea className="h-[400px]">
+                  <div className="space-y-2">
+                    {users?.map((user) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center justify-between p-3 rounded-md border"
+                        data-testid={`user-item-${user.id}`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{user.name}</span>
+                            <Badge variant={user.role === "admin" ? "default" : user.role === "manager" ? "secondary" : "outline"}>
+                              {user.role}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            @{user.username} • {user.email}
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingUser(user);
+                              userForm.reset({
+                                name: user.name,
+                                email: user.email || "",
+                                phone: user.phone || "",
+                                username: user.username,
+                                password: "",
+                                role: user.role as "admin" | "manager" | "cashier" | "kitchen",
+                                pin: user.pin || "",
+                              });
+                              setShowUserDialog(true);
+                            }}
+                            data-testid={`button-edit-user-${user.id}`}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (confirm("Are you sure you want to delete this user?")) {
+                                deleteUserMutation.mutate(user.id);
+                              }
+                            }}
+                            disabled={deleteUserMutation.isPending}
+                            data-testid={`button-delete-user-${user.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Category Dialog */}
@@ -1329,6 +1523,141 @@ export default function SettingsPage() {
                 </Button>
                 <Button type="submit" disabled={tableMutation.isPending} data-testid="button-save-table">
                   {tableMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Save
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* User Dialog */}
+      <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingUser ? "Edit User" : "Add User"}</DialogTitle>
+          </DialogHeader>
+          <Form {...userForm}>
+            <form onSubmit={userForm.handleSubmit((data) => userMutation.mutate(data))} className="space-y-4">
+              <FormField
+                control={userForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-user-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={userForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" {...field} data-testid="input-user-email" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={userForm.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-user-phone" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={userForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Username</FormLabel>
+                      <FormControl>
+                        <Input {...field} data-testid="input-user-username" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={userForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{editingUser ? "New Password (leave blank to keep)" : "Password"}</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} data-testid="input-user-password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={userForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-user-role">
+                            <SelectValue placeholder="Select role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="manager">Manager</SelectItem>
+                          <SelectItem value="cashier">Cashier</SelectItem>
+                          <SelectItem value="kitchen">Kitchen</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={userForm.control}
+                  name="pin"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>PIN (optional)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="password" 
+                          maxLength={6} 
+                          placeholder="4-6 digits"
+                          {...field} 
+                          data-testid="input-user-pin" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setShowUserDialog(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={userMutation.isPending} data-testid="button-save-user">
+                  {userMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Save
                 </Button>
               </DialogFooter>
