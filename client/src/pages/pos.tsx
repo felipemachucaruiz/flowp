@@ -126,11 +126,13 @@ export default function POSPage() {
 
   // Barcode scanner handler - detects rapid keyboard input
   const handleBarcodeInput = useCallback((barcode: string, productsList: Product[] | undefined) => {
-    if (!productsList) return;
+    if (!productsList || !barcode.trim()) return;
     
-    // Find product by SKU/barcode
+    const barcodeClean = barcode.trim().toLowerCase();
+    
+    // Find product by barcode field first, then SKU
     const product = productsList.find(
-      (p) => p.sku?.toLowerCase() === barcode.toLowerCase() && p.isActive
+      (p) => (p.barcode?.toLowerCase() === barcodeClean || p.sku?.toLowerCase() === barcodeClean) && p.isActive
     );
     
     if (product) {
@@ -149,15 +151,19 @@ export default function POSPage() {
     
     // Clear search after barcode scan
     setSearchQuery("");
-  }, [addToCart, toast]);
+  }, [addToCart, toast, t]);
+
 
   // Listen for barcode scanner input (rapid keypresses ending with Enter)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in payment dialog or other inputs
+      // Ignore if typing in payment dialog
       if (showPaymentDialog) return;
       
-      // Check if we're in barcode mode or if rapid input is detected
+      // If focus is on search input, let the input handle it
+      if (document.activeElement === searchInputRef.current) return;
+      
+      // Check if Enter is pressed with buffered content
       if (e.key === "Enter" && barcodeBuffer.current.length > 0) {
         e.preventDefault();
         handleBarcodeInput(barcodeBuffer.current, products);
@@ -165,24 +171,21 @@ export default function POSPage() {
         return;
       }
       
-      // Only capture alphanumeric characters for barcode
-      if (e.key.length === 1 && /[a-zA-Z0-9]/.test(e.key)) {
-        // Focus is not on the search input, treat as barcode scan
-        if (document.activeElement !== searchInputRef.current) {
-          barcodeBuffer.current += e.key;
-          
-          // Clear buffer after 100ms of no input (barcode scanners are fast)
-          if (barcodeTimeout.current) {
-            clearTimeout(barcodeTimeout.current);
-          }
-          barcodeTimeout.current = setTimeout(() => {
-            // If buffer has enough characters, it's likely a barcode
-            if (barcodeBuffer.current.length >= 4) {
-              handleBarcodeInput(barcodeBuffer.current, products);
-            }
-            barcodeBuffer.current = "";
-          }, 100);
+      // Capture alphanumeric and common barcode characters
+      if (e.key.length === 1 && /[a-zA-Z0-9\-_]/.test(e.key)) {
+        barcodeBuffer.current += e.key;
+        
+        // Clear buffer after 50ms of no input (barcode scanners are very fast)
+        if (barcodeTimeout.current) {
+          clearTimeout(barcodeTimeout.current);
         }
+        barcodeTimeout.current = setTimeout(() => {
+          // If buffer has enough characters, it's likely a barcode
+          if (barcodeBuffer.current.length >= 3) {
+            handleBarcodeInput(barcodeBuffer.current, products);
+          }
+          barcodeBuffer.current = "";
+        }, 50);
       }
     };
 
@@ -260,10 +263,41 @@ export default function POSPage() {
     const query = searchQuery.toLowerCase();
     const matchesName = product.name.toLowerCase().includes(query);
     const matchesSku = product.sku?.toLowerCase().includes(query);
-    const matchesSearch = matchesName || matchesSku;
+    const matchesBarcode = product.barcode?.toLowerCase().includes(query);
+    const matchesSearch = matchesName || matchesSku || matchesBarcode;
     const matchesCategory = !selectedCategory || product.categoryId === selectedCategory;
     return matchesSearch && matchesCategory && product.isActive;
   });
+
+  // Handle Enter key in search input - auto-add on exact barcode/SKU match
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && searchQuery.trim()) {
+      e.preventDefault();
+      
+      // Try to find exact barcode/SKU match first
+      const barcodeClean = searchQuery.trim().toLowerCase();
+      const product = products?.find(
+        (p) => (p.barcode?.toLowerCase() === barcodeClean || p.sku?.toLowerCase() === barcodeClean) && p.isActive
+      );
+      
+      if (product) {
+        addToCart(product);
+        setSearchQuery("");
+        toast({
+          title: t("pos.product_added"),
+          description: `${product.name} ${t("pos.added_to_cart")}`,
+        });
+      } else if (filteredProducts?.length === 1) {
+        // If only one product matches, add it
+        addToCart(filteredProducts[0]);
+        setSearchQuery("");
+        toast({
+          title: t("pos.product_added"),
+          description: `${filteredProducts[0].name} ${t("pos.added_to_cart")}`,
+        });
+      }
+    }
+  };
 
   const handlePayment = () => {
     if (cart.length === 0) return;
@@ -346,6 +380,7 @@ export default function POSPage() {
                 placeholder={t("pos.search_placeholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
                 className="pl-10"
                 data-testid="input-search-products"
               />
