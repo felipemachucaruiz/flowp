@@ -67,7 +67,7 @@ export function AdminSidebar() {
         <div className="flex items-center gap-2">
           <Shield className="h-6 w-6 text-primary" />
           <div>
-            <h2 className="font-bold text-sm">POS Pro Admin</h2>
+            <h2 className="font-bold text-sm">Flowp Admin</h2>
             <p className="text-xs text-muted-foreground">Management Portal</p>
           </div>
         </div>

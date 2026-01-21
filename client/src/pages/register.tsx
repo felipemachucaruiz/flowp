@@ -108,7 +108,7 @@ export default function RegisterPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-primary text-primary-foreground mb-4">
             <Store className="w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">POS Pro</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Flowp</h1>
           <p className="text-muted-foreground">
             {t("register.title")}
           </p>

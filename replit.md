@@ -1,4 +1,4 @@
-# POS Pro - Multi-Tenant Point of Sale System
+# Flowp - Multi-Tenant Point of Sale System
 
 ## Overview
 A production-ready, multi-tenant POS + Inventory system delivered as a Progressive Web App (PWA), optimized for Windows devices with one-click receipt printing support. The system supports both Retail and Restaurant tenants with feature flags controlling module availability.

@@ -101,7 +101,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col">
             <span className="font-semibold text-sm truncate max-w-[140px]">
-              {tenant?.name || "POS Pro"}
+              {tenant?.name || "Flowp"}
             </span>
             <span className="text-xs text-muted-foreground capitalize">
               {tenant?.type || "Business"}

@@ -1,6 +1,6 @@
 {
-  "name": "POS Pro - Point of Sale System",
-  "short_name": "POS Pro",
+  "name": "Flowp - Point of Sale System",
+  "short_name": "Flowp",
   "description": "Multi-tenant POS system for Retail and Restaurant businesses",
   "start_url": "/",
   "display": "standalone",
