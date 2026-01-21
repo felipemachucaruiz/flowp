@@ -36,6 +36,11 @@ const adminMenuItems = [
     icon: Building2,
   },
   {
+    title: "Users",
+    url: "/admin/users",
+    icon: Users,
+  },
+  {
     title: "E-Billing",
     url: "/admin/ebilling",
     icon: FileText,
@@ -48,7 +53,7 @@ const adminMenuItems = [
   {
     title: "Support",
     url: "/admin/support",
-    icon: Users,
+    icon: Settings,
   },
 ];
 

@@ -251,4 +251,74 @@ router.get("/roles", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/portal-roles", async (req: Request, res: Response) => {
+  try {
+    const roles = await db.select().from(portalRoles);
+    res.json(roles);
+  } catch (error) {
+    console.error("List portal roles error:", error);
+    res.status(500).json({ error: "Failed to list portal roles" });
+  }
+});
+
+router.get("/portal-users", requirePermission("users:read"), async (req: Request, res: Response) => {
+  try {
+    const portalUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.isInternal, true))
+      .orderBy(desc(users.createdAt));
+
+    res.json(portalUsers);
+  } catch (error) {
+    console.error("List portal users error:", error);
+    res.status(500).json({ error: "Failed to list portal users" });
+  }
+});
+
+router.post("/portal-users", requirePermission("users:create"), async (req: Request, res: Response) => {
+  try {
+    const { username, password, name, email, phone, portalRole } = req.body;
+
+    if (!username || !password || !name || !email) {
+      return res.status(400).json({ error: "Username, password, name, and email are required" });
+    }
+
+    const existingUser = await db.select().from(users).where(eq(users.username, username));
+    if (existingUser.length > 0) {
+      return res.status(400).json({ error: "Username already exists" });
+    }
+
+    const bcrypt = await import("bcrypt");
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        tenantId: null,
+        username,
+        password: hashedPassword,
+        name,
+        email,
+        phone: phone || null,
+        role: "admin",
+        isActive: true,
+        isInternal: true,
+      })
+      .returning();
+
+    if (portalRole) {
+      await db.insert(userPortalRoles).values({
+        userId: newUser.id,
+        roleId: portalRole,
+      });
+    }
+
+    res.status(201).json({ ...newUser, password: undefined });
+  } catch (error) {
+    console.error("Create portal user error:", error);
+    res.status(500).json({ error: "Failed to create portal user" });
+  }
+});
+
 export default router;

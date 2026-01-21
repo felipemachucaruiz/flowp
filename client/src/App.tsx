@@ -25,6 +25,7 @@ import SettingsPage from "@/pages/settings";
 
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminTenants from "@/pages/admin/tenants";
+import AdminUsers from "@/pages/admin/users";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { user, isLoading } = useAuth();
@@ -100,17 +101,11 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, isInternal, logout } = useAuth();
-  const [, navigate] = useLocation();
+  const { user, isInternal } = useAuth();
 
   if (!user || !isInternal) {
     return <>{children}</>;
   }
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
 
   const style = {
     "--sidebar-width": "16rem",
@@ -122,12 +117,8 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen w-full">
         <AdminSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex h-12 items-center justify-between gap-2 border-b px-4 bg-card shrink-0">
+          <header className="flex h-12 items-center gap-2 border-b px-4 bg-card shrink-0">
             <SidebarTrigger data-testid="button-admin-sidebar-toggle" />
-            <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-admin-logout">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
           </header>
           <main className="flex-1 overflow-auto">{children}</main>
         </div>
@@ -145,6 +136,9 @@ function AdminRouter() {
         </Route>
         <Route path="/admin/tenants">
           <AdminRoute component={AdminTenants} />
+        </Route>
+        <Route path="/admin/users">
+          <AdminRoute component={AdminUsers} />
         </Route>
         <Route component={NotFound} />
       </Switch>
