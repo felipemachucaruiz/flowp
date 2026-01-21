@@ -493,6 +493,17 @@ export default function POSPage() {
                 {cart.map((item) => (
                   <Card key={item.id} className="p-3">
                     <div className="flex items-start gap-3">
+                      {item.product.imageUrl ? (
+                        <img
+                          src={item.product.imageUrl}
+                          alt={item.product.name}
+                          className="w-12 h-12 rounded-md object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                          <Package className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">
                           {item.product.name}
