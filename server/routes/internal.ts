@@ -241,6 +241,97 @@ router.get("/plans", requirePermission("billing.plans:read"), async (req: Reques
   }
 });
 
+router.post("/plans", requirePermission("billing.plans:manage"), async (req: Request, res: Response) => {
+  try {
+    const { name, priceMonthly, priceYearly, currency, maxLocations, maxRegisters, maxUsers, features, isActive, sortOrder } = req.body;
+
+    if (!name || priceMonthly === undefined) {
+      return res.status(400).json({ error: "Name and monthly price are required" });
+    }
+
+    const [newPlan] = await db
+      .insert(subscriptionPlans)
+      .values({
+        name,
+        priceMonthly: priceMonthly.toString(),
+        priceYearly: priceYearly ? priceYearly.toString() : null,
+        currency: currency || "USD",
+        maxLocations: maxLocations || 1,
+        maxRegisters: maxRegisters || 2,
+        maxUsers: maxUsers || 5,
+        features: features || [],
+        isActive: isActive !== false,
+        sortOrder: sortOrder || 0,
+      })
+      .returning();
+
+    res.status(201).json(newPlan);
+  } catch (error) {
+    console.error("Create plan error:", error);
+    res.status(500).json({ error: "Failed to create plan" });
+  }
+});
+
+router.put("/plans/:id", requirePermission("billing.plans:manage"), async (req: Request, res: Response) => {
+  try {
+    const { name, priceMonthly, priceYearly, currency, maxLocations, maxRegisters, maxUsers, features, isActive, sortOrder } = req.body;
+
+    const updateData: Record<string, unknown> = {};
+    if (name !== undefined) updateData.name = name;
+    if (priceMonthly !== undefined) updateData.priceMonthly = priceMonthly.toString();
+    if (priceYearly !== undefined) updateData.priceYearly = priceYearly ? priceYearly.toString() : null;
+    if (currency !== undefined) updateData.currency = currency;
+    if (maxLocations !== undefined) updateData.maxLocations = maxLocations;
+    if (maxRegisters !== undefined) updateData.maxRegisters = maxRegisters;
+    if (maxUsers !== undefined) updateData.maxUsers = maxUsers;
+    if (features !== undefined) updateData.features = features;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+
+    const [updated] = await db
+      .update(subscriptionPlans)
+      .set(updateData)
+      .where(eq(subscriptionPlans.id, req.params.id))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Update plan error:", error);
+    res.status(500).json({ error: "Failed to update plan" });
+  }
+});
+
+router.delete("/plans/:id", requirePermission("billing.plans:manage"), async (req: Request, res: Response) => {
+  try {
+    const existingSubs = await db
+      .select({ count: count() })
+      .from(subscriptions)
+      .where(eq(subscriptions.planId, req.params.id));
+
+    if (existingSubs[0]?.count > 0) {
+      return res.status(400).json({ error: "Cannot delete plan with active subscriptions" });
+    }
+
+    const [deleted] = await db
+      .delete(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, req.params.id))
+      .returning();
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Delete plan error:", error);
+    res.status(500).json({ error: "Failed to delete plan" });
+  }
+});
+
 router.get("/roles", async (req: Request, res: Response) => {
   try {
     const roles = await db.select().from(portalRoles);

@@ -28,6 +28,7 @@ import SettingsPage from "@/pages/settings";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminTenants from "@/pages/admin/tenants";
 import AdminUsers from "@/pages/admin/users";
+import AdminBilling from "@/pages/admin/billing";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
   const { user, isLoading, isInternal } = useAuth();
@@ -146,6 +147,9 @@ function AdminRouter() {
         </Route>
         <Route path="/admin/users">
           <AdminRoute component={AdminUsers} />
+        </Route>
+        <Route path="/admin/billing">
+          <AdminRoute component={AdminBilling} />
         </Route>
         <Route component={NotFound} />
       </Switch>
