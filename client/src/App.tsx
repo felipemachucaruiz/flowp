@@ -30,7 +30,7 @@ import AdminTenants from "@/pages/admin/tenants";
 import AdminUsers from "@/pages/admin/users";
 
 function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isInternal } = useAuth();
 
   if (isLoading) {
     return (
@@ -42,6 +42,11 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
 
   if (!user) {
     return <Redirect to="/login" />;
+  }
+
+  // Internal users (superadmins) should only access admin routes
+  if (isInternal) {
+    return <Redirect to="/admin" />;
   }
 
   return <Component />;
@@ -149,6 +154,13 @@ function AdminRouter() {
 }
 
 function TenantRouter() {
+  const { isInternal } = useAuth();
+  
+  // Internal users should be redirected to admin
+  if (isInternal) {
+    return <Redirect to="/admin" />;
+  }
+  
   return (
     <AppLayout>
       <Switch>
