@@ -2,7 +2,7 @@ import {
   tenants, users, registers, registerSessions, categories, products,
   modifierGroups, modifiers, productModifierGroups, floors, tables,
   orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs, customers,
-  loyaltyTransactions, loyaltyRewards,
+  loyaltyTransactions, loyaltyRewards, subscriptionPlans, subscriptions,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
   type Category, type InsertCategory, type Product, type InsertProduct,
@@ -14,6 +14,7 @@ import {
   type Order, type InsertOrder, type OrderItem, type InsertOrderItem,
   type KitchenTicket, type InsertKitchenTicket, type Payment, type InsertPayment,
   type StockMovement, type InsertStockMovement,
+  type SubscriptionPlan, type Subscription,
   RETAIL_FEATURES, RESTAURANT_FEATURES,
 } from "@shared/schema";
 import { db } from "./db";
@@ -115,6 +116,11 @@ export interface IStorage {
     salesByCategory: { name: string; value: number }[];
     recentTrend: number;
   }>;
+  
+  // Subscription Plans
+  getActiveSubscriptionPlans(): Promise<SubscriptionPlan[]>;
+  getTenantSubscription(tenantId: string): Promise<Subscription | null>;
+  createSubscription(data: { tenantId: string; planId: string; billingPeriod: string; paypalOrderId: string }): Promise<Subscription>;
 }
 
 export class DatabaseStorage implements IStorage {

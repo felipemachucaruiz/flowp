@@ -64,6 +64,26 @@ export async function registerRoutes(
   // ===== OBJECT STORAGE ROUTES =====
   registerObjectStorageRoutes(app);
 
+  // ===== PAYPAL ROUTES =====
+  // PayPal integration for subscription payments
+  const paypalEnabled = process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET;
+  
+  if (paypalEnabled) {
+    const { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } = await import("./paypal");
+    
+    app.get("/paypal/setup", async (req, res) => {
+      await loadPaypalDefault(req, res);
+    });
+
+    app.post("/paypal/order", async (req, res) => {
+      await createPaypalOrder(req, res);
+    });
+
+    app.post("/paypal/order/:orderID/capture", async (req, res) => {
+      await capturePaypalOrder(req, res);
+    });
+  }
+
   // ===== AUTH ROUTES =====
 
   // Register new tenant and admin user
@@ -1098,6 +1118,60 @@ export async function registerRoutes(
       res.json(updated);
     } catch (error) {
       res.status(400).json({ message: "Failed to update settings" });
+    }
+  });
+
+  // ===== SUBSCRIPTION ROUTES (for tenants) =====
+
+  // Get available subscription plans (public)
+  app.get("/api/subscription/plans", async (req: Request, res: Response) => {
+    try {
+      const plans = await storage.getActiveSubscriptionPlans();
+      res.json(plans);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch plans" });
+    }
+  });
+
+  // Get current tenant subscription
+  app.get("/api/subscription/current", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Tenant ID required" });
+      }
+      const subscription = await storage.getTenantSubscription(tenantId);
+      res.json(subscription);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch subscription" });
+    }
+  });
+
+  // Subscribe to a plan
+  app.post("/api/subscription/subscribe", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Tenant ID required" });
+      }
+
+      const { planId, billingPeriod, paypalOrderId } = req.body;
+
+      if (!planId || !billingPeriod || !paypalOrderId) {
+        return res.status(400).json({ message: "Plan ID, billing period, and PayPal order ID are required" });
+      }
+
+      const subscription = await storage.createSubscription({
+        tenantId,
+        planId,
+        billingPeriod,
+        paypalOrderId,
+      });
+
+      res.status(201).json(subscription);
+    } catch (error) {
+      console.error("Subscription error:", error);
+      res.status(500).json({ message: "Failed to create subscription" });
     }
   });
 
