@@ -102,7 +102,7 @@ export default function OnboardingPage() {
     },
     onSuccess: () => {
       refreshTenant();
-      queryClient.invalidateQueries({ queryKey: ["/api/tenant"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/tenant"] });
     },
   });
 

@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshTenant = async () => {
     if (!tenant) return;
     try {
-      const response = await fetch("/api/tenant", {
+      const response = await fetch("/api/auth/tenant", {
         headers: { "x-tenant-id": tenant.id },
       });
       if (response.ok) {

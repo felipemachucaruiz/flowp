@@ -1229,7 +1229,7 @@ export async function registerRoutes(
 
   // ===== TENANT ROUTES =====
 
-  app.get("/api/tenant", async (req: Request, res: Response) => {
+  app.get("/api/auth/tenant", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
       if (!tenantId) {
