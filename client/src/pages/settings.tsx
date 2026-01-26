@@ -732,7 +732,7 @@ export default function SettingsPage() {
                         <div className="w-32 h-32 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden bg-muted/50">
                           {businessLogoPath ? (
                             <img
-                              src={`/objects${businessLogoPath}`}
+                              src={businessLogoPath.startsWith('/objects') ? businessLogoPath : `/objects${businessLogoPath}`}
                               alt="Company logo"
                               className="w-full h-full object-contain"
                             />
@@ -1333,7 +1333,7 @@ export default function SettingsPage() {
                       <div className="relative w-32 h-32 rounded-lg border bg-muted/50 flex items-center justify-center overflow-hidden">
                         {receiptLogoPath ? (
                           <img
-                            src={`/objects${receiptLogoPath}`}
+                            src={receiptLogoPath.startsWith('/objects') ? receiptLogoPath : `/objects${receiptLogoPath}`}
                             alt={t("printing.receipt_logo")}
                             className="w-full h-full object-contain"
                           />
@@ -1573,7 +1573,7 @@ export default function SettingsPage() {
                   {receiptForm.watch("receiptShowLogo") && receiptLogoPath && (
                     <div className="flex justify-center mb-3">
                       <img 
-                        src={`/objects${receiptLogoPath}`} 
+                        src={receiptLogoPath.startsWith('/objects') ? receiptLogoPath : `/objects${receiptLogoPath}`} 
                         alt="Logo"
                         style={{ width: `${Math.min(receiptForm.watch("receiptLogoSize") || 200, 250)}px`, maxHeight: '80px', objectFit: 'contain' }}
                       />
