@@ -81,6 +81,13 @@ const translations = {
     "pos.search_customer": "Search by name, phone, or ID...",
     "pos.add_new_customer": "Add new customer",
     "pos.save": "Save",
+    "pos.loyalty_reward_removed": "Reward removed",
+    "pos.free_item": "FREE",
+    "pos.added_free": "added for free!",
+    "pos.product_unavailable": "Product not available",
+    "pos.applied": "applied!",
+    "pos.click_to_redeem": "Click to redeem",
+    "pos.reward_applied": "Reward Applied",
     
     // Payment
     "payment.title": "Payment",
@@ -886,6 +893,13 @@ const translations = {
     "pos.search_customer": "Buscar por nombre, teléfono o ID...",
     "pos.add_new_customer": "Agregar nuevo cliente",
     "pos.save": "Guardar",
+    "pos.loyalty_reward_removed": "Recompensa eliminada",
+    "pos.free_item": "GRATIS",
+    "pos.added_free": "agregado gratis!",
+    "pos.product_unavailable": "Producto no disponible",
+    "pos.applied": "aplicado!",
+    "pos.click_to_redeem": "Clic para canjear",
+    "pos.reward_applied": "Recompensa Aplicada",
     
     // Payment
     "payment.title": "Pago",
@@ -1688,6 +1702,13 @@ const translations = {
     "pos.search_customer": "Buscar por nome, telefone ou ID...",
     "pos.add_new_customer": "Adicionar novo cliente",
     "pos.save": "Salvar",
+    "pos.loyalty_reward_removed": "Recompensa removida",
+    "pos.free_item": "GRÁTIS",
+    "pos.added_free": "adicionado grátis!",
+    "pos.product_unavailable": "Produto não disponível",
+    "pos.applied": "aplicado!",
+    "pos.click_to_redeem": "Clique para resgatar",
+    "pos.reward_applied": "Recompensa Aplicada",
     
     // Payment
     "payment.title": "Pagamento",

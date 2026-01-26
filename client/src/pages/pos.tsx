@@ -31,6 +31,7 @@ import {
   Package,
   Receipt,
   Loader2,
+  Gift,
   ScanBarcode,
   User,
   UserPlus,
@@ -79,14 +80,18 @@ export default function POSPage() {
   const [newCustomerIdType, setNewCustomerIdType] = useState<string>("");
   const [newCustomerIdNumber, setNewCustomerIdNumber] = useState("");
   const [discountPercent, setDiscountPercent] = useState<string>("0");
+  const [fixedDiscountAmount, setFixedDiscountAmount] = useState<number>(0);
+  const [appliedReward, setAppliedReward] = useState<LoyaltyReward | null>(null);
+  const [freeProductItemId, setFreeProductItemId] = useState<string | null>(null);
 
   const taxRate = parseFloat(tenant?.taxRate?.toString() || "0");
   const discountRate = parseFloat(discountPercent || "0");
   
-  // Calculate discount amount based on subtotal
+  // Calculate discount amount based on subtotal (percentage + fixed)
   const getDiscountAmount = () => {
     const subtotal = getSubtotal();
-    return (subtotal * discountRate) / 100;
+    const percentageDiscount = (subtotal * discountRate) / 100;
+    return percentageDiscount + fixedDiscountAmount;
   };
   
   // Calculate total with discount applied before tax
@@ -190,6 +195,58 @@ export default function POSPage() {
     return loyaltyRewards
       .filter(reward => reward.isActive && reward.pointsCost <= points)
       .sort((a, b) => b.pointsCost - a.pointsCost);
+  };
+
+  // Helper to clear any applied reward
+  const clearAppliedReward = () => {
+    // Remove free product from cart if it was added
+    if (freeProductItemId) {
+      removeFromCart(freeProductItemId);
+      setFreeProductItemId(null);
+    }
+    // Clear all discount values
+    setDiscountPercent("0");
+    setFixedDiscountAmount(0);
+    setAppliedReward(null);
+  };
+
+  // Apply a loyalty reward
+  const applyLoyaltyReward = (reward: LoyaltyReward) => {
+    if (appliedReward?.id === reward.id) {
+      // Remove the reward if already applied
+      clearAppliedReward();
+      toast({ title: t("pos.loyalty_reward_removed") });
+      return;
+    }
+
+    // Clear any previously applied reward first
+    clearAppliedReward();
+
+    if (reward.rewardType === "product") {
+      // Find the product and add it to cart for free
+      const product = products?.find(p => p.id === reward.productId);
+      if (product) {
+        // Create a unique ID for tracking this free item
+        const freeItemId = `free-${Date.now()}`;
+        // Create a copy of the product with price = 0 for free item
+        const freeProduct = { ...product, id: freeItemId, price: "0", name: `${product.name} (${t("pos.free_item")})` };
+        addToCart(freeProduct);
+        setFreeProductItemId(freeItemId);
+        setAppliedReward(reward);
+        toast({ title: `${product.name} ${t("pos.added_free")}` });
+      } else {
+        toast({ title: t("pos.product_unavailable"), variant: "destructive" });
+      }
+    } else {
+      // Apply discount - clear both types first, then apply the appropriate one
+      if (reward.discountType === "percentage") {
+        setDiscountPercent(reward.discountValue?.toString() || "0");
+      } else {
+        setFixedDiscountAmount(parseFloat(reward.discountValue?.toString() || "0"));
+      }
+      setAppliedReward(reward);
+      toast({ title: `${reward.name} ${t("pos.applied")}` });
+    }
   };
 
   // Create new customer mutation
@@ -381,6 +438,10 @@ export default function POSPage() {
       });
       clearCart();
       setSelectedCustomer(null);
+      setAppliedReward(null);
+      setFreeProductItemId(null);
+      setFixedDiscountAmount(0);
+      setDiscountPercent("0");
       resetPaymentState();
       setShowPaymentDialog(false);
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
@@ -932,23 +993,44 @@ export default function POSPage() {
                         {selectedCustomer.loyaltyPoints || 0} {t("pos.points")}
                       </Badge>
                     </div>
+                    {appliedReward && (
+                      <div className="flex items-center justify-between p-2 rounded-md bg-green-500/10 border border-green-500/30 mb-2">
+                        <div className="flex items-center gap-2">
+                          <Gift className="w-4 h-4 text-green-500" />
+                          <span className="text-xs font-medium text-green-600 dark:text-green-400">
+                            {t("pos.reward_applied")}: {appliedReward.name}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => clearAppliedReward()}
+                          data-testid="button-remove-reward"
+                        >
+                          {t("customers.cancel")}
+                        </Button>
+                      </div>
+                    )}
                     {(selectedCustomer.loyaltyPoints || 0) > 0 && getAvailableRewards(selectedCustomer.loyaltyPoints || 0).length > 0 ? (
                       <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">{t("pos.available_rewards")}:</p>
+                        <p className="text-xs text-muted-foreground">{t("pos.available_rewards")} ({t("pos.click_to_redeem")}):</p>
                         <div className="flex flex-wrap gap-1">
-                          {getAvailableRewards(selectedCustomer.loyaltyPoints || 0).slice(0, 3).map(reward => (
+                          {getAvailableRewards(selectedCustomer.loyaltyPoints || 0).slice(0, 5).map(reward => (
                             <Badge 
                               key={reward.id} 
-                              variant="outline" 
-                              className="text-xs"
+                              variant={appliedReward?.id === reward.id ? "default" : "outline"}
+                              className={`text-xs cursor-pointer hover-elevate ${reward.rewardType === "product" ? "border-green-500/50" : ""}`}
+                              onClick={() => applyLoyaltyReward(reward)}
                               data-testid={`badge-reward-${reward.id}`}
                             >
+                              {reward.rewardType === "product" ? <Gift className="w-3 h-3 mr-1 inline" /> : <Banknote className="w-3 h-3 mr-1 inline" />}
                               {reward.name} ({reward.pointsCost} pts)
                             </Badge>
                           ))}
-                          {getAvailableRewards(selectedCustomer.loyaltyPoints || 0).length > 3 && (
+                          {getAvailableRewards(selectedCustomer.loyaltyPoints || 0).length > 5 && (
                             <Badge variant="outline" className="text-xs">
-                              +{getAvailableRewards(selectedCustomer.loyaltyPoints || 0).length - 3} {t("pos.more")}
+                              +{getAvailableRewards(selectedCustomer.loyaltyPoints || 0).length - 5} {t("pos.more")}
                             </Badge>
                           )}
                         </div>
