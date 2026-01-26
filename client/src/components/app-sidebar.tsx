@@ -180,6 +180,19 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
+        {installPrompt && !isInstalled && (
+          <div className="p-3 pb-0">
+            <Button
+              onClick={handleInstallClick}
+              className="w-full gap-2"
+              variant="default"
+              data-testid="button-install-app-prominent"
+            >
+              <Download className="w-4 h-4" />
+              {t("nav.install_app")}
+            </Button>
+          </div>
+        )}
         <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
