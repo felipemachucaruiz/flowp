@@ -822,7 +822,7 @@ export default function SettingsPage() {
                         name="country"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Country</FormLabel>
+                            <FormLabel>{t("form.country")}</FormLabel>
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-country">
@@ -1205,14 +1205,14 @@ export default function SettingsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-4">
                 <div>
-                  <CardTitle>Floors</CardTitle>
+                  <CardTitle>{t("form.floors")}</CardTitle>
                   <CardDescription>
-                    Organize tables by floor
+                    {t("settings.organize_floors")}
                   </CardDescription>
                 </div>
                 <Button onClick={() => openFloorDialog()} data-testid="button-add-floor">
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Floor
+                  {t("settings.add_floor")}
                 </Button>
               </CardHeader>
               <CardContent>
@@ -1264,9 +1264,9 @@ export default function SettingsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-4">
                 <div>
-                  <CardTitle>Tables</CardTitle>
+                  <CardTitle>{t("form.tables")}</CardTitle>
                   <CardDescription>
-                    Manage your restaurant tables
+                    {t("settings.manage_tables")}
                   </CardDescription>
                 </div>
                 <Button
@@ -1275,7 +1275,7 @@ export default function SettingsPage() {
                   data-testid="button-add-table"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Add Table
+                  {t("settings.add_table")}
                 </Button>
               </CardHeader>
               <CardContent>
@@ -2059,7 +2059,7 @@ export default function SettingsPage() {
                 name="image"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Product Image</FormLabel>
+                    <FormLabel>{t("form.product_image")}</FormLabel>
                     <FormControl>
                       <div className="space-y-2">
                         {productImagePath && (
@@ -2147,9 +2147,9 @@ export default function SettingsPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{t("form.name")}</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="e.g., Main Floor, Patio" data-testid="input-floor-name" />
+                      <Input {...field} placeholder={t("settings.floor_placeholder")} data-testid="input-floor-name" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -2173,7 +2173,7 @@ export default function SettingsPage() {
       <Dialog open={showTableDialog} onOpenChange={setShowTableDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingItem ? "Edit Table" : "Add Table"}</DialogTitle>
+            <DialogTitle>{editingItem ? t("settings.edit_table") : t("settings.add_table")}</DialogTitle>
           </DialogHeader>
           <Form {...tableForm}>
             <form onSubmit={tableForm.handleSubmit((data) => tableMutation.mutate(data))} className="space-y-4">
@@ -2182,9 +2182,9 @@ export default function SettingsPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Name</FormLabel>
+                    <FormLabel>{t("form.name")}</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="e.g., Table 1" data-testid="input-table-name" />
+                      <Input {...field} placeholder={t("settings.table_placeholder")} data-testid="input-table-name" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -2195,11 +2195,11 @@ export default function SettingsPage() {
                 name="floorId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Floor</FormLabel>
+                    <FormLabel>{t("form.floor")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-table-floor">
-                          <SelectValue placeholder="Select floor" />
+                          <SelectValue placeholder={t("settings.select_floor")} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -2219,7 +2219,7 @@ export default function SettingsPage() {
                 name="capacity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Capacity (seats)</FormLabel>
+                    <FormLabel>{t("form.capacity")}</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -2251,7 +2251,7 @@ export default function SettingsPage() {
       <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingUser ? "Edit User" : "Add User"}</DialogTitle>
+            <DialogTitle>{editingUser ? t("settings.edit_user") : t("settings.add_user")}</DialogTitle>
           </DialogHeader>
           <Form {...userForm}>
             <form onSubmit={userForm.handleSubmit((data) => userMutation.mutate(data))} className="space-y-4">
@@ -2260,7 +2260,7 @@ export default function SettingsPage() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Full Name</FormLabel>
+                    <FormLabel>{t("form.full_name")}</FormLabel>
                     <FormControl>
                       <Input {...field} data-testid="input-user-name" />
                     </FormControl>
@@ -2274,7 +2274,7 @@ export default function SettingsPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>{t("form.email")}</FormLabel>
                       <FormControl>
                         <Input type="email" {...field} data-testid="input-user-email" />
                       </FormControl>
@@ -2287,7 +2287,7 @@ export default function SettingsPage() {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone</FormLabel>
+                      <FormLabel>{t("form.phone")}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-user-phone" />
                       </FormControl>
@@ -2302,7 +2302,7 @@ export default function SettingsPage() {
                   name="username"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Username</FormLabel>
+                      <FormLabel>{t("form.username")}</FormLabel>
                       <FormControl>
                         <Input {...field} data-testid="input-user-username" />
                       </FormControl>
@@ -2315,7 +2315,7 @@ export default function SettingsPage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{editingUser ? "New Password (leave blank to keep)" : "Password"}</FormLabel>
+                      <FormLabel>{editingUser ? t("settings.new_password") : t("settings.password")}</FormLabel>
                       <FormControl>
                         <Input type="password" {...field} data-testid="input-user-password" />
                       </FormControl>
@@ -2330,18 +2330,18 @@ export default function SettingsPage() {
                   name="role"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Role</FormLabel>
+                      <FormLabel>{t("form.role")}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger data-testid="select-user-role">
-                            <SelectValue placeholder="Select role" />
+                            <SelectValue placeholder={t("settings.select_role")} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          <SelectItem value="manager">Manager</SelectItem>
-                          <SelectItem value="cashier">Cashier</SelectItem>
-                          <SelectItem value="kitchen">Kitchen</SelectItem>
+                          <SelectItem value="admin">{t("form.role_admin")}</SelectItem>
+                          <SelectItem value="manager">{t("form.role_manager")}</SelectItem>
+                          <SelectItem value="cashier">{t("form.role_cashier")}</SelectItem>
+                          <SelectItem value="kitchen">{t("form.role_kitchen")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

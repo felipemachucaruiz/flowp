@@ -418,12 +418,12 @@ export default function InventoryPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-medium truncate">{product.name}</h3>
                           <Badge variant="secondary" className="text-xs">
-                            {product.sku || "No SKU"}
+                            {product.sku || t("inventory.no_sku")}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-3 text-sm text-muted-foreground">
                           {product.barcode && (
-                            <span>Barcode: {product.barcode}</span>
+                            <span>{t("inventory.barcode")}: {product.barcode}</span>
                           )}
                         </div>
                       </div>
@@ -492,7 +492,7 @@ export default function InventoryPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium truncate">
-                              {product?.name || "Unknown Product"}
+                              {product?.name || t("inventory.unknown_product")}
                             </span>
                             <Badge variant="secondary" className="text-xs capitalize">
                               {movement.type}

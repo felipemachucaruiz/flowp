@@ -161,7 +161,7 @@ export default function SubscriptionPage() {
               >
                 {isPopular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge>Most Popular</Badge>
+                    <Badge>{t("subscription.most_popular")}</Badge>
                   </div>
                 )}
                 <CardHeader className="text-center pb-2">
@@ -236,7 +236,7 @@ export default function SubscriptionPage() {
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Complete Your Subscription</DialogTitle>
+            <DialogTitle>{t("subscription.complete_subscription")}</DialogTitle>
             <DialogDescription>
               {selectedPlan && (
                 <>
@@ -250,7 +250,7 @@ export default function SubscriptionPage() {
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Billing Period</Label>
+              <Label>{t("subscription.billing_period")}</Label>
               <RadioGroup
                 value={billingPeriod}
                 onValueChange={(v) => setBillingPeriod(v as "monthly" | "yearly")}
@@ -258,7 +258,7 @@ export default function SubscriptionPage() {
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="monthly" id="monthly" />
-                  <Label htmlFor="monthly">Monthly</Label>
+                  <Label htmlFor="monthly">{t("subscription.monthly")}</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="yearly" id="yearly" />
@@ -276,7 +276,7 @@ export default function SubscriptionPage() {
 
             <div className="border rounded-lg p-4 bg-muted/50">
               <div className="flex justify-between items-center">
-                <span>Total</span>
+                <span>{t("subscription.total")}</span>
                 <span className="text-xl font-bold">
                   ${selectedPlan ? getPrice(selectedPlan).toFixed(2) : "0.00"}{" "}
                   <span className="text-sm font-normal text-muted-foreground">

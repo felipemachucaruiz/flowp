@@ -207,14 +207,13 @@ export default function POSPage() {
       setNewCustomerIdNumber("");
       queryClient.invalidateQueries({ queryKey: ["/api/customers/search"] });
       toast({
-        title: "Customer created",
-        description: `${newCustomer.name} has been added`,
+        title: t("pos.customer_created"),
+        description: `${newCustomer.name}`,
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to create customer",
+        title: t("pos.customer_error"),
         variant: "destructive",
       });
     },
@@ -573,7 +572,7 @@ export default function POSPage() {
               variant="outline"
               size="icon"
               className="shrink-0"
-              title="Barcode scanner ready - just scan!"
+              title={t("pos.barcode_ready")}
               data-testid="button-barcode-indicator"
             >
               <ScanBarcode className="w-4 h-4" />
@@ -981,9 +980,9 @@ export default function POSPage() {
                         <SelectValue placeholder={`${t("customers.id_type")} *`} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cedula_ciudadania">Cédula Ciudadanía</SelectItem>
-                        <SelectItem value="cedula_extranjeria">Cédula Extranjería</SelectItem>
-                        <SelectItem value="pasaporte">Pasaporte</SelectItem>
+                        <SelectItem value="cedula_ciudadania">{t("customers.id_cedula")}</SelectItem>
+                        <SelectItem value="cedula_extranjeria">{t("customers.id_cedula_ext")}</SelectItem>
+                        <SelectItem value="pasaporte">{t("customers.id_passport")}</SelectItem>
                         <SelectItem value="nit">NIT</SelectItem>
                       </SelectContent>
                     </Select>
