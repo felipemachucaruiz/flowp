@@ -300,6 +300,51 @@ const translations = {
     "customers.customer_created": "Customer created successfully",
     "customers.customer_updated": "Customer updated successfully",
     "customers.reward_created": "Reward created successfully",
+    "customers.customer_error": "Failed to create customer",
+    "customers.update_error": "Failed to update customer",
+    "customers.reward_error": "Failed to create reward",
+    "customers.id_cedula": "Citizen ID",
+    "customers.id_cedula_ext": "Foreign ID",
+    "customers.id_passport": "Passport",
+    
+    // Inventory
+    "inventory.barcode": "Barcode",
+    "inventory.no_sku": "No SKU",
+    "inventory.unknown_product": "Unknown Product",
+    
+    // Subscription
+    "subscription.most_popular": "Most Popular",
+    "subscription.complete_subscription": "Complete Your Subscription",
+    "subscription.billing_period": "Billing Period",
+    "subscription.monthly": "Monthly",
+    "subscription.total": "Total",
+    
+    // Common form labels
+    "form.country": "Country",
+    "form.floors": "Floors",
+    "form.tables": "Tables",
+    "form.product_image": "Product Image",
+    "form.name": "Name",
+    "form.floor": "Floor",
+    "form.capacity": "Capacity (seats)",
+    "form.full_name": "Full Name",
+    "form.email": "Email",
+    "form.phone": "Phone",
+    "form.username": "Username",
+    "form.role": "Role",
+    "form.role_admin": "Admin",
+    "form.role_manager": "Manager",
+    "form.role_cashier": "Cashier",
+    "form.role_kitchen": "Kitchen",
+    "form.select_currency": "Select currency",
+    "form.select_language": "Select language",
+    "form.business_address": "Business address",
+    "form.business_phone": "Business phone",
+    
+    // POS
+    "pos.barcode_ready": "Barcode scanner ready - just scan!",
+    "pos.customer_created": "Customer created",
+    "pos.customer_error": "Failed to create customer",
     
     // Reports
     "reports.title": "Reports",
@@ -1028,6 +1073,51 @@ const translations = {
     "customers.customer_created": "Cliente creado exitosamente",
     "customers.customer_updated": "Cliente actualizado exitosamente",
     "customers.reward_created": "Recompensa creada exitosamente",
+    "customers.customer_error": "Error al crear cliente",
+    "customers.update_error": "Error al actualizar cliente",
+    "customers.reward_error": "Error al crear recompensa",
+    "customers.id_cedula": "Cédula Ciudadanía",
+    "customers.id_cedula_ext": "Cédula Extranjería",
+    "customers.id_passport": "Pasaporte",
+    
+    // Inventory
+    "inventory.barcode": "Código de Barras",
+    "inventory.no_sku": "Sin SKU",
+    "inventory.unknown_product": "Producto Desconocido",
+    
+    // Subscription
+    "subscription.most_popular": "Más Popular",
+    "subscription.complete_subscription": "Completa tu Suscripción",
+    "subscription.billing_period": "Período de Facturación",
+    "subscription.monthly": "Mensual",
+    "subscription.total": "Total",
+    
+    // Common form labels
+    "form.country": "País",
+    "form.floors": "Pisos",
+    "form.tables": "Mesas",
+    "form.product_image": "Imagen del Producto",
+    "form.name": "Nombre",
+    "form.floor": "Piso",
+    "form.capacity": "Capacidad (asientos)",
+    "form.full_name": "Nombre Completo",
+    "form.email": "Correo",
+    "form.phone": "Teléfono",
+    "form.username": "Usuario",
+    "form.role": "Rol",
+    "form.role_admin": "Administrador",
+    "form.role_manager": "Gerente",
+    "form.role_cashier": "Cajero",
+    "form.role_kitchen": "Cocina",
+    "form.select_currency": "Seleccionar moneda",
+    "form.select_language": "Seleccionar idioma",
+    "form.business_address": "Dirección del negocio",
+    "form.business_phone": "Teléfono del negocio",
+    
+    // POS
+    "pos.barcode_ready": "Escáner de códigos listo - ¡solo escanea!",
+    "pos.customer_created": "Cliente creado",
+    "pos.customer_error": "Error al crear cliente",
     
     // Reports
     "reports.title": "Reportes",
@@ -1753,6 +1843,51 @@ const translations = {
     "customers.customer_created": "Cliente criado com sucesso",
     "customers.customer_updated": "Cliente atualizado com sucesso",
     "customers.reward_created": "Recompensa criada com sucesso",
+    "customers.customer_error": "Erro ao criar cliente",
+    "customers.update_error": "Erro ao atualizar cliente",
+    "customers.reward_error": "Erro ao criar recompensa",
+    "customers.id_cedula": "Cédula de Cidadania",
+    "customers.id_cedula_ext": "Cédula de Estrangeiro",
+    "customers.id_passport": "Passaporte",
+    
+    // Inventory
+    "inventory.barcode": "Código de Barras",
+    "inventory.no_sku": "Sem SKU",
+    "inventory.unknown_product": "Produto Desconhecido",
+    
+    // Subscription
+    "subscription.most_popular": "Mais Popular",
+    "subscription.complete_subscription": "Complete sua Assinatura",
+    "subscription.billing_period": "Período de Cobrança",
+    "subscription.monthly": "Mensal",
+    "subscription.total": "Total",
+    
+    // Common form labels
+    "form.country": "País",
+    "form.floors": "Andares",
+    "form.tables": "Mesas",
+    "form.product_image": "Imagem do Produto",
+    "form.name": "Nome",
+    "form.floor": "Andar",
+    "form.capacity": "Capacidade (assentos)",
+    "form.full_name": "Nome Completo",
+    "form.email": "Email",
+    "form.phone": "Telefone",
+    "form.username": "Usuário",
+    "form.role": "Função",
+    "form.role_admin": "Administrador",
+    "form.role_manager": "Gerente",
+    "form.role_cashier": "Caixa",
+    "form.role_kitchen": "Cozinha",
+    "form.select_currency": "Selecionar moeda",
+    "form.select_language": "Selecionar idioma",
+    "form.business_address": "Endereço comercial",
+    "form.business_phone": "Telefone comercial",
+    
+    // POS
+    "pos.barcode_ready": "Scanner de código de barras pronto - apenas escaneie!",
+    "pos.customer_created": "Cliente criado",
+    "pos.customer_error": "Erro ao criar cliente",
     
     // Reports
     "reports.title": "Relatórios",

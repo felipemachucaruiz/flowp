@@ -106,13 +106,13 @@ export default function CustomersPage() {
       return apiRequest("POST", "/api/customers", data);
     },
     onSuccess: () => {
-      toast({ title: "Customer created successfully" });
+      toast({ title: t("customers.customer_created") });
       setShowCustomerDialog(false);
       resetCustomerForm();
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
     },
     onError: () => {
-      toast({ title: "Failed to create customer", variant: "destructive" });
+      toast({ title: t("customers.customer_error"), variant: "destructive" });
     },
   });
 
@@ -122,14 +122,14 @@ export default function CustomersPage() {
       return apiRequest("PATCH", `/api/customers/${id}`, rest);
     },
     onSuccess: () => {
-      toast({ title: "Customer updated successfully" });
+      toast({ title: t("customers.customer_updated") });
       setShowCustomerDialog(false);
       setEditingCustomer(null);
       resetCustomerForm();
       queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
     },
     onError: () => {
-      toast({ title: "Failed to update customer", variant: "destructive" });
+      toast({ title: t("customers.update_error"), variant: "destructive" });
     },
   });
 
@@ -142,13 +142,13 @@ export default function CustomersPage() {
       });
     },
     onSuccess: () => {
-      toast({ title: "Reward created successfully" });
+      toast({ title: t("customers.reward_created") });
       setShowRewardDialog(false);
       resetRewardForm();
       queryClient.invalidateQueries({ queryKey: ["/api/loyalty/rewards"] });
     },
     onError: () => {
-      toast({ title: "Failed to create reward", variant: "destructive" });
+      toast({ title: t("customers.reward_error"), variant: "destructive" });
     },
   });
 
@@ -220,9 +220,9 @@ export default function CustomersPage() {
   };
 
   const idTypeLabels: Record<string, string> = {
-    cedula_ciudadania: "Cédula Ciudadanía",
-    cedula_extranjeria: "Cédula Extranjería",
-    pasaporte: "Pasaporte",
+    cedula_ciudadania: t("customers.id_cedula"),
+    cedula_extranjeria: t("customers.id_cedula_ext"),
+    pasaporte: t("customers.id_passport"),
     nit: "NIT",
   };
 
@@ -652,9 +652,9 @@ export default function CustomersPage() {
                     <SelectValue placeholder={t("customers.select_type")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cedula_ciudadania">Cédula Ciudadanía</SelectItem>
-                    <SelectItem value="cedula_extranjeria">Cédula Extranjería</SelectItem>
-                    <SelectItem value="pasaporte">Pasaporte</SelectItem>
+                    <SelectItem value="cedula_ciudadania">{t("customers.id_cedula")}</SelectItem>
+                    <SelectItem value="cedula_extranjeria">{t("customers.id_cedula_ext")}</SelectItem>
+                    <SelectItem value="pasaporte">{t("customers.id_passport")}</SelectItem>
                     <SelectItem value="nit">NIT</SelectItem>
                   </SelectContent>
                 </Select>
