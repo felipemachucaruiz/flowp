@@ -46,6 +46,7 @@ export const tenants = pgTable("tenants", {
   receiptShowAddress: boolean("receipt_show_address").default(true),
   receiptShowPhone: boolean("receipt_show_phone").default(true),
   receiptTaxId: text("receipt_tax_id"),
+  onboardingComplete: boolean("onboarding_complete").default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   suspendedAt: timestamp("suspended_at"),
   suspendedReason: text("suspended_reason"),

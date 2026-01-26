@@ -29,9 +29,11 @@ import AdminDashboard from "@/pages/admin/dashboard";
 import AdminTenants from "@/pages/admin/tenants";
 import AdminUsers from "@/pages/admin/users";
 import AdminBilling from "@/pages/admin/billing";
+import OnboardingPage from "@/pages/onboarding";
 
-function ProtectedRoute({ component: Component }: { component: () => JSX.Element }) {
-  const { user, isLoading, isInternal } = useAuth();
+function ProtectedRoute({ component: Component, skipOnboardingCheck }: { component: () => JSX.Element; skipOnboardingCheck?: boolean }) {
+  const { user, isLoading, isInternal, tenant } = useAuth();
+  const [location] = useLocation();
 
   if (isLoading) {
     return (
@@ -48,6 +50,11 @@ function ProtectedRoute({ component: Component }: { component: () => JSX.Element
   // Internal users (superadmins) should only access admin routes
   if (isInternal) {
     return <Redirect to="/admin" />;
+  }
+
+  // Check if onboarding is complete (skip for the onboarding page itself)
+  if (!skipOnboardingCheck && tenant && !tenant.onboardingComplete && location !== "/onboarding") {
+    return <Redirect to="/onboarding" />;
   }
 
   return <Component />;
@@ -201,6 +208,29 @@ function TenantRouter() {
   );
 }
 
+function OnboardingRoute() {
+  const { user, isLoading, tenant } = useAuth();
+  
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Redirect to="/login" />;
+  }
+  
+  // If onboarding is already complete, redirect to POS
+  if (tenant?.onboardingComplete) {
+    return <Redirect to="/pos" />;
+  }
+  
+  return <OnboardingPage />;
+}
+
 function Router() {
   const [location] = useLocation();
   const isAdminRoute = location.startsWith("/admin");
@@ -209,6 +239,7 @@ function Router() {
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
+      <Route path="/onboarding" component={OnboardingRoute} />
       {isAdminRoute ? <AdminRouter /> : <TenantRouter />}
     </Switch>
   );
