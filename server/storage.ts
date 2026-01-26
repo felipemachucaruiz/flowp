@@ -124,8 +124,8 @@ export interface IStorage {
   
   getAdvancedAnalytics(tenantId: string, dateRange: string): Promise<{
     salesTrends: { date: string; revenue: number; orders: number; profit: number }[];
-    productPerformance: { id: string; name: string; quantity: number; revenue: number; cost: number; profit: number; margin: number }[];
-    employeeMetrics: { id: string; name: string; salesCount: number; revenue: number; avgOrderValue: number }[];
+    productPerformance: { id: string; name: string | null; quantity: number; revenue: number; cost: number; profit: number; margin: number }[];
+    employeeMetrics: { id: string; name: string | null; salesCount: number; revenue: number; avgOrderValue: number }[];
     profitAnalysis: { totalRevenue: number; totalCost: number; grossProfit: number; grossMargin: number; topProfitProducts: { name: string; profit: number; margin: number }[] };
   }>;
   
@@ -687,8 +687,8 @@ export class DatabaseStorage implements IStorage {
 
   async getAdvancedAnalytics(tenantId: string, dateRange: string): Promise<{
     salesTrends: { date: string; revenue: number; orders: number; profit: number }[];
-    productPerformance: { id: string; name: string; quantity: number; revenue: number; cost: number; profit: number; margin: number }[];
-    employeeMetrics: { id: string; name: string; salesCount: number; revenue: number; avgOrderValue: number }[];
+    productPerformance: { id: string; name: string | null; quantity: number; revenue: number; cost: number; profit: number; margin: number }[];
+    employeeMetrics: { id: string; name: string | null; salesCount: number; revenue: number; avgOrderValue: number }[];
     profitAnalysis: { totalRevenue: number; totalCost: number; grossProfit: number; grossMargin: number; topProfitProducts: { name: string; profit: number; margin: number }[] };
   }> {
     // Calculate date range
@@ -802,7 +802,7 @@ export class DatabaseStorage implements IStorage {
         const margin = stats.revenue > 0 ? (profit / stats.revenue) * 100 : 0;
         return {
           id,
-          name: product?.name || "Unknown",
+          name: product?.name || null,
           quantity: stats.quantity,
           revenue: stats.revenue,
           cost: stats.cost,
@@ -829,7 +829,7 @@ export class DatabaseStorage implements IStorage {
         const user = userMap.get(id);
         return {
           id,
-          name: user?.name || "Unknown Employee",
+          name: user?.name || null,
           salesCount: stats.salesCount,
           revenue: stats.revenue,
           avgOrderValue: stats.salesCount > 0 ? stats.revenue / stats.salesCount : 0,
