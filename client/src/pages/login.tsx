@@ -59,7 +59,9 @@ export default function LoginPage() {
           title: t("login.welcome_back"),
           description: t("login.login_success"),
         });
-        navigate(result.redirectTo || "/pos");
+        // Use window.location for reliable redirect after login
+        const redirectPath = result.redirectTo || "/pos";
+        window.location.href = redirectPath;
       } else {
         toast({
           title: t("login.login_failed"),
