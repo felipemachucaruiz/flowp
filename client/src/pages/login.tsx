@@ -28,16 +28,17 @@ export default function LoginPage() {
   const { t, language, setLanguage } = useI18n();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect if already logged in
+  // Redirect if already logged in (only for users who completed onboarding)
+  // Don't force redirect to onboarding - let them stay on login to log out if needed
   useEffect(() => {
     if (!authLoading && user) {
       if (isInternal) {
         navigate("/admin");
-      } else if (tenant && !tenant.onboardingComplete) {
-        navigate("/onboarding");
-      } else {
+      } else if (tenant && tenant.onboardingComplete) {
         navigate("/pos");
       }
+      // If onboarding not complete, don't redirect - let user stay on login page
+      // They can log out or will be redirected after successful new login
     }
   }, [authLoading, user, tenant, isInternal, navigate]);
 
