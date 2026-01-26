@@ -47,7 +47,7 @@ interface CustomerWithOrders extends Customer {
 
 export default function CustomersPage() {
   const { tenant } = useAuth();
-  const { t } = useI18n();
+  const { t, formatDate, formatDateTime } = useI18n();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithOrders | null>(null);
@@ -294,7 +294,7 @@ export default function CustomersPage() {
                           {customer.loyaltyPoints || 0} pts
                         </Badge>
                         <span className="text-xs text-muted-foreground">
-                          {customer.orderCount || 0} orders
+                          {customer.orderCount || 0} {t("customers.orders_count")}
                         </span>
                       </div>
                     </div>
@@ -358,47 +358,47 @@ export default function CustomersPage() {
               </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-4 gap-4 mt-6">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                      <Star className="w-4 h-4" />
-                      <span className="text-sm">{t("customers.loyalty_points")}</span>
+                      <Star className="w-4 h-4 shrink-0" />
+                      <span className="text-xs">{t("customers.loyalty_points")}</span>
                     </div>
-                    <p className="text-2xl font-bold text-primary">
+                    <p className="text-xl font-bold text-primary">
                       {selectedCustomer.loyaltyPoints || 0}
                     </p>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                      <TrendingUp className="w-4 h-4" />
-                      <span className="text-sm">{t("customers.total_spent")}</span>
+                      <TrendingUp className="w-4 h-4 shrink-0" />
+                      <span className="text-xs">{t("customers.total_spent")}</span>
                     </div>
-                    <p className="text-2xl font-bold">
+                    <p className="text-xl font-bold truncate" title={formatCurrency(selectedCustomer.totalSpent || 0)}>
                       {formatCurrency(selectedCustomer.totalSpent || 0)}
                     </p>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                      <ShoppingBag className="w-4 h-4" />
-                      <span className="text-sm">{t("customers.total_orders")}</span>
+                      <ShoppingBag className="w-4 h-4 shrink-0" />
+                      <span className="text-xs">{t("customers.total_orders")}</span>
                     </div>
-                    <p className="text-2xl font-bold">{selectedCustomer.orderCount || 0}</p>
+                    <p className="text-xl font-bold">{selectedCustomer.orderCount || 0}</p>
                   </CardContent>
                 </Card>
                 <Card>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                      <Clock className="w-4 h-4" />
-                      <span className="text-sm">{t("customers.member_since")}</span>
+                      <Clock className="w-4 h-4 shrink-0" />
+                      <span className="text-xs">{t("customers.member_since")}</span>
                     </div>
-                    <p className="text-lg font-semibold">
+                    <p className="text-base font-semibold">
                       {selectedCustomer.lastPurchaseAt
-                        ? format(new Date(selectedCustomer.lastPurchaseAt), "MMM d, yyyy")
+                        ? formatDate(new Date(selectedCustomer.lastPurchaseAt))
                         : "-"}
                     </p>
                   </CardContent>
@@ -438,15 +438,15 @@ export default function CustomersPage() {
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-medium">Order #{order.orderNumber}</p>
+                              <p className="font-medium">{t("customers.order_number")} #{order.orderNumber}</p>
                               <p className="text-sm text-muted-foreground">
-                                {format(new Date(order.createdAt!), "MMM d, yyyy 'at' h:mm a")}
+                                {formatDateTime(new Date(order.createdAt!))}
                               </p>
                             </div>
                             <div className="text-right">
                               <p className="font-bold text-lg">{formatCurrency(order.total || 0)}</p>
                               <Badge variant={order.status === "completed" ? "default" : "secondary"}>
-                                {order.status}
+                                {t(`customers.status_${order.status}`)}
                               </Badge>
                             </div>
                           </div>
@@ -457,8 +457,8 @@ export default function CustomersPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                     <ShoppingBag className="w-12 h-12 mb-3 opacity-30" />
-                    <p className="font-medium">No purchase history</p>
-                    <p className="text-sm">This customer hasn't made any purchases yet</p>
+                    <p className="font-medium">{t("customers.no_orders")}</p>
+                    <p className="text-sm">{t("customers.no_orders_desc")}</p>
                   </div>
                 )}
               </TabsContent>
