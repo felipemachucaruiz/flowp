@@ -1437,19 +1437,46 @@ interface I18nContextType {
 
 const I18nContext = createContext<I18nContextType | null>(null);
 
-export function I18nProvider({ children, initialLanguage = "en" }: { children: ReactNode; initialLanguage?: string }) {
-  const validLang = (initialLanguage && initialLanguage in translations) ? initialLanguage as Language : "en";
-  const [language, setLanguageState] = useState<Language>(validLang);
+// Detect browser language and map to supported languages
+function detectBrowserLanguage(): Language {
+  const browserLang = navigator.language || (navigator as any).userLanguage || "en";
+  const langCode = browserLang.split("-")[0].toLowerCase();
+  
+  // Map browser language codes to our supported languages
+  if (langCode === "es") return "es";
+  if (langCode === "pt") return "pt";
+  return "en"; // Default to English
+}
+
+// Get initial language from localStorage, browser, or fallback
+function getInitialLanguage(initialLanguage?: string): Language {
+  // First check localStorage for saved preference
+  const savedLang = localStorage.getItem("flowp_language");
+  if (savedLang && savedLang in translations) {
+    return savedLang as Language;
+  }
+  
+  // Then check if initialLanguage was provided and is valid
+  if (initialLanguage && initialLanguage in translations) {
+    return initialLanguage as Language;
+  }
+  
+  // Finally, detect from browser
+  return detectBrowserLanguage();
+}
+
+export function I18nProvider({ children, initialLanguage }: { children: ReactNode; initialLanguage?: string }) {
+  const [language, setLanguageState] = useState<Language>(() => getInitialLanguage(initialLanguage));
 
   useEffect(() => {
-    if (initialLanguage && initialLanguage in translations) {
-      setLanguageState(initialLanguage as Language);
-    }
-  }, [initialLanguage]);
+    // Save language preference to localStorage whenever it changes
+    localStorage.setItem("flowp_language", language);
+  }, [language]);
 
   const setLanguage = (lang: Language) => {
     if (lang in translations) {
       setLanguageState(lang);
+      localStorage.setItem("flowp_language", lang);
     }
   };
 
