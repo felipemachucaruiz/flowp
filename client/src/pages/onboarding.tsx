@@ -12,6 +12,7 @@ import { useI18n } from "@/lib/i18n";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Check, ChevronRight, ChevronLeft, Globe, Building2, DollarSign, Receipt, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import flowpLogo from "@assets/flowp_logoball_1769460779650.webp";
 
 const LANGUAGES = [
   { value: "en", labelKey: "onboarding.lang_english" },
@@ -347,8 +348,8 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-            <img src="/favicon.svg" alt="Flowp" className="w-10 h-10" />
+          <div className="mx-auto mb-4">
+            <img src={flowpLogo} alt="Flowp" className="w-16 h-16" />
           </div>
           <CardTitle className="text-2xl">{t("onboarding.welcome")}</CardTitle>
           <CardDescription>{t("onboarding.subtitle")}</CardDescription>
