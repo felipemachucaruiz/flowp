@@ -1667,34 +1667,34 @@ export default function SettingsPage() {
                   )}
                   
                   {/* Business Name */}
-                  <div className="text-center font-bold text-sm mb-1">
+                  <div className="text-center font-bold mb-1" style={{ fontSize: '1.1em' }}>
                     {tenant?.name || "Business Name"}
                   </div>
                   
                   {/* Address */}
                   {receiptForm.watch("receiptShowAddress") && (
-                    <div className="text-center text-[10px] mb-1">
+                    <div className="text-center mb-1" style={{ fontSize: '0.85em' }}>
                       {tenant?.address || "123 Main Street, City"}
                     </div>
                   )}
                   
                   {/* Phone */}
                   {receiptForm.watch("receiptShowPhone") && (
-                    <div className="text-center text-[10px] mb-2">
+                    <div className="text-center mb-2" style={{ fontSize: '0.85em' }}>
                       {tenant?.phone || "(555) 123-4567"}
                     </div>
                   )}
                   
                   {/* Tax ID */}
                   {tenant?.receiptTaxId && (
-                    <div className="text-center text-[10px] mb-2">
+                    <div className="text-center mb-2" style={{ fontSize: '0.85em' }}>
                       {t("pos.tax_id")}: {tenant.receiptTaxId}
                     </div>
                   )}
                   
                   {/* Header Text */}
                   {receiptForm.watch("receiptHeaderText") && (
-                    <div className="text-center text-[10px] mb-2 italic">
+                    <div className="text-center mb-2 italic" style={{ fontSize: '0.85em' }}>
                       {receiptForm.watch("receiptHeaderText")}
                     </div>
                   )}
@@ -1702,7 +1702,7 @@ export default function SettingsPage() {
                   <div className="border-t border-dashed border-gray-400 my-2" />
                   
                   {/* Order Info */}
-                  <div className="flex justify-between text-[10px] mb-2">
+                  <div className="flex justify-between mb-2" style={{ fontSize: '0.85em' }}>
                     <span>{t("pos.order")} #1234</span>
                     <span>{new Date().toLocaleDateString()}</span>
                   </div>
@@ -1710,7 +1710,7 @@ export default function SettingsPage() {
                   <div className="border-t border-dashed border-gray-400 my-2" />
                   
                   {/* Sample Items */}
-                  <div className="space-y-1 text-[10px]">
+                  <div className="space-y-1" style={{ fontSize: '0.85em' }}>
                     <div className="flex justify-between">
                       <span>2x {t("printing.sample_item")} 1</span>
                       <span>$10.00</span>
@@ -1724,7 +1724,7 @@ export default function SettingsPage() {
                   <div className="border-t border-dashed border-gray-400 my-2" />
                   
                   {/* Totals */}
-                  <div className="space-y-1 text-[10px]">
+                  <div className="space-y-1" style={{ fontSize: '0.85em' }}>
                     <div className="flex justify-between">
                       <span>{t("pos.subtotal")}</span>
                       <span>$25.00</span>
@@ -1733,7 +1733,7 @@ export default function SettingsPage() {
                       <span>{t("pos.tax")} ({tenant?.taxRate || 0}%)</span>
                       <span>$2.50</span>
                     </div>
-                    <div className="flex justify-between font-bold text-xs">
+                    <div className="flex justify-between font-bold" style={{ fontSize: '1.1em' }}>
                       <span>{t("pos.total")}</span>
                       <span>$27.50</span>
                     </div>
@@ -1742,7 +1742,7 @@ export default function SettingsPage() {
                   <div className="border-t border-dashed border-gray-400 my-2" />
                   
                   {/* Payment */}
-                  <div className="text-[10px]">
+                  <div style={{ fontSize: '0.85em' }}>
                     <div className="flex justify-between">
                       <span>{t("pos.payment_cash")}</span>
                       <span>$30.00</span>
@@ -1757,14 +1757,14 @@ export default function SettingsPage() {
                   {receiptForm.watch("receiptFooterText") && (
                     <>
                       <div className="border-t border-dashed border-gray-400 my-2" />
-                      <div className="text-center text-[10px] italic">
+                      <div className="text-center italic" style={{ fontSize: '0.85em' }}>
                         {receiptForm.watch("receiptFooterText")}
                       </div>
                     </>
                   )}
                   
                   <div className="border-t border-dashed border-gray-400 my-2" />
-                  <div className="text-center text-[10px]">
+                  <div className="text-center" style={{ fontSize: '0.85em' }}>
                     {t("printing.thank_you")}
                   </div>
                 </div>
