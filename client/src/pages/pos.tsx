@@ -154,13 +154,40 @@ export default function POSPage() {
   }, [addToCart, toast, t]);
 
 
+  // Auto-focus search input on mount and keep focus for barcode scanning
+  useEffect(() => {
+    const focusSearchInput = () => {
+      if (searchInputRef.current && !showPaymentDialog) {
+        searchInputRef.current.focus();
+      }
+    };
+    
+    // Focus on mount
+    focusSearchInput();
+    
+    // Refocus when clicking anywhere on the page (for continuous barcode scanning)
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Don't refocus if clicking on interactive elements (buttons, inputs, etc.)
+      if (target.closest('button, input, textarea, select, [role="button"], [data-testid*="button"]')) {
+        return;
+      }
+      // Refocus after a short delay to allow other click handlers to complete
+      setTimeout(focusSearchInput, 100);
+    };
+    
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [showPaymentDialog]);
+
   // Listen for barcode scanner input (rapid keypresses ending with Enter)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore if typing in payment dialog
       if (showPaymentDialog) return;
       
-      // If focus is on search input, let the input handle it
+      // If focus is on search input, let the input handle it naturally
+      // The search input's onKeyDown will handle Enter for barcode submission
       if (document.activeElement === searchInputRef.current) return;
       
       // Check if Enter is pressed with buffered content
@@ -168,6 +195,8 @@ export default function POSPage() {
         e.preventDefault();
         handleBarcodeInput(barcodeBuffer.current, products);
         barcodeBuffer.current = "";
+        // Refocus search input after barcode scan
+        searchInputRef.current?.focus();
         return;
       }
       
@@ -183,6 +212,8 @@ export default function POSPage() {
           // If buffer has enough characters, it's likely a barcode
           if (barcodeBuffer.current.length >= 3) {
             handleBarcodeInput(barcodeBuffer.current, products);
+            // Refocus search input after barcode scan
+            searchInputRef.current?.focus();
           }
           barcodeBuffer.current = "";
         }, 50);
