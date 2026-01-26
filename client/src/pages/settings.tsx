@@ -81,6 +81,7 @@ const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
   categoryId: z.string().optional(),
   price: z.string().min(1, "Price is required"),
+  cost: z.string().optional(),
   sku: z.string().optional(),
   barcode: z.string().optional(),
   description: z.string().optional(),
@@ -339,7 +340,7 @@ export default function SettingsPage() {
 
   const productForm = useForm({
     resolver: zodResolver(productSchema),
-    defaultValues: { name: "", categoryId: "", price: "", sku: "", barcode: "", description: "", image: "" },
+    defaultValues: { name: "", categoryId: "", price: "", cost: "", sku: "", barcode: "", description: "", image: "" },
   });
 
   const floorForm = useForm({
@@ -558,6 +559,7 @@ export default function SettingsPage() {
         name: product.name,
         categoryId: product.categoryId || "",
         price: product.price,
+        cost: product.cost || "",
         sku: product.sku || "",
         barcode: product.barcode || "",
         description: product.description || "",
@@ -566,7 +568,7 @@ export default function SettingsPage() {
     } else {
       setEditingItem(null);
       setProductImagePath("");
-      productForm.reset({ name: "", categoryId: "", price: "", sku: "", barcode: "", description: "", image: "" });
+      productForm.reset({ name: "", categoryId: "", price: "", cost: "", sku: "", barcode: "", description: "", image: "" });
     }
     setShowProductDialog(true);
   };
@@ -1695,19 +1697,34 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={productForm.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("common.price")}</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="number" step="0.01" data-testid="input-product-price" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={productForm.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("common.price")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" step="0.01" data-testid="input-product-price" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={productForm.control}
+                  name="cost"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("products.cost")}</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="number" step="0.01" placeholder={t("products.cost_placeholder")} data-testid="input-product-cost" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={productForm.control}
