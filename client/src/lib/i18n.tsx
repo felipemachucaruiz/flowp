@@ -1450,10 +1450,14 @@ function detectBrowserLanguage(): Language {
 
 // Get initial language from localStorage, browser, or fallback
 function getInitialLanguage(initialLanguage?: string): Language {
-  // First check localStorage for saved preference
-  const savedLang = localStorage.getItem("flowp_language");
-  if (savedLang && savedLang in translations) {
-    return savedLang as Language;
+  try {
+    // First check localStorage for saved preference
+    const savedLang = localStorage.getItem("flowp_language");
+    if (savedLang && savedLang in translations) {
+      return savedLang as Language;
+    }
+  } catch {
+    // localStorage might not be available
   }
   
   // Then check if initialLanguage was provided and is valid
@@ -1462,30 +1466,52 @@ function getInitialLanguage(initialLanguage?: string): Language {
   }
   
   // Finally, detect from browser
-  return detectBrowserLanguage();
+  try {
+    return detectBrowserLanguage();
+  } catch {
+    return "en";
+  }
 }
 
 export function I18nProvider({ children, initialLanguage }: { children: ReactNode; initialLanguage?: string }) {
-  const [language, setLanguageState] = useState<Language>(() => getInitialLanguage(initialLanguage));
+  const [language, setLanguageState] = useState<Language>(() => {
+    try {
+      return getInitialLanguage(initialLanguage);
+    } catch {
+      return "en";
+    }
+  });
 
   useEffect(() => {
     // Save language preference to localStorage whenever it changes
-    localStorage.setItem("flowp_language", language);
+    try {
+      localStorage.setItem("flowp_language", language);
+    } catch {
+      // localStorage might not be available
+    }
   }, [language]);
 
   const setLanguage = (lang: Language) => {
     if (lang in translations) {
       setLanguageState(lang);
-      localStorage.setItem("flowp_language", lang);
+      try {
+        localStorage.setItem("flowp_language", lang);
+      } catch {
+        // localStorage might not be available
+      }
     }
   };
 
   const t = (key: TranslationKey): string => {
-    const translation = translations[language]?.[key];
-    if (!translation) {
-      return translations.en[key] || key;
+    try {
+      const translation = translations[language]?.[key];
+      if (!translation) {
+        return translations.en[key] || String(key);
+      }
+      return translation;
+    } catch {
+      return String(key);
     }
-    return translation;
   };
 
   return (
