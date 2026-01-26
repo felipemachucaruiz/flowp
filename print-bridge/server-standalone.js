@@ -52,9 +52,11 @@ function getCorsHeaders(origin, req, isPublicEndpoint = false) {
     /^https?:\/\/127\.0\.0\.1(:\d+)?$/
   ];
   const replitPattern = /^https:\/\/[a-zA-Z0-9-]+\.replit\.(dev|app)$/;
+  const flowpPattern = /^https:\/\/(www\.)?flowp\.app$/;
   
   const isLocal = origin && localPatterns.some(pattern => pattern.test(origin));
   const isReplit = origin && replitPattern.test(origin);
+  const isFlowp = origin && flowpPattern.test(origin);
   
   if (isLocal) {
     return {
@@ -76,7 +78,7 @@ function getCorsHeaders(origin, req, isPublicEndpoint = false) {
     };
   }
   
-  if (isReplit && isPublicEndpoint) {
+  if ((isReplit || isFlowp) && isPublicEndpoint) {
     return {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': origin,
@@ -87,7 +89,7 @@ function getCorsHeaders(origin, req, isPublicEndpoint = false) {
   }
   
   const token = req?.headers?.['x-auth-token'];
-  if (isReplit && token === authToken) {
+  if ((isReplit || isFlowp) && token === authToken) {
     allowedOrigin = origin;
     console.log(`  Registered origin: ${origin}`);
     return {
@@ -377,12 +379,14 @@ const server = http.createServer(async (req, res) => {
       /^https?:\/\/127\.0\.0\.1(:\d+)?$/
     ];
     const replitPattern = /^https:\/\/[a-zA-Z0-9-]+\.replit\.(dev|app)$/;
+    const flowpPattern = /^https:\/\/(www\.)?flowp\.app$/;
     
     const isLocal = origin && localPatterns.some(p => p.test(origin));
     const isReplit = origin && replitPattern.test(origin);
+    const isFlowp = origin && flowpPattern.test(origin);
     const isAllowedOrigin = allowedOrigin && origin === allowedOrigin;
     
-    if (isLocal || isReplit || isAllowedOrigin) {
+    if (isLocal || isReplit || isFlowp || isAllowedOrigin) {
       res.writeHead(204, {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': origin,
