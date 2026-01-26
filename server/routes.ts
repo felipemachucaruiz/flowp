@@ -457,6 +457,69 @@ export async function registerRoutes(
     }
   });
 
+  // Batch product creation from CSV
+  app.post("/api/products/batch", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { products: productList } = req.body;
+      if (!Array.isArray(productList) || productList.length === 0) {
+        return res.status(400).json({ message: "Products array is required" });
+      }
+
+      // Get categories for mapping by name
+      const categories = await storage.getCategoriesByTenant(tenantId);
+      const categoryMap = new Map(categories.map(c => [c.name.toLowerCase(), c.id]));
+
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as { row: number; error: string }[],
+      };
+
+      for (let i = 0; i < productList.length; i++) {
+        const item = productList[i];
+        try {
+          // Map category name to ID
+          let categoryId = null;
+          if (item.categoryName) {
+            categoryId = categoryMap.get(item.categoryName.toLowerCase()) || null;
+          }
+
+          const productData = {
+            tenantId,
+            name: item.name,
+            sku: item.sku || null,
+            barcode: item.barcode || null,
+            price: item.price?.toString() || "0",
+            cost: item.cost?.toString() || null,
+            description: item.description || null,
+            categoryId,
+            isActive: item.isActive !== false,
+            trackInventory: item.trackInventory !== false,
+          };
+
+          await storage.createProduct(productData);
+          results.success++;
+        } catch (error) {
+          results.failed++;
+          results.errors.push({
+            row: i + 2, // +2 for header row and 0-indexing
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error("Batch product creation error:", error);
+      res.status(400).json({ message: "Failed to create products" });
+    }
+  });
+
   // ===== CUSTOMERS ROUTES =====
 
   app.get("/api/customers", async (req: Request, res: Response) => {
