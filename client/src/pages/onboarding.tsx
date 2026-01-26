@@ -10,9 +10,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Check, ChevronRight, ChevronLeft, Globe, Building2, DollarSign, Receipt, Loader2 } from "lucide-react";
+import { Check, ChevronRight, ChevronLeft, Globe, Building2, DollarSign, Receipt, Loader2, ImageIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import flowpLogo from "@assets/flowp_logoball_1769460779650.webp";
+import { useUpload } from "@/hooks/use-upload";
 
 const LANGUAGES = [
   { value: "en", labelKey: "onboarding.lang_english" },
@@ -70,6 +71,17 @@ export default function OnboardingPage() {
     receiptFooterText: tenant?.receiptFooterText || "",
     receiptShowAddress: tenant?.receiptShowAddress ?? true,
     receiptShowPhone: tenant?.receiptShowPhone ?? true,
+    logo: tenant?.logo || "",
+  });
+
+  const { uploadFile: uploadLogo, isUploading: isUploadingLogo } = useUpload({
+    onSuccess: (response) => {
+      setFormData({ ...formData, logo: response.objectPath });
+      toast({ title: t("onboarding.logo_uploaded") });
+    },
+    onError: (error) => {
+      toast({ title: t("common.error"), description: error.message, variant: "destructive" });
+    },
   });
 
   const saveMutation = useMutation({
@@ -161,6 +173,57 @@ export default function OnboardingPage() {
               <p className="text-muted-foreground">{t("onboarding.business_description")}</p>
             </div>
             <div className="space-y-4">
+              {/* Logo Upload */}
+              <div className="flex flex-col items-center mb-4">
+                <Label className="mb-2">{t("onboarding.business_logo")}</Label>
+                <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden bg-muted/50 relative">
+                  {formData.logo ? (
+                    <>
+                      <img
+                        src={`/objects${formData.logo}`}
+                        alt="Business logo"
+                        className="w-full h-full object-contain"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => setFormData({ ...formData, logo: "" })}
+                        data-testid="button-remove-logo"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </>
+                  ) : (
+                    <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  disabled={isUploadingLogo}
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) uploadLogo(file);
+                    };
+                    input.click();
+                  }}
+                  data-testid="button-upload-logo"
+                >
+                  {isUploadingLogo ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : null}
+                  {t("onboarding.upload_logo")}
+                </Button>
+              </div>
+
               <div>
                 <Label htmlFor="name">{t("settings.company_name")}</Label>
                 <Input

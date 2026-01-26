@@ -517,6 +517,9 @@ const translations = {
     "onboarding.lang_english": "English",
     "onboarding.lang_spanish": "Spanish",
     "onboarding.lang_portuguese": "Portuguese",
+    "onboarding.business_logo": "Business Logo",
+    "onboarding.upload_logo": "Upload Logo",
+    "onboarding.logo_uploaded": "Logo uploaded successfully",
     
     // Currencies
     "currency.usd": "US Dollar",
@@ -1067,6 +1070,9 @@ const translations = {
     "onboarding.lang_english": "Inglés",
     "onboarding.lang_spanish": "Español",
     "onboarding.lang_portuguese": "Portugués",
+    "onboarding.business_logo": "Logo de la Empresa",
+    "onboarding.upload_logo": "Subir Logo",
+    "onboarding.logo_uploaded": "Logo subido exitosamente",
     
     // Currencies
     "currency.usd": "Dólar Estadounidense",
@@ -1617,6 +1623,9 @@ const translations = {
     "onboarding.lang_english": "Inglês",
     "onboarding.lang_spanish": "Espanhol",
     "onboarding.lang_portuguese": "Português",
+    "onboarding.business_logo": "Logo da Empresa",
+    "onboarding.upload_logo": "Enviar Logo",
+    "onboarding.logo_uploaded": "Logo enviado com sucesso",
     
     // Currencies
     "currency.usd": "Dólar Americano",
