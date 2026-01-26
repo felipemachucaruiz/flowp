@@ -105,9 +105,11 @@ class PrintBridgeClient {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
 
       const response = await fetch(`${PRINT_BRIDGE_URL}/health`, {
+        method: 'GET',
+        mode: 'cors',
         signal: controller.signal
       });
       
@@ -124,7 +126,9 @@ class PrintBridgeClient {
         this.statusCacheTime = now;
         return this.statusCache;
       }
-    } catch {
+      console.log('[PrintBridge] Health check failed:', response.status, response.statusText);
+    } catch (error) {
+      console.log('[PrintBridge] Connection error:', error instanceof Error ? error.message : 'Unknown error');
     }
 
     this.statusCache = { isAvailable: false };
