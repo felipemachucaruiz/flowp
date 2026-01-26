@@ -46,13 +46,15 @@ function parseBody(req, maxSize = MAX_PAYLOAD_SIZE) {
 
 let allowedOrigin = null;
 
-function getCorsHeaders(origin, req) {
+function getCorsHeaders(origin, req, isPublicEndpoint = false) {
   const localPatterns = [
     /^https?:\/\/localhost(:\d+)?$/,
     /^https?:\/\/127\.0\.0\.1(:\d+)?$/
   ];
+  const replitPattern = /^https:\/\/[a-zA-Z0-9-]+\.replit\.(dev|app)$/;
   
   const isLocal = origin && localPatterns.some(pattern => pattern.test(origin));
+  const isReplit = origin && replitPattern.test(origin);
   
   if (isLocal) {
     return {
@@ -74,9 +76,18 @@ function getCorsHeaders(origin, req) {
     };
   }
   
-  const replitPattern = /^https:\/\/[a-zA-Z0-9-]+\.replit\.(dev|app)$/;
+  if (isReplit && isPublicEndpoint) {
+    return {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, X-Auth-Token',
+      'Access-Control-Allow-Credentials': 'true'
+    };
+  }
+  
   const token = req?.headers?.['x-auth-token'];
-  if (origin && replitPattern.test(origin) && token === authToken) {
+  if (isReplit && token === authToken) {
     allowedOrigin = origin;
     console.log(`  Registered origin: ${origin}`);
     return {
@@ -91,8 +102,8 @@ function getCorsHeaders(origin, req) {
   return null;
 }
 
-function sendJson(res, status, data, origin, req) {
-  const headers = getCorsHeaders(origin, req);
+function sendJson(res, status, data, origin, req, isPublicEndpoint = false) {
+  const headers = getCorsHeaders(origin, req, isPublicEndpoint);
   if (!headers) {
     res.writeHead(403, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Forbidden: Origin not allowed' }));
@@ -398,7 +409,7 @@ const server = http.createServer(async (req, res) => {
         service: 'Flowp Print Bridge',
         platform: 'windows',
         requiresAuth: true
-      }, origin, req);
+      }, origin, req, true);
     }
     else if (req.method === 'GET' && url === '/printers') {
       if (!checkAuth(req)) {
