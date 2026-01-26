@@ -1156,23 +1156,23 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>{t("printing.title")}</CardTitle>
               <CardDescription>
-                Customize your receipt appearance and content
+                {t("printing.subtitle")}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Form {...receiptForm}>
                 <form onSubmit={receiptForm.handleSubmit((data) => receiptSettingsMutation.mutate(data))} className="space-y-6">
                   <div className="space-y-4 mb-6">
-                    <h3 className="text-sm font-medium">Receipt Logo</h3>
+                    <h3 className="text-sm font-medium">{t("printing.receipt_logo")}</h3>
                     <p className="text-xs text-muted-foreground">
-                      Upload a separate logo for receipts (can be different from company logo)
+                      {t("printing.receipt_logo_desc")}
                     </p>
                     <div className="flex items-start gap-4">
                       <div className="relative w-32 h-32 rounded-lg border bg-muted/50 flex items-center justify-center overflow-hidden">
                         {receiptLogoPath ? (
                           <img
                             src={`/objects${receiptLogoPath}`}
-                            alt="Receipt Logo"
+                            alt={t("printing.receipt_logo")}
                             className="w-full h-full object-contain"
                           />
                         ) : (
@@ -1203,7 +1203,7 @@ export default function SettingsPage() {
                           ) : (
                             <Upload className="w-4 h-4 mr-2" />
                           )}
-                          {receiptLogoPath ? "Change Logo" : "Upload Logo"}
+                          {receiptLogoPath ? t("printing.change_logo") : t("printing.upload_logo")}
                         </Button>
                         {receiptLogoPath && (
                           <Button
@@ -1218,11 +1218,11 @@ export default function SettingsPage() {
                             data-testid="button-remove-receipt-logo"
                           >
                             <X className="w-4 h-4 mr-2" />
-                            Remove Logo
+                            {t("printing.remove_logo")}
                           </Button>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          Recommended: 200x200px, PNG or JPG
+                          {t("printing.logo_recommended")}
                         </p>
                       </div>
                     </div>
@@ -1230,7 +1230,7 @@ export default function SettingsPage() {
 
                   <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-4">
-                      <h3 className="text-sm font-medium">Display Options</h3>
+                      <h3 className="text-sm font-medium">{t("printing.display_options")}</h3>
                       
                       <FormField
                         control={receiptForm.control}
@@ -1238,9 +1238,9 @@ export default function SettingsPage() {
                         render={({ field }) => (
                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                             <div className="space-y-0.5">
-                              <FormLabel>Show Logo</FormLabel>
+                              <FormLabel>{t("printing.show_logo")}</FormLabel>
                               <FormDescription className="text-xs">
-                                Display your company logo on receipts
+                                {t("printing.show_logo_desc")}
                               </FormDescription>
                             </div>
                             <FormControl>
@@ -1260,9 +1260,9 @@ export default function SettingsPage() {
                         render={({ field }) => (
                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                             <div className="space-y-0.5">
-                              <FormLabel>Show Address</FormLabel>
+                              <FormLabel>{t("printing.show_address")}</FormLabel>
                               <FormDescription className="text-xs">
-                                Display your business address
+                                {t("printing.show_address_desc")}
                               </FormDescription>
                             </div>
                             <FormControl>
@@ -1282,9 +1282,9 @@ export default function SettingsPage() {
                         render={({ field }) => (
                           <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                             <div className="space-y-0.5">
-                              <FormLabel>Show Phone</FormLabel>
+                              <FormLabel>{t("printing.show_phone")}</FormLabel>
                               <FormDescription className="text-xs">
-                                Display your contact phone number
+                                {t("printing.show_phone_desc")}
                               </FormDescription>
                             </div>
                             <FormControl>
@@ -1301,24 +1301,24 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-4">
-                      <h3 className="text-sm font-medium">Custom Text</h3>
+                      <h3 className="text-sm font-medium">{t("printing.custom_text")}</h3>
                       
                       <FormField
                         control={receiptForm.control}
                         name="receiptHeaderText"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Header Message</FormLabel>
+                            <FormLabel>{t("printing.header_message")}</FormLabel>
                             <FormControl>
                               <Textarea 
                                 {...field} 
-                                placeholder="Welcome message or promotional text"
+                                placeholder={t("printing.header_placeholder")}
                                 rows={3}
                                 data-testid="input-receipt-header"
                               />
                             </FormControl>
                             <FormDescription className="text-xs">
-                              Displayed at the top of the receipt
+                              {t("printing.header_desc")}
                             </FormDescription>
                           </FormItem>
                         )}
@@ -1329,17 +1329,17 @@ export default function SettingsPage() {
                         name="receiptFooterText"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Footer Message</FormLabel>
+                            <FormLabel>{t("printing.footer_message")}</FormLabel>
                             <FormControl>
                               <Textarea 
                                 {...field} 
-                                placeholder="Thank you message, return policy, etc."
+                                placeholder={t("printing.footer_placeholder")}
                                 rows={3}
                                 data-testid="input-receipt-footer"
                               />
                             </FormControl>
                             <FormDescription className="text-xs">
-                              Displayed at the bottom of the receipt
+                              {t("printing.footer_desc")}
                             </FormDescription>
                           </FormItem>
                         )}
@@ -1356,7 +1356,7 @@ export default function SettingsPage() {
                       {receiptSettingsMutation.isPending && (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       )}
-                      Save Receipt Settings
+                      {t("printing.save_settings")}
                     </Button>
                   </div>
                 </form>
@@ -1366,7 +1366,7 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Printing Instructions</CardTitle>
+              <CardTitle>{t("printing.instructions")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="p-4 rounded-lg bg-muted/50 border border-dashed">
