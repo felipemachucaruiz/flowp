@@ -57,9 +57,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       localStorage.setItem("pos_is_internal", data.isInternal ? "true" : "false");
       
+      // For new tenants that haven't completed onboarding, redirect to wizard
+      let redirectTo = data.redirectTo;
+      if (!redirectTo) {
+        if (data.isInternal) {
+          redirectTo = "/admin";
+        } else if (data.tenant && !data.tenant.onboardingComplete) {
+          redirectTo = "/onboarding";
+        } else {
+          redirectTo = "/pos";
+        }
+      }
+      
       return { 
         success: true, 
-        redirectTo: data.redirectTo || (data.isInternal ? "/admin" : "/pos")
+        redirectTo
       };
     } catch {
       return { success: false };
