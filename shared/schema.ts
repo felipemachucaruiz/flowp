@@ -217,8 +217,10 @@ export const loyaltyRewards = pgTable("loyalty_rewards", {
   name: text("name").notNull(),
   description: text("description"),
   pointsCost: integer("points_cost").notNull(),
-  discountType: text("discount_type").default("fixed"), // fixed, percentage
-  discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull(),
+  rewardType: text("reward_type").default("discount"), // discount, product
+  discountType: text("discount_type").default("fixed"), // fixed, percentage (only for discount rewards)
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }),
+  productId: varchar("product_id").references(() => products.id), // for product rewards
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });

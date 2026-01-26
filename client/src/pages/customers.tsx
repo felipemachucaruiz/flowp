@@ -16,7 +16,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Customer, Order, LoyaltyTransaction, LoyaltyReward } from "@shared/schema";
+import type { Customer, Order, LoyaltyTransaction, LoyaltyReward, Product } from "@shared/schema";
 import {
   Search,
   User,
@@ -70,8 +70,10 @@ export default function CustomersPage() {
     name: "",
     description: "",
     pointsCost: "",
+    rewardType: "discount" as "discount" | "product",
     discountType: "fixed",
     discountValue: "",
+    productId: "",
   });
 
   const { data: customers, isLoading: customersLoading } = useQuery<Customer[]>({
@@ -87,6 +89,11 @@ export default function CustomersPage() {
 
   const { data: rewards, isLoading: rewardsLoading } = useQuery<LoyaltyReward[]>({
     queryKey: ["/api/loyalty/rewards"],
+    enabled: !!tenant?.id,
+  });
+
+  const { data: products } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
     enabled: !!tenant?.id,
   });
 
@@ -136,9 +143,13 @@ export default function CustomersPage() {
   const createRewardMutation = useMutation({
     mutationFn: async (data: typeof rewardForm) => {
       return apiRequest("POST", "/api/loyalty/rewards", {
-        ...data,
+        name: data.name,
+        description: data.description,
         pointsCost: parseInt(data.pointsCost),
-        discountValue: parseFloat(data.discountValue),
+        rewardType: data.rewardType,
+        discountType: data.rewardType === "discount" ? data.discountType : null,
+        discountValue: data.rewardType === "discount" ? parseFloat(data.discountValue) : null,
+        productId: data.rewardType === "product" ? data.productId : null,
       });
     },
     onSuccess: () => {
@@ -170,8 +181,10 @@ export default function CustomersPage() {
       name: "",
       description: "",
       pointsCost: "",
+      rewardType: "discount",
       discountType: "fixed",
       discountValue: "",
+      productId: "",
     });
   };
 
@@ -762,33 +775,79 @@ export default function CustomersPage() {
                 data-testid="input-reward-points"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            
+            {/* Reward Type Selection */}
+            <div>
+              <Label>{t("customers.reward_type")}</Label>
+              <Select
+                value={rewardForm.rewardType}
+                onValueChange={(value: "discount" | "product") => setRewardForm({ ...rewardForm, rewardType: value, productId: "", discountValue: "" })}
+              >
+                <SelectTrigger data-testid="select-reward-category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="discount">{t("customers.reward_type_discount")}</SelectItem>
+                  <SelectItem value="product">{t("customers.reward_type_product")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Discount Fields */}
+            {rewardForm.rewardType === "discount" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>{t("customers.discount_type")}</Label>
+                  <Select
+                    value={rewardForm.discountType}
+                    onValueChange={(value) => setRewardForm({ ...rewardForm, discountType: value })}
+                  >
+                    <SelectTrigger data-testid="select-discount-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixed">{t("customers.fixed_amount")}</SelectItem>
+                      <SelectItem value="percentage">{t("customers.percentage")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>{t("customers.discount_value")} *</Label>
+                  <Input
+                    type="number"
+                    value={rewardForm.discountValue}
+                    onChange={(e) => setRewardForm({ ...rewardForm, discountValue: e.target.value })}
+                    placeholder={rewardForm.discountType === "percentage" ? "10" : "5000"}
+                    data-testid="input-reward-value"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Product Selection */}
+            {rewardForm.rewardType === "product" && (
               <div>
-                <Label>{t("customers.discount_type")}</Label>
+                <Label>{t("customers.select_product")} *</Label>
                 <Select
-                  value={rewardForm.discountType}
-                  onValueChange={(value) => setRewardForm({ ...rewardForm, discountType: value })}
+                  value={rewardForm.productId}
+                  onValueChange={(value) => setRewardForm({ ...rewardForm, productId: value })}
                 >
-                  <SelectTrigger data-testid="select-reward-type">
-                    <SelectValue />
+                  <SelectTrigger data-testid="select-reward-product">
+                    <SelectValue placeholder={t("customers.select_product_placeholder")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fixed">{t("customers.fixed_amount")}</SelectItem>
-                    <SelectItem value="percentage">{t("customers.percentage")}</SelectItem>
+                    {products?.filter(p => p.isActive).map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} - {formatCurrency(product.price)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("customers.free_product_hint")}
+                </p>
               </div>
-              <div>
-                <Label>{t("customers.discount_value")} *</Label>
-                <Input
-                  type="number"
-                  value={rewardForm.discountValue}
-                  onChange={(e) => setRewardForm({ ...rewardForm, discountValue: e.target.value })}
-                  placeholder={rewardForm.discountType === "percentage" ? "10" : "5000"}
-                  data-testid="input-reward-value"
-                />
-              </div>
-            </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRewardDialog(false)}>
@@ -796,7 +855,13 @@ export default function CustomersPage() {
             </Button>
             <Button
               onClick={() => createRewardMutation.mutate(rewardForm)}
-              disabled={!rewardForm.name.trim() || !rewardForm.pointsCost || !rewardForm.discountValue || createRewardMutation.isPending}
+              disabled={
+                !rewardForm.name.trim() || 
+                !rewardForm.pointsCost || 
+                (rewardForm.rewardType === "discount" && !rewardForm.discountValue) ||
+                (rewardForm.rewardType === "product" && !rewardForm.productId) ||
+                createRewardMutation.isPending
+              }
               data-testid="button-save-reward"
             >
               {t("customers.create_reward")}
