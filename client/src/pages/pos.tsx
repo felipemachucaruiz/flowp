@@ -183,10 +183,8 @@ export default function POSPage() {
   // Create new customer mutation
   const createCustomerMutation = useMutation({
     mutationFn: async (data: { name: string; phone?: string; idType?: string; idNumber?: string }) => {
-      return apiRequest("/api/customers", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      const response = await apiRequest("POST", "/api/customers", data);
+      return response.json() as Promise<Customer>;
     },
     onSuccess: (newCustomer: Customer) => {
       setSelectedCustomer(newCustomer);
@@ -318,19 +316,27 @@ export default function POSPage() {
   const pendingReceiptData = useRef<{
     items: typeof cart;
     paymentMethod: string;
+    payments?: Array<{ type: string; amount: number; transactionId?: string }>;
     subtotal: number;
+    discount?: number;
+    discountAmount?: number;
     taxAmount: number;
     total: number;
     cashReceived?: number;
+    customer?: Customer;
   } | null>(null);
 
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: {
       items: typeof cart;
       paymentMethod: string;
+      payments?: Array<{ type: string; amount: number; transactionId?: string }>;
       subtotal: number;
+      discount?: number;
+      discountAmount?: number;
       taxAmount: number;
       total: number;
+      customerId?: string;
     }) => {
       const response = await apiRequest("POST", "/api/orders", orderData);
       return response.json() as Promise<{ id: string; orderNumber?: string }>;
@@ -692,9 +698,9 @@ export default function POSPage() {
                 {cart.map((item) => (
                   <Card key={item.id} className="p-3">
                     <div className="flex items-start gap-3">
-                      {item.product.imageUrl ? (
+                      {item.product.image ? (
                         <img
-                          src={item.product.imageUrl}
+                          src={item.product.image}
                           alt={item.product.name}
                           className="w-12 h-12 rounded-md object-cover flex-shrink-0"
                         />
