@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Category, Product, Customer } from "@shared/schema";
+import type { Category, Product, Customer, LoyaltyReward } from "@shared/schema";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -179,6 +179,18 @@ export default function POSPage() {
     },
     enabled: !!tenant?.id,
   });
+
+  const { data: loyaltyRewards } = useQuery<LoyaltyReward[]>({
+    queryKey: ["/api/loyalty/rewards"],
+    enabled: !!tenant?.id,
+  });
+
+  const getAvailableRewards = (points: number) => {
+    if (!loyaltyRewards) return [];
+    return loyaltyRewards
+      .filter(reward => reward.isActive && reward.pointsCost <= points)
+      .sort((a, b) => b.pointsCost - a.pointsCost);
+  };
 
   // Create new customer mutation
   const createCustomerMutation = useMutation({
@@ -885,29 +897,67 @@ export default function POSPage() {
                 {t("pos.customer_optional")}
               </Label>
               {selectedCustomer ? (
-                <div className="flex items-center justify-between p-3 rounded-lg border bg-primary/5 border-primary/30">
-                  <div>
-                    <p className="font-medium">{selectedCustomer.name}</p>
-                    {selectedCustomer.phone && (
-                      <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
-                    )}
-                    {selectedCustomer.idNumber && (
-                      <p className="text-xs text-muted-foreground">
-                        {selectedCustomer.idType?.replace("_", " ")}: {selectedCustomer.idNumber}
-                      </p>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between p-3 rounded-lg border bg-primary/5 border-primary/30">
+                    <div>
+                      <p className="font-medium">{selectedCustomer.name}</p>
+                      {selectedCustomer.phone && (
+                        <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
+                      )}
+                      {selectedCustomer.idNumber && (
+                        <p className="text-xs text-muted-foreground">
+                          {selectedCustomer.idType?.replace("_", " ")}: {selectedCustomer.idNumber}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSelectedCustomer(null);
+                        setDiscountPercent("0");
+                      }}
+                      data-testid="button-remove-customer"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  {/* Loyalty Points Display */}
+                  <div className="p-3 rounded-lg border bg-accent/30 border-accent/50">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">{t("pos.loyalty_points")}</span>
+                      <Badge variant="secondary" className="text-base font-bold">
+                        {selectedCustomer.loyaltyPoints || 0} {t("pos.points")}
+                      </Badge>
+                    </div>
+                    {(selectedCustomer.loyaltyPoints || 0) > 0 && getAvailableRewards(selectedCustomer.loyaltyPoints || 0).length > 0 ? (
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">{t("pos.available_rewards")}:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {getAvailableRewards(selectedCustomer.loyaltyPoints || 0).slice(0, 3).map(reward => (
+                            <Badge 
+                              key={reward.id} 
+                              variant="outline" 
+                              className="text-xs"
+                              data-testid={`badge-reward-${reward.id}`}
+                            >
+                              {reward.name} ({reward.pointsCost} pts)
+                            </Badge>
+                          ))}
+                          {getAvailableRewards(selectedCustomer.loyaltyPoints || 0).length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{getAvailableRewards(selectedCustomer.loyaltyPoints || 0).length - 3} {t("pos.more")}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ) : (selectedCustomer.loyaltyPoints || 0) > 0 ? (
+                      <p className="text-xs text-muted-foreground">{t("pos.not_enough_points")}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">{t("pos.no_points_yet")}</p>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => {
-                      setSelectedCustomer(null);
-                      setDiscountPercent("0");
-                    }}
-                    data-testid="button-remove-customer"
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
                 </div>
               ) : showNewCustomerForm ? (
                 <div className="space-y-3 p-3 rounded-lg border">
