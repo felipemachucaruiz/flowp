@@ -520,6 +520,8 @@ const translations = {
     "onboarding.business_logo": "Business Logo",
     "onboarding.upload_logo": "Upload Logo",
     "onboarding.logo_uploaded": "Logo uploaded successfully",
+    "onboarding.receipt_logo": "Receipt Logo",
+    "onboarding.receipt_logo_uploaded": "Receipt logo uploaded successfully",
     
     // Currencies
     "currency.usd": "US Dollar",
@@ -554,6 +556,7 @@ const translations = {
     "settings.receipt_header": "Receipt Header Text",
     "settings.receipt_footer": "Receipt Footer Text",
     "settings.show_address_receipt": "Show Address on Receipt",
+    "settings.show_logo_receipt": "Show Logo on Receipt",
     "settings.show_phone_receipt": "Show Phone on Receipt",
   },
   es: {
@@ -1073,6 +1076,8 @@ const translations = {
     "onboarding.business_logo": "Logo de la Empresa",
     "onboarding.upload_logo": "Subir Logo",
     "onboarding.logo_uploaded": "Logo subido exitosamente",
+    "onboarding.receipt_logo": "Logo del Recibo",
+    "onboarding.receipt_logo_uploaded": "Logo del recibo subido exitosamente",
     
     // Currencies
     "currency.usd": "Dólar Estadounidense",
@@ -1107,6 +1112,7 @@ const translations = {
     "settings.receipt_header": "Texto de Encabezado del Recibo",
     "settings.receipt_footer": "Texto de Pie del Recibo",
     "settings.show_address_receipt": "Mostrar Dirección en Recibo",
+    "settings.show_logo_receipt": "Mostrar Logo en Recibo",
     "settings.show_phone_receipt": "Mostrar Teléfono en Recibo",
   },
   pt: {
@@ -1626,6 +1632,8 @@ const translations = {
     "onboarding.business_logo": "Logo da Empresa",
     "onboarding.upload_logo": "Enviar Logo",
     "onboarding.logo_uploaded": "Logo enviado com sucesso",
+    "onboarding.receipt_logo": "Logo do Recibo",
+    "onboarding.receipt_logo_uploaded": "Logo do recibo enviado com sucesso",
     
     // Currencies
     "currency.usd": "Dólar Americano",
@@ -1660,6 +1668,7 @@ const translations = {
     "settings.receipt_header": "Texto de Cabeçalho do Recibo",
     "settings.receipt_footer": "Texto de Rodapé do Recibo",
     "settings.show_address_receipt": "Mostrar Endereço no Recibo",
+    "settings.show_logo_receipt": "Mostrar Logo no Recibo",
     "settings.show_phone_receipt": "Mostrar Telefone no Recibo",
   },
 };

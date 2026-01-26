@@ -72,12 +72,24 @@ export default function OnboardingPage() {
     receiptShowAddress: tenant?.receiptShowAddress ?? true,
     receiptShowPhone: tenant?.receiptShowPhone ?? true,
     logo: tenant?.logo || "",
+    receiptLogo: tenant?.receiptLogo || "",
+    receiptShowLogo: tenant?.receiptShowLogo ?? true,
   });
 
   const { uploadFile: uploadLogo, isUploading: isUploadingLogo } = useUpload({
     onSuccess: (response) => {
       setFormData({ ...formData, logo: response.objectPath });
       toast({ title: t("onboarding.logo_uploaded") });
+    },
+    onError: (error) => {
+      toast({ title: t("common.error"), description: error.message, variant: "destructive" });
+    },
+  });
+
+  const { uploadFile: uploadReceiptLogo, isUploading: isUploadingReceiptLogo } = useUpload({
+    onSuccess: (response) => {
+      setFormData({ ...formData, receiptLogo: response.objectPath });
+      toast({ title: t("onboarding.receipt_logo_uploaded") });
     },
     onError: (error) => {
       toast({ title: t("common.error"), description: error.message, variant: "destructive" });
@@ -356,6 +368,68 @@ export default function OnboardingPage() {
               <p className="text-muted-foreground">{t("onboarding.receipt_description")}</p>
             </div>
             <div className="space-y-4">
+              {/* Receipt Logo Upload */}
+              <div className="flex flex-col items-center mb-4">
+                <Label className="mb-2">{t("onboarding.receipt_logo")}</Label>
+                <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden bg-muted/50 relative">
+                  {formData.receiptLogo ? (
+                    <>
+                      <img
+                        src={`/objects${formData.receiptLogo}`}
+                        alt="Receipt logo"
+                        className="w-full h-full object-contain"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6"
+                        onClick={() => setFormData({ ...formData, receiptLogo: "" })}
+                        data-testid="button-remove-receipt-logo"
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </>
+                  ) : (
+                    <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  disabled={isUploadingReceiptLogo}
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = "image/*";
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) uploadReceiptLogo(file);
+                    };
+                    input.click();
+                  }}
+                  data-testid="button-upload-receipt-logo"
+                >
+                  {isUploadingReceiptLogo ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : null}
+                  {t("onboarding.upload_logo")}
+                </Button>
+                <div className="flex items-center gap-2 mt-2">
+                  <Label className="text-sm">{t("settings.show_logo_receipt")}</Label>
+                  <Button
+                    variant={formData.receiptShowLogo ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, receiptShowLogo: !formData.receiptShowLogo })}
+                    data-testid="button-toggle-show-logo"
+                  >
+                    {formData.receiptShowLogo ? t("common.yes") : t("common.no")}
+                  </Button>
+                </div>
+              </div>
+
               <div>
                 <Label htmlFor="headerText">{t("settings.receipt_header")}</Label>
                 <Input
