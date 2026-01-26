@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,10 +23,23 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
-  const { login } = useAuth();
+  const { login, user, tenant, isInternal, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const { t, language, setLanguage } = useI18n();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (isInternal) {
+        navigate("/admin");
+      } else if (tenant && !tenant.onboardingComplete) {
+        navigate("/onboarding");
+      } else {
+        navigate("/pos");
+      }
+    }
+  }, [authLoading, user, tenant, isInternal, navigate]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
