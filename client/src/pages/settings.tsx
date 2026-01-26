@@ -305,7 +305,7 @@ function PrintBridgeSettings() {
 export default function SettingsPage() {
   const { toast } = useToast();
   const { tenant, refreshTenant } = useAuth();
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const [activeTab, setActiveTab] = useState("business");
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [showProductDialog, setShowProductDialog] = useState(false);
@@ -1704,7 +1704,7 @@ export default function SettingsPage() {
                   {/* Order Info */}
                   <div className="flex justify-between mb-2" style={{ fontSize: '0.85em' }}>
                     <span>{t("pos.order")} #1234</span>
-                    <span>{new Date().toLocaleDateString()}</span>
+                    <span>{formatDate(new Date())}</span>
                   </div>
                   
                   <div className="border-t border-dashed border-gray-400 my-2" />

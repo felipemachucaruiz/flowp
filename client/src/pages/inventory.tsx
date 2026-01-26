@@ -45,7 +45,7 @@ type AdjustmentFormData = z.infer<typeof adjustmentSchema>;
 
 export default function InventoryPage() {
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
@@ -514,7 +514,7 @@ export default function InventoryPage() {
                             {movement.quantity}
                           </span>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(movement.createdAt!).toLocaleDateString()}
+                            {formatDate(new Date(movement.createdAt!))}
                           </p>
                         </div>
                       </div>

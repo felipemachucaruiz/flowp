@@ -58,7 +58,7 @@ const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"
 
 export default function ReportsPage() {
   const { tenant } = useAuth();
-  const { t } = useI18n();
+  const { t, formatDate } = useI18n();
   const [dateRange, setDateRange] = useState("7d");
 
   const { data: stats, isLoading } = useQuery<DashboardStats>({
@@ -89,9 +89,8 @@ export default function ReportsPage() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const formatChartDate = (dateStr: string) => {
+    return formatDate(dateStr, { month: "short", day: "numeric" });
   };
 
   if (isLoading) {
@@ -360,7 +359,7 @@ export default function ReportsPage() {
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis
                       dataKey="date"
-                      tickFormatter={formatDate}
+                      tickFormatter={formatChartDate}
                       tick={{ fill: "hsl(var(--muted-foreground))" }}
                     />
                     <YAxis
@@ -377,7 +376,7 @@ export default function ReportsPage() {
                         formatCurrency(value),
                         name === "revenue" ? t("reports.revenue") : t("reports.profit"),
                       ]}
-                      labelFormatter={formatDate}
+                      labelFormatter={formatChartDate}
                     />
                     <Legend />
                     <Area
@@ -426,7 +425,7 @@ export default function ReportsPage() {
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis
                       dataKey="date"
-                      tickFormatter={formatDate}
+                      tickFormatter={formatChartDate}
                       tick={{ fill: "hsl(var(--muted-foreground))" }}
                     />
                     <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} />
@@ -436,7 +435,7 @@ export default function ReportsPage() {
                         border: "1px solid hsl(var(--border))",
                         borderRadius: "var(--radius)",
                       }}
-                      labelFormatter={formatDate}
+                      labelFormatter={formatChartDate}
                     />
                     <Bar dataKey="orders" fill="#8B5CF6" radius={[4, 4, 0, 0]} name={t("reports.orders")} />
                   </BarChart>

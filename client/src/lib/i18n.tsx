@@ -2366,7 +2366,16 @@ interface I18nContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (key: TranslationKey) => string;
+  formatDate: (date: Date | string, options?: Intl.DateTimeFormatOptions) => string;
+  formatDateTime: (date: Date | string) => string;
 }
+
+// Map languages to locales
+const localeMap: Record<Language, string> = {
+  en: "en-US",
+  es: "es-ES",
+  pt: "pt-BR",
+};
 
 const I18nContext = createContext<I18nContextType | null>(null);
 
@@ -2454,8 +2463,31 @@ export function I18nProvider({ children, initialLanguage }: { children: ReactNod
     }
   };
 
+  const formatDate = (date: Date | string, options?: Intl.DateTimeFormatOptions): string => {
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+    const locale = localeMap[language];
+    const defaultOptions: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    };
+    return new Intl.DateTimeFormat(locale, options || defaultOptions).format(dateObj);
+  };
+
+  const formatDateTime = (date: Date | string): string => {
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+    const locale = localeMap[language];
+    return new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(dateObj);
+  };
+
   return (
-    <I18nContext.Provider value={{ language, setLanguage, t }}>
+    <I18nContext.Provider value={{ language, setLanguage, t, formatDate, formatDateTime }}>
       {children}
     </I18nContext.Provider>
   );
