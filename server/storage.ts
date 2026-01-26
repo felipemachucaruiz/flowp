@@ -122,6 +122,13 @@ export interface IStorage {
     recentTrend: number;
   }>;
   
+  getAdvancedAnalytics(tenantId: string, dateRange: string): Promise<{
+    salesTrends: { date: string; revenue: number; orders: number; profit: number }[];
+    productPerformance: { id: string; name: string; quantity: number; revenue: number; cost: number; profit: number; margin: number }[];
+    employeeMetrics: { id: string; name: string; salesCount: number; revenue: number; avgOrderValue: number }[];
+    profitAnalysis: { totalRevenue: number; totalCost: number; grossProfit: number; grossMargin: number; topProfitProducts: { name: string; profit: number; margin: number }[] };
+  }>;
+  
   // Subscription Plans
   getActiveSubscriptionPlans(): Promise<SubscriptionPlan[]>;
   getTenantSubscription(tenantId: string): Promise<Subscription | null>;
@@ -675,6 +682,189 @@ export class DatabaseStorage implements IStorage {
       salesByHour,
       salesByCategory,
       recentTrend,
+    };
+  }
+
+  async getAdvancedAnalytics(tenantId: string, dateRange: string): Promise<{
+    salesTrends: { date: string; revenue: number; orders: number; profit: number }[];
+    productPerformance: { id: string; name: string; quantity: number; revenue: number; cost: number; profit: number; margin: number }[];
+    employeeMetrics: { id: string; name: string; salesCount: number; revenue: number; avgOrderValue: number }[];
+    profitAnalysis: { totalRevenue: number; totalCost: number; grossProfit: number; grossMargin: number; topProfitProducts: { name: string; profit: number; margin: number }[] };
+  }> {
+    // Calculate date range
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    let startDate = new Date();
+    
+    switch (dateRange) {
+      case "7d":
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case "30d":
+        startDate.setDate(startDate.getDate() - 30);
+        break;
+      case "90d":
+        startDate.setDate(startDate.getDate() - 90);
+        break;
+      default:
+        startDate.setDate(startDate.getDate() - 7);
+    }
+    startDate.setHours(0, 0, 0, 0);
+
+    // Get all completed orders in date range
+    const rangeOrders = await db
+      .select()
+      .from(orders)
+      .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, startDate), eq(orders.status, "completed")));
+
+    // Get all products with cost info
+    const allProducts = await db
+      .select()
+      .from(products)
+      .where(eq(products.tenantId, tenantId));
+    const productMap = new Map(allProducts.map(p => [p.id, p]));
+
+    // Get all users for employee metrics
+    const allUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.tenantId, tenantId));
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+
+    // Get order items for all orders
+    const orderIds = rangeOrders.map(o => o.id);
+    let allOrderItems: { orderId: string; productId: string; quantity: number; unitPrice: string }[] = [];
+    if (orderIds.length > 0) {
+      allOrderItems = await db
+        .select({
+          orderId: orderItems.orderId,
+          productId: orderItems.productId,
+          quantity: orderItems.quantity,
+          unitPrice: orderItems.unitPrice,
+        })
+        .from(orderItems)
+        .where(inArray(orderItems.orderId, orderIds));
+    }
+
+    // Sales Trends - group by date
+    const salesByDate = new Map<string, { revenue: number; orders: number; profit: number }>();
+    for (const order of rangeOrders) {
+      const dateKey = new Date(order.createdAt!).toISOString().split("T")[0];
+      const existing = salesByDate.get(dateKey) || { revenue: 0, orders: 0, profit: 0 };
+      existing.revenue += parseFloat(order.total);
+      existing.orders += 1;
+      salesByDate.set(dateKey, existing);
+    }
+
+    // Calculate profit per order
+    const orderItemsByOrder = new Map<string, typeof allOrderItems>();
+    for (const item of allOrderItems) {
+      const existing = orderItemsByOrder.get(item.orderId) || [];
+      existing.push(item);
+      orderItemsByOrder.set(item.orderId, existing);
+    }
+
+    for (const order of rangeOrders) {
+      const dateKey = new Date(order.createdAt!).toISOString().split("T")[0];
+      const items = orderItemsByOrder.get(order.id) || [];
+      let orderProfit = 0;
+      for (const item of items) {
+        const product = productMap.get(item.productId);
+        const revenue = parseFloat(item.unitPrice) * item.quantity;
+        const cost = product?.cost ? parseFloat(product.cost) * item.quantity : 0;
+        orderProfit += revenue - cost;
+      }
+      const existing = salesByDate.get(dateKey)!;
+      existing.profit += orderProfit;
+    }
+
+    const salesTrends = Array.from(salesByDate.entries())
+      .map(([date, data]) => ({ date, ...data }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // Product Performance
+    const productStats = new Map<string, { quantity: number; revenue: number; cost: number }>();
+    for (const item of allOrderItems) {
+      const product = productMap.get(item.productId);
+      const revenue = parseFloat(item.unitPrice) * item.quantity;
+      const cost = product?.cost ? parseFloat(product.cost) * item.quantity : 0;
+      const existing = productStats.get(item.productId) || { quantity: 0, revenue: 0, cost: 0 };
+      existing.quantity += item.quantity;
+      existing.revenue += revenue;
+      existing.cost += cost;
+      productStats.set(item.productId, existing);
+    }
+
+    const productPerformance = Array.from(productStats.entries())
+      .map(([id, stats]) => {
+        const product = productMap.get(id);
+        const profit = stats.revenue - stats.cost;
+        const margin = stats.revenue > 0 ? (profit / stats.revenue) * 100 : 0;
+        return {
+          id,
+          name: product?.name || "Unknown",
+          quantity: stats.quantity,
+          revenue: stats.revenue,
+          cost: stats.cost,
+          profit,
+          margin: Math.round(margin * 100) / 100,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 20);
+
+    // Employee Metrics
+    const employeeStats = new Map<string, { salesCount: number; revenue: number }>();
+    for (const order of rangeOrders) {
+      const userId = order.userId;
+      if (!userId) continue;
+      const existing = employeeStats.get(userId) || { salesCount: 0, revenue: 0 };
+      existing.salesCount += 1;
+      existing.revenue += parseFloat(order.total);
+      employeeStats.set(userId, existing);
+    }
+
+    const employeeMetrics = Array.from(employeeStats.entries())
+      .map(([id, stats]) => {
+        const user = userMap.get(id);
+        return {
+          id,
+          name: user?.name || "Unknown Employee",
+          salesCount: stats.salesCount,
+          revenue: stats.revenue,
+          avgOrderValue: stats.salesCount > 0 ? stats.revenue / stats.salesCount : 0,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+
+    // Profit Analysis
+    let totalRevenue = 0;
+    let totalCost = 0;
+    for (const item of allOrderItems) {
+      const product = productMap.get(item.productId);
+      totalRevenue += parseFloat(item.unitPrice) * item.quantity;
+      totalCost += product?.cost ? parseFloat(product.cost) * item.quantity : 0;
+    }
+    const grossProfit = totalRevenue - totalCost;
+    const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
+
+    const topProfitProducts = productPerformance
+      .filter(p => p.profit > 0)
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 5)
+      .map(p => ({ name: p.name, profit: p.profit, margin: p.margin }));
+
+    return {
+      salesTrends,
+      productPerformance,
+      employeeMetrics,
+      profitAnalysis: {
+        totalRevenue,
+        totalCost,
+        grossProfit,
+        grossMargin: Math.round(grossMargin * 100) / 100,
+        topProfitProducts,
+      },
     };
   }
 

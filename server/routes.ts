@@ -1365,6 +1365,27 @@ export async function registerRoutes(
     }
   });
 
+  // ===== ADVANCED ANALYTICS =====
+  
+  app.get("/api/reports/analytics", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({
+          salesTrends: [],
+          productPerformance: [],
+          employeeMetrics: [],
+          profitAnalysis: { totalRevenue: 0, totalCost: 0, grossProfit: 0, grossMargin: 0, topProfitProducts: [] },
+        });
+      }
+      const dateRange = (req.query.range as string) || "7d";
+      const analytics = await storage.getAdvancedAnalytics(tenantId, dateRange);
+      res.json(analytics);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch advanced analytics" });
+    }
+  });
+
   // ===== SMTP / EMAIL SETTINGS (Internal Admin Only) =====
   
   // Get SMTP config (returns masked password)
