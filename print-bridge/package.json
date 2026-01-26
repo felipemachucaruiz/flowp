@@ -3,9 +3,17 @@
   "version": "1.0.0",
   "description": "Local print bridge for Flowp POS - Direct ESC/POS thermal printer communication",
   "main": "server.js",
+  "bin": "server.js",
   "scripts": {
     "start": "node server.js",
+    "build": "pkg . --targets node18-win-x64 --output flowp-print-bridge.exe",
     "install-service": "node install-service.js"
+  },
+  "pkg": {
+    "assets": [
+      "escpos-builder.js"
+    ],
+    "outputPath": "dist"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -13,6 +21,9 @@
     "escpos": "^3.0.0-alpha.6",
     "escpos-usb": "^3.0.0-alpha.4",
     "escpos-network": "^3.0.0-alpha.4"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
   },
   "engines": {
     "node": ">=18.0.0"
