@@ -38,7 +38,6 @@ import {
   Users,
   History,
 } from "lucide-react";
-import { format } from "date-fns";
 
 interface CustomerWithOrders extends Customer {
   orders?: Order[];
@@ -500,9 +499,17 @@ export default function CustomersPage() {
                                  <Star className="w-5 h-5" />}
                               </div>
                               <div>
-                                <p className="font-medium capitalize">{transaction.type}</p>
+                                <p className="font-medium">
+                                  {transaction.type === "earned" ? t("customers.loyalty_earned") :
+                                   transaction.type === "redeemed" ? t("customers.loyalty_redeemed") :
+                                   t("customers.loyalty_adjusted")}
+                                </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {transaction.description || `Points ${transaction.type}`}
+                                  {transaction.description || (
+                                    transaction.type === "earned" ? t("customers.points_earned_from_order") :
+                                    transaction.type === "redeemed" ? t("customers.points_redeemed_for_reward") :
+                                    t("customers.points_adjusted")
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -515,7 +522,7 @@ export default function CustomersPage() {
                                 {transaction.type === "earned" ? "+" : "-"}{transaction.points} pts
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {format(new Date(transaction.createdAt!), "MMM d, yyyy")}
+                                {formatDate(new Date(transaction.createdAt!))}
                               </p>
                             </div>
                           </div>
@@ -526,8 +533,8 @@ export default function CustomersPage() {
                 ) : (
                   <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
                     <Star className="w-12 h-12 mb-3 opacity-30" />
-                    <p className="font-medium">No loyalty activity</p>
-                    <p className="text-sm">Points will appear here after purchases</p>
+                    <p className="font-medium">{t("customers.no_loyalty_activity")}</p>
+                    <p className="text-sm">{t("customers.loyalty_activity_desc")}</p>
                   </div>
                 )}
               </TabsContent>
@@ -536,7 +543,7 @@ export default function CustomersPage() {
                 <Card>
                   <CardContent className="p-4">
                     <p className="text-muted-foreground">
-                      {selectedCustomer.notes || "No notes for this customer"}
+                      {selectedCustomer.notes || t("customers.no_notes")}
                     </p>
                   </CardContent>
                 </Card>
