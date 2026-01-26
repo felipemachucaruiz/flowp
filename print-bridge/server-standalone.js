@@ -104,14 +104,16 @@ function sendJson(res, status, data, origin, req) {
 
 function getWindowsPrinters() {
   try {
-    const result = execSync('wmic printer get name', { encoding: 'utf8', timeout: 5000 });
-    const lines = result.split('\n').filter(line => line.trim() && line.trim() !== 'Name');
+    const psCommand = 'powershell.exe -NoProfile -Command "Get-Printer | Select-Object -ExpandProperty Name"';
+    const result = execSync(psCommand, { encoding: 'utf8', timeout: 10000 });
+    const lines = result.split('\n').filter(line => line.trim());
     cachedPrinters = lines.map(name => ({
       type: 'windows',
       name: name.trim()
     })).filter(p => p.name);
     return cachedPrinters;
   } catch (error) {
+    console.error('Error detecting printers:', error.message);
     return cachedPrinters;
   }
 }
