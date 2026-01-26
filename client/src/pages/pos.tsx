@@ -58,9 +58,19 @@ export default function POSPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
-  const [cashReceived, setCashReceived] = useState("");
   const [barcodeMode, setBarcodeMode] = useState(false);
+  
+  // Split payment state
+  interface PaymentEntry {
+    id: string;
+    type: "cash" | "card";
+    amount: string;
+    transactionId?: string;
+  }
+  const [paymentEntries, setPaymentEntries] = useState<PaymentEntry[]>([]);
+  const [currentPaymentType, setCurrentPaymentType] = useState<"cash" | "card">("cash");
+  const [currentPaymentAmount, setCurrentPaymentAmount] = useState("");
+  const [currentTransactionId, setCurrentTransactionId] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
@@ -94,6 +104,58 @@ export default function POSPage() {
     const afterDiscount = subtotal - discountAmount;
     return (afterDiscount * taxRateVal) / 100;
   };
+  
+  // Split payment helpers
+  const getTotalPaid = () => {
+    return paymentEntries.reduce((sum, entry) => sum + parseFloat(entry.amount || "0"), 0);
+  };
+  
+  const getRemainingAmount = () => {
+    return Math.max(0, getTotalWithDiscount(taxRate) - getTotalPaid());
+  };
+  
+  const getChangeAmount = () => {
+    const overpaid = getTotalPaid() - getTotalWithDiscount(taxRate);
+    return overpaid > 0 ? overpaid : 0;
+  };
+  
+  const addPaymentEntry = () => {
+    const amount = parseFloat(currentPaymentAmount || "0");
+    if (amount <= 0) return;
+    
+    // Require transaction ID for card payments
+    if (currentPaymentType === "card" && !currentTransactionId.trim()) {
+      toast({
+        title: t("pos.transaction_id_required"),
+        description: t("pos.enter_transaction_id"),
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const newEntry: PaymentEntry = {
+      id: Date.now().toString(),
+      type: currentPaymentType,
+      amount: currentPaymentAmount,
+      transactionId: currentPaymentType === "card" ? currentTransactionId.trim() : undefined,
+    };
+    
+    setPaymentEntries([...paymentEntries, newEntry]);
+    setCurrentPaymentAmount("");
+    setCurrentTransactionId("");
+  };
+  
+  const removePaymentEntry = (id: string) => {
+    setPaymentEntries(paymentEntries.filter(entry => entry.id !== id));
+  };
+  
+  const resetPaymentState = () => {
+    setPaymentEntries([]);
+    setCurrentPaymentType("cash");
+    setCurrentPaymentAmount("");
+    setCurrentTransactionId("");
+  };
+  
   const barcodeBuffer = useRef("");
   const barcodeTimeout = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -381,10 +443,29 @@ export default function POSPage() {
       });
       return;
     }
+    
+    if (paymentEntries.length === 0) {
+      toast({
+        title: t("pos.payment_required"),
+        description: t("pos.add_payment_first"),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Determine primary payment method (the one with highest amount)
+    const primaryPayment = paymentEntries.reduce((max, entry) => 
+      parseFloat(entry.amount) > parseFloat(max.amount) ? entry : max
+    , paymentEntries[0]);
 
     const orderData = {
       items: cart,
-      paymentMethod,
+      paymentMethod: paymentEntries.length > 1 ? "split" : primaryPayment.type,
+      payments: paymentEntries.map(e => ({
+        type: e.type,
+        amount: parseFloat(e.amount),
+        transactionId: e.transactionId,
+      })),
       subtotal: getSubtotal(),
       discount: discountRate,
       discountAmount: getDiscountAmount(),
@@ -393,9 +474,13 @@ export default function POSPage() {
       customerId: selectedCustomer.id,
     };
 
+    const totalCashReceived = paymentEntries
+      .filter(e => e.type === "cash")
+      .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
     pendingReceiptData.current = {
       ...orderData,
-      cashReceived: paymentMethod === "cash" ? parseFloat(cashReceived || "0") : undefined,
+      cashReceived: totalCashReceived > 0 ? totalCashReceived : undefined,
       customer: selectedCustomer,
     };
 
@@ -444,10 +529,7 @@ export default function POSPage() {
     }
   };
 
-  const changeAmount = paymentMethod === "cash" && cashReceived
-    ? parseFloat(cashReceived) - getTotalWithDiscount(taxRate)
-    : 0;
-
+  
   return (
     <div className="flex h-full">
       {/* Products Section */}
@@ -769,6 +851,7 @@ export default function POSPage() {
           setNewCustomerPhone("");
           setNewCustomerIdType("");
           setNewCustomerIdNumber("");
+          resetPaymentState();
         }
       }}>
         <DialogContent className="sm:max-w-md">
@@ -935,56 +1018,140 @@ export default function POSPage() {
 
             <Separator />
 
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setPaymentMethod("cash")}
-                className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 hover-elevate ${
-                  paymentMethod === "cash"
-                    ? "border-primary bg-primary/5"
-                    : "border-border"
-                }`}
-                data-testid="button-payment-cash"
-              >
-                <Banknote className={`w-8 h-8 ${paymentMethod === "cash" ? "text-primary" : "text-muted-foreground"}`} />
-                <span className="font-medium">{t("pos.cash")}</span>
-              </button>
-              <button
-                onClick={() => setPaymentMethod("card")}
-                className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 hover-elevate ${
-                  paymentMethod === "card"
-                    ? "border-primary bg-primary/5"
-                    : "border-border"
-                }`}
-                data-testid="button-payment-card"
-              >
-                <CreditCard className={`w-8 h-8 ${paymentMethod === "card" ? "text-primary" : "text-muted-foreground"}`} />
-                <span className="font-medium">{t("pos.card")}</span>
-              </button>
-            </div>
-
-            {paymentMethod === "cash" && (
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium">{t("payment.cash_received")}</label>
-                  <Input
-                    type="number"
-                    placeholder="0.00"
-                    value={cashReceived}
-                    onChange={(e) => setCashReceived(e.target.value)}
-                    className="text-lg"
-                    data-testid="input-cash-received"
-                  />
+            {/* Added Payments List */}
+            {paymentEntries.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">{t("pos.payments_added")}</label>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {paymentEntries.map((entry) => (
+                    <div key={entry.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        {entry.type === "cash" ? (
+                          <Banknote className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <CreditCard className="w-4 h-4 text-blue-600" />
+                        )}
+                        <span className="font-medium">{formatCurrency(parseFloat(entry.amount))}</span>
+                        {entry.transactionId && (
+                          <span className="text-xs text-muted-foreground">
+                            (ID: {entry.transactionId})
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removePaymentEntry(entry.id)}
+                        data-testid={`button-remove-payment-${entry.id}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-                {changeAmount > 0 && (
-                  <div className="p-3 rounded-lg bg-green-500/10 text-center">
-                    <p className="text-sm text-muted-foreground">Change</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(changeAmount)}
+                
+                {/* Remaining / Change display */}
+                {getRemainingAmount() > 0 ? (
+                  <div className="p-2 rounded-lg bg-orange-500/10 text-center">
+                    <p className="text-sm text-muted-foreground">{t("pos.remaining")}</p>
+                    <p className="text-xl font-bold text-orange-600">
+                      {formatCurrency(getRemainingAmount())}
                     </p>
                   </div>
-                )}
+                ) : getChangeAmount() > 0 ? (
+                  <div className="p-2 rounded-lg bg-green-500/10 text-center">
+                    <p className="text-sm text-muted-foreground">{t("pos.change")}</p>
+                    <p className="text-xl font-bold text-green-600">
+                      {formatCurrency(getChangeAmount())}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             )}
+
+            <Separator />
+
+            {/* Add New Payment */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">{t("pos.add_payment")}</label>
+              
+              {/* Payment Type Selection */}
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setCurrentPaymentType("cash")}
+                  className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 hover-elevate ${
+                    currentPaymentType === "cash"
+                      ? "border-primary bg-primary/5"
+                      : "border-border"
+                  }`}
+                  data-testid="button-payment-cash"
+                >
+                  <Banknote className={`w-6 h-6 ${currentPaymentType === "cash" ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className="font-medium text-sm">{t("pos.cash")}</span>
+                </button>
+                <button
+                  onClick={() => setCurrentPaymentType("card")}
+                  className={`p-3 rounded-lg border-2 transition-all flex flex-col items-center gap-1 hover-elevate ${
+                    currentPaymentType === "card"
+                      ? "border-primary bg-primary/5"
+                      : "border-border"
+                  }`}
+                  data-testid="button-payment-card"
+                >
+                  <CreditCard className={`w-6 h-6 ${currentPaymentType === "card" ? "text-primary" : "text-muted-foreground"}`} />
+                  <span className="font-medium text-sm">{t("pos.card")}</span>
+                </button>
+              </div>
+
+              {/* Payment Amount */}
+              <div>
+                <label className="text-sm font-medium">{t("pos.payment_amount")}</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder={formatCurrency(getRemainingAmount())}
+                    value={currentPaymentAmount}
+                    onChange={(e) => setCurrentPaymentAmount(e.target.value)}
+                    className="flex-1"
+                    data-testid="input-payment-amount"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurrentPaymentAmount(getRemainingAmount().toString())}
+                    className="shrink-0"
+                    data-testid="button-fill-remaining"
+                  >
+                    {t("pos.fill_remaining")}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Transaction ID for Card */}
+              {currentPaymentType === "card" && (
+                <div>
+                  <label className="text-sm font-medium">{t("pos.transaction_id")}</label>
+                  <Input
+                    type="text"
+                    placeholder={t("pos.transaction_id_placeholder")}
+                    value={currentTransactionId}
+                    onChange={(e) => setCurrentTransactionId(e.target.value)}
+                    data-testid="input-transaction-id"
+                  />
+                </div>
+              )}
+
+              {/* Add Payment Button */}
+              <Button
+                onClick={addPaymentEntry}
+                disabled={!currentPaymentAmount || parseFloat(currentPaymentAmount) <= 0}
+                className="w-full"
+                variant="outline"
+                data-testid="button-add-payment"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {t("pos.add_payment_button")}
+              </Button>
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
@@ -1000,7 +1167,8 @@ export default function POSPage() {
               disabled={
                 createOrderMutation.isPending ||
                 !selectedCustomer ||
-                (paymentMethod === "cash" && parseFloat(cashReceived || "0") < getTotalWithDiscount(taxRate))
+                paymentEntries.length === 0 ||
+                getRemainingAmount() > 0
               }
               data-testid="button-complete-payment"
             >
