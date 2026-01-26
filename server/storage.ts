@@ -122,7 +122,7 @@ export interface IStorage {
     recentTrend: number;
   }>;
   
-  getAdvancedAnalytics(tenantId: string, dateRange: string): Promise<{
+  getAdvancedAnalytics(tenantId: string, dateRange: string, customStartDate?: Date, customEndDate?: Date): Promise<{
     salesTrends: { date: string; revenue: number; orders: number; profit: number }[];
     productPerformance: { id: string; name: string | null; quantity: number; revenue: number; cost: number; profit: number; margin: number }[];
     employeeMetrics: { id: string; name: string | null; salesCount: number; revenue: number; avgOrderValue: number }[];
@@ -685,31 +685,39 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getAdvancedAnalytics(tenantId: string, dateRange: string): Promise<{
+  async getAdvancedAnalytics(tenantId: string, dateRange: string, customStartDate?: Date, customEndDate?: Date): Promise<{
     salesTrends: { date: string; revenue: number; orders: number; profit: number }[];
     productPerformance: { id: string; name: string | null; quantity: number; revenue: number; cost: number; profit: number; margin: number }[];
     employeeMetrics: { id: string; name: string | null; salesCount: number; revenue: number; avgOrderValue: number }[];
     profitAnalysis: { totalRevenue: number; totalCost: number; grossProfit: number; grossMargin: number; topProfitProducts: { name: string; profit: number; margin: number }[] };
   }> {
     // Calculate date range
-    const today = new Date();
+    let today = new Date();
     today.setHours(23, 59, 59, 999);
     let startDate = new Date();
     
-    switch (dateRange) {
-      case "7d":
-        startDate.setDate(startDate.getDate() - 7);
-        break;
-      case "30d":
-        startDate.setDate(startDate.getDate() - 30);
-        break;
-      case "90d":
-        startDate.setDate(startDate.getDate() - 90);
-        break;
-      default:
-        startDate.setDate(startDate.getDate() - 7);
+    // Use custom dates if provided
+    if (customStartDate && customEndDate) {
+      startDate = new Date(customStartDate);
+      startDate.setHours(0, 0, 0, 0);
+      today = new Date(customEndDate);
+      today.setHours(23, 59, 59, 999);
+    } else {
+      switch (dateRange) {
+        case "7d":
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case "30d":
+          startDate.setDate(startDate.getDate() - 30);
+          break;
+        case "90d":
+          startDate.setDate(startDate.getDate() - 90);
+          break;
+        default:
+          startDate.setDate(startDate.getDate() - 7);
+      }
+      startDate.setHours(0, 0, 0, 0);
     }
-    startDate.setHours(0, 0, 0, 0);
 
     // Get all completed orders in date range
     const rangeOrders = await db

@@ -1383,7 +1383,18 @@ export async function registerRoutes(
         });
       }
       const dateRange = (req.query.range as string) || "7d";
-      const analytics = await storage.getAdvancedAnalytics(tenantId, dateRange);
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+      
+      let startDate: Date | undefined;
+      let endDate: Date | undefined;
+      
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      }
+      
+      const analytics = await storage.getAdvancedAnalytics(tenantId, dateRange, startDate, endDate);
       res.json(analytics);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch advanced analytics" });

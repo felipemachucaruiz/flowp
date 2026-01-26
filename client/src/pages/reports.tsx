@@ -3,9 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { CalendarIcon } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -60,14 +64,40 @@ export default function ReportsPage() {
   const { tenant } = useAuth();
   const { t, formatDate } = useI18n();
   const [dateRange, setDateRange] = useState("7d");
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
+  const [appliedStartDate, setAppliedStartDate] = useState<Date | undefined>(undefined);
+  const [appliedEndDate, setAppliedEndDate] = useState<Date | undefined>(undefined);
+
+  const analyticsQueryKey = useMemo(() => {
+    if (dateRange === "custom" && appliedStartDate && appliedEndDate) {
+      return `/api/reports/analytics?startDate=${appliedStartDate.toISOString()}&endDate=${appliedEndDate.toISOString()}`;
+    }
+    return `/api/reports/analytics?range=${dateRange}`;
+  }, [dateRange, appliedStartDate, appliedEndDate]);
 
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/reports/dashboard"],
   });
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery<AdvancedAnalytics>({
-    queryKey: [`/api/reports/analytics?range=${dateRange}`],
+    queryKey: [analyticsQueryKey],
   });
+
+  const handleApplyCustomRange = () => {
+    if (customStartDate && customEndDate) {
+      setAppliedStartDate(customStartDate);
+      setAppliedEndDate(customEndDate);
+    }
+  };
+
+  const handleDateRangeChange = (value: string) => {
+    setDateRange(value);
+    if (value !== "custom") {
+      setAppliedStartDate(undefined);
+      setAppliedEndDate(undefined);
+    }
+  };
 
   const formatCurrency = (amount: number) => {
     const currency = tenant?.currency || "USD";
@@ -136,16 +166,73 @@ export default function ReportsPage() {
             {t("reports.subtitle")}
           </p>
         </div>
-        <Select value={dateRange} onValueChange={setDateRange}>
-          <SelectTrigger className="w-[180px]" data-testid="select-date-range">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7d" data-testid="option-7d">{t("reports.last_7_days")}</SelectItem>
-            <SelectItem value="30d" data-testid="option-30d">{t("reports.last_30_days")}</SelectItem>
-            <SelectItem value="90d" data-testid="option-90d">{t("reports.last_90_days")}</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={dateRange} onValueChange={handleDateRangeChange}>
+            <SelectTrigger className="w-[180px]" data-testid="select-date-range">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d" data-testid="option-7d">{t("reports.last_7_days")}</SelectItem>
+              <SelectItem value="30d" data-testid="option-30d">{t("reports.last_30_days")}</SelectItem>
+              <SelectItem value="90d" data-testid="option-90d">{t("reports.last_90_days")}</SelectItem>
+              <SelectItem value="custom" data-testid="option-custom">{t("reports.custom_range")}</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {dateRange === "custom" && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="w-[140px] justify-start text-left font-normal"
+                    data-testid="button-start-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customStartDate ? formatDate(customStartDate) : t("reports.start_date")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customStartDate}
+                    onSelect={setCustomStartDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="w-[140px] justify-start text-left font-normal"
+                    data-testid="button-end-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customEndDate ? formatDate(customEndDate) : t("reports.end_date")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={customEndDate}
+                    onSelect={setCustomEndDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              <Button 
+                onClick={handleApplyCustomRange}
+                disabled={!customStartDate || !customEndDate}
+                data-testid="button-apply-date-filter"
+              >
+                {t("reports.apply_filter")}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
