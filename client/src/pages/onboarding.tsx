@@ -98,7 +98,7 @@ export default function OnboardingPage() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: typeof formData & { onboardingComplete?: boolean }) => {
-      return apiRequest("PATCH", "/api/tenant/settings", data);
+      return apiRequest("PATCH", "/api/settings", data);
     },
     onSuccess: () => {
       refreshTenant();
@@ -128,6 +128,7 @@ export default function OnboardingPage() {
   const handleComplete = async () => {
     try {
       await saveMutation.mutateAsync({ ...formData, onboardingComplete: true });
+      await refreshTenant();
       toast({
         title: t("onboarding.complete_title"),
         description: t("onboarding.complete_message"),

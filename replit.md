@@ -5,8 +5,11 @@ A production-ready, multi-tenant POS + Inventory system delivered as a Progressi
 
 ## Current State
 - **Status**: MVP Complete + Management Portal Phase 1
-- **Last Updated**: January 21, 2026
+- **Last Updated**: January 26, 2026
 - **Stack**: React + TypeScript frontend, Express + PostgreSQL backend
+
+## User Preferences
+- **Onboarding**: All fields are mandatory except for logo uploads (company logo and receipt logo are optional)
 
 ## Management Portal (Phase 1 Complete)
 Internal admin portal for SaaS management with role-based access control.
