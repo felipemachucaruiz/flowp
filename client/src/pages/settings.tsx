@@ -329,6 +329,22 @@ export default function SettingsPage() {
     }
   }, [tenant?.logo, tenant?.receiptLogo]);
 
+  // Sync receipt form when tenant data loads
+  useEffect(() => {
+    if (tenant) {
+      receiptForm.reset({
+        receiptShowLogo: tenant.receiptShowLogo ?? true,
+        receiptLogoSize: tenant.receiptLogoSize ?? 200,
+        receiptHeaderText: tenant.receiptHeaderText || "",
+        receiptFooterText: tenant.receiptFooterText || "",
+        receiptShowAddress: tenant.receiptShowAddress ?? true,
+        receiptShowPhone: tenant.receiptShowPhone ?? true,
+        receiptFontSize: tenant.receiptFontSize ?? 12,
+        receiptFontFamily: tenant.receiptFontFamily ?? "monospace",
+      });
+    }
+  }, [tenant]);
+
   const { uploadFile, isUploading: isUploadingImage } = useUpload({
     onSuccess: (response) => {
       setProductImagePath(response.objectPath);
