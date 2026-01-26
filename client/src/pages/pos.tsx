@@ -302,11 +302,16 @@ export default function POSPage() {
 
   // Handle Enter key in search input - auto-add on exact barcode/SKU match
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && searchQuery.trim()) {
+    if (e.key === "Enter") {
       e.preventDefault();
       
+      // Get the current value directly from the input (more reliable for barcode scanners)
+      const inputValue = (e.target as HTMLInputElement).value.trim();
+      if (!inputValue) return;
+      
+      const barcodeClean = inputValue.toLowerCase();
+      
       // Try to find exact barcode/SKU match first
-      const barcodeClean = searchQuery.trim().toLowerCase();
       const product = products?.find(
         (p) => (p.barcode?.toLowerCase() === barcodeClean || p.sku?.toLowerCase() === barcodeClean) && p.isActive
       );
@@ -314,6 +319,8 @@ export default function POSPage() {
       if (product) {
         addToCart(product);
         setSearchQuery("");
+        // Keep focus on input for continuous scanning
+        searchInputRef.current?.focus();
         toast({
           title: t("pos.product_added"),
           description: `${product.name} ${t("pos.added_to_cart")}`,
@@ -322,10 +329,20 @@ export default function POSPage() {
         // If only one product matches, add it
         addToCart(filteredProducts[0]);
         setSearchQuery("");
+        searchInputRef.current?.focus();
         toast({
           title: t("pos.product_added"),
           description: `${filteredProducts[0].name} ${t("pos.added_to_cart")}`,
         });
+      } else {
+        // No match found - show error and keep the search for debugging
+        toast({
+          title: t("pos.product_not_found"),
+          description: `${t("pos.no_product_barcode")}: ${inputValue}`,
+          variant: "destructive",
+        });
+        setSearchQuery("");
+        searchInputRef.current?.focus();
       }
     }
   };
