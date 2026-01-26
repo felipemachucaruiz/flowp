@@ -2,7 +2,9 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { storage } from "./storage";
+import { emailService } from "./email";
 import {
   insertTenantSchema,
   insertCategorySchema,
@@ -192,6 +194,105 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Login error:", error);
       res.status(401).json({ message: "Invalid credentials" });
+    }
+  });
+
+  // Request password reset
+  app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      
+      // Always return success to prevent email enumeration
+      if (!user) {
+        return res.json({ message: "If an account exists with that email, a reset link has been sent." });
+      }
+
+      // Generate secure token
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      await storage.createPasswordResetToken({
+        userId: user.id,
+        token,
+        expiresAt,
+      });
+
+      // Send email (non-blocking)
+      emailService.sendPasswordResetEmail(email, token, user.name || user.username)
+        .catch(err => console.error("Failed to send password reset email:", err));
+
+      res.json({ message: "If an account exists with that email, a reset link has been sent." });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "Failed to process request" });
+    }
+  });
+
+  // Reset password with token
+  app.post("/api/auth/reset-password", async (req: Request, res: Response) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ message: "Token and password are required" });
+      }
+
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters" });
+      }
+
+      const resetToken = await storage.getPasswordResetToken(token);
+      
+      if (!resetToken) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      if (resetToken.usedAt) {
+        return res.status(400).json({ message: "This reset link has already been used" });
+      }
+
+      if (new Date() > resetToken.expiresAt) {
+        return res.status(400).json({ message: "This reset link has expired" });
+      }
+
+      // Hash new password and update user
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await storage.updateUser(resetToken.userId, { password: hashedPassword });
+      
+      // Mark token as used
+      await storage.markPasswordResetTokenUsed(token);
+
+      res.json({ message: "Password has been reset successfully" });
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // Validate reset token (for UI)
+  app.get("/api/auth/validate-reset-token", async (req: Request, res: Response) => {
+    try {
+      const token = req.query.token as string;
+      
+      if (!token) {
+        return res.status(400).json({ valid: false, message: "Token is required" });
+      }
+
+      const resetToken = await storage.getPasswordResetToken(token);
+      
+      if (!resetToken || resetToken.usedAt || new Date() > resetToken.expiresAt) {
+        return res.json({ valid: false, message: "Invalid or expired reset token" });
+      }
+
+      res.json({ valid: true });
+    } catch (error) {
+      res.status(500).json({ valid: false, message: "Failed to validate token" });
     }
   });
 
@@ -1260,6 +1361,135 @@ export async function registerRoutes(
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // ===== SMTP / EMAIL SETTINGS (Internal Admin Only) =====
+  
+  // Get SMTP config (returns masked password)
+  app.get("/api/internal/smtp-config", async (req: Request, res: Response) => {
+    try {
+      const setting = await storage.getSystemSetting("smtp_config");
+      if (!setting) {
+        return res.json(null);
+      }
+      // Mask password for security
+      const config = setting.value as Record<string, unknown>;
+      if (config.auth && typeof config.auth === "object") {
+        const auth = config.auth as Record<string, unknown>;
+        if (auth.pass) {
+          auth.pass = "********";
+        }
+      }
+      res.json(config);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch SMTP config" });
+    }
+  });
+
+  // Update SMTP config
+  app.post("/api/internal/smtp-config", async (req: Request, res: Response) => {
+    try {
+      const { host, port, secure, user, pass, fromEmail, fromName } = req.body;
+      
+      // Get existing config to preserve password if not provided
+      const existing = await storage.getSystemSetting("smtp_config");
+      let existingPass = "";
+      if (existing?.value) {
+        const auth = (existing.value as any)?.auth;
+        if (auth?.pass) {
+          existingPass = auth.pass;
+        }
+      }
+
+      const config = {
+        host,
+        port: parseInt(port) || 587,
+        secure: secure === true || secure === "true",
+        auth: {
+          user,
+          pass: pass === "********" ? existingPass : pass,
+        },
+        fromEmail,
+        fromName,
+      };
+
+      await storage.upsertSystemSetting("smtp_config", config);
+      res.json({ message: "SMTP configuration saved" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to save SMTP config" });
+    }
+  });
+
+  // Test SMTP connection
+  app.post("/api/internal/smtp-config/test", async (req: Request, res: Response) => {
+    try {
+      const { host, port, secure, user, pass, fromEmail, fromName } = req.body;
+      
+      // Get existing password if masked
+      let actualPass = pass;
+      if (pass === "********") {
+        const existing = await storage.getSystemSetting("smtp_config");
+        actualPass = (existing?.value as any)?.auth?.pass || "";
+      }
+
+      const result = await emailService.testSmtpConnection({
+        host,
+        port: parseInt(port) || 587,
+        secure: secure === true || secure === "true",
+        auth: { user, pass: actualPass },
+        fromEmail,
+        fromName,
+      });
+
+      if (result.success) {
+        res.json({ success: true, message: "SMTP connection successful" });
+      } else {
+        res.status(400).json({ success: false, message: result.error });
+      }
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Failed to test SMTP connection" });
+    }
+  });
+
+  // Get email templates
+  app.get("/api/internal/email-templates", async (req: Request, res: Response) => {
+    try {
+      const templates = await storage.getAllEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
+
+  // Update email template
+  app.put("/api/internal/email-templates/:type", async (req: Request, res: Response) => {
+    try {
+      const { type } = req.params;
+      const { subject, htmlBody, textBody, isActive } = req.body;
+      
+      const template = await storage.upsertEmailTemplate({
+        type: type as any,
+        subject,
+        htmlBody,
+        textBody,
+        isActive,
+      });
+      
+      res.json(template);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update email template" });
+    }
+  });
+
+  // Get email logs
+  app.get("/api/internal/email-logs", async (req: Request, res: Response) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logs = await storage.getEmailLogs(limit);
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch email logs" });
     }
   });
 

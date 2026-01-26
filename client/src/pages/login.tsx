@@ -146,6 +146,17 @@ export default function LoginPage() {
                   )}
                 />
 
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/forgot-password")}
+                    className="text-sm text-muted-foreground hover:text-primary hover:underline"
+                    data-testid="link-forgot-password"
+                  >
+                    {t("login.forgot_password")}
+                  </button>
+                </div>
+
                 <Button
                   type="submit"
                   className="w-full"

@@ -30,6 +30,8 @@ import AdminTenants from "@/pages/admin/tenants";
 import AdminUsers from "@/pages/admin/users";
 import AdminBilling from "@/pages/admin/billing";
 import OnboardingPage from "@/pages/onboarding";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
 
 function ProtectedRoute({ component: Component, skipOnboardingCheck }: { component: () => JSX.Element; skipOnboardingCheck?: boolean }) {
   const { user, isLoading, isInternal, tenant } = useAuth();
@@ -239,6 +241,8 @@ function Router() {
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
+      <Route path="/forgot-password" component={ForgotPasswordPage} />
+      <Route path="/reset-password" component={ResetPasswordPage} />
       <Route path="/onboarding" component={OnboardingRoute} />
       {isAdminRoute ? <AdminRouter /> : <TenantRouter />}
     </Switch>
