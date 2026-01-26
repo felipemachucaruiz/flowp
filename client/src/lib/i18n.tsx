@@ -543,6 +543,11 @@ const translations = {
     "printing.direct_print_desc": "Print directly to thermal printer without browser dialog",
     "printing.bridge_version": "Version:",
     "printing.bridge_printers": "Detected Printers:",
+    "printing.bridge_needs_token": "Needs Token",
+    "printing.bridge_token_instructions": "Copy the token shown in the Print Bridge window and paste it below to authenticate:",
+    "printing.token_placeholder": "Paste token here",
+    "printing.token_saved": "Token Saved",
+    "printing.token_saved_desc": "Checking connection with bridge...",
     
     // Common
     "common.save": "Save",
@@ -1249,6 +1254,11 @@ const translations = {
     "printing.direct_print_desc": "Imprimir directamente a impresora térmica sin diálogo del navegador",
     "printing.bridge_version": "Versión:",
     "printing.bridge_printers": "Impresoras Detectadas:",
+    "printing.bridge_needs_token": "Necesita Token",
+    "printing.bridge_token_instructions": "Copia el token mostrado en la ventana del Puente de Impresión y pégalo abajo para autenticar:",
+    "printing.token_placeholder": "Pega el token aquí",
+    "printing.token_saved": "Token Guardado",
+    "printing.token_saved_desc": "Verificando conexión con el puente...",
     
     // Common
     "common.save": "Guardar",
@@ -1955,6 +1965,11 @@ const translations = {
     "printing.direct_print_desc": "Imprimir diretamente na impressora térmica sem diálogo do navegador",
     "printing.bridge_version": "Versão:",
     "printing.bridge_printers": "Impressoras Detectadas:",
+    "printing.bridge_needs_token": "Precisa de Token",
+    "printing.bridge_token_instructions": "Copie o token mostrado na janela da Ponte de Impressão e cole abaixo para autenticar:",
+    "printing.token_placeholder": "Cole o token aqui",
+    "printing.token_saved": "Token Salvo",
+    "printing.token_saved_desc": "Verificando conexão com a ponte...",
     
     // Common
     "common.save": "Salvar",

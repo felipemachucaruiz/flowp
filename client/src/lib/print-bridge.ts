@@ -1,12 +1,13 @@
 const PRINT_BRIDGE_URL = 'http://127.0.0.1:9638';
+const TOKEN_STORAGE_KEY = 'flowp_print_bridge_token';
 
 interface PrintBridgeStatus {
   isAvailable: boolean;
   version?: string;
+  requiresAuth?: boolean;
   printerConfig?: {
     type: string;
-    vendorId?: number;
-    productId?: number;
+    printerName?: string;
     networkIp?: string;
     networkPort?: number;
     paperWidth?: number;
@@ -16,8 +17,6 @@ interface PrintBridgeStatus {
 interface PrinterInfo {
   type: string;
   name: string;
-  vendorId?: number;
-  productId?: number;
 }
 
 interface ReceiptData {
@@ -57,9 +56,8 @@ interface ReceiptData {
 }
 
 interface PrinterConfig {
-  type: 'usb' | 'network';
-  vendorId?: number;
-  productId?: number;
+  type: 'windows' | 'network';
+  printerName?: string;
   networkIp?: string;
   networkPort?: number;
   paperWidth?: number;
@@ -69,6 +67,35 @@ class PrintBridgeClient {
   private statusCache: PrintBridgeStatus | null = null;
   private statusCacheTime: number = 0;
   private readonly CACHE_DURATION = 5000;
+  private authToken: string | null = null;
+
+  constructor() {
+    this.authToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+  }
+
+  getToken(): string | null {
+    return this.authToken;
+  }
+
+  setToken(token: string | null): void {
+    this.authToken = token;
+    if (token) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+    this.statusCache = null;
+  }
+
+  private getAuthHeaders(): HeadersInit {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json'
+    };
+    if (this.authToken) {
+      headers['X-Auth-Token'] = this.authToken;
+    }
+    return headers;
+  }
 
   async checkStatus(): Promise<PrintBridgeStatus> {
     const now = Date.now();
@@ -91,13 +118,13 @@ class PrintBridgeClient {
         this.statusCache = {
           isAvailable: true,
           version: data.version,
+          requiresAuth: data.requiresAuth,
           printerConfig: data.printer
         };
         this.statusCacheTime = now;
         return this.statusCache;
       }
     } catch {
-      // Bridge not available
     }
 
     this.statusCache = { isAvailable: false };
@@ -107,13 +134,14 @@ class PrintBridgeClient {
 
   async getPrinters(): Promise<PrinterInfo[]> {
     try {
-      const response = await fetch(`${PRINT_BRIDGE_URL}/printers`);
+      const response = await fetch(`${PRINT_BRIDGE_URL}/printers`, {
+        headers: this.getAuthHeaders()
+      });
       if (response.ok) {
         const data = await response.json();
         return data.printers || [];
       }
     } catch {
-      // Bridge not available
     }
     return [];
   }
@@ -122,7 +150,7 @@ class PrintBridgeClient {
     try {
       const response = await fetch(`${PRINT_BRIDGE_URL}/config`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify(config)
       });
       
@@ -131,7 +159,6 @@ class PrintBridgeClient {
         return true;
       }
     } catch {
-      // Bridge not available
     }
     return false;
   }
@@ -140,7 +167,7 @@ class PrintBridgeClient {
     try {
       const response = await fetch(`${PRINT_BRIDGE_URL}/print`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({ receipt })
       });
       
@@ -158,8 +185,25 @@ class PrintBridgeClient {
     try {
       const response = await fetch(`${PRINT_BRIDGE_URL}/print-raw`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: this.getAuthHeaders(),
         body: JSON.stringify({ data: base64Data })
+      });
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Print bridge not available' 
+      };
+    }
+  }
+
+  async openCashDrawer(): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${PRINT_BRIDGE_URL}/drawer`, {
+        method: 'POST',
+        headers: this.getAuthHeaders()
       });
       
       const data = await response.json();

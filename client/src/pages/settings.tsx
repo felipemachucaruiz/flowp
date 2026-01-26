@@ -145,23 +145,47 @@ const COUNTRIES = [
 
 function PrintBridgeSettings() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [bridgeStatus, setBridgeStatus] = useState<PrintBridgeStatus | null>(null);
   const [printers, setPrinters] = useState<PrinterInfo[]>([]);
   const [isChecking, setIsChecking] = useState(false);
+  const [tokenInput, setTokenInput] = useState(printBridge.getToken() || '');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const checkBridgeStatus = async () => {
     setIsChecking(true);
     try {
       const status = await printBridge.checkStatus();
       setBridgeStatus(status);
-      if (status.isAvailable) {
+      
+      if (status.isAvailable && printBridge.getToken()) {
         const detectedPrinters = await printBridge.getPrinters();
-        setPrinters(detectedPrinters);
+        if (detectedPrinters.length > 0) {
+          setIsAuthenticated(true);
+          setPrinters(detectedPrinters);
+        } else {
+          setIsAuthenticated(false);
+          setPrinters([]);
+        }
+      } else {
+        setIsAuthenticated(false);
+        setPrinters([]);
       }
     } catch {
       setBridgeStatus({ isAvailable: false });
+      setIsAuthenticated(false);
+      setPrinters([]);
     }
     setIsChecking(false);
+  };
+
+  const handleSaveToken = () => {
+    printBridge.setToken(tokenInput.trim() || null);
+    checkBridgeStatus();
+    toast({
+      title: t("printing.token_saved"),
+      description: t("printing.token_saved_desc"),
+    });
   };
 
   useEffect(() => {
@@ -174,15 +198,21 @@ function PrintBridgeSettings() {
     <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-dashed">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          {bridgeStatus?.isAvailable ? (
+          {bridgeStatus?.isAvailable && isAuthenticated ? (
             <Wifi className="w-5 h-5 text-green-500" />
+          ) : bridgeStatus?.isAvailable ? (
+            <Wifi className="w-5 h-5 text-yellow-500" />
           ) : (
             <WifiOff className="w-5 h-5 text-muted-foreground" />
           )}
           <span className="font-medium">{t("printing.bridge_title")}</span>
         </div>
-        <Badge variant={bridgeStatus?.isAvailable ? "default" : "secondary"}>
-          {bridgeStatus?.isAvailable ? t("printing.bridge_connected") : t("printing.bridge_disconnected")}
+        <Badge variant={bridgeStatus?.isAvailable && isAuthenticated ? "default" : "secondary"}>
+          {bridgeStatus?.isAvailable && isAuthenticated 
+            ? t("printing.bridge_connected") 
+            : bridgeStatus?.isAvailable 
+              ? t("printing.bridge_needs_token")
+              : t("printing.bridge_disconnected")}
         </Badge>
       </div>
       
@@ -190,7 +220,7 @@ function PrintBridgeSettings() {
         {t("printing.bridge_description")}
       </p>
 
-      {bridgeStatus?.isAvailable ? (
+      {bridgeStatus?.isAvailable && isAuthenticated ? (
         <div className="space-y-3">
           <div className="text-sm">
             <strong>{t("printing.bridge_version")}</strong> {bridgeStatus.version}
@@ -208,6 +238,29 @@ function PrintBridgeSettings() {
           <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
             <Check className="w-4 h-4" />
             {t("printing.direct_print_desc")}
+          </div>
+        </div>
+      ) : bridgeStatus?.isAvailable ? (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {t("printing.bridge_token_instructions")}
+          </p>
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              placeholder={t("printing.token_placeholder")}
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              className="flex-1"
+              data-testid="input-bridge-token"
+            />
+            <Button 
+              size="sm" 
+              onClick={handleSaveToken}
+              data-testid="button-save-token"
+            >
+              {t("common.save")}
+            </Button>
           </div>
         </div>
       ) : (
