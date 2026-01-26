@@ -20,6 +20,7 @@ import POSPage from "@/pages/pos";
 import TablesPage from "@/pages/tables";
 import KitchenPage from "@/pages/kitchen";
 import InventoryPage from "@/pages/inventory";
+import ProductsPage from "@/pages/products";
 import ReportsPage from "@/pages/reports";
 import SalesHistoryPage from "@/pages/sales-history";
 import CustomersPage from "@/pages/customers";
@@ -195,6 +196,9 @@ function TenantRouter() {
         </Route>
         <Route path="/inventory">
           <ProtectedRoute component={InventoryPage} />
+        </Route>
+        <Route path="/products">
+          <ProtectedRoute component={ProductsPage} />
         </Route>
         <Route path="/reports">
           <ProtectedRoute component={ReportsPage} />
