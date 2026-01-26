@@ -3,6 +3,7 @@ import {
   modifierGroups, modifiers, productModifierGroups, floors, tables,
   orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs, customers,
   loyaltyTransactions, loyaltyRewards, subscriptionPlans, subscriptions,
+  systemSettings, passwordResetTokens, emailTemplates, emailLogs,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
   type Category, type InsertCategory, type Product, type InsertProduct,
@@ -15,6 +16,10 @@ import {
   type KitchenTicket, type InsertKitchenTicket, type Payment, type InsertPayment,
   type StockMovement, type InsertStockMovement,
   type SubscriptionPlan, type Subscription,
+  type SystemSetting, type InsertSystemSetting,
+  type PasswordResetToken, type InsertPasswordResetToken,
+  type EmailTemplate, type InsertEmailTemplate,
+  type EmailLog, type InsertEmailLog,
   RETAIL_FEATURES, RESTAURANT_FEATURES,
 } from "@shared/schema";
 import { db } from "./db";
@@ -671,6 +676,100 @@ export class DatabaseStorage implements IStorage {
       salesByCategory,
       recentTrend,
     };
+  }
+
+  // System Settings
+  async getSystemSetting(key: string): Promise<SystemSetting | undefined> {
+    const [setting] = await db.select().from(systemSettings).where(eq(systemSettings.key, key));
+    return setting;
+  }
+
+  async getAllSystemSettings(): Promise<SystemSetting[]> {
+    return db.select().from(systemSettings);
+  }
+
+  async upsertSystemSetting(key: string, value: Record<string, unknown>, updatedBy?: string): Promise<SystemSetting> {
+    const existing = await this.getSystemSetting(key);
+    if (existing) {
+      const [updated] = await db
+        .update(systemSettings)
+        .set({ value, updatedAt: new Date(), updatedBy })
+        .where(eq(systemSettings.key, key))
+        .returning();
+      return updated;
+    }
+    const [created] = await db
+      .insert(systemSettings)
+      .values({ key, value, updatedBy })
+      .returning();
+    return created;
+  }
+
+  // Password Reset Tokens
+  async createPasswordResetToken(data: InsertPasswordResetToken): Promise<PasswordResetToken> {
+    const [token] = await db.insert(passwordResetTokens).values(data).returning();
+    return token;
+  }
+
+  async getPasswordResetToken(token: string): Promise<PasswordResetToken | undefined> {
+    const [result] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(eq(passwordResetTokens.token, token));
+    return result;
+  }
+
+  async markPasswordResetTokenUsed(token: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(passwordResetTokens.token, token));
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  // Email Templates
+  async getEmailTemplate(type: string): Promise<EmailTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(emailTemplates)
+      .where(eq(emailTemplates.type, type as EmailTemplate["type"]));
+    return template;
+  }
+
+  async getAllEmailTemplates(): Promise<EmailTemplate[]> {
+    return db.select().from(emailTemplates);
+  }
+
+  async upsertEmailTemplate(data: InsertEmailTemplate): Promise<EmailTemplate> {
+    const existing = await this.getEmailTemplate(data.type);
+    if (existing) {
+      const [updated] = await db
+        .update(emailTemplates)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(emailTemplates.type, data.type))
+        .returning();
+      return updated;
+    }
+    const [created] = await db.insert(emailTemplates).values(data).returning();
+    return created;
+  }
+
+  // Email Logs
+  async createEmailLog(data: InsertEmailLog): Promise<EmailLog> {
+    const [log] = await db.insert(emailLogs).values(data).returning();
+    return log;
+  }
+
+  async getEmailLogs(limit = 100): Promise<EmailLog[]> {
+    return db
+      .select()
+      .from(emailLogs)
+      .orderBy(desc(emailLogs.sentAt))
+      .limit(limit);
   }
 }
 
