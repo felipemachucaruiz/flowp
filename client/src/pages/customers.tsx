@@ -606,47 +606,47 @@ export default function CustomersPage() {
       <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingCustomer ? "Edit Customer" : "Add Customer"}</DialogTitle>
+            <DialogTitle>{editingCustomer ? t("customers.edit_customer") : t("customers.add_customer")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label>Name *</Label>
+              <Label>{t("customers.name")} *</Label>
               <Input
                 value={customerForm.name}
                 onChange={(e) => setCustomerForm({ ...customerForm, name: e.target.value })}
-                placeholder="Customer name"
+                placeholder={t("customers.name_placeholder")}
                 data-testid="input-customer-name"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Phone</Label>
+                <Label>{t("customers.phone")} *</Label>
                 <Input
                   value={customerForm.phone}
                   onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
-                  placeholder="Phone number"
+                  placeholder={t("customers.phone_placeholder")}
                   data-testid="input-customer-phone"
                 />
               </div>
               <div>
-                <Label>Email</Label>
+                <Label>{t("customers.email")} *</Label>
                 <Input
                   value={customerForm.email}
                   onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
-                  placeholder="Email address"
+                  placeholder={t("customers.email_placeholder")}
                   data-testid="input-customer-email"
                 />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>ID Type</Label>
+                <Label>{t("customers.id_type")} *</Label>
                 <Select
                   value={customerForm.idType}
                   onValueChange={(value) => setCustomerForm({ ...customerForm, idType: value })}
                 >
                   <SelectTrigger data-testid="select-customer-id-type">
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder={t("customers.select_type")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cedula_ciudadania">Cédula Ciudadanía</SelectItem>
@@ -657,30 +657,30 @@ export default function CustomersPage() {
                 </Select>
               </div>
               <div>
-                <Label>ID Number</Label>
+                <Label>{t("customers.id_number")} *</Label>
                 <Input
                   value={customerForm.idNumber}
                   onChange={(e) => setCustomerForm({ ...customerForm, idNumber: e.target.value })}
-                  placeholder="ID number"
+                  placeholder={t("customers.id_placeholder")}
                   data-testid="input-customer-id-number"
                 />
               </div>
             </div>
             <div>
-              <Label>Address</Label>
+              <Label>{t("customers.address")}</Label>
               <Input
                 value={customerForm.address}
                 onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
-                placeholder="Address"
+                placeholder={t("customers.address_placeholder")}
                 data-testid="input-customer-address"
               />
             </div>
             <div>
-              <Label>Notes</Label>
+              <Label>{t("customers.notes")}</Label>
               <Textarea
                 value={customerForm.notes}
                 onChange={(e) => setCustomerForm({ ...customerForm, notes: e.target.value })}
-                placeholder="Additional notes"
+                placeholder={t("customers.notes_placeholder")}
                 rows={3}
                 data-testid="input-customer-notes"
               />
@@ -688,14 +688,22 @@ export default function CustomersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCustomerDialog(false)}>
-              Cancel
+              {t("customers.cancel")}
             </Button>
             <Button
               onClick={handleSaveCustomer}
-              disabled={!customerForm.name.trim() || createCustomerMutation.isPending || updateCustomerMutation.isPending}
+              disabled={
+                !customerForm.name.trim() || 
+                !customerForm.phone.trim() || 
+                !customerForm.email.trim() || 
+                !customerForm.idType || 
+                !customerForm.idNumber.trim() || 
+                createCustomerMutation.isPending || 
+                updateCustomerMutation.isPending
+              }
               data-testid="button-save-customer"
             >
-              {editingCustomer ? "Save Changes" : "Add Customer"}
+              {editingCustomer ? t("customers.save") : t("customers.add_customer")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -705,30 +713,30 @@ export default function CustomersPage() {
       <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create Loyalty Reward</DialogTitle>
+            <DialogTitle>{t("customers.create_reward")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <Label>Reward Name *</Label>
+              <Label>{t("customers.reward_name")} *</Label>
               <Input
                 value={rewardForm.name}
                 onChange={(e) => setRewardForm({ ...rewardForm, name: e.target.value })}
-                placeholder="e.g., Free Product, 10% Discount"
+                placeholder={t("customers.reward_name_placeholder")}
                 data-testid="input-reward-name"
               />
             </div>
             <div>
-              <Label>Description</Label>
+              <Label>{t("customers.description")}</Label>
               <Textarea
                 value={rewardForm.description}
                 onChange={(e) => setRewardForm({ ...rewardForm, description: e.target.value })}
-                placeholder="Describe the reward"
+                placeholder={t("customers.reward_description_placeholder")}
                 rows={2}
                 data-testid="input-reward-description"
               />
             </div>
             <div>
-              <Label>Points Required *</Label>
+              <Label>{t("customers.points_cost")} *</Label>
               <Input
                 type="number"
                 value={rewardForm.pointsCost}
@@ -739,7 +747,7 @@ export default function CustomersPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Discount Type</Label>
+                <Label>{t("customers.discount_type")}</Label>
                 <Select
                   value={rewardForm.discountType}
                   onValueChange={(value) => setRewardForm({ ...rewardForm, discountType: value })}
@@ -748,13 +756,13 @@ export default function CustomersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fixed">Fixed Amount</SelectItem>
-                    <SelectItem value="percentage">Percentage</SelectItem>
+                    <SelectItem value="fixed">{t("customers.fixed_amount")}</SelectItem>
+                    <SelectItem value="percentage">{t("customers.percentage")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Discount Value *</Label>
+                <Label>{t("customers.discount_value")} *</Label>
                 <Input
                   type="number"
                   value={rewardForm.discountValue}
@@ -767,7 +775,7 @@ export default function CustomersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowRewardDialog(false)}>
-              Cancel
+              {t("customers.cancel")}
             </Button>
             <Button
               onClick={() => createRewardMutation.mutate(rewardForm)}
