@@ -730,7 +730,7 @@ export default function CustomersPage() {
       <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t("customers.create_reward")}</DialogTitle>
+            <DialogTitle>{t("customers.create_loyalty_reward")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
@@ -753,7 +753,7 @@ export default function CustomersPage() {
               />
             </div>
             <div>
-              <Label>{t("customers.points_cost")} *</Label>
+              <Label>{t("customers.points_required")} *</Label>
               <Input
                 type="number"
                 value={rewardForm.pointsCost}
@@ -799,7 +799,7 @@ export default function CustomersPage() {
               disabled={!rewardForm.name.trim() || !rewardForm.pointsCost || !rewardForm.discountValue || createRewardMutation.isPending}
               data-testid="button-save-reward"
             >
-              Create Reward
+              {t("customers.create_reward")}
             </Button>
           </DialogFooter>
         </DialogContent>
