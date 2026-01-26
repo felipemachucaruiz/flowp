@@ -243,13 +243,13 @@ export default function CustomersPage() {
               data-testid="button-add-customer"
             >
               <Plus className="w-4 h-4 mr-1" />
-              Add
+              {t("customers.add")}
             </Button>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search customers..."
+              placeholder={t("customers.search_placeholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -303,8 +303,8 @@ export default function CustomersPage() {
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
               <Users className="w-12 h-12 mb-3 opacity-30" />
-              <p className="font-medium">No customers found</p>
-              <p className="text-sm">Add your first customer</p>
+              <p className="font-medium">{t("customers.no_customers")}</p>
+              <p className="text-sm">{t("customers.add_first")}</p>
             </div>
           )}
         </ScrollArea>
@@ -350,7 +350,7 @@ export default function CustomersPage() {
                   data-testid="button-edit-customer"
                 >
                   <Edit className="w-4 h-4 mr-1" />
-                  Edit
+                  {t("customers.edit")}
                 </Button>
               </div>
 
@@ -360,7 +360,7 @@ export default function CustomersPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
                       <Star className="w-4 h-4" />
-                      <span className="text-sm">Loyalty Points</span>
+                      <span className="text-sm">{t("customers.loyalty_points")}</span>
                     </div>
                     <p className="text-2xl font-bold text-primary">
                       {selectedCustomer.loyaltyPoints || 0}
@@ -371,7 +371,7 @@ export default function CustomersPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
                       <TrendingUp className="w-4 h-4" />
-                      <span className="text-sm">Total Spent</span>
+                      <span className="text-sm">{t("customers.total_spent")}</span>
                     </div>
                     <p className="text-2xl font-bold">
                       {formatCurrency(selectedCustomer.totalSpent || 0)}
@@ -382,7 +382,7 @@ export default function CustomersPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
                       <ShoppingBag className="w-4 h-4" />
-                      <span className="text-sm">Total Orders</span>
+                      <span className="text-sm">{t("customers.total_orders")}</span>
                     </div>
                     <p className="text-2xl font-bold">{selectedCustomer.orderCount || 0}</p>
                   </CardContent>
@@ -391,12 +391,12 @@ export default function CustomersPage() {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
                       <Clock className="w-4 h-4" />
-                      <span className="text-sm">Last Purchase</span>
+                      <span className="text-sm">{t("customers.member_since")}</span>
                     </div>
                     <p className="text-lg font-semibold">
                       {selectedCustomer.lastPurchaseAt
                         ? format(new Date(selectedCustomer.lastPurchaseAt), "MMM d, yyyy")
-                        : "Never"}
+                        : "-"}
                     </p>
                   </CardContent>
                 </Card>
@@ -408,15 +408,15 @@ export default function CustomersPage() {
                 <TabsList className="h-12">
                   <TabsTrigger value="history" className="gap-2" data-testid="tab-history">
                     <History className="w-4 h-4" />
-                    Purchase History
+                    {t("customers.tabs_orders")}
                   </TabsTrigger>
                   <TabsTrigger value="loyalty" className="gap-2" data-testid="tab-loyalty">
                     <Star className="w-4 h-4" />
-                    Loyalty Points
+                    {t("customers.tabs_points")}
                   </TabsTrigger>
                   <TabsTrigger value="notes" className="gap-2" data-testid="tab-notes">
                     <Edit className="w-4 h-4" />
-                    Notes
+                    {t("customers.tabs_notes")}
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -530,8 +530,8 @@ export default function CustomersPage() {
         ) : (
           <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
             <User className="w-16 h-16 mb-4 opacity-30" />
-            <p className="text-lg font-medium">Select a customer</p>
-            <p className="text-sm">Choose a customer from the list to view details</p>
+            <p className="text-lg font-medium">{t("customers.select_customer")}</p>
+            <p className="text-sm">{t("customers.choose_customer")}</p>
           </div>
         )}
       </div>
@@ -542,7 +542,7 @@ export default function CustomersPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Gift className="w-5 h-5 text-primary" />
-              <h2 className="font-semibold">Loyalty Rewards</h2>
+              <h2 className="font-semibold">{t("customers.loyalty_rewards")}</h2>
             </div>
             <Button
               size="icon"
@@ -595,8 +595,8 @@ export default function CustomersPage() {
           ) : (
             <div className="flex flex-col items-center justify-center h-64 p-4 text-muted-foreground text-center">
               <Gift className="w-10 h-10 mb-3 opacity-30" />
-              <p className="font-medium text-sm">No rewards yet</p>
-              <p className="text-xs">Create rewards for your loyalty program</p>
+              <p className="font-medium text-sm">{t("customers.no_rewards")}</p>
+              <p className="text-xs">{t("customers.create_rewards")}</p>
             </div>
           )}
         </ScrollArea>
