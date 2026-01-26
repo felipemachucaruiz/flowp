@@ -21,13 +21,13 @@ const registerSchema = z.object({
   country: z.string().min(1, "Please select a country"),
   city: z.string().min(2, "Please enter your city"),
   address: z.string().min(5, "Please enter a valid address"),
-  businessPhone: z.string().optional(),
+  businessPhone: z.string().min(7, "Please enter a valid business phone number"),
   adminName: z.string().min(2, "Name must be at least 2 characters"),
   adminEmail: z.string().email("Please enter a valid email address"),
   adminPhone: z.string().min(10, "Please enter a valid phone number"),
   adminUsername: z.string().min(3, "Username must be at least 3 characters"),
   adminPassword: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
+  confirmPassword: z.string().min(1, "Please confirm your password"),
 }).refine((data) => data.adminPassword === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
@@ -94,7 +94,7 @@ export default function RegisterPage() {
 
   const nextStep = async () => {
     const fieldsToValidate = step === 1 
-      ? ["businessName", "businessType", "country", "city", "address"] as const
+      ? ["businessName", "businessType", "country", "city", "address", "businessPhone"] as const
       : ["adminName", "adminEmail", "adminPhone", "adminUsername", "adminPassword", "confirmPassword"] as const;
     
     const isValid = await form.trigger(fieldsToValidate);
@@ -320,7 +320,7 @@ export default function RegisterPage() {
                       name="businessPhone"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t("register.business_phone")} ({t("common.optional")})</FormLabel>
+                          <FormLabel>{t("register.business_phone")} *</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
