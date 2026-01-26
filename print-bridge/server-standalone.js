@@ -559,6 +559,15 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
+  try {
+    execSync(`powershell.exe -NoProfile -Command "Set-Clipboard -Value '${authToken}'"`, { timeout: 5000 });
+  } catch (e) {}
+  
+  const tokenFile = path.join(os.homedir(), 'flowp-print-bridge-token.txt');
+  try {
+    fs.writeFileSync(tokenFile, authToken, 'utf8');
+  } catch (e) {}
+  
   console.log('');
   console.log('========================================================');
   console.log('              FLOWP PRINT BRIDGE v1.0.0                 ');
@@ -567,8 +576,10 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log(`  Status: RUNNING on http://127.0.0.1:${PORT}`);
   console.log('  Ready to receive print jobs from Flowp POS');
   console.log('');
-  console.log('  AUTH TOKEN (copy to Flowp Settings):');
+  console.log('  AUTH TOKEN (already copied to clipboard!):');
   console.log(`  ${authToken}`);
+  console.log('');
+  console.log(`  Token also saved to: ${tokenFile}`);
   console.log('');
   console.log('  Available printers:');
   const printers = getWindowsPrinters();
@@ -579,9 +590,8 @@ server.listen(PORT, '127.0.0.1', () => {
   }
   console.log('');
   console.log('  To use: Open Flowp > Settings > Printing');
-  console.log('  Enter the token above, then select your printer.');
+  console.log('  Paste the token (Ctrl+V), then select your printer.');
   console.log('');
   console.log('  Keep this window open while using Flowp.');
-  console.log('  Press Ctrl+C to stop.');
   console.log('');
 });
