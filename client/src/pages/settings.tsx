@@ -38,6 +38,8 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
+import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
+import { Wifi, WifiOff, Download } from "lucide-react";
 
 const businessSettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
@@ -139,6 +141,109 @@ const COUNTRIES = [
   { value: "US", label: "United States", taxIdLabel: "EIN" },
   { value: "ES", label: "España", taxIdLabel: "CIF/NIF" },
 ];
+
+function PrintBridgeSettings() {
+  const { t } = useI18n();
+  const [bridgeStatus, setBridgeStatus] = useState<PrintBridgeStatus | null>(null);
+  const [printers, setPrinters] = useState<PrinterInfo[]>([]);
+  const [isChecking, setIsChecking] = useState(false);
+
+  const checkBridgeStatus = async () => {
+    setIsChecking(true);
+    try {
+      const status = await printBridge.checkStatus();
+      setBridgeStatus(status);
+      if (status.isAvailable) {
+        const detectedPrinters = await printBridge.getPrinters();
+        setPrinters(detectedPrinters);
+      }
+    } catch {
+      setBridgeStatus({ isAvailable: false });
+    }
+    setIsChecking(false);
+  };
+
+  useEffect(() => {
+    checkBridgeStatus();
+    const interval = setInterval(checkBridgeStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-dashed">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          {bridgeStatus?.isAvailable ? (
+            <Wifi className="w-5 h-5 text-green-500" />
+          ) : (
+            <WifiOff className="w-5 h-5 text-muted-foreground" />
+          )}
+          <span className="font-medium">{t("printing.bridge_title")}</span>
+        </div>
+        <Badge variant={bridgeStatus?.isAvailable ? "default" : "secondary"}>
+          {bridgeStatus?.isAvailable ? t("printing.bridge_connected") : t("printing.bridge_disconnected")}
+        </Badge>
+      </div>
+      
+      <p className="text-sm text-muted-foreground mb-4">
+        {t("printing.bridge_description")}
+      </p>
+
+      {bridgeStatus?.isAvailable ? (
+        <div className="space-y-3">
+          <div className="text-sm">
+            <strong>{t("printing.bridge_version")}</strong> {bridgeStatus.version}
+          </div>
+          {printers.length > 0 && (
+            <div className="text-sm">
+              <strong>{t("printing.bridge_printers")}</strong>
+              <ul className="mt-1 ml-4 list-disc">
+                {printers.map((printer, idx) => (
+                  <li key={idx}>{printer.name} ({printer.type})</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+            <Check className="w-4 h-4" />
+            {t("printing.direct_print_desc")}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="text-sm text-muted-foreground whitespace-pre-line">
+            {t("printing.bridge_instructions")}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open('/print-bridge.zip', '_blank')}
+            data-testid="button-download-print-bridge"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {t("printing.bridge_download")}
+          </Button>
+        </div>
+      )}
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={checkBridgeStatus}
+        disabled={isChecking}
+        className="mt-3"
+        data-testid="button-check-bridge"
+      >
+        {isChecking ? (
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        ) : (
+          <Wifi className="w-4 h-4 mr-2" />
+        )}
+        {t("printing.bridge_status")}
+      </Button>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -1382,6 +1487,8 @@ export default function SettingsPage() {
                   <p><strong>{t("printing.tip")}:</strong> {t("printing.tip_text")}</p>
                 </div>
               </div>
+
+              <PrintBridgeSettings />
             </CardContent>
           </Card>
         </TabsContent>

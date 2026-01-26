@@ -1,10 +1,17 @@
 import type { Tenant } from "@shared/schema";
+import { printBridge } from "./print-bridge";
 
 interface ReceiptItem {
   name: string;
   quantity: number;
   price: number;
   total: number;
+}
+
+interface PaymentEntry {
+  type: "cash" | "card";
+  amount: number;
+  transactionId?: string;
 }
 
 interface ReceiptData {
@@ -19,9 +26,76 @@ interface ReceiptData {
   cashReceived?: number;
   change?: number;
   cashier?: string;
+  customer?: string;
+  discount?: number;
+  discountPercent?: number;
+  payments?: PaymentEntry[];
 }
 
-export function printReceipt(tenant: Tenant | null, data: ReceiptData) {
+async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise<boolean> {
+  try {
+    const status = await printBridge.checkStatus();
+    if (!status.isAvailable) {
+      return false;
+    }
+
+    const result = await printBridge.printReceipt({
+      language: tenant?.language || "en",
+      businessName: tenant?.name,
+      headerText: tenant?.receiptHeaderText || undefined,
+      address: tenant?.receiptShowAddress ? tenant.address || undefined : undefined,
+      phone: tenant?.receiptShowPhone ? tenant.phone || undefined : undefined,
+      taxId: tenant?.receiptTaxId || undefined,
+      orderNumber: data.orderNumber,
+      date: new Intl.DateTimeFormat(tenant?.language === "es" ? "es-CO" : tenant?.language === "pt" ? "pt-BR" : "en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(data.date),
+      cashier: data.cashier,
+      customer: data.customer,
+      items: data.items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        total: item.total,
+      })),
+      subtotal: data.subtotal,
+      discount: data.discount,
+      discountPercent: data.discountPercent,
+      tax: data.taxAmount,
+      taxRate: data.taxRate,
+      total: data.total,
+      payments: data.payments?.map(p => ({
+        type: p.type,
+        amount: p.amount,
+        transactionId: p.transactionId,
+      })),
+      change: data.change,
+      currency: tenant?.currency || "USD",
+      footerText: tenant?.receiptFooterText || undefined,
+      openCashDrawer: data.paymentMethod === "cash" || data.payments?.some(p => p.type === "cash"),
+      cutPaper: true,
+    });
+
+    return result.success;
+  } catch {
+    return false;
+  }
+}
+
+export async function printReceipt(tenant: Tenant | null, data: ReceiptData) {
+  const useBridge = await tryPrintBridge(tenant, data);
+  if (useBridge) {
+    return;
+  }
+
+  printReceiptBrowser(tenant, data);
+}
+
+function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
   const lang = tenant?.language || "en";
   
   const translations: Record<string, Record<string, string>> = {

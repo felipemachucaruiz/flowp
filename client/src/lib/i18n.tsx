@@ -444,6 +444,17 @@ const translations = {
     "printing.footer_desc": "Displayed at the bottom of the receipt",
     "printing.save_settings": "Save Receipt Settings",
     "printing.instructions": "Printing Instructions",
+    "printing.bridge_title": "Print Bridge (Silent Printing)",
+    "printing.bridge_description": "Install the Flowp Print Bridge on your computer for automatic receipt printing without dialogs.",
+    "printing.bridge_status": "Bridge Status",
+    "printing.bridge_connected": "Connected",
+    "printing.bridge_disconnected": "Not Connected",
+    "printing.bridge_download": "Download Print Bridge",
+    "printing.bridge_instructions": "1. Download and extract the print-bridge folder\n2. Run 'npm install' in the folder\n3. Run 'npm start' to start the bridge\n4. Keep it running while using Flowp",
+    "printing.direct_print": "Use Direct Printing",
+    "printing.direct_print_desc": "Print directly to thermal printer without browser dialog",
+    "printing.bridge_version": "Version:",
+    "printing.bridge_printers": "Detected Printers:",
     
     // Common
     "common.save": "Save",
@@ -919,6 +930,17 @@ const translations = {
     "printing.footer_desc": "Se muestra en la parte inferior del recibo",
     "printing.save_settings": "Guardar Configuración de Recibos",
     "printing.instructions": "Instrucciones de Impresión",
+    "printing.bridge_title": "Puente de Impresión (Impresión Silenciosa)",
+    "printing.bridge_description": "Instala el Puente de Impresión Flowp en tu computadora para impresión automática de recibos sin diálogos.",
+    "printing.bridge_status": "Estado del Puente",
+    "printing.bridge_connected": "Conectado",
+    "printing.bridge_disconnected": "No Conectado",
+    "printing.bridge_download": "Descargar Puente de Impresión",
+    "printing.bridge_instructions": "1. Descarga y extrae la carpeta print-bridge\n2. Ejecuta 'npm install' en la carpeta\n3. Ejecuta 'npm start' para iniciar el puente\n4. Mantenlo ejecutándose mientras usas Flowp",
+    "printing.direct_print": "Usar Impresión Directa",
+    "printing.direct_print_desc": "Imprimir directamente a impresora térmica sin diálogo del navegador",
+    "printing.bridge_version": "Versión:",
+    "printing.bridge_printers": "Impresoras Detectadas:",
     
     // Common
     "common.save": "Guardar",
@@ -1394,6 +1416,17 @@ const translations = {
     "printing.footer_desc": "Exibido na parte inferior do recibo",
     "printing.save_settings": "Salvar Configurações de Recibo",
     "printing.instructions": "Instruções de Impressão",
+    "printing.bridge_title": "Ponte de Impressão (Impressão Silenciosa)",
+    "printing.bridge_description": "Instale a Ponte de Impressão Flowp no seu computador para impressão automática de recibos sem diálogos.",
+    "printing.bridge_status": "Status da Ponte",
+    "printing.bridge_connected": "Conectado",
+    "printing.bridge_disconnected": "Não Conectado",
+    "printing.bridge_download": "Baixar Ponte de Impressão",
+    "printing.bridge_instructions": "1. Baixe e extraia a pasta print-bridge\n2. Execute 'npm install' na pasta\n3. Execute 'npm start' para iniciar a ponte\n4. Mantenha-a em execução enquanto usa o Flowp",
+    "printing.direct_print": "Usar Impressão Direta",
+    "printing.direct_print_desc": "Imprimir diretamente na impressora térmica sem diálogo do navegador",
+    "printing.bridge_version": "Versão:",
+    "printing.bridge_printers": "Impressoras Detectadas:",
     
     // Common
     "common.save": "Salvar",
@@ -1484,6 +1517,13 @@ export function I18nProvider({ children, initialLanguage }: { children: ReactNod
       return "en";
     }
   });
+
+  // Update language when initialLanguage prop changes (e.g., after tenant settings update)
+  useEffect(() => {
+    if (initialLanguage && initialLanguage in translations && initialLanguage !== language) {
+      setLanguageState(initialLanguage as Language);
+    }
+  }, [initialLanguage]);
 
   useEffect(() => {
     // Save language preference to localStorage whenever it changes
