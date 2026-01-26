@@ -68,8 +68,32 @@ export default function POSPage() {
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerIdType, setNewCustomerIdType] = useState<string>("");
   const [newCustomerIdNumber, setNewCustomerIdNumber] = useState("");
+  const [discountPercent, setDiscountPercent] = useState<string>("0");
 
   const taxRate = parseFloat(tenant?.taxRate?.toString() || "0");
+  const discountRate = parseFloat(discountPercent || "0");
+  
+  // Calculate discount amount based on subtotal
+  const getDiscountAmount = () => {
+    const subtotal = getSubtotal();
+    return (subtotal * discountRate) / 100;
+  };
+  
+  // Calculate total with discount applied before tax
+  const getTotalWithDiscount = (taxRateVal: number) => {
+    const subtotal = getSubtotal();
+    const discountAmount = getDiscountAmount();
+    const afterDiscount = subtotal - discountAmount;
+    const taxAmount = (afterDiscount * taxRateVal) / 100;
+    return afterDiscount + taxAmount;
+  };
+  
+  const getTaxAmountWithDiscount = (taxRateVal: number) => {
+    const subtotal = getSubtotal();
+    const discountAmount = getDiscountAmount();
+    const afterDiscount = subtotal - discountAmount;
+    return (afterDiscount * taxRateVal) / 100;
+  };
   const barcodeBuffer = useRef("");
   const barcodeTimeout = useRef<NodeJS.Timeout | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -362,8 +386,10 @@ export default function POSPage() {
       items: cart,
       paymentMethod,
       subtotal: getSubtotal(),
-      taxAmount: getTaxAmount(taxRate),
-      total: getTotal(taxRate),
+      discount: discountRate,
+      discountAmount: getDiscountAmount(),
+      taxAmount: getTaxAmountWithDiscount(taxRate),
+      total: getTotalWithDiscount(taxRate),
       customerId: selectedCustomer.id,
     };
 
@@ -419,7 +445,7 @@ export default function POSPage() {
   };
 
   const changeAmount = paymentMethod === "cash" && cashReceived
-    ? parseFloat(cashReceived) - getTotal(taxRate)
+    ? parseFloat(cashReceived) - getTotalWithDiscount(taxRate)
     : 0;
 
   return (
@@ -659,19 +685,40 @@ export default function POSPage() {
             <div className="border-t p-4 pr-6 space-y-3 bg-muted/30">
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="text-muted-foreground">{t("pos.subtotal")}</span>
                   <span>{formatCurrency(getSubtotal())}</span>
+                </div>
+                {/* Discount selector */}
+                <div className="flex justify-between items-center gap-2">
+                  <span className="text-muted-foreground">{t("pos.discount")}</span>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={discountPercent}
+                      onChange={(e) => setDiscountPercent(e.target.value)}
+                      className="w-16 h-7 text-right text-sm"
+                      data-testid="input-discount-percent"
+                    />
+                    <span className="text-muted-foreground">%</span>
+                    {discountRate > 0 && (
+                      <span className="text-destructive ml-2">
+                        -{formatCurrency(getDiscountAmount())}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {taxRate > 0 && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tax ({taxRate}%)</span>
-                    <span>{formatCurrency(getTaxAmount(taxRate))}</span>
+                    <span className="text-muted-foreground">{t("pos.tax")} ({taxRate}%)</span>
+                    <span>{formatCurrency(getTaxAmountWithDiscount(taxRate))}</span>
                   </div>
                 )}
                 <Separator />
                 <div className="flex justify-between text-lg font-bold">
-                  <span>Total</span>
-                  <span className="text-primary">{formatCurrency(getTotal(taxRate))}</span>
+                  <span>{t("pos.total")}</span>
+                  <span className="text-primary">{formatCurrency(getTotalWithDiscount(taxRate))}</span>
                 </div>
               </div>
 
@@ -683,7 +730,7 @@ export default function POSPage() {
                   data-testid="button-hold-order"
                 >
                   <Pause className="w-4 h-4 mr-2" />
-                  Hold
+                  {t("pos.hold")}
                 </Button>
                 <Button
                   variant="outline"
@@ -692,7 +739,7 @@ export default function POSPage() {
                   data-testid="button-clear-cart"
                 >
                   <X className="w-4 h-4 mr-2" />
-                  Clear
+                  {t("pos.clear")}
                 </Button>
               </div>
 
@@ -703,7 +750,7 @@ export default function POSPage() {
                 data-testid="button-checkout"
               >
                 <CreditCard className="w-4 h-4 mr-2" />
-                Checkout
+                {t("pos.checkout")}
               </Button>
             </div>
           </>
@@ -715,6 +762,7 @@ export default function POSPage() {
         setShowPaymentDialog(open);
         if (!open) {
           setSelectedCustomer(null);
+          setDiscountPercent("0");
           setCustomerSearchQuery("");
           setShowNewCustomerForm(false);
           setNewCustomerName("");
@@ -725,22 +773,27 @@ export default function POSPage() {
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Complete Payment</DialogTitle>
+            <DialogTitle>{t("pos.complete_payment")}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="text-center mb-6">
-              <p className="text-sm text-muted-foreground">Amount Due</p>
+              <p className="text-sm text-muted-foreground">{t("pos.amount_due")}</p>
               <p className="text-4xl font-bold text-primary">
-                {formatCurrency(getTotal(taxRate))}
+                {formatCurrency(getTotalWithDiscount(taxRate))}
               </p>
+              {discountRate > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {t("pos.discount")}: {discountRate}% (-{formatCurrency(getDiscountAmount())})
+                </p>
+              )}
             </div>
 
             {/* Customer Selection */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <User className="w-4 h-4" />
-                Customer (Optional)
+                {t("pos.customer_optional")}
               </Label>
               {selectedCustomer ? (
                 <div className="flex items-center justify-between p-3 rounded-lg border bg-primary/5 border-primary/30">
@@ -758,7 +811,10 @@ export default function POSPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setSelectedCustomer(null)}
+                    onClick={() => {
+                      setSelectedCustomer(null);
+                      setDiscountPercent("0");
+                    }}
                     data-testid="button-remove-customer"
                   >
                     <X className="w-4 h-4" />
@@ -767,13 +823,13 @@ export default function POSPage() {
               ) : showNewCustomerForm ? (
                 <div className="space-y-3 p-3 rounded-lg border">
                   <Input
-                    placeholder="Customer name *"
+                    placeholder={`${t("customers.name")} *`}
                     value={newCustomerName}
                     onChange={(e) => setNewCustomerName(e.target.value)}
                     data-testid="input-new-customer-name"
                   />
                   <Input
-                    placeholder="Phone number"
+                    placeholder={t("customers.phone")}
                     value={newCustomerPhone}
                     onChange={(e) => setNewCustomerPhone(e.target.value)}
                     data-testid="input-new-customer-phone"
@@ -781,7 +837,7 @@ export default function POSPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <Select value={newCustomerIdType} onValueChange={setNewCustomerIdType}>
                       <SelectTrigger data-testid="select-customer-id-type">
-                        <SelectValue placeholder="ID Type" />
+                        <SelectValue placeholder={t("customers.id_type")} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="cedula_ciudadania">Cédula Ciudadanía</SelectItem>
@@ -791,7 +847,7 @@ export default function POSPage() {
                       </SelectContent>
                     </Select>
                     <Input
-                      placeholder="ID Number"
+                      placeholder={t("customers.id_number")}
                       value={newCustomerIdNumber}
                       onChange={(e) => setNewCustomerIdNumber(e.target.value)}
                       data-testid="input-new-customer-id"
@@ -805,7 +861,7 @@ export default function POSPage() {
                       className="flex-1"
                       data-testid="button-cancel-new-customer"
                     >
-                      Cancel
+                      {t("customers.cancel")}
                     </Button>
                     <Button
                       size="sm"
@@ -819,7 +875,7 @@ export default function POSPage() {
                       ) : (
                         <>
                           <Check className="w-4 h-4 mr-1" />
-                          Save
+                          {t("pos.save")}
                         </>
                       )}
                     </Button>
@@ -829,7 +885,7 @@ export default function POSPage() {
                 <div className="space-y-2">
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Search by name, phone, or ID..."
+                      placeholder={t("pos.search_customer")}
                       value={customerSearchQuery}
                       onChange={(e) => setCustomerSearchQuery(e.target.value)}
                       data-testid="input-customer-search"
@@ -838,7 +894,7 @@ export default function POSPage() {
                       variant="outline"
                       size="icon"
                       onClick={() => setShowNewCustomerForm(true)}
-                      title="Add new customer"
+                      title={t("pos.add_new_customer")}
                       data-testid="button-add-new-customer"
                     >
                       <UserPlus className="w-4 h-4" />
@@ -851,6 +907,8 @@ export default function POSPage() {
                           key={customer.id}
                           onClick={() => {
                             setSelectedCustomer(customer);
+                            // Apply customer's default discount (always set, including 0)
+                            setDiscountPercent(customer.defaultDiscount?.toString() || "0");
                             setCustomerSearchQuery("");
                           }}
                           className="w-full px-3 py-2 text-left hover-elevate flex justify-between items-center"
@@ -888,7 +946,7 @@ export default function POSPage() {
                 data-testid="button-payment-cash"
               >
                 <Banknote className={`w-8 h-8 ${paymentMethod === "cash" ? "text-primary" : "text-muted-foreground"}`} />
-                <span className="font-medium">Cash</span>
+                <span className="font-medium">{t("pos.cash")}</span>
               </button>
               <button
                 onClick={() => setPaymentMethod("card")}
@@ -900,14 +958,14 @@ export default function POSPage() {
                 data-testid="button-payment-card"
               >
                 <CreditCard className={`w-8 h-8 ${paymentMethod === "card" ? "text-primary" : "text-muted-foreground"}`} />
-                <span className="font-medium">Card</span>
+                <span className="font-medium">{t("pos.card")}</span>
               </button>
             </div>
 
             {paymentMethod === "cash" && (
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-medium">Cash Received</label>
+                  <label className="text-sm font-medium">{t("payment.cash_received")}</label>
                   <Input
                     type="number"
                     placeholder="0.00"
@@ -942,7 +1000,7 @@ export default function POSPage() {
               disabled={
                 createOrderMutation.isPending ||
                 !selectedCustomer ||
-                (paymentMethod === "cash" && parseFloat(cashReceived || "0") < getTotal(taxRate))
+                (paymentMethod === "cash" && parseFloat(cashReceived || "0") < getTotalWithDiscount(taxRate))
               }
               data-testid="button-complete-payment"
             >

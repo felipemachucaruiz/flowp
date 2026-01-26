@@ -178,6 +178,8 @@ export const customers = pgTable("customers", {
   idType: customerIdTypeEnum("id_type"),
   idNumber: text("id_number"),
   notes: text("notes"),
+  // Default discount percentage for this customer (0-100)
+  defaultDiscount: decimal("default_discount", { precision: 5, scale: 2 }).default("0"),
   // Loyalty program fields
   loyaltyPoints: integer("loyalty_points").default(0),
   totalSpent: decimal("total_spent", { precision: 12, scale: 2 }).default("0"),

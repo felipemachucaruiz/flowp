@@ -63,6 +63,7 @@ export default function CustomersPage() {
     idType: "",
     idNumber: "",
     notes: "",
+    defaultDiscount: "",
   });
 
   const [rewardForm, setRewardForm] = useState({
@@ -160,6 +161,7 @@ export default function CustomersPage() {
       idType: "",
       idNumber: "",
       notes: "",
+      defaultDiscount: "",
     });
   };
 
@@ -204,6 +206,7 @@ export default function CustomersPage() {
       idType: customer.idType || "",
       idNumber: customer.idNumber || "",
       notes: customer.notes || "",
+      defaultDiscount: customer.defaultDiscount || "",
     });
     setShowCustomerDialog(true);
   };
@@ -666,14 +669,28 @@ export default function CustomersPage() {
                 />
               </div>
             </div>
-            <div>
-              <Label>{t("customers.address")}</Label>
-              <Input
-                value={customerForm.address}
-                onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
-                placeholder={t("customers.address_placeholder")}
-                data-testid="input-customer-address"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{t("customers.address")}</Label>
+                <Input
+                  value={customerForm.address}
+                  onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
+                  placeholder={t("customers.address_placeholder")}
+                  data-testid="input-customer-address"
+                />
+              </div>
+              <div>
+                <Label>{t("customers.default_discount")}</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={customerForm.defaultDiscount}
+                  onChange={(e) => setCustomerForm({ ...customerForm, defaultDiscount: e.target.value })}
+                  placeholder={t("customers.default_discount_placeholder")}
+                  data-testid="input-customer-discount"
+                />
+              </div>
             </div>
             <div>
               <Label>{t("customers.notes")}</Label>
