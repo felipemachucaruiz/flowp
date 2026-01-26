@@ -40,6 +40,7 @@ export const tenants = pgTable("tenants", {
   timezone: text("timezone").default("America/Bogota"),
   // Receipt settings
   receiptLogo: text("receipt_logo"),
+  receiptLogoSize: integer("receipt_logo_size").default(200),
   receiptShowLogo: boolean("receipt_show_logo").default(true),
   receiptHeaderText: text("receipt_header_text"),
   receiptFooterText: text("receipt_footer_text"),

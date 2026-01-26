@@ -66,6 +66,7 @@ const userSchema = z.object({
 
 const receiptSettingsSchema = z.object({
   receiptShowLogo: z.boolean().default(true),
+  receiptLogoSize: z.number().min(50).max(400).default(200),
   receiptHeaderText: z.string().optional(),
   receiptFooterText: z.string().optional(),
   receiptShowAddress: z.boolean().default(true),
@@ -442,6 +443,7 @@ export default function SettingsPage() {
     resolver: zodResolver(receiptSettingsSchema),
     defaultValues: {
       receiptShowLogo: tenant?.receiptShowLogo ?? true,
+      receiptLogoSize: tenant?.receiptLogoSize ?? 200,
       receiptHeaderText: tenant?.receiptHeaderText || "",
       receiptFooterText: tenant?.receiptFooterText || "",
       receiptShowAddress: tenant?.receiptShowAddress ?? true,
@@ -1386,6 +1388,36 @@ export default function SettingsPage() {
                         </p>
                       </div>
                     </div>
+                    
+                    {receiptLogoPath && (
+                      <FormField
+                        control={receiptForm.control}
+                        name="receiptLogoSize"
+                        render={({ field }) => (
+                          <FormItem className="mt-4">
+                            <div className="flex items-center justify-between">
+                              <FormLabel>{t("printing.logo_size")}</FormLabel>
+                              <span className="text-sm text-muted-foreground">{field.value}px</span>
+                            </div>
+                            <FormControl>
+                              <input
+                                type="range"
+                                min={50}
+                                max={400}
+                                step={10}
+                                value={field.value}
+                                onChange={(e) => field.onChange(Number(e.target.value))}
+                                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+                                data-testid="slider-receipt-logo-size"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              {t("printing.logo_size_desc")}
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+                    )}
                   </div>
 
                   <div className="grid gap-6 md:grid-cols-2">
