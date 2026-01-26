@@ -37,13 +37,57 @@ import {
   LogOut,
   User,
   Users,
+  Download,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, tenant, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t } = useI18n();
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+      return;
+    }
+
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    const handleAppInstalled = () => {
+      setIsInstalled(true);
+      setInstallPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstallPrompt(null);
+    }
+  };
 
   const isRestaurant = tenant?.type === "restaurant";
 
@@ -183,6 +227,15 @@ export function AppSidebar() {
                     </>
                   )}
                 </DropdownMenuItem>
+                {installPrompt && !isInstalled && (
+                  <DropdownMenuItem
+                    onClick={handleInstallClick}
+                    data-testid="button-install-app"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    {t("nav.install_app")}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={logout}

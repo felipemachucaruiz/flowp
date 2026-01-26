@@ -14,6 +14,7 @@ const translations = {
     "nav.sales_history": "Sales History",
     "nav.settings": "Settings",
     "nav.logout": "Logout",
+    "nav.install_app": "Install App",
     
     // POS Page
     "pos.title": "Point of Sale",
@@ -488,6 +489,7 @@ const translations = {
     "nav.sales_history": "Historial de Ventas",
     "nav.settings": "Configuración",
     "nav.logout": "Cerrar Sesión",
+    "nav.install_app": "Instalar App",
     
     // POS Page
     "pos.title": "Punto de Venta",
@@ -962,6 +964,7 @@ const translations = {
     "nav.sales_history": "Histórico de Vendas",
     "nav.settings": "Configurações",
     "nav.logout": "Sair",
+    "nav.install_app": "Instalar App",
     
     // POS Page
     "pos.title": "Ponto de Venda",
