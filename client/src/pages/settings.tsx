@@ -1556,6 +1556,136 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* Receipt Preview */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("printing.preview_title")}</CardTitle>
+              <CardDescription>{t("printing.preview_desc")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-center">
+                <div 
+                  className="bg-white text-black p-4 shadow-lg border rounded-sm font-mono text-xs"
+                  style={{ width: '280px' }}
+                  data-testid="receipt-preview"
+                >
+                  {/* Logo */}
+                  {receiptForm.watch("receiptShowLogo") && receiptLogoPath && (
+                    <div className="flex justify-center mb-3">
+                      <img 
+                        src={`/objects${receiptLogoPath}`} 
+                        alt="Logo"
+                        style={{ width: `${Math.min(receiptForm.watch("receiptLogoSize") || 200, 250)}px`, maxHeight: '80px', objectFit: 'contain' }}
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Business Name */}
+                  <div className="text-center font-bold text-sm mb-1">
+                    {tenant?.name || "Business Name"}
+                  </div>
+                  
+                  {/* Address */}
+                  {receiptForm.watch("receiptShowAddress") && (
+                    <div className="text-center text-[10px] mb-1">
+                      {tenant?.address || "123 Main Street, City"}
+                    </div>
+                  )}
+                  
+                  {/* Phone */}
+                  {receiptForm.watch("receiptShowPhone") && (
+                    <div className="text-center text-[10px] mb-2">
+                      {tenant?.phone || "(555) 123-4567"}
+                    </div>
+                  )}
+                  
+                  {/* Tax ID */}
+                  {tenant?.receiptTaxId && (
+                    <div className="text-center text-[10px] mb-2">
+                      {t("pos.tax_id")}: {tenant.receiptTaxId}
+                    </div>
+                  )}
+                  
+                  {/* Header Text */}
+                  {receiptForm.watch("receiptHeaderText") && (
+                    <div className="text-center text-[10px] mb-2 italic">
+                      {receiptForm.watch("receiptHeaderText")}
+                    </div>
+                  )}
+                  
+                  <div className="border-t border-dashed border-gray-400 my-2" />
+                  
+                  {/* Order Info */}
+                  <div className="flex justify-between text-[10px] mb-2">
+                    <span>{t("pos.order")} #1234</span>
+                    <span>{new Date().toLocaleDateString()}</span>
+                  </div>
+                  
+                  <div className="border-t border-dashed border-gray-400 my-2" />
+                  
+                  {/* Sample Items */}
+                  <div className="space-y-1 text-[10px]">
+                    <div className="flex justify-between">
+                      <span>2x {t("printing.sample_item")} 1</span>
+                      <span>$10.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>1x {t("printing.sample_item")} 2</span>
+                      <span>$15.00</span>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t border-dashed border-gray-400 my-2" />
+                  
+                  {/* Totals */}
+                  <div className="space-y-1 text-[10px]">
+                    <div className="flex justify-between">
+                      <span>{t("pos.subtotal")}</span>
+                      <span>$25.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t("pos.tax")} ({tenant?.taxRate || 0}%)</span>
+                      <span>$2.50</span>
+                    </div>
+                    <div className="flex justify-between font-bold text-xs">
+                      <span>{t("pos.total")}</span>
+                      <span>$27.50</span>
+                    </div>
+                  </div>
+                  
+                  <div className="border-t border-dashed border-gray-400 my-2" />
+                  
+                  {/* Payment */}
+                  <div className="text-[10px]">
+                    <div className="flex justify-between">
+                      <span>{t("pos.payment_cash")}</span>
+                      <span>$30.00</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t("pos.change")}</span>
+                      <span>$2.50</span>
+                    </div>
+                  </div>
+                  
+                  {/* Footer Text */}
+                  {receiptForm.watch("receiptFooterText") && (
+                    <>
+                      <div className="border-t border-dashed border-gray-400 my-2" />
+                      <div className="text-center text-[10px] italic">
+                        {receiptForm.watch("receiptFooterText")}
+                      </div>
+                    </>
+                  )}
+                  
+                  <div className="border-t border-dashed border-gray-400 my-2" />
+                  <div className="text-center text-[10px]">
+                    {t("printing.thank_you")}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>{t("printing.instructions")}</CardTitle>
