@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Lock, User, ArrowRight, Loader2 } from "lucide-react";
+import { Lock, User, ArrowRight, Loader2, Globe } from "lucide-react";
 import flowpLogo from "@assets/Sin_título-1_1769033877071.webp";
 
 const loginSchema = z.object({
@@ -24,7 +25,7 @@ export default function LoginPage() {
   const [, navigate] = useLocation();
   const { login } = useAuth();
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, language, setLanguage } = useI18n();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LoginFormData>({
@@ -165,6 +166,21 @@ export default function LoginPage() {
               {t("login.register_link")}
             </button>
           </p>
+        </div>
+
+        {/* Language Selector */}
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <Globe className="w-4 h-4 text-muted-foreground" />
+          <Select value={language} onValueChange={(val) => setLanguage(val as "en" | "es" | "pt")}>
+            <SelectTrigger className="w-40" data-testid="select-language">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="en">English</SelectItem>
+              <SelectItem value="es">Español</SelectItem>
+              <SelectItem value="pt">Português</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
     </div>
