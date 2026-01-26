@@ -71,6 +71,8 @@ const receiptSettingsSchema = z.object({
   receiptFooterText: z.string().optional(),
   receiptShowAddress: z.boolean().default(true),
   receiptShowPhone: z.boolean().default(true),
+  receiptFontSize: z.number().min(8).max(16).default(12),
+  receiptFontFamily: z.string().default("monospace"),
 });
 
 const categorySchema = z.object({
@@ -448,6 +450,8 @@ export default function SettingsPage() {
       receiptFooterText: tenant?.receiptFooterText || "",
       receiptShowAddress: tenant?.receiptShowAddress ?? true,
       receiptShowPhone: tenant?.receiptShowPhone ?? true,
+      receiptFontSize: tenant?.receiptFontSize ?? 12,
+      receiptFontFamily: tenant?.receiptFontFamily ?? "monospace",
     },
   });
 
@@ -1420,6 +1424,68 @@ export default function SettingsPage() {
                     )}
                   </div>
 
+                  {/* Font Settings */}
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-medium">{t("printing.font_settings")}</h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <FormField
+                        control={receiptForm.control}
+                        name="receiptFontFamily"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("printing.font_family")}</FormLabel>
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                            >
+                              <FormControl>
+                                <SelectTrigger data-testid="select-receipt-font-family">
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="monospace">{t("printing.font_monospace")}</SelectItem>
+                                <SelectItem value="sans-serif">{t("printing.font_sans")}</SelectItem>
+                                <SelectItem value="serif">{t("printing.font_serif")}</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormDescription className="text-xs">
+                              {t("printing.font_family_desc")}
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={receiptForm.control}
+                        name="receiptFontSize"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex items-center justify-between">
+                              <FormLabel>{t("printing.font_size")}</FormLabel>
+                              <span className="text-sm text-muted-foreground">{field.value}pt</span>
+                            </div>
+                            <FormControl>
+                              <input
+                                type="range"
+                                min={8}
+                                max={16}
+                                step={1}
+                                value={field.value}
+                                onChange={(e) => field.onChange(Number(e.target.value))}
+                                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+                                data-testid="slider-receipt-font-size"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              {t("printing.font_size_desc")}
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
                   <div className="grid gap-6 md:grid-cols-2">
                     <div className="space-y-4">
                       <h3 className="text-sm font-medium">{t("printing.display_options")}</h3>
@@ -1565,8 +1631,12 @@ export default function SettingsPage() {
             <CardContent>
               <div className="flex justify-center">
                 <div 
-                  className="bg-white text-black p-4 shadow-lg border rounded-sm font-mono text-xs"
-                  style={{ width: '280px' }}
+                  className="bg-white text-black p-4 shadow-lg border rounded-sm"
+                  style={{ 
+                    width: '280px',
+                    fontFamily: receiptForm.watch("receiptFontFamily") || "monospace",
+                    fontSize: `${receiptForm.watch("receiptFontSize") || 12}px`
+                  }}
                   data-testid="receipt-preview"
                 >
                   {/* Logo */}
