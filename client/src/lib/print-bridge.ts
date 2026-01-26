@@ -30,6 +30,10 @@ interface ReceiptData {
   date?: string;
   cashier?: string;
   customer?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  logoSize?: number;
+  logoUrl?: string;
   items: Array<{
     name: string;
     quantity: number;

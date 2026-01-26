@@ -46,6 +46,10 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
       address: tenant?.receiptShowAddress ? tenant.address || undefined : undefined,
       phone: tenant?.receiptShowPhone ? tenant.phone || undefined : undefined,
       taxId: tenant?.receiptTaxId || undefined,
+      fontSize: tenant?.receiptFontSize || 12,
+      fontFamily: tenant?.receiptFontFamily || "monospace",
+      logoSize: tenant?.receiptLogoSize || 200,
+      logoUrl: tenant?.receiptShowLogo ? (tenant?.receiptLogo || tenant?.logo || undefined) : undefined,
       orderNumber: data.orderNumber,
       date: new Intl.DateTimeFormat(tenant?.language === "es" ? "es-CO" : tenant?.language === "pt" ? "pt-BR" : "en-US", {
         year: "numeric",
@@ -97,6 +101,23 @@ export async function printReceipt(tenant: Tenant | null, data: ReceiptData) {
 
 function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
   const lang = tenant?.language || "en";
+  
+  // Get font and logo settings from tenant
+  const fontSize = tenant?.receiptFontSize || 12;
+  const fontFamily = tenant?.receiptFontFamily || "monospace";
+  const logoSize = tenant?.receiptLogoSize || 200;
+  
+  // Map font family names to CSS values
+  const fontFamilyMap: Record<string, string> = {
+    monospace: "'Courier New', monospace",
+    "sans-serif": "Arial, Helvetica, sans-serif",
+    serif: "'Times New Roman', Georgia, serif",
+  };
+  const cssFontFamily = fontFamilyMap[fontFamily] || fontFamilyMap.monospace;
+  
+  // Convert logo size (percentage of max width 60mm) to mm
+  const logoMaxWidth = Math.round((logoSize / 100) * 60);
+  const logoMaxHeight = Math.round((logoSize / 100) * 20);
   
   const translations: Record<string, Record<string, string>> = {
     en: {
@@ -205,8 +226,8 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
       box-sizing: border-box;
     }
     body {
-      font-family: 'Courier New', monospace;
-      font-size: 12px;
+      font-family: ${cssFontFamily};
+      font-size: ${fontSize}px;
       width: 80mm;
       max-width: 80mm;
       padding: 5mm;
@@ -223,21 +244,21 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
       border-bottom: 1px dashed #000;
     }
     .logo {
-      max-width: 60mm;
-      max-height: 20mm;
+      max-width: ${logoMaxWidth}mm;
+      max-height: ${logoMaxHeight}mm;
       margin-bottom: 5px;
     }
     .company-name {
-      font-size: 16px;
+      font-size: ${Math.round(fontSize * 1.33)}px;
       font-weight: bold;
       margin-bottom: 3px;
     }
     .company-info {
-      font-size: 10px;
+      font-size: ${Math.round(fontSize * 0.83)}px;
       line-height: 1.4;
     }
     .header-text {
-      font-size: 10px;
+      font-size: ${Math.round(fontSize * 0.83)}px;
       margin-top: 5px;
       font-style: italic;
     }
@@ -266,7 +287,7 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
       display: flex;
       justify-content: space-between;
       padding-left: 10px;
-      font-size: 11px;
+      font-size: ${Math.round(fontSize * 0.92)}px;
     }
     .totals {
       margin: 10px 0;
@@ -279,7 +300,7 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
       margin-bottom: 3px;
     }
     .totals .total {
-      font-size: 14px;
+      font-size: ${Math.round(fontSize * 1.17)}px;
       font-weight: bold;
       margin-top: 5px;
       padding-top: 5px;
@@ -298,14 +319,14 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
       margin-top: 15px;
       padding-top: 10px;
       border-top: 1px dashed #000;
-      font-size: 10px;
+      font-size: ${Math.round(fontSize * 0.83)}px;
     }
     .footer-text {
       white-space: pre-wrap;
       margin-bottom: 10px;
     }
     .thank-you {
-      font-size: 12px;
+      font-size: ${fontSize}px;
       font-weight: bold;
       margin-top: 10px;
     }
