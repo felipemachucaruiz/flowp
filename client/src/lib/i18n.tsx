@@ -67,6 +67,8 @@ const translations = {
     "pos.no_product_barcode": "No product found with barcode",
     "pos.order_completed": "Order completed!",
     "pos.order_success": "The order has been processed successfully.",
+    "pos.order_saved_offline": "Order saved offline",
+    "pos.order_sync_when_online": "The order will be synced when you're back online.",
     "pos.order_error": "Failed to process order. Please try again.",
     "pos.order_number": "Order #",
     "pos.customer_required": "Customer required",
@@ -88,6 +90,18 @@ const translations = {
     "pos.applied": "applied!",
     "pos.click_to_redeem": "Click to redeem",
     "pos.reward_applied": "Reward Applied",
+    
+    // Network Status
+    "network.online": "Online",
+    "network.offline": "Offline",
+    "network.syncing": "Syncing",
+    "network.pending": "Pending",
+    "network.connected": "Connected to server",
+    "network.offline_mode": "Working offline",
+    "network.pending_sync": "orders pending sync",
+    "network.syncing_orders": "Syncing orders to server",
+    "network.orders_pending": "orders pending sync",
+    "network.click_to_sync": "Click to sync now",
     
     // Payment
     "payment.title": "Payment",
@@ -879,6 +893,8 @@ const translations = {
     "pos.no_product_barcode": "No se encontró producto con código",
     "pos.order_completed": "¡Pedido completado!",
     "pos.order_success": "El pedido ha sido procesado exitosamente.",
+    "pos.order_saved_offline": "Pedido guardado sin conexión",
+    "pos.order_sync_when_online": "El pedido se sincronizará cuando vuelva a estar en línea.",
     "pos.order_error": "Error al procesar pedido. Intenta de nuevo.",
     "pos.order_number": "Pedido #",
     "pos.customer_required": "Cliente requerido",
@@ -900,6 +916,18 @@ const translations = {
     "pos.applied": "aplicado!",
     "pos.click_to_redeem": "Clic para canjear",
     "pos.reward_applied": "Recompensa Aplicada",
+    
+    // Network Status
+    "network.online": "En línea",
+    "network.offline": "Sin conexión",
+    "network.syncing": "Sincronizando",
+    "network.pending": "Pendiente",
+    "network.connected": "Conectado al servidor",
+    "network.offline_mode": "Trabajando sin conexión",
+    "network.pending_sync": "pedidos pendientes de sincronizar",
+    "network.syncing_orders": "Sincronizando pedidos con el servidor",
+    "network.orders_pending": "pedidos pendientes de sincronizar",
+    "network.click_to_sync": "Clic para sincronizar ahora",
     
     // Payment
     "payment.title": "Pago",
@@ -1688,6 +1716,8 @@ const translations = {
     "pos.no_product_barcode": "Nenhum produto encontrado com código",
     "pos.order_completed": "Pedido concluído!",
     "pos.order_success": "O pedido foi processado com sucesso.",
+    "pos.order_saved_offline": "Pedido salvo offline",
+    "pos.order_sync_when_online": "O pedido será sincronizado quando você estiver online novamente.",
     "pos.order_error": "Falha ao processar pedido. Tente novamente.",
     "pos.order_number": "Pedido #",
     "pos.customer_required": "Cliente obrigatório",
@@ -1709,6 +1739,18 @@ const translations = {
     "pos.applied": "aplicado!",
     "pos.click_to_redeem": "Clique para resgatar",
     "pos.reward_applied": "Recompensa Aplicada",
+    
+    // Network Status
+    "network.online": "Online",
+    "network.offline": "Offline",
+    "network.syncing": "Sincronizando",
+    "network.pending": "Pendente",
+    "network.connected": "Conectado ao servidor",
+    "network.offline_mode": "Trabalhando offline",
+    "network.pending_sync": "pedidos pendentes de sincronização",
+    "network.syncing_orders": "Sincronizando pedidos com o servidor",
+    "network.orders_pending": "pedidos pendentes de sincronização",
+    "network.click_to_sync": "Clique para sincronizar agora",
     
     // Payment
     "payment.title": "Pagamento",

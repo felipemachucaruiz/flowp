@@ -37,6 +37,10 @@ import {
   UserPlus,
   Check,
 } from "lucide-react";
+import { NetworkStatusIndicator } from "@/components/network-status-indicator";
+import { useOfflineSync } from "@/hooks/use-offline-sync";
+import { saveOfflineOrder } from "@/lib/offline-storage";
+import { syncManager } from "@/lib/sync-manager";
 
 export default function POSPage() {
   const { toast } = useToast();
@@ -394,6 +398,8 @@ export default function POSPage() {
     customer?: Customer;
   } | null>(null);
 
+  const { isOnline } = useOfflineSync();
+
   const createOrderMutation = useMutation({
     mutationFn: async (orderData: {
       items: typeof cart;
@@ -406,10 +412,16 @@ export default function POSPage() {
       total: number;
       customerId?: string;
     }) => {
+      if (!isOnline) {
+        const offlineOrderData = { ...orderData, tenantId: tenant?.id };
+        const offlineId = await saveOfflineOrder(offlineOrderData);
+        await syncManager.refreshPendingCount();
+        return { id: offlineId, orderNumber: `OFF-${offlineId.slice(-6).toUpperCase()}`, offline: true };
+      }
       const response = await apiRequest("POST", "/api/orders", orderData);
       return response.json() as Promise<{ id: string; orderNumber?: string }>;
     },
-    onSuccess: (response) => {
+    onSuccess: (response: { id: string; orderNumber?: string; offline?: boolean }) => {
       const receiptData = pendingReceiptData.current;
       if (receiptData) {
         printReceipt(tenant, {
@@ -432,10 +444,17 @@ export default function POSPage() {
         });
         pendingReceiptData.current = null;
       }
-      toast({
-        title: t("pos.order_completed"),
-        description: t("pos.order_success"),
-      });
+      if (response.offline) {
+        toast({
+          title: t("pos.order_saved_offline"),
+          description: t("pos.order_sync_when_online"),
+        });
+      } else {
+        toast({
+          title: t("pos.order_completed"),
+          description: t("pos.order_success"),
+        });
+      }
       clearCart();
       setSelectedCustomer(null);
       setAppliedReward(null);
@@ -750,6 +769,7 @@ export default function POSPage() {
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5 text-primary" />
               <h2 className="font-semibold">{t("pos.current_order")}</h2>
+              <NetworkStatusIndicator />
             </div>
             {cart.length > 0 && (
               <Badge variant="secondary">{cart.length} {t("pos.items")}</Badge>
