@@ -381,6 +381,8 @@ export default function POSPage() {
         description: t("pos.order_success"),
       });
       clearCart();
+      setSelectedCustomer(null);
+      resetPaymentState();
       setShowPaymentDialog(false);
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
     },

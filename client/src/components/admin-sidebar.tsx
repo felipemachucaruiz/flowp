@@ -20,6 +20,7 @@ import {
   Users,
   Settings,
   LogOut,
+  Mail,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -49,6 +50,11 @@ const adminMenuItems = [
     title: "Billing",
     url: "/admin/billing",
     icon: CreditCard,
+  },
+  {
+    title: "Email Settings",
+    url: "/admin/email-settings",
+    icon: Mail,
   },
   {
     title: "Support",
