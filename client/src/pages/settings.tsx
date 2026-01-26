@@ -276,10 +276,10 @@ export default function SettingsPage() {
     onSuccess: (response) => {
       setProductImagePath(response.objectPath);
       productForm.setValue("image", response.objectPath);
-      toast({ title: "Image uploaded successfully" });
+      toast({ title: t("settings.image_uploaded") });
     },
     onError: (error) => {
-      toast({ title: "Failed to upload image", description: error.message, variant: "destructive" });
+      toast({ title: t("settings.image_upload_error"), description: error.message, variant: "destructive" });
     },
   });
 
@@ -287,10 +287,10 @@ export default function SettingsPage() {
     onSuccess: async (response) => {
       setBusinessLogoPath(response.objectPath);
       businessForm.setValue("logo", response.objectPath);
-      toast({ title: "Logo uploaded successfully" });
+      toast({ title: t("settings.logo_uploaded") });
     },
     onError: (error) => {
-      toast({ title: "Failed to upload logo", description: error.message, variant: "destructive" });
+      toast({ title: t("settings.logo_upload_error"), description: error.message, variant: "destructive" });
     },
   });
 
@@ -298,11 +298,11 @@ export default function SettingsPage() {
     onSuccess: async (response) => {
       setReceiptLogoPath(response.objectPath);
       await apiRequest("PATCH", "/api/settings", { receiptLogo: response.objectPath });
-      toast({ title: "Receipt logo uploaded successfully" });
+      toast({ title: t("settings.receipt_logo_uploaded") });
       if (refreshTenant) refreshTenant();
     },
     onError: (error) => {
-      toast({ title: "Failed to upload receipt logo", description: error.message, variant: "destructive" });
+      toast({ title: t("settings.receipt_logo_upload_error"), description: error.message, variant: "destructive" });
     },
   });
 
@@ -402,12 +402,12 @@ export default function SettingsPage() {
       return apiRequest("PATCH", "/api/settings", { ...rest, receiptTaxId: taxId });
     },
     onSuccess: () => {
-      toast({ title: "Settings updated successfully" });
+      toast({ title: t("settings.updated") });
       setIsEditingBusiness(false);
       if (refreshTenant) refreshTenant();
     },
     onError: () => {
-      toast({ title: "Failed to update settings", variant: "destructive" });
+      toast({ title: t("settings.update_error"), variant: "destructive" });
     },
   });
 
@@ -416,11 +416,11 @@ export default function SettingsPage() {
       return apiRequest("PATCH", "/api/settings", data);
     },
     onSuccess: () => {
-      toast({ title: "Receipt settings updated successfully" });
+      toast({ title: t("settings.receipt_updated") });
       if (refreshTenant) refreshTenant();
     },
     onError: () => {
-      toast({ title: "Failed to update receipt settings", variant: "destructive" });
+      toast({ title: t("settings.receipt_update_error"), variant: "destructive" });
     },
   });
 
@@ -432,7 +432,7 @@ export default function SettingsPage() {
       return apiRequest("POST", "/api/categories", data);
     },
     onSuccess: () => {
-      toast({ title: editingItem ? "Category updated" : "Category created" });
+      toast({ title: editingItem ? t("settings.category_updated") : t("settings.category_created") });
       queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
       setShowCategoryDialog(false);
       setEditingItem(null);
@@ -452,19 +452,19 @@ export default function SettingsPage() {
       }
       // When creating, password is required
       if (!data.password) {
-        throw new Error("Password is required for new users");
+        throw new Error(t("validation.password_required_new"));
       }
       return apiRequest("POST", "/api/users", data);
     },
     onSuccess: () => {
-      toast({ title: editingUser ? "User updated" : "User created" });
+      toast({ title: editingUser ? t("settings.user_updated") : t("settings.user_created") });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setShowUserDialog(false);
       setEditingUser(null);
       userForm.reset();
     },
     onError: (error: Error) => {
-      toast({ title: "Failed to save user", description: error.message, variant: "destructive" });
+      toast({ title: t("settings.user_save_error"), description: error.message, variant: "destructive" });
     },
   });
 
@@ -473,11 +473,11 @@ export default function SettingsPage() {
       return apiRequest("DELETE", `/api/users/${userId}`, {});
     },
     onSuccess: () => {
-      toast({ title: "User deleted" });
+      toast({ title: t("settings.user_deleted") });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
     },
     onError: () => {
-      toast({ title: "Failed to delete user", variant: "destructive" });
+      toast({ title: t("settings.user_delete_error"), variant: "destructive" });
     },
   });
 
@@ -489,7 +489,7 @@ export default function SettingsPage() {
       return apiRequest("POST", "/api/products", data);
     },
     onSuccess: () => {
-      toast({ title: editingItem ? "Product updated" : "Product created" });
+      toast({ title: editingItem ? t("settings.product_updated") : t("settings.product_created") });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setShowProductDialog(false);
       setEditingItem(null);
@@ -505,7 +505,7 @@ export default function SettingsPage() {
       return apiRequest("POST", "/api/floors", data);
     },
     onSuccess: () => {
-      toast({ title: editingItem ? "Floor updated" : "Floor created" });
+      toast({ title: editingItem ? t("settings.floor_updated") : t("settings.floor_created") });
       queryClient.invalidateQueries({ queryKey: ["/api/floors"] });
       setShowFloorDialog(false);
       setEditingItem(null);
@@ -521,7 +521,7 @@ export default function SettingsPage() {
       return apiRequest("POST", "/api/tables", data);
     },
     onSuccess: () => {
-      toast({ title: editingItem ? "Table updated" : "Table created" });
+      toast({ title: editingItem ? t("settings.table_updated") : t("settings.table_created") });
       queryClient.invalidateQueries({ queryKey: ["/api/tables"] });
       setShowTableDialog(false);
       setEditingItem(null);
@@ -534,7 +534,7 @@ export default function SettingsPage() {
       return apiRequest("DELETE", `/api/${type}/${id}`, {});
     },
     onSuccess: (_, { type }) => {
-      toast({ title: "Item deleted" });
+      toast({ title: t("settings.item_deleted") });
       queryClient.invalidateQueries({ queryKey: [`/api/${type}`] });
     },
   });
@@ -671,7 +671,7 @@ export default function SettingsPage() {
                   <form onSubmit={businessForm.handleSubmit((data) => businessSettingsMutation.mutate(data))} className="space-y-4">
                     <div className="flex gap-6 items-start">
                       <div className="flex-shrink-0">
-                        <p className="text-sm font-medium mb-2">Company Logo</p>
+                        <p className="text-sm font-medium mb-2">{t("settings.company_logo")}</p>
                         <div className="w-32 h-32 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden bg-muted/50">
                           {businessLogoPath ? (
                             <img
@@ -704,7 +704,7 @@ export default function SettingsPage() {
                             {isUploadingBusinessLogo ? (
                               <Loader2 className="w-4 h-4 animate-spin" />
                             ) : (
-                              "Upload"
+                              t("settings.upload")
                             )}
                           </Button>
                           {businessLogoPath && (
@@ -749,7 +749,7 @@ export default function SettingsPage() {
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-country">
-                                  <SelectValue placeholder="Select country" />
+                                  <SelectValue placeholder={t("settings.select_country")} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -769,9 +769,9 @@ export default function SettingsPage() {
                         name="city"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>City</FormLabel>
+                            <FormLabel>{t("settings.city")}</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="City" data-testid="input-city" />
+                              <Input {...field} placeholder={t("settings.city")} data-testid="input-city" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

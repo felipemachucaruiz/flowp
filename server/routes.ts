@@ -1255,7 +1255,7 @@ export async function registerRoutes(
       const { 
         name, currency, taxRate, address, phone, language, logo, country, city,
         receiptShowLogo, receiptHeaderText, receiptFooterText, 
-        receiptShowAddress, receiptShowPhone, receiptTaxId, onboardingComplete 
+        receiptShowAddress, receiptShowPhone, receiptTaxId, receiptLogo, onboardingComplete 
       } = req.body;
       
       const updated = await storage.updateTenant(tenantId, {
@@ -1274,6 +1274,7 @@ export async function registerRoutes(
         receiptShowAddress: receiptShowAddress !== undefined ? receiptShowAddress : undefined,
         receiptShowPhone: receiptShowPhone !== undefined ? receiptShowPhone : undefined,
         receiptTaxId: receiptTaxId !== undefined ? receiptTaxId : undefined,
+        receiptLogo: receiptLogo !== undefined ? receiptLogo : undefined,
         onboardingComplete: onboardingComplete !== undefined ? onboardingComplete : undefined,
       });
       
