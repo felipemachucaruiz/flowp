@@ -240,31 +240,8 @@ function PrintBridgeSettings() {
             {t("printing.direct_print_desc")}
           </div>
         </div>
-      ) : bridgeStatus?.isAvailable ? (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {t("printing.bridge_token_instructions")}
-          </p>
-          <div className="flex gap-2">
-            <Input
-              type="text"
-              placeholder={t("printing.token_placeholder")}
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              className="flex-1"
-              data-testid="input-bridge-token"
-            />
-            <Button 
-              size="sm" 
-              onClick={handleSaveToken}
-              data-testid="button-save-token"
-            >
-              {t("common.save")}
-            </Button>
-          </div>
-        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="text-sm text-muted-foreground whitespace-pre-line">
             {t("printing.bridge_instructions")}
           </div>
@@ -277,6 +254,29 @@ function PrintBridgeSettings() {
             <Download className="w-4 h-4 mr-2" />
             {t("printing.bridge_download_exe")}
           </Button>
+          
+          <div className="pt-2 border-t">
+            <p className="text-sm text-muted-foreground mb-2">
+              {t("printing.bridge_token_instructions")}
+            </p>
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder={t("printing.token_placeholder")}
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                className="flex-1"
+                data-testid="input-bridge-token"
+              />
+              <Button 
+                size="sm" 
+                onClick={handleSaveToken}
+                data-testid="button-save-token"
+              >
+                {t("common.save")}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
