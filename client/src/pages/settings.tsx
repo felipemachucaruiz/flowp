@@ -218,11 +218,11 @@ function PrintBridgeSettings() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.open('/print-bridge.zip', '_blank')}
+            onClick={() => window.open('/flowp-print-bridge.exe', '_blank')}
             data-testid="button-download-print-bridge"
           >
             <Download className="w-4 h-4 mr-2" />
-            {t("printing.bridge_download")}
+            {t("printing.bridge_download_exe")}
           </Button>
         </div>
       )}
