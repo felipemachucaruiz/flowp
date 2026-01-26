@@ -1089,12 +1089,13 @@ export async function registerRoutes(
       }
       
       const { 
-        currency, taxRate, address, phone, language, logo, country, city,
+        name, currency, taxRate, address, phone, language, logo, country, city,
         receiptShowLogo, receiptHeaderText, receiptFooterText, 
         receiptShowAddress, receiptShowPhone, receiptTaxId 
       } = req.body;
       
       const updated = await storage.updateTenant(tenantId, {
+        name: name || undefined,
         currency: currency || undefined,
         taxRate: taxRate || undefined,
         country: country || undefined,
