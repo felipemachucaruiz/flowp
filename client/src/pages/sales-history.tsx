@@ -173,7 +173,7 @@ export default function SalesHistoryPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Receipt className="w-6 h-6" />
-          Sales History
+          {t("sales.title")}
         </h1>
       </div>
 
@@ -181,7 +181,7 @@ export default function SalesHistoryPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search by order #, customer name, phone, or ID..."
+            placeholder={t("sales.search_placeholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -191,13 +191,13 @@ export default function SalesHistoryPage() {
         <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as typeof dateFilter)}>
           <SelectTrigger className="w-[180px]" data-testid="select-date-filter">
             <Filter className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Filter by date" />
+            <SelectValue placeholder={t("sales.filter_today")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem value="today">{t("sales.filter_today")}</SelectItem>
+            <SelectItem value="week">{t("sales.filter_week")}</SelectItem>
+            <SelectItem value="month">{t("sales.filter_month")}</SelectItem>
+            <SelectItem value="all">{t("sales.filter_all")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -209,7 +209,7 @@ export default function SalesHistoryPage() {
               <ShoppingBag className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Orders</p>
+              <p className="text-sm text-muted-foreground">{t("sales.total_orders")}</p>
               <p className="text-2xl font-bold">{filteredOrders?.length || 0}</p>
             </div>
           </CardContent>
@@ -220,7 +220,7 @@ export default function SalesHistoryPage() {
               <CreditCard className="w-6 h-6 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
+              <p className="text-sm text-muted-foreground">{t("sales.total_revenue")}</p>
               <p className="text-2xl font-bold">
                 {formatCurrency(filteredOrders?.reduce((sum, o) => sum + parseFloat(o.total), 0) || 0)}
               </p>
@@ -233,7 +233,7 @@ export default function SalesHistoryPage() {
               <User className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Unique Customers</p>
+              <p className="text-sm text-muted-foreground">{t("sales.unique_customers")}</p>
               <p className="text-2xl font-bold">
                 {Object.keys(groupedByCustomer || {}).filter(k => k !== "anonymous").length}
               </p>
@@ -259,7 +259,7 @@ export default function SalesHistoryPage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold">Order #{order.orderNumber}</span>
+                          <span className="font-semibold">{t("sales.order_number")}{order.orderNumber}</span>
                           <Badge variant={order.status === "completed" ? "default" : "secondary"}>
                             {order.status}
                           </Badge>
@@ -318,19 +318,19 @@ export default function SalesHistoryPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground">No item details available</p>
+                        <p className="text-sm text-muted-foreground">{t("sales.no_items")}</p>
                       )}
                       <Separator />
                       <div className="flex justify-between text-sm">
-                        <span>Subtotal</span>
+                        <span>{t("sales.subtotal")}</span>
                         <span>{formatCurrency(order.subtotal)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span>Tax</span>
+                        <span>{t("sales.tax")}</span>
                         <span>{formatCurrency(order.taxAmount || "0")}</span>
                       </div>
                       <div className="flex justify-between font-bold">
-                        <span>Total</span>
+                        <span>{t("sales.total")}</span>
                         <span>{formatCurrency(order.total)}</span>
                       </div>
                       <div className="pt-2">
@@ -344,7 +344,7 @@ export default function SalesHistoryPage() {
                           data-testid={`button-print-order-${order.id}`}
                         >
                           <Printer className="w-4 h-4 mr-2" />
-                          Reprint Receipt
+                          {t("sales.reprint_receipt")}
                         </Button>
                       </div>
                     </div>
@@ -356,11 +356,11 @@ export default function SalesHistoryPage() {
             <Card>
               <CardContent className="p-12 text-center">
                 <Receipt className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-semibold mb-2">No Orders Found</h3>
+                <h3 className="text-lg font-semibold mb-2">{t("sales.no_orders_found")}</h3>
                 <p className="text-muted-foreground">
                   {searchQuery
-                    ? "No orders match your search criteria."
-                    : "No orders have been placed yet."}
+                    ? t("sales.no_match_message")
+                    : t("sales.no_orders_message")}
                 </p>
               </CardContent>
             </Card>

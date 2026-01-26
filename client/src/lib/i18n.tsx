@@ -11,6 +11,7 @@ const translations = {
     "nav.inventory": "Inventory",
     "nav.customers": "Customers",
     "nav.reports": "Reports",
+    "nav.sales_history": "Sales History",
     "nav.settings": "Settings",
     "nav.logout": "Logout",
     
@@ -221,6 +222,26 @@ const translations = {
     "reports.revenue": "Revenue",
     "reports.top_products_appear": "Top products will appear here",
     
+    // Sales History
+    "sales.title": "Sales History",
+    "sales.search_placeholder": "Search by order #, customer name, phone, or ID...",
+    "sales.filter_today": "Today",
+    "sales.filter_week": "This Week",
+    "sales.filter_month": "This Month",
+    "sales.filter_all": "All Time",
+    "sales.total_orders": "Total Orders",
+    "sales.total_revenue": "Total Revenue",
+    "sales.unique_customers": "Unique Customers",
+    "sales.no_orders_found": "No Orders Found",
+    "sales.no_orders_message": "No orders have been placed yet.",
+    "sales.no_match_message": "No orders match your search criteria.",
+    "sales.order_number": "Order #",
+    "sales.subtotal": "Subtotal",
+    "sales.tax": "Tax",
+    "sales.total": "Total",
+    "sales.reprint_receipt": "Reprint Receipt",
+    "sales.no_items": "No item details available",
+    
     // Login
     "login.title": "Sign In",
     "login.subtitle": "Sign in to your account to continue",
@@ -383,6 +404,7 @@ const translations = {
     "nav.inventory": "Inventario",
     "nav.customers": "Clientes",
     "nav.reports": "Reportes",
+    "nav.sales_history": "Historial de Ventas",
     "nav.settings": "Configuración",
     "nav.logout": "Cerrar Sesión",
     
@@ -593,6 +615,26 @@ const translations = {
     "reports.revenue": "Ingresos",
     "reports.top_products_appear": "Los productos principales aparecerán aquí",
     
+    // Sales History
+    "sales.title": "Historial de Ventas",
+    "sales.search_placeholder": "Buscar por # de orden, nombre del cliente, teléfono o ID...",
+    "sales.filter_today": "Hoy",
+    "sales.filter_week": "Esta Semana",
+    "sales.filter_month": "Este Mes",
+    "sales.filter_all": "Todo el Tiempo",
+    "sales.total_orders": "Pedidos Totales",
+    "sales.total_revenue": "Ingresos Totales",
+    "sales.unique_customers": "Clientes Únicos",
+    "sales.no_orders_found": "No Se Encontraron Pedidos",
+    "sales.no_orders_message": "Aún no se han realizado pedidos.",
+    "sales.no_match_message": "Ningún pedido coincide con tu búsqueda.",
+    "sales.order_number": "Pedido #",
+    "sales.subtotal": "Subtotal",
+    "sales.tax": "Impuesto",
+    "sales.total": "Total",
+    "sales.reprint_receipt": "Reimprimir Recibo",
+    "sales.no_items": "No hay detalles de artículos disponibles",
+    
     // Login
     "login.title": "Iniciar Sesión",
     "login.subtitle": "Inicia sesión en tu cuenta para continuar",
@@ -755,6 +797,7 @@ const translations = {
     "nav.inventory": "Estoque",
     "nav.customers": "Clientes",
     "nav.reports": "Relatórios",
+    "nav.sales_history": "Histórico de Vendas",
     "nav.settings": "Configurações",
     "nav.logout": "Sair",
     
@@ -964,6 +1007,26 @@ const translations = {
     "reports.units_sold": "unidades vendidas",
     "reports.revenue": "Receita",
     "reports.top_products_appear": "Os produtos principais aparecerão aqui",
+    
+    // Sales History
+    "sales.title": "Histórico de Vendas",
+    "sales.search_placeholder": "Buscar por # do pedido, nome do cliente, telefone ou ID...",
+    "sales.filter_today": "Hoje",
+    "sales.filter_week": "Esta Semana",
+    "sales.filter_month": "Este Mês",
+    "sales.filter_all": "Todo o Período",
+    "sales.total_orders": "Total de Pedidos",
+    "sales.total_revenue": "Receita Total",
+    "sales.unique_customers": "Clientes Únicos",
+    "sales.no_orders_found": "Nenhum Pedido Encontrado",
+    "sales.no_orders_message": "Nenhum pedido foi realizado ainda.",
+    "sales.no_match_message": "Nenhum pedido corresponde à sua busca.",
+    "sales.order_number": "Pedido #",
+    "sales.subtotal": "Subtotal",
+    "sales.tax": "Imposto",
+    "sales.total": "Total",
+    "sales.reprint_receipt": "Reimprimir Recibo",
+    "sales.no_items": "Nenhum detalhe de item disponível",
     
     // Login
     "login.title": "Entrar",
