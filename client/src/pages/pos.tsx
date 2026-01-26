@@ -918,7 +918,7 @@ export default function POSPage() {
                     data-testid="input-new-customer-name"
                   />
                   <Input
-                    placeholder={t("customers.phone")}
+                    placeholder={`${t("customers.phone")} *`}
                     value={newCustomerPhone}
                     onChange={(e) => setNewCustomerPhone(e.target.value)}
                     data-testid="input-new-customer-phone"
@@ -926,7 +926,7 @@ export default function POSPage() {
                   <div className="grid grid-cols-2 gap-2">
                     <Select value={newCustomerIdType} onValueChange={setNewCustomerIdType}>
                       <SelectTrigger data-testid="select-customer-id-type">
-                        <SelectValue placeholder={t("customers.id_type")} />
+                        <SelectValue placeholder={`${t("customers.id_type")} *`} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="cedula_ciudadania">Cédula Ciudadanía</SelectItem>
@@ -936,7 +936,7 @@ export default function POSPage() {
                       </SelectContent>
                     </Select>
                     <Input
-                      placeholder={t("customers.id_number")}
+                      placeholder={`${t("customers.id_number")} *`}
                       value={newCustomerIdNumber}
                       onChange={(e) => setNewCustomerIdNumber(e.target.value)}
                       data-testid="input-new-customer-id"
@@ -955,7 +955,7 @@ export default function POSPage() {
                     <Button
                       size="sm"
                       onClick={handleCreateCustomer}
-                      disabled={!newCustomerName.trim() || createCustomerMutation.isPending}
+                      disabled={!newCustomerName.trim() || !newCustomerPhone.trim() || !newCustomerIdType || !newCustomerIdNumber.trim() || createCustomerMutation.isPending}
                       className="flex-1"
                       data-testid="button-save-new-customer"
                     >
