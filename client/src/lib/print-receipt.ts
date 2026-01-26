@@ -82,6 +82,8 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
       footerText: tenant?.receiptFooterText || undefined,
       openCashDrawer: data.paymentMethod === "cash" || data.payments?.some(p => p.type === "cash"),
       cutPaper: true,
+      couponEnabled: tenant?.couponEnabled || false,
+      couponText: tenant?.couponText || undefined,
     });
 
     return result.success;
@@ -393,6 +395,29 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
       <div class="thank-you">${t.thankYou}</div>
     </div>
   </div>
+  
+  ${tenant?.couponEnabled && tenant?.couponText ? `
+  <!-- Coupon Section - with page break to simulate paper cut -->
+  <div class="coupon-cut" style="
+    page-break-before: always;
+    border-top: 2px dashed #000;
+    margin-top: 10px;
+    padding-top: 10px;
+  ">
+    <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">✂ - - - - - - - - - - - - - - - - ✂</div>
+  </div>
+  <div class="coupon" style="
+    width: 100%;
+    padding: 10px 5px;
+    text-align: center;
+  ">
+    <div style="font-weight: bold; font-size: ${Math.round(fontSize * 1.2)}px; margin-bottom: 10px;">🎟️ COUPON</div>
+    <div style="white-space: pre-wrap; font-size: ${fontSize}px;">${tenant.couponText}</div>
+    <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; font-size: ${Math.round(fontSize * 0.8)}px;">
+      ${tenant?.name || ""}
+    </div>
+  </div>
+  ` : ""}
   
   <script>
     window.onload = function() {

@@ -49,6 +49,9 @@ export const tenants = pgTable("tenants", {
   receiptTaxId: text("receipt_tax_id"),
   receiptFontSize: integer("receipt_font_size").default(12),
   receiptFontFamily: text("receipt_font_family").default("monospace"),
+  // Coupon settings
+  couponEnabled: boolean("coupon_enabled").default(false),
+  couponText: text("coupon_text"),
   onboardingComplete: boolean("onboarding_complete").default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   suspendedAt: timestamp("suspended_at"),

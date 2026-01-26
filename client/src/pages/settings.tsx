@@ -73,6 +73,8 @@ const receiptSettingsSchema = z.object({
   receiptShowPhone: z.boolean().default(true),
   receiptFontSize: z.number().min(8).max(16).default(12),
   receiptFontFamily: z.string().default("monospace"),
+  couponEnabled: z.boolean().default(false),
+  couponText: z.string().optional(),
 });
 
 const categorySchema = z.object({
@@ -341,6 +343,8 @@ export default function SettingsPage() {
         receiptShowPhone: tenant.receiptShowPhone ?? true,
         receiptFontSize: tenant.receiptFontSize ?? 12,
         receiptFontFamily: tenant.receiptFontFamily ?? "monospace",
+        couponEnabled: tenant.couponEnabled ?? false,
+        couponText: tenant.couponText || "",
       });
     }
   }, [tenant]);
@@ -468,6 +472,8 @@ export default function SettingsPage() {
       receiptShowPhone: tenant?.receiptShowPhone ?? true,
       receiptFontSize: tenant?.receiptFontSize ?? 12,
       receiptFontFamily: tenant?.receiptFontFamily ?? "monospace",
+      couponEnabled: tenant?.couponEnabled ?? false,
+      couponText: tenant?.couponText || "",
     },
   });
 
@@ -1619,6 +1625,56 @@ export default function SettingsPage() {
                         )}
                       />
                     </div>
+                  </div>
+
+                  {/* Coupon Settings */}
+                  <div className="space-y-4 pt-4 border-t">
+                    <h3 className="text-sm font-medium">{t("printing.coupon_settings")}</h3>
+                    
+                    <FormField
+                      control={receiptForm.control}
+                      name="couponEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                          <div className="space-y-0.5">
+                            <FormLabel>{t("printing.enable_coupon")}</FormLabel>
+                            <FormDescription className="text-xs">
+                              {t("printing.enable_coupon_desc")}
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-coupon-enabled"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+
+                    {receiptForm.watch("couponEnabled") && (
+                      <FormField
+                        control={receiptForm.control}
+                        name="couponText"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("printing.coupon_text")}</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                {...field} 
+                                placeholder={t("printing.coupon_placeholder")}
+                                rows={4}
+                                data-testid="input-coupon-text"
+                              />
+                            </FormControl>
+                            <FormDescription className="text-xs">
+                              {t("printing.coupon_desc")}
+                            </FormDescription>
+                          </FormItem>
+                        )}
+                      />
+                    )}
                   </div>
 
                   <div className="flex justify-end">

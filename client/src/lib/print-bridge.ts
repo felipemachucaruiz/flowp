@@ -57,6 +57,8 @@ interface ReceiptData {
   footerText?: string;
   openCashDrawer?: boolean;
   cutPaper?: boolean;
+  couponEnabled?: boolean;
+  couponText?: string;
 }
 
 interface PrinterConfig {
