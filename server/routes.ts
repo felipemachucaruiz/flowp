@@ -640,6 +640,69 @@ export async function registerRoutes(
     }
   });
 
+  // CSV template downloads
+  app.get("/api/csv/template/categories", (req: Request, res: Response) => {
+    const csvContent = "name,color\nBeverages,#3B82F6\nFood,#10B981\nDesserts,#F59E0B";
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=categories_template.csv");
+    res.send(csvContent);
+  });
+
+  app.get("/api/csv/template/products", (req: Request, res: Response) => {
+    const csvContent = "name,sku,barcode,price,cost,categoryName,description,trackInventory\nCoffee,SKU001,123456789,2.50,1.00,Beverages,Hot coffee,true\nSandwich,SKU002,987654321,5.99,2.50,Food,Turkey sandwich,true";
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=products_template.csv");
+    res.send(csvContent);
+  });
+
+  // Batch category creation
+  app.post("/api/categories/batch", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { categories: categoryList } = req.body;
+      if (!Array.isArray(categoryList) || categoryList.length === 0) {
+        return res.status(400).json({ message: "Categories array is required" });
+      }
+
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as { row: number; error: string }[],
+      };
+
+      for (let i = 0; i < categoryList.length; i++) {
+        const item = categoryList[i];
+        try {
+          const categoryData = {
+            tenantId,
+            name: item.name,
+            color: item.color || "#3B82F6",
+            isActive: true,
+            sortOrder: 0,
+          };
+
+          await storage.createCategory(categoryData);
+          results.success++;
+        } catch (error) {
+          results.failed++;
+          results.errors.push({
+            row: i + 2,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error("Batch category creation error:", error);
+      res.status(400).json({ message: "Failed to create categories" });
+    }
+  });
+
   // ===== CUSTOMERS ROUTES =====
 
   app.get("/api/customers", async (req: Request, res: Response) => {
