@@ -102,6 +102,7 @@ export default function AdminTenants() {
   }
 
   return (
+    <div className="h-full overflow-y-auto touch-scroll">
     <div className="p-6 space-y-6" data-testid="admin-tenants">
       <div className="flex items-center justify-between">
         <div>
@@ -201,6 +202,7 @@ export default function AdminTenants() {
           </Table>
         </CardContent>
       </Card>
+    </div>
     </div>
   );
 }

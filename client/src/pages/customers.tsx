@@ -246,7 +246,7 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full overflow-hidden">
       {/* Customer List - Full width on mobile, sidebar on desktop */}
       <div className={`${isMobile ? 'w-full' : 'w-80 lg:w-96'} border-r flex flex-col bg-card`}>
         <div className="p-3 sm:p-4 border-b space-y-3 sm:space-y-4">
@@ -281,7 +281,7 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto touch-scroll">
           {customersLoading ? (
             <div className="p-4 space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -335,7 +335,7 @@ export default function CustomersPage() {
               <p className="text-sm">{t("customers.add_first")}</p>
             </div>
           )}
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Customer Details - Hidden on mobile */}
@@ -658,7 +658,7 @@ export default function CustomersPage() {
             </Button>
           </div>
         </div>
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto touch-scroll">
           {rewardsLoading ? (
             <div className="p-4 space-y-3">
               {[1, 2, 3].map((i) => (
@@ -703,7 +703,7 @@ export default function CustomersPage() {
               <p className="text-xs">{t("customers.create_rewards")}</p>
             </div>
           )}
-        </ScrollArea>
+        </div>
       </div>
 
       {/* Mobile Customer Details Sheet */}
@@ -721,7 +721,7 @@ export default function CustomersPage() {
                 </div>
               </SheetTitle>
             </SheetHeader>
-            <ScrollArea className="flex-1 p-4">
+            <div className="flex-1 overflow-y-auto touch-scroll p-4">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <Card>
@@ -759,7 +759,7 @@ export default function CustomersPage() {
                   </Button>
                 </div>
               </div>
-            </ScrollArea>
+            </div>
           </SheetContent>
         </Sheet>
       )}

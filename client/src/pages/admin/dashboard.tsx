@@ -39,6 +39,7 @@ export default function AdminDashboard() {
   }
 
   return (
+    <div className="h-full overflow-y-auto touch-scroll">
     <div className="p-6 space-y-6" data-testid="admin-dashboard">
       <div>
         <h1 className="text-2xl font-bold" data-testid="text-dashboard-title">Management Portal</h1>
@@ -152,6 +153,7 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+    </div>
     </div>
   );
 }

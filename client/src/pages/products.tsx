@@ -139,6 +139,7 @@ export default function ProductsPage() {
   };
 
   return (
+    <div className="h-full overflow-y-auto touch-scroll">
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -429,6 +430,7 @@ export default function ProductsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
     </div>
   );
 }

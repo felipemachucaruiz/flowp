@@ -158,6 +158,7 @@ export default function ReportsPage() {
   };
 
   return (
+    <div className="h-full overflow-y-auto touch-scroll">
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
@@ -726,6 +727,7 @@ export default function ReportsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
     </div>
   );
 }

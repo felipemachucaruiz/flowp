@@ -846,9 +846,9 @@ export default function POSPage() {
   );
 
   return (
-    <div className="flex h-full relative">
+    <div className="flex h-full relative overflow-hidden">
       {/* Products Section */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Search and Categories */}
         <div className="p-3 sm:p-4 border-b space-y-3 sm:space-y-4">
           <div className="flex gap-2">
@@ -909,7 +909,9 @@ export default function POSPage() {
         </div>
 
         {/* Products Grid */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 pb-20 sm:pb-4">
+        <div 
+          className="flex-1 overflow-y-auto p-3 sm:p-4 pb-20 sm:pb-4 overscroll-contain touch-scroll"
+        >
           {productsLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
               {[...Array(10)].map((_, i) => (

@@ -138,6 +138,7 @@ export default function AdminEmailSettings() {
   }
 
   return (
+    <div className="h-full overflow-y-auto touch-scroll">
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold">{t("admin.email_settings")}</h1>
@@ -339,6 +340,7 @@ export default function AdminEmailSettings() {
           </Card>
         </TabsContent>
       </Tabs>
+    </div>
     </div>
   );
 }

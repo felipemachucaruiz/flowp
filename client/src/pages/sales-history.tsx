@@ -169,6 +169,7 @@ export default function SalesHistoryPage() {
   }
 
   return (
+    <div className="h-full overflow-y-auto touch-scroll">
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
@@ -242,7 +243,7 @@ export default function SalesHistoryPage() {
         </Card>
       </div>
 
-      <ScrollArea className="h-[calc(100vh-380px)]">
+      <div className="flex-1 overflow-y-auto touch-scroll">
         <div className="space-y-4">
           {filteredOrders && filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
@@ -366,7 +367,8 @@ export default function SalesHistoryPage() {
             </Card>
           )}
         </div>
-      </ScrollArea>
+      </div>
+    </div>
     </div>
   );
 }

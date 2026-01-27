@@ -214,9 +214,9 @@ export default function KitchenPage() {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-card">
+      <div className="flex items-center justify-between p-4 border-b bg-card shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <ChefHat className="w-5 h-5 text-primary" />
@@ -283,13 +283,13 @@ export default function KitchenPage() {
                   {t("kitchen.new_orders")} ({newTickets.length})
                 </h2>
               </div>
-              <ScrollArea className="flex-1 p-3">
+              <div className="flex-1 overflow-y-auto touch-scroll p-3">
                 <div className="space-y-3">
                   {newTickets.map((ticket) => (
                     <TicketCard key={ticket.id} ticket={ticket} />
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
 
             {/* Preparing Column */}
@@ -300,13 +300,13 @@ export default function KitchenPage() {
                   {t("kitchen.preparing")} ({preparingTickets.length})
                 </h2>
               </div>
-              <ScrollArea className="flex-1 p-3">
+              <div className="flex-1 overflow-y-auto touch-scroll p-3">
                 <div className="space-y-3">
                   {preparingTickets.map((ticket) => (
                     <TicketCard key={ticket.id} ticket={ticket} />
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
 
             {/* Ready Column */}
@@ -317,13 +317,13 @@ export default function KitchenPage() {
                   {t("kitchen.ready")} ({readyTickets.length})
                 </h2>
               </div>
-              <ScrollArea className="flex-1 p-3">
+              <div className="flex-1 overflow-y-auto touch-scroll p-3">
                 <div className="space-y-3">
                   {readyTickets.map((ticket) => (
                     <TicketCard key={ticket.id} ticket={ticket} />
                   ))}
                 </div>
-              </ScrollArea>
+              </div>
             </div>
           </div>
         )}

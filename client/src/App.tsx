@@ -112,7 +112,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               Logout
             </Button>
           </header>
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
     </SidebarProvider>
@@ -139,7 +139,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
           <header className="flex h-12 items-center gap-2 border-b px-4 bg-card shrink-0">
             <SidebarTrigger data-testid="button-admin-sidebar-toggle" />
           </header>
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
     </SidebarProvider>

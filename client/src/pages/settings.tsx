@@ -856,6 +856,7 @@ export default function SettingsPage() {
   };
 
   return (
+    <div className="h-full overflow-y-auto touch-scroll">
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
@@ -2741,6 +2742,7 @@ export default function SettingsPage() {
           </Form>
         </DialogContent>
       </Dialog>
+    </div>
     </div>
   );
 }
