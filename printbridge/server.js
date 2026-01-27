@@ -16,34 +16,12 @@ function startServer(port, config, storeInstance) {
     store = storeInstance;
     const app = express();
 
-    // CORS - restrict to localhost and local Flowp origins
+    // CORS - allow all origins for PrintBridge (local service)
     app.use(cors({
-      origin: function(origin, callback) {
-        // Allow requests from localhost, local network, and Flowp domains
-        const allowedPatterns = [
-          /^https?:\/\/localhost(:\d+)?$/,
-          /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-          /^https?:\/\/0\.0\.0\.0(:\d+)?$/,
-          /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
-          /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
-          /^https?:\/\/.*\.flowp\.app$/,
-          /^https?:\/\/.*\.replit\.dev$/
-        ];
-        
-        // Allow requests with no origin (like mobile apps or curl)
-        if (!origin) {
-          return callback(null, true);
-        }
-        
-        const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
-        if (isAllowed) {
-          return callback(null, true);
-        }
-        
-        callback(new Error('Not allowed by CORS'));
-      },
+      origin: true,
       methods: ['GET', 'POST', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'X-Auth-Token']
+      allowedHeaders: ['Content-Type', 'X-Auth-Token'],
+      credentials: true
     }));
 
     app.use(express.json({ limit: '10mb' }));
