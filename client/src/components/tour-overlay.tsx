@@ -49,22 +49,43 @@ export function TourOverlay() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={endTour}
-      />
-      
-      {highlightRect && (
+      {highlightRect ? (
+        <>
+          <div 
+            className="absolute bg-black/60 backdrop-blur-sm"
+            style={{ top: 0, left: 0, right: 0, height: highlightRect.top - 8 }}
+            onClick={endTour}
+          />
+          <div 
+            className="absolute bg-black/60 backdrop-blur-sm"
+            style={{ top: highlightRect.bottom + 8, left: 0, right: 0, bottom: 0 }}
+            onClick={endTour}
+          />
+          <div 
+            className="absolute bg-black/60 backdrop-blur-sm"
+            style={{ top: highlightRect.top - 8, left: 0, width: highlightRect.left - 8, height: highlightRect.height + 16 }}
+            onClick={endTour}
+          />
+          <div 
+            className="absolute bg-black/60 backdrop-blur-sm"
+            style={{ top: highlightRect.top - 8, left: highlightRect.right + 8, right: 0, height: highlightRect.height + 16 }}
+            onClick={endTour}
+          />
+          <div 
+            className="absolute border-4 border-primary rounded-lg pointer-events-none animate-pulse"
+            style={{
+              top: highlightRect.top - 8,
+              left: highlightRect.left - 8,
+              width: highlightRect.width + 16,
+              height: highlightRect.height + 16,
+              zIndex: 101,
+            }}
+          />
+        </>
+      ) : (
         <div 
-          className="absolute border-4 border-primary rounded-lg pointer-events-none animate-pulse"
-          style={{
-            top: highlightRect.top - 4,
-            left: highlightRect.left - 4,
-            width: highlightRect.width + 8,
-            height: highlightRect.height + 8,
-            boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
-            zIndex: 101,
-          }}
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={endTour}
         />
       )}
       
