@@ -128,14 +128,18 @@ class PrintBridgeClient {
 
       if (response.ok) {
         const data = await response.json();
-        this.statusCache = {
-          isAvailable: true,
-          version: data.version,
-          requiresAuth: data.requiresAuth,
-          printerConfig: data.printer
-        };
-        this.statusCacheTime = now;
-        return this.statusCache;
+        // Verify it's actually Flowp PrintBridge (not some other service on this port)
+        if (data.status === 'ok' && data.version) {
+          this.statusCache = {
+            isAvailable: true,
+            version: data.version,
+            requiresAuth: data.requiresAuth,
+            printerConfig: data.printer
+          };
+          this.statusCacheTime = now;
+          return this.statusCache;
+        }
+        console.log('[PrintBridge] Invalid response - not Flowp PrintBridge');
       }
       console.log('[PrintBridge] Health check failed:', response.status, response.statusText);
     } catch (error) {
