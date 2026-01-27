@@ -7,11 +7,34 @@ const path = require('path');
 const net = require('net');
 
 const PORT = 9638;
-let printerConfig = {
-  type: 'windows',
-  printerName: '',
-  paperWidth: 80
-};
+const CONFIG_FILE = path.join(__dirname, 'config.json');
+
+// Load saved config or use defaults
+function loadConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      const data = fs.readFileSync(CONFIG_FILE, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.log('Could not load config, using defaults');
+  }
+  return {
+    type: 'windows',
+    printerName: '',
+    paperWidth: 80
+  };
+}
+
+function saveConfig(config) {
+  try {
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  } catch (e) {
+    console.log('Could not save config:', e.message);
+  }
+}
+
+let printerConfig = loadConfig();
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -194,7 +217,8 @@ app.get('/printers', async (req, res) => {
 
 app.post('/config', (req, res) => {
   printerConfig = { ...printerConfig, ...req.body };
-  console.log('Config updated:', printerConfig);
+  saveConfig(printerConfig);
+  console.log('Config saved:', printerConfig.printerName || 'No printer selected');
   res.json({ success: true, config: printerConfig });
 });
 
@@ -267,6 +291,12 @@ app.listen(PORT, '127.0.0.1', async () => {
     console.log('No printers found. Make sure your printer is connected.');
   }
   
+  console.log('');
+  if (printerConfig.printerName) {
+    console.log('Configured printer: ' + printerConfig.printerName);
+  } else {
+    console.log('No printer configured yet. Select one in Flowp Settings.');
+  }
   console.log('');
   console.log('Keep this window open while using Flowp POS.');
   console.log('Press Ctrl+C to stop.');
