@@ -194,19 +194,64 @@ function padLine(left, right, width = 32) {
   return left + ' '.repeat(Math.max(1, padding)) + right;
 }
 
-// Print to Windows printer
+// Print to Windows printer using PowerShell Out-Printer
 async function printToWindows(printerName, data) {
   return new Promise((resolve) => {
-    const tempFile = path.join(os.tmpdir(), 'flowp_' + Date.now() + '.bin');
+    const tempFile = path.join(os.tmpdir(), 'flowp_' + Date.now() + '.prn');
     fs.writeFileSync(tempFile, data, 'binary');
     
-    const cmd = `copy /b "${tempFile}" "${printerName}"`;
-    exec(cmd, { shell: 'cmd.exe' }, (error) => {
+    // Use PowerShell to send raw data to printer
+    const escapedPrinter = printerName.replace(/'/g, "''");
+    const escapedFile = tempFile.replace(/\\/g, '\\\\').replace(/'/g, "''");
+    
+    const psCommand = `
+      $bytes = [System.IO.File]::ReadAllBytes('${escapedFile}');
+      $printerPath = '\\\\\\\\localhost\\\\${escapedPrinter.replace(/ /g, '%20')}';
+      try {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public class RawPrinter {
+    [DllImport("winspool.drv", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern bool OpenPrinter(string pPrinterName, out IntPtr hPrinter, IntPtr pDefault);
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool ClosePrinter(IntPtr hPrinter);
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool StartDocPrinter(IntPtr hPrinter, int Level, ref DOCINFO pDocInfo);
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool EndDocPrinter(IntPtr hPrinter);
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool StartPagePrinter(IntPtr hPrinter);
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool EndPagePrinter(IntPtr hPrinter);
+    [DllImport("winspool.drv", SetLastError = true)]
+    public static extern bool WritePrinter(IntPtr hPrinter, byte[] pBytes, int dwCount, out int dwWritten);
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    public struct DOCINFO { public int cbSize; public string pDocName; public string pOutputFile; public string pDataType; }
+    public static bool SendRaw(string printerName, byte[] data) {
+        IntPtr hPrinter; if (!OpenPrinter(printerName, out hPrinter, IntPtr.Zero)) return false;
+        DOCINFO di = new DOCINFO { cbSize = Marshal.SizeOf(typeof(DOCINFO)), pDocName = "Flowp Receipt", pDataType = "RAW" };
+        if (!StartDocPrinter(hPrinter, 1, ref di)) { ClosePrinter(hPrinter); return false; }
+        StartPagePrinter(hPrinter); int written; WritePrinter(hPrinter, data, data.Length, out written);
+        EndPagePrinter(hPrinter); EndDocPrinter(hPrinter); ClosePrinter(hPrinter); return written > 0;
+    }
+}
+'@ -ErrorAction SilentlyContinue;
+        $result = [RawPrinter]::SendRaw('${escapedPrinter}', $bytes);
+        if ($result) { Write-Output 'SUCCESS' } else { Write-Output 'FAILED' }
+      } catch { Write-Output "ERROR: $_" }
+    `.replace(/\n/g, ' ');
+    
+    exec(`powershell -Command "${psCommand}"`, { maxBuffer: 1024 * 1024 }, (error, stdout, stderr) => {
       try { fs.unlinkSync(tempFile); } catch (e) {}
-      if (error) {
-        resolve({ success: false, error: error.message });
-      } else {
+      
+      const output = stdout.trim();
+      console.log('Print:', output || error?.message || 'unknown');
+      
+      if (output === 'SUCCESS') {
         resolve({ success: true });
+      } else {
+        resolve({ success: false, error: output || error?.message || 'Print failed' });
       }
     });
   });
