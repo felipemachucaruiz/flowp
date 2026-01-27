@@ -408,6 +408,19 @@ function PrintBridgeSettings() {
             <Check className="w-4 h-4" />
             {t("printing.direct_print_desc")}
           </div>
+          <div className="pt-3 border-t">
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              data-testid="button-download-printbridge-connected"
+            >
+              <a href="/flowp-print-bridge.exe" download="FlowpPrintBridge.exe">
+                <Download className="w-4 h-4 mr-2" />
+                {t("printing.bridge_download")}
+              </a>
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
