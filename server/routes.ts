@@ -1314,7 +1314,8 @@ export async function registerRoutes(
         name, currency, taxRate, address, phone, language, logo, country, city,
         receiptShowLogo, receiptHeaderText, receiptFooterText, 
         receiptShowAddress, receiptShowPhone, receiptTaxId, receiptLogo, onboardingComplete,
-        receiptLogoSize, receiptFontSize, receiptFontFamily
+        receiptLogoSize, receiptFontSize, receiptFontFamily,
+        couponEnabled, couponText
       } = req.body;
       
       const updated = await storage.updateTenant(tenantId, {
@@ -1338,6 +1339,8 @@ export async function registerRoutes(
         receiptFontSize: receiptFontSize !== undefined ? receiptFontSize : undefined,
         receiptFontFamily: receiptFontFamily !== undefined ? receiptFontFamily : undefined,
         onboardingComplete: onboardingComplete !== undefined ? onboardingComplete : undefined,
+        couponEnabled: couponEnabled !== undefined ? couponEnabled : undefined,
+        couponText: couponText !== undefined ? couponText : undefined,
       });
       
       if (!updated) {
