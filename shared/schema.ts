@@ -13,6 +13,9 @@ export const stockMovementTypeEnum = pgEnum("stock_movement_type", ["sale", "ret
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "split"]);
 export const customerIdTypeEnum = pgEnum("customer_id_type", ["pasaporte", "cedula_ciudadania", "cedula_extranjeria", "nit"]);
 
+// Purchase order enums
+export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft", "ordered", "partial", "received", "cancelled"]);
+
 // Portal enums
 export const tenantStatusEnum = pgEnum("tenant_status", ["trial", "active", "past_due", "suspended", "cancelled"]);
 export const portalRoleTypeEnum = pgEnum("portal_role_type", ["internal", "tenant"]);
@@ -312,6 +315,54 @@ export const stockMovements = pgTable("stock_movements", {
   notes: text("notes"),
   userId: varchar("user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
+});
+
+// ============================================
+// PURCHASING / RESTOCKING TABLES
+// ============================================
+
+// Suppliers/Providers
+export const suppliers = pgTable("suppliers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  name: text("name").notNull(),
+  contactName: text("contact_name"),
+  email: text("email"),
+  phone: text("phone"),
+  address: text("address"),
+  taxId: text("tax_id"),
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Purchase Orders
+export const purchaseOrders = pgTable("purchase_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  supplierId: varchar("supplier_id").references(() => suppliers.id),
+  orderNumber: text("order_number").notNull(),
+  status: purchaseOrderStatusEnum("status").default("draft").notNull(),
+  expectedDate: timestamp("expected_date"),
+  receivedDate: timestamp("received_date"),
+  subtotal: decimal("subtotal", { precision: 12, scale: 2 }).default("0"),
+  tax: decimal("tax", { precision: 12, scale: 2 }).default("0"),
+  total: decimal("total", { precision: 12, scale: 2 }).default("0"),
+  notes: text("notes"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Purchase Order Items
+export const purchaseOrderItems = pgTable("purchase_order_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  purchaseOrderId: varchar("purchase_order_id").references(() => purchaseOrders.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  unitCost: decimal("unit_cost", { precision: 12, scale: 2 }).notNull(),
+  receivedQuantity: integer("received_quantity").default(0),
+  notes: text("notes"),
 });
 
 // ============================================
@@ -617,6 +668,9 @@ export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: t
 export const insertKitchenTicketSchema = createInsertSchema(kitchenTickets).omit({ id: true, createdAt: true, startedAt: true, completedAt: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true });
 export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({ id: true, createdAt: true });
+export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: true, createdAt: true });
+export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertPurchaseOrderItemSchema = createInsertSchema(purchaseOrderItems).omit({ id: true });
 export const insertModifierGroupSchema = createInsertSchema(modifierGroups).omit({ id: true });
 export const insertModifierSchema = createInsertSchema(modifiers).omit({ id: true });
 export const insertRegisterSessionSchema = createInsertSchema(registerSessions).omit({ id: true, openedAt: true, closedAt: true });
@@ -679,6 +733,12 @@ export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type StockMovement = typeof stockMovements.$inferSelect;
 export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
+export type Supplier = typeof suppliers.$inferSelect;
+export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = z.infer<typeof insertPurchaseOrderSchema>;
+export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;
+export type InsertPurchaseOrderItem = z.infer<typeof insertPurchaseOrderItemSchema>;
 
 // Portal Types
 export type PortalRole = typeof portalRoles.$inferSelect;
