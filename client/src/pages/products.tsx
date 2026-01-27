@@ -14,7 +14,8 @@ import { useI18n } from "@/lib/i18n";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Category, Product } from "@shared/schema";
-import { Plus, Pencil, Trash2, Package, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Tag, Upload, X, ImageIcon } from "lucide-react";
+import { useUpload } from "@/hooks/use-upload";
 
 export default function ProductsPage() {
   const { tenant } = useAuth();
@@ -46,7 +47,10 @@ export default function ProductsPage() {
     categoryId: "",
     barcode: "",
     cost: "",
+    image: "",
   });
+
+  const { upload, isUploading } = useUpload();
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
@@ -83,7 +87,7 @@ export default function ProductsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setProductDialogOpen(false);
       setEditingProduct(null);
-      setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "" });
+      setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "", image: "" });
       toast({ title: editingProduct ? t("products.updated") : t("products.created") });
     },
   });
@@ -118,12 +122,23 @@ export default function ProductsPage() {
         categoryId: product.categoryId || "",
         barcode: product.barcode || "",
         cost: product.cost || "",
+        image: product.image || "",
       });
     } else {
       setEditingProduct(null);
-      setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "" });
+      setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "", image: "" });
     }
     setProductDialogOpen(true);
+  };
+
+  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const result = await upload(file);
+    if (result) {
+      setProductForm({ ...productForm, image: result.url });
+    }
   };
 
   const getCategoryName = (categoryId: string | null) => {
@@ -334,14 +349,14 @@ export default function ProductsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCategoryDialogOpen(false)}>
-              {t("settings.cancel")}
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => categoryMutation.mutate(categoryForm)}
               disabled={!categoryForm.name || categoryMutation.isPending}
               data-testid="button-save-category"
             >
-              {t("settings.save")}
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -415,17 +430,60 @@ export default function ProductsPage() {
                 data-testid="input-product-barcode"
               />
             </div>
+            <div className="space-y-2">
+              <Label>{t("products.image")}</Label>
+              {productForm.image ? (
+                <div className="relative inline-block">
+                  <img 
+                    src={productForm.image} 
+                    alt="Product" 
+                    className="w-24 h-24 object-cover rounded-lg border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6"
+                    onClick={() => setProductForm({ ...productForm, image: "" })}
+                    data-testid="button-remove-product-image"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed cursor-pointer hover:bg-muted/50 transition-colors">
+                    {isUploading ? (
+                      <span className="text-sm text-muted-foreground">{t("common.uploading")}</span>
+                    ) : (
+                      <>
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">{t("products.upload_image")}</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleProductImageUpload}
+                      disabled={isUploading}
+                      data-testid="input-product-image"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setProductDialogOpen(false)}>
-              {t("settings.cancel")}
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => productMutation.mutate(productForm)}
               disabled={!productForm.name || !productForm.price || productMutation.isPending}
               data-testid="button-save-product"
             >
-              {t("settings.save")}
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

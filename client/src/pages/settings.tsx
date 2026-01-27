@@ -491,11 +491,11 @@ function PrintBridgeSettings() {
           <Button
             asChild
             className="w-full"
-            data-testid="button-download-printbridge"
+            data-testid="button-download-printbridge-source"
           >
-            <a href="/flowp-print-bridge.exe" download="FlowpPrintBridge.exe">
+            <a href="/printbridge-source.zip" download="printbridge-source.zip">
               <Download className="w-4 h-4 mr-2" />
-              {t("printing.bridge_download_exe")}
+              {t("printing.bridge_download_source")}
             </a>
           </Button>
         </div>
@@ -515,28 +515,6 @@ function PrintBridgeSettings() {
 
         {showAdvanced && (
           <div className="mt-4 space-y-4">
-            {/* Build from Source */}
-            <div className="p-3 rounded-lg bg-muted/50 space-y-3">
-              <h5 className="font-medium text-sm">{t("printing.build_instructions_title")}</h5>
-              <ol className="text-xs text-muted-foreground space-y-1 ml-4 list-decimal">
-                <li>{t("printing.build_step_1")}</li>
-                <li>{t("printing.build_step_2")}</li>
-                <li>{t("printing.build_step_3")}</li>
-                <li>{t("printing.build_step_4")}</li>
-              </ol>
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="w-full"
-                data-testid="button-download-printbridge-source"
-              >
-                <a href="/printbridge-source.zip" download="printbridge-source.zip">
-                  <Download className="w-4 h-4 mr-2" />
-                  {t("printing.bridge_download_source")}
-                </a>
-              </Button>
-            </div>
 
             {/* Security Token */}
             <div className="p-3 rounded-lg bg-muted/50 space-y-2">
