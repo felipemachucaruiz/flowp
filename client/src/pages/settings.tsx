@@ -491,13 +491,16 @@ function PrintBridgeSettings() {
           <Button
             asChild
             className="w-full"
-            data-testid="button-download-printbridge-source"
+            data-testid="button-download-printbridge-simple"
           >
-            <a href="/printbridge-source.zip" download="printbridge-source.zip">
+            <a href="/printbridge-simple.zip" download="printbridge-simple.zip">
               <Download className="w-4 h-4 mr-2" />
-              {t("printing.bridge_download_source")}
+              {t("printing.bridge_download_simple")}
             </a>
           </Button>
+          <p className="text-xs text-muted-foreground text-center mt-2">
+            {t("printing.bridge_simple_note")}
+          </p>
         </div>
       )}
 
