@@ -16,9 +16,32 @@ function startServer(port, config, storeInstance) {
     store = storeInstance;
     const app = express();
 
-    // CORS for Flowp web app
+    // CORS - restrict to localhost and local Flowp origins
     app.use(cors({
-      origin: '*',
+      origin: function(origin, callback) {
+        // Allow requests from localhost, local network, and Flowp domains
+        const allowedPatterns = [
+          /^https?:\/\/localhost(:\d+)?$/,
+          /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+          /^https?:\/\/0\.0\.0\.0(:\d+)?$/,
+          /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/,
+          /^https?:\/\/10\.\d+\.\d+\.\d+(:\d+)?$/,
+          /^https?:\/\/.*\.flowp\.app$/,
+          /^https?:\/\/.*\.replit\.dev$/
+        ];
+        
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) {
+          return callback(null, true);
+        }
+        
+        const isAllowed = allowedPatterns.some(pattern => pattern.test(origin));
+        if (isAllowed) {
+          return callback(null, true);
+        }
+        
+        callback(new Error('Not allowed by CORS'));
+      },
       methods: ['GET', 'POST', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'X-Auth-Token']
     }));

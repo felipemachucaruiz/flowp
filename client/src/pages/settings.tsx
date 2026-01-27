@@ -163,15 +163,11 @@ function PrintBridgeSettings() {
       const status = await printBridge.checkStatus();
       setBridgeStatus(status);
       
-      if (status.isAvailable && printBridge.getToken()) {
+      if (status.isAvailable) {
         const detectedPrinters = await printBridge.getPrinters();
-        if (detectedPrinters.length > 0) {
-          setIsAuthenticated(true);
-          setPrinters(detectedPrinters);
-        } else {
-          setIsAuthenticated(false);
-          setPrinters([]);
-        }
+        setPrinters(detectedPrinters);
+        // Only consider authenticated if we have at least one printer or config
+        setIsAuthenticated(status.printerConfig?.printerName !== 'Not configured' || detectedPrinters.length > 0);
       } else {
         setIsAuthenticated(false);
         setPrinters([]);
@@ -250,19 +246,24 @@ function PrintBridgeSettings() {
           <div className="text-sm text-muted-foreground whitespace-pre-line">
             {t("printing.bridge_instructions")}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open('/flowp-print-bridge.exe', '_blank')}
-            data-testid="button-download-print-bridge"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            {t("printing.bridge_download_exe")}
-          </Button>
+          
+          <div className="bg-card border rounded-lg p-4 space-y-3">
+            <h4 className="font-medium text-sm">{t("printing.bridge_setup_steps")}</h4>
+            <ol className="text-sm text-muted-foreground list-decimal ml-4 space-y-1">
+              <li>{t("printing.bridge_step_1")}</li>
+              <li>{t("printing.bridge_step_2")}</li>
+              <li>{t("printing.bridge_step_3")}</li>
+              <li>{t("printing.bridge_step_4")}</li>
+            </ol>
+          </div>
+
+          <p className="text-xs text-muted-foreground italic">
+            {t("printing.bridge_contact_admin")}
+          </p>
           
           <div className="pt-2 border-t">
             <p className="text-sm text-muted-foreground mb-2">
-              {t("printing.bridge_token_instructions")}
+              {t("printing.bridge_token_optional")}
             </p>
             <div className="flex gap-2">
               <Input
