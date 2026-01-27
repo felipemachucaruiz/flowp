@@ -39,6 +39,7 @@ import {
   Users,
   Download,
   Tag,
+  Truck,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -121,6 +122,11 @@ export function AppSidebar() {
       title: t("nav.inventory"),
       url: "/inventory",
       icon: Package,
+    },
+    {
+      title: t("nav.purchasing"),
+      url: "/purchasing",
+      icon: Truck,
     },
     {
       title: t("nav.customers") || "Customers",
