@@ -523,11 +523,11 @@ export default function CustomersPage() {
                                    t("customers.loyalty_adjusted")}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {transaction.description || (
-                                    transaction.type === "earned" ? t("customers.points_earned_from_order") :
-                                    transaction.type === "redeemed" ? t("customers.points_redeemed_for_reward") :
-                                    t("customers.points_adjusted")
-                                  )}
+                                  {transaction.type === "earned" 
+                                    ? `${t("customers.points_earned_from_order")}${transaction.orderId ? ` #${transaction.orderId.slice(-4)}` : ''}`
+                                    : transaction.type === "redeemed" 
+                                    ? t("customers.points_redeemed_for_reward")
+                                    : t("customers.points_adjusted")}
                                 </p>
                               </div>
                             </div>

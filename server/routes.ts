@@ -1150,7 +1150,6 @@ export async function registerRoutes(
               orderId: order.id,
               type: "earned",
               points: pointsEarned,
-              description: `Points earned from order #${orderNumber}`,
             });
           }
           
