@@ -1,0 +1,170 @@
+
+========================================
+  Flowp PrintBridge Builder
+========================================
+
+Installing dependencies...
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated har-validator@5.1.5: this library is no longer supported
+npm warn deprecated uuid@3.4.0: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+npm warn deprecated boolean@3.2.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated request@2.88.2: request has been deprecated, see https://github.com/request/request/issues/3142
+npm warn deprecated tar@6.2.1: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me
+
+added 451 packages, and audited 452 packages in 25s
+
+69 packages are looking for funding
+  run `npm fund` for details
+
+11 vulnerabilities (3 moderate, 6 high, 2 critical)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+Building PrintBridge...
+
+> flowp-printbridge@1.0.0 build:portable
+> electron-builder --win portable --x64
+
+  • electron-builder  version=24.13.3 os=10.0.26100
+  • loaded configuration  file=package.json ("build" field)
+  • writing effective config  file=dist\builder-effective-config.yaml
+  • rebuilding native dependencies  dependencies=usb@2.17.0 platform=win32 arch=x64
+  • packaging       platform=win32 arch=x64 electron=28.3.3 appOutDir=dist\win-unpacked
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=1.036s
+  ⨯ cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+
+    Extracting archive: C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\208639967.7z
+    --
+    Path = C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\208639967.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+
+
+    Sub items Errors: 2
+
+    Archives with Errors: 1
+
+    Sub items Errors: 2
+
+                    errorOut=ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requerido. : C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\208639967\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requerido. : C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\208639967\darwin\10.12\lib\libssl.dylib
+
+                    command='D:\Downloads\printbridge-source (3)\node_modules\7zip-bin\win\x64\7za.exe' x -bd 'C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\208639967.7z' '-oC:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\208639967'
+                    workingDir=C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign
+  • Above command failed, retrying 3 more times
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=764ms
+  ⨯ cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+
+    Extracting archive: C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\939209111.7z
+    --
+    Path = C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\939209111.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+
+
+    Sub items Errors: 2
+
+    Archives with Errors: 1
+
+    Sub items Errors: 2
+
+                    errorOut=ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requerido. : C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\939209111\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requerido. : C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\939209111\darwin\10.12\lib\libssl.dylib
+
+                    command='D:\Downloads\printbridge-source (3)\node_modules\7zip-bin\win\x64\7za.exe' x -bd 'C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\939209111.7z' '-oC:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\939209111'
+                    workingDir=C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign
+  • Above command failed, retrying 2 more times
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=608ms
+  ⨯ cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+
+    Extracting archive: C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\568626027.7z
+    --
+    Path = C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\568626027.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+
+
+    Sub items Errors: 2
+
+    Archives with Errors: 1
+
+    Sub items Errors: 2
+
+                    errorOut=ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requerido. : C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\568626027\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requerido. : C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\568626027\darwin\10.12\lib\libssl.dylib
+
+                    command='D:\Downloads\printbridge-source (3)\node_modules\7zip-bin\win\x64\7za.exe' x -bd 'C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\568626027.7z' '-oC:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\568626027'
+                    workingDir=C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign
+  • Above command failed, retrying 1 more times
+  • downloading     url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z size=5.6 MB parts=1
+  • downloaded      url=https://github.com/electron-userland/electron-builder-binaries/releases/download/winCodeSign-2.6.0/winCodeSign-2.6.0.7z duration=614ms
+  ⨯ cannot execute  cause=exit status 2
+                    out=
+    7-Zip (a) 21.07 (x64) : Copyright (c) 1999-2021 Igor Pavlov : 2021-12-26
+
+    Scanning the drive for archives:
+    1 file, 5635384 bytes (5504 KiB)
+
+    Extracting archive: C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\046309019.7z
+    --
+    Path = C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\046309019.7z
+    Type = 7z
+    Physical Size = 5635384
+    Headers Size = 1492
+    Method = LZMA2:24m LZMA:20 BCJ2
+    Solid = +
+    Blocks = 2
+
+
+    Sub items Errors: 2
+
+    Archives with Errors: 1
+
+    Sub items Errors: 2
+
+                    errorOut=ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requerido. : C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\046309019\darwin\10.12\lib\libcrypto.dylib
+    ERROR: Cannot create symbolic link : El cliente no dispone de un privilegio requerido. : C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\046309019\darwin\10.12\lib\libssl.dylib
+
+                    command='D:\Downloads\printbridge-source (3)\node_modules\7zip-bin\win\x64\7za.exe' x -bd 'C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\046309019.7z' '-oC:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign\046309019'
+                    workingDir=C:\Users\felip\AppData\Local\electron-builder\Cache\winCodeSign
+  • Above command failed, retrying 0 more times
+
+ERROR: Build failed!
+Presione una tecla para continuar . . .
