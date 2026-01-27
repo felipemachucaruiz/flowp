@@ -480,7 +480,7 @@ function PrintBridgeSettings() {
             <Check className="w-4 h-4" />
             {t("printing.direct_print_desc")}
           </div>
-          <div className="pt-3 border-t">
+          <div className="pt-3 border-t flex gap-2 flex-wrap">
             <Button
               asChild
               variant="outline"
@@ -490,6 +490,17 @@ function PrintBridgeSettings() {
               <a href="/flowp-print-bridge.exe" download="FlowpPrintBridge.exe">
                 <Download className="w-4 h-4 mr-2" />
                 {t("printing.bridge_download")}
+              </a>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              data-testid="button-download-printbridge-source"
+            >
+              <a href="/printbridge-source.zip" download="printbridge-source.zip">
+                <Download className="w-4 h-4 mr-2" />
+                {t("printing.bridge_download_source")}
               </a>
             </Button>
           </div>
@@ -508,7 +519,7 @@ function PrintBridgeSettings() {
               <li>{t("printing.bridge_step_3")}</li>
               <li>{t("printing.bridge_step_4")}</li>
             </ol>
-            <div className="pt-3">
+            <div className="pt-3 space-y-2">
               <Button
                 asChild
                 variant="default"
@@ -518,6 +529,17 @@ function PrintBridgeSettings() {
                 <a href="/flowp-print-bridge.exe" download="FlowpPrintBridge.exe">
                   <Download className="w-4 h-4 mr-2" />
                   {t("printing.bridge_download")}
+                </a>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                className="w-full"
+                data-testid="button-download-printbridge-source-disconnected"
+              >
+                <a href="/printbridge-source.zip" download="printbridge-source.zip">
+                  <Download className="w-4 h-4 mr-2" />
+                  {t("printing.bridge_download_source")}
                 </a>
               </Button>
             </div>
