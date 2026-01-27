@@ -154,6 +154,21 @@ ipcMain.handle('test-print', async () => {
   return await testPrint(config);
 });
 
+ipcMain.handle('test-kitchen-print', async () => {
+  const config = store.get('printerConfig', {});
+  if (!config.kitchenEnabled) {
+    return { success: false, error: 'Kitchen printer not enabled' };
+  }
+  const kitchenConfig = {
+    type: config.kitchenType || 'windows',
+    printerName: config.kitchenPrinterName,
+    networkIp: config.kitchenNetworkIp,
+    networkPort: config.kitchenNetworkPort,
+    paperWidth: config.kitchenPaperWidth || 80
+  };
+  return await testPrint(kitchenConfig);
+});
+
 ipcMain.handle('get-auth-token', () => {
   let token = store.get('authToken');
   if (!token) {

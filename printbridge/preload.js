@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('printBridge', {
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
   getServerStatus: () => ipcRenderer.invoke('get-server-status'),
   testPrint: () => ipcRenderer.invoke('test-print'),
+  testKitchenPrint: () => ipcRenderer.invoke('test-kitchen-print'),
   getAuthToken: () => ipcRenderer.invoke('get-auth-token'),
   regenerateToken: () => ipcRenderer.invoke('regenerate-token'),
   setLanguage: (lang) => ipcRenderer.invoke('set-language', lang),

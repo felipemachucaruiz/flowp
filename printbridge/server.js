@@ -98,6 +98,34 @@ function startServer(port, config, storeInstance) {
       }
     });
 
+    // Print kitchen ticket
+    app.post('/print-kitchen', async (req, res) => {
+      try {
+        const { ticket } = req.body;
+        if (!ticket) {
+          return res.json({ success: false, error: 'No ticket data provided' });
+        }
+        
+        if (!currentConfig.kitchenEnabled) {
+          return res.json({ success: false, error: 'Kitchen printer not configured' });
+        }
+
+        const kitchenConfig = {
+          type: currentConfig.kitchenType || 'windows',
+          printerName: currentConfig.kitchenPrinterName,
+          networkIp: currentConfig.kitchenNetworkIp,
+          networkPort: currentConfig.kitchenNetworkPort,
+          paperWidth: currentConfig.kitchenPaperWidth || 80
+        };
+
+        const result = await printReceipt(kitchenConfig, ticket);
+        res.json(result);
+      } catch (error) {
+        console.error('Kitchen print error:', error);
+        res.json({ success: false, error: error.message });
+      }
+    });
+
     // Open cash drawer
     app.post('/drawer', async (req, res) => {
       try {
