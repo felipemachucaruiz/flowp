@@ -740,6 +740,11 @@ const translations = {
     "printing.coupon_text": "Coupon Content",
     "printing.coupon_placeholder": "e.g., 10% OFF on your next purchase! Valid until...",
     "printing.coupon_desc": "This will be printed after the receipt with a paper cut separator",
+    "printing.coupon_sample_line2": "On your next purchase",
+    "printing.coupon_sample_line3": "Valid until end of month",
+    "printing.coupon_line_placeholder": "Enter coupon text...",
+    "printing.add_line": "Add Line",
+    "printing.coupon_preview": "Preview",
     "printing.preview_title": "Receipt Preview",
     "printing.preview_desc": "See how your receipt will look with current settings",
     "printing.sample_item": "Sample Item",
@@ -790,6 +795,7 @@ const translations = {
     // Common
     "common.save": "Save",
     "common.cancel": "Cancel",
+    "common.reset": "Reset",
 
     "tour.start_tour": "Tour",
     "tour.step_of": "Step {current} of {total}",
@@ -1771,6 +1777,11 @@ const translations = {
     "printing.coupon_text": "Contenido del Cupón",
     "printing.coupon_placeholder": "ej., ¡10% DE DESCUENTO en tu próxima compra! Válido hasta...",
     "printing.coupon_desc": "Esto se imprimirá después del recibo con un separador de corte de papel",
+    "printing.coupon_sample_line2": "En tu próxima compra",
+    "printing.coupon_sample_line3": "Válido hasta fin de mes",
+    "printing.coupon_line_placeholder": "Ingresa texto del cupón...",
+    "printing.add_line": "Agregar Línea",
+    "printing.coupon_preview": "Vista Previa",
     "printing.preview_title": "Vista Previa del Recibo",
     "printing.preview_desc": "Mira cómo se verá tu recibo con la configuración actual",
     "printing.sample_item": "Artículo de Ejemplo",
@@ -1821,6 +1832,7 @@ const translations = {
     // Common
     "common.save": "Guardar",
     "common.cancel": "Cancelar",
+    "common.reset": "Restablecer",
 
     "tour.start_tour": "Tour",
     "tour.step_of": "Paso {current} de {total}",
@@ -2802,6 +2814,11 @@ const translations = {
     "printing.coupon_text": "Conteúdo do Cupom",
     "printing.coupon_placeholder": "ex., 10% DE DESCONTO na sua próxima compra! Válido até...",
     "printing.coupon_desc": "Isso será impresso após o recibo com um separador de corte de papel",
+    "printing.coupon_sample_line2": "Na sua próxima compra",
+    "printing.coupon_sample_line3": "Válido até o fim do mês",
+    "printing.coupon_line_placeholder": "Digite o texto do cupom...",
+    "printing.add_line": "Adicionar Linha",
+    "printing.coupon_preview": "Pré-visualização",
     "printing.preview_title": "Pré-visualização do Recibo",
     "printing.preview_desc": "Veja como seu recibo ficará com as configurações atuais",
     "printing.sample_item": "Item de Exemplo",
@@ -2852,6 +2869,7 @@ const translations = {
     // Common
     "common.save": "Salvar",
     "common.cancel": "Cancelar",
+    "common.reset": "Redefinir",
 
     "tour.start_tour": "Tour",
     "tour.step_of": "Passo {current} de {total}",

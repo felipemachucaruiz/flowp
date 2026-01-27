@@ -41,6 +41,7 @@ import {
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
 import { Wifi, WifiOff, Download } from "lucide-react";
+import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 
 const businessSettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
@@ -2053,11 +2054,11 @@ export default function SettingsPage() {
                           <FormItem>
                             <FormLabel>{t("printing.coupon_text")}</FormLabel>
                             <FormControl>
-                              <Textarea 
-                                {...field} 
-                                placeholder={t("printing.coupon_placeholder")}
-                                rows={4}
-                                data-testid="input-coupon-text"
+                              <CouponEditor 
+                                value={field.value || ""} 
+                                onChange={field.onChange}
+                                fontFamily={receiptForm.watch("receiptFontFamily") || "monospace"}
+                                baseFontSize={receiptForm.watch("receiptFontSize") || 12}
                               />
                             </FormControl>
                             <FormDescription className="text-xs">
@@ -2270,42 +2271,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
-          {/* Coupon Preview */}
-          {receiptForm.watch("couponEnabled") && (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("printing.coupon_preview_title")}</CardTitle>
-                <CardDescription>{t("printing.coupon_preview_desc")}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-center">
-                  <div 
-                    className="bg-white text-black p-4 shadow-lg border rounded-sm"
-                    style={{ 
-                      width: '280px',
-                      fontFamily: receiptForm.watch("receiptFontFamily") || "monospace",
-                      fontSize: `${receiptForm.watch("receiptFontSize") || 12}px`
-                    }}
-                    data-testid="coupon-preview"
-                  >
-                    <div className="text-center border-b-2 border-dashed border-gray-400 pb-2 mb-3">
-                      <span className="text-gray-500">✂ - - - - - - - - - - - - ✂</span>
-                    </div>
-                    <div className="text-center font-bold mb-3" style={{ fontSize: '1.2em' }}>
-                      🎟️ {t("printing.coupon_label")}
-                    </div>
-                    <div className="text-center whitespace-pre-wrap mb-3" style={{ fontSize: '1em' }}>
-                      {receiptForm.watch("couponText") || t("printing.coupon_sample_text")}
-                    </div>
-                    <div className="text-center border-t border-dashed border-gray-400 pt-2 text-sm text-gray-600">
-                      {tenant?.name || "Business Name"}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
+          
           <Card>
             <CardHeader>
               <CardTitle>{t("printing.instructions")}</CardTitle>

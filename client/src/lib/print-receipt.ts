@@ -1,5 +1,6 @@
 import type { Tenant } from "@shared/schema";
 import { printBridge } from "./print-bridge";
+import { renderCouponContent } from "@/components/coupon-editor";
 
 interface ReceiptItem {
   name: string;
@@ -409,11 +410,10 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
   <div class="coupon" style="
     width: 100%;
     padding: 10px 5px;
-    text-align: center;
+    font-family: ${fontFamily};
   ">
-    <div style="font-weight: bold; font-size: ${Math.round(fontSize * 1.2)}px; margin-bottom: 10px;">🎟️ COUPON</div>
-    <div style="white-space: pre-wrap; font-size: ${fontSize}px;">${tenant.couponText}</div>
-    <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; font-size: ${Math.round(fontSize * 0.8)}px;">
+    ${renderCouponContent(tenant.couponText, fontFamily, fontSize)}
+    <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; font-size: ${Math.round(fontSize * 0.8)}px; text-align: center;">
       ${tenant?.name || ""}
     </div>
   </div>
