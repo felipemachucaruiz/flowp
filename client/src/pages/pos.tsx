@@ -910,6 +910,7 @@ export default function POSPage() {
 
         {/* Products Grid */}
         <div 
+          data-tour="pos-products"
           className="flex-1 overflow-y-auto p-3 sm:p-4 pb-20 sm:pb-4 overscroll-contain touch-scroll"
         >
           {productsLoading ? (
@@ -982,7 +983,7 @@ export default function POSPage() {
 
       {/* Desktop Cart Section - Hidden on mobile */}
       {!isMobile && (
-        <div className="w-80 lg:w-[420px] border-l bg-card flex flex-col">
+        <div data-tour="pos-cart" className="w-80 lg:w-[420px] border-l bg-card flex flex-col">
           <CartContent />
         </div>
       )}

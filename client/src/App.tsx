@@ -6,7 +6,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { POSProvider } from "@/lib/pos-context";
-import { I18nProvider } from "@/lib/i18n";
+import { I18nProvider, useI18n } from "@/lib/i18n";
+import { TourProvider } from "@/lib/tour-context";
+import { TourOverlay, TourButton } from "@/components/tour-overlay";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminSidebar } from "@/components/admin-sidebar";
@@ -85,6 +87,7 @@ function AdminRoute({ component: Component }: { component: () => JSX.Element }) 
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const [, navigate] = useLocation();
 
   if (!user) {
@@ -108,14 +111,18 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-col flex-1 min-w-0">
           <header className="flex h-12 items-center justify-between gap-2 border-b px-4 bg-card shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+            <div className="flex items-center gap-2">
+              <TourButton />
+              <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout">
+                <LogOut className="h-4 w-4 mr-2" />
+                {t("nav.logout")}
+              </Button>
+            </div>
           </header>
           <main className="flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
+      <TourOverlay />
     </SidebarProvider>
   );
 }
@@ -266,12 +273,14 @@ function AppContent() {
   
   return (
     <I18nProvider initialLanguage={tenant?.language || "en"}>
-      <POSProvider>
-        <TooltipProvider>
-          <Router />
-          <Toaster />
-        </TooltipProvider>
-      </POSProvider>
+      <TourProvider>
+        <POSProvider>
+          <TooltipProvider>
+            <Router />
+            <Toaster />
+          </TooltipProvider>
+        </POSProvider>
+      </TourProvider>
     </I18nProvider>
   );
 }
