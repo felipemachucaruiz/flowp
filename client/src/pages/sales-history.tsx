@@ -47,7 +47,7 @@ interface OrderWithItems extends Order {
 
 export default function SalesHistoryPage() {
   const { tenant } = useAuth();
-  const { t } = useI18n();
+  const { t, formatDateTime } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState<"today" | "week" | "month" | "all">("today");
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
@@ -261,12 +261,12 @@ export default function SalesHistoryPage() {
                         <div className="flex items-center gap-2">
                           <span className="font-semibold">{t("sales.order_number")}{order.orderNumber}</span>
                           <Badge variant={order.status === "completed" ? "default" : "secondary"}>
-                            {order.status}
+                            {t(`sales.status_${order.status || "pending"}` as any)}
                           </Badge>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Clock className="w-3 h-3" />
-                          {order.createdAt && format(new Date(order.createdAt), "PPp")}
+                          {order.createdAt && formatDateTime(new Date(order.createdAt))}
                         </div>
                       </div>
                     </div>
