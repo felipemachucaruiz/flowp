@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import type { Category, Product, Floor, Table, User } from "@shared/schema";
+import type { Category, Product, Floor, Table, User, TaxRate } from "@shared/schema";
 import {
   Settings as SettingsIcon,
   Store,
@@ -36,6 +36,7 @@ import {
   X,
   Upload,
   ImageIcon,
+  Receipt,
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
@@ -304,6 +305,143 @@ function PrintBridgeSettings() {
   );
 }
 
+// Tax Add Form Component
+function TaxAddForm({
+  onSave,
+  onCancel,
+  isPending,
+  t,
+}: {
+  onSave: (data: { name: string; rate: string; isActive: boolean }) => void;
+  onCancel: () => void;
+  isPending: boolean;
+  t: (key: string) => string;
+}) {
+  const [name, setName] = useState("");
+  const [rate, setRate] = useState("");
+  const [isActive, setIsActive] = useState(true);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (name.trim() && rate.trim()) {
+      onSave({ name: name.trim(), rate, isActive });
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="text-sm font-medium">{t("taxes.name")}</label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("taxes.name_placeholder")}
+            data-testid="input-tax-name"
+          />
+        </div>
+        <div>
+          <label className="text-sm font-medium">{t("taxes.rate")}</label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            placeholder={t("taxes.rate_placeholder")}
+            data-testid="input-tax-rate"
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={isActive}
+          onCheckedChange={setIsActive}
+          data-testid="switch-tax-active"
+        />
+        <label className="text-sm">{t("taxes.active")}</label>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onCancel} data-testid="button-cancel-tax">
+          <X className="w-4 h-4 mr-2" />
+          {t("business.cancel")}
+        </Button>
+        <Button type="submit" disabled={isPending || !name.trim() || !rate.trim()} data-testid="button-save-tax">
+          {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Check className="w-4 h-4 mr-2" />}
+          {t("business.save")}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Tax Edit Form Component
+function TaxEditForm({
+  tax,
+  onSave,
+  onCancel,
+  isPending,
+  t,
+}: {
+  tax: TaxRate;
+  onSave: (data: { name?: string; rate?: string; isActive?: boolean }) => void;
+  onCancel: () => void;
+  isPending: boolean;
+  t: (key: string) => string;
+}) {
+  const [name, setName] = useState(tax.name);
+  const [rate, setRate] = useState(tax.rate || "0");
+  const [isActive, setIsActive] = useState(tax.isActive ?? true);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({ name: name.trim(), rate, isActive });
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex-1 flex items-center gap-4">
+      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t("taxes.name")}
+          data-testid="input-edit-tax-name"
+        />
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            max="100"
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            className="w-24"
+            data-testid="input-edit-tax-rate"
+          />
+          <span>%</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            checked={isActive}
+            onCheckedChange={setIsActive}
+            data-testid="switch-edit-tax-active"
+          />
+          <label className="text-sm">{t("taxes.active")}</label>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" variant="ghost" size="icon" onClick={onCancel} data-testid="button-cancel-edit-tax">
+          <X className="w-4 h-4" />
+        </Button>
+        <Button type="submit" size="icon" disabled={isPending || !name.trim()} data-testid="button-save-edit-tax">
+          {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const { tenant, refreshTenant } = useAuth();
@@ -407,6 +545,14 @@ export default function SettingsPage() {
   const { data: users, isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
   });
+
+  const { data: taxRates, isLoading: taxRatesLoading } = useQuery<TaxRate[]>({
+    queryKey: ["/api/tax-rates"],
+  });
+
+  // Tax rates state
+  const [isAddingTax, setIsAddingTax] = useState(false);
+  const [editingTax, setEditingTax] = useState<TaxRate | null>(null);
 
   // Forms
   const categoryForm = useForm({
@@ -621,6 +767,39 @@ export default function SettingsPage() {
     },
   });
 
+  // Tax rate mutations
+  const createTaxRateMutation = useMutation({
+    mutationFn: async (data: { name: string; rate: string; isActive: boolean }) => {
+      return apiRequest("POST", "/api/tax-rates", data);
+    },
+    onSuccess: () => {
+      toast({ title: t("taxes.create_success") });
+      queryClient.invalidateQueries({ queryKey: ["/api/tax-rates"] });
+      setIsAddingTax(false);
+    },
+  });
+
+  const updateTaxRateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { name?: string; rate?: string; isActive?: boolean } }) => {
+      return apiRequest("PATCH", `/api/tax-rates/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: t("taxes.update_success") });
+      queryClient.invalidateQueries({ queryKey: ["/api/tax-rates"] });
+      setEditingTax(null);
+    },
+  });
+
+  const deleteTaxRateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/tax-rates/${id}`, {});
+    },
+    onSuccess: () => {
+      toast({ title: t("taxes.delete_success") });
+      queryClient.invalidateQueries({ queryKey: ["/api/tax-rates"] });
+    },
+  });
+
   const openCategoryDialog = (category?: Category) => {
     if (category) {
       setEditingItem(category);
@@ -691,6 +870,10 @@ export default function SettingsPage() {
           <TabsTrigger value="business" data-testid="tab-business">
             <Store className="w-4 h-4 mr-2" />
             {t("settings.business")}
+          </TabsTrigger>
+          <TabsTrigger value="taxes" data-testid="tab-taxes">
+            <Receipt className="w-4 h-4 mr-2" />
+            {t("taxes.title")}
           </TabsTrigger>
           <TabsTrigger value="products" data-testid="tab-products">
             <Package className="w-4 h-4 mr-2" />
@@ -1057,6 +1240,118 @@ export default function SettingsPage() {
                       <p className="font-medium">{LANGUAGES.find(l => l.value === tenant?.language)?.label || tenant?.language || "English"}</p>
                     </div>
                   </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tax Configuration */}
+        <TabsContent value="taxes" className="mt-6 space-y-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle>{t("taxes.title")}</CardTitle>
+                <CardDescription>{t("taxes.subtitle")}</CardDescription>
+              </div>
+              <Button onClick={() => setIsAddingTax(true)} data-testid="button-add-tax">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("taxes.add")}
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {taxRatesLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              ) : !taxRates || taxRates.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p className="font-medium">{t("taxes.no_taxes")}</p>
+                  <p className="text-sm">{t("taxes.no_taxes_description")}</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Tax List */}
+                  <div className="space-y-2">
+                    {taxRates.map((tax) => (
+                      <div
+                        key={tax.id}
+                        className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                        data-testid={`tax-item-${tax.id}`}
+                      >
+                        {editingTax?.id === tax.id ? (
+                          <TaxEditForm
+                            tax={tax}
+                            onSave={(data) => updateTaxRateMutation.mutate({ id: tax.id, data })}
+                            onCancel={() => setEditingTax(null)}
+                            isPending={updateTaxRateMutation.isPending}
+                            t={t}
+                          />
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-3">
+                              <div>
+                                <p className="font-medium">{tax.name}</p>
+                                <p className="text-sm text-muted-foreground">{tax.rate}%</p>
+                              </div>
+                              {!tax.isActive && (
+                                <Badge variant="secondary">{t("common.inactive")}</Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditingTax(tax)}
+                                data-testid={`button-edit-tax-${tax.id}`}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  if (confirm(t("taxes.delete_confirm"))) {
+                                    deleteTaxRateMutation.mutate(tax.id);
+                                  }
+                                }}
+                                data-testid={`button-delete-tax-${tax.id}`}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Total Tax Rate Display */}
+                  <div className="pt-4 border-t">
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">{t("taxes.total_rate")}</span>
+                      <span className="text-lg font-bold">
+                        {taxRates
+                          .filter((t) => t.isActive)
+                          .reduce((sum, t) => sum + parseFloat(t.rate || "0"), 0)
+                          .toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Add Tax Form */}
+              {isAddingTax && (
+                <div className="mt-4 p-4 border rounded-lg">
+                  <TaxAddForm
+                    onSave={(data) => createTaxRateMutation.mutate(data)}
+                    onCancel={() => setIsAddingTax(false)}
+                    isPending={createTaxRateMutation.isPending}
+                    t={t}
+                  />
                 </div>
               )}
             </CardContent>
