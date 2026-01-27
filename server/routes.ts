@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
+import path from "path";
+import archiver from "archiver";
 import { storage } from "./storage";
 import { emailService } from "./email";
 import {
@@ -65,6 +67,23 @@ export async function registerRoutes(
 
   // ===== OBJECT STORAGE ROUTES =====
   registerObjectStorageRoutes(app);
+
+  // ===== PRINTBRIDGE DOWNLOAD =====
+  app.get("/printbridge/PrintBridge-Source.zip", (req: Request, res: Response) => {
+    const printbridgePath = path.join(process.cwd(), "printbridge");
+    
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", "attachment; filename=PrintBridge-Source.zip");
+    
+    const archive = archiver("zip", { zlib: { level: 9 } });
+    archive.on("error", (err) => {
+      res.status(500).json({ error: "Failed to create archive" });
+    });
+    
+    archive.pipe(res);
+    archive.directory(printbridgePath, "PrintBridge");
+    archive.finalize();
+  });
 
   // ===== PAYPAL ROUTES =====
   // PayPal integration for subscription payments

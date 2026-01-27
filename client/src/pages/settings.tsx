@@ -255,6 +255,19 @@ function PrintBridgeSettings() {
               <li>{t("printing.bridge_step_3")}</li>
               <li>{t("printing.bridge_step_4")}</li>
             </ol>
+            <div className="pt-3">
+              <Button
+                asChild
+                variant="default"
+                className="w-full"
+                data-testid="button-download-printbridge"
+              >
+                <a href="/printbridge/PrintBridge-Source.zip" download>
+                  <Download className="w-4 h-4 mr-2" />
+                  {t("printing.bridge_download")}
+                </a>
+              </Button>
+            </div>
           </div>
 
           <p className="text-xs text-muted-foreground italic">
