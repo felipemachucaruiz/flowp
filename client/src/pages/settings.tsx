@@ -1188,15 +1188,15 @@ export default function SettingsPage() {
                       </Badge>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Country</p>
+                      <p className="text-sm text-muted-foreground">{t("form.country")}</p>
                       <p className="font-medium">{COUNTRIES.find(c => c.value === tenant?.country)?.label || tenant?.country || t("business.not_set")}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">City</p>
+                      <p className="text-sm text-muted-foreground">{t("settings.city")}</p>
                       <p className="font-medium">{tenant?.city || t("business.not_set")}</p>
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">{COUNTRIES.find(c => c.value === tenant?.country)?.taxIdLabel || "Tax ID"}</p>
+                      <p className="text-sm text-muted-foreground">{COUNTRIES.find(c => c.value === tenant?.country)?.taxIdLabel || t("business.tax_id")}</p>
                       <p className="font-medium">{tenant?.receiptTaxId || t("business.not_set")}</p>
                     </div>
                     <div>
