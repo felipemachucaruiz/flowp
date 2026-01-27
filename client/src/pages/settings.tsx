@@ -543,6 +543,16 @@ function PrintBridgeSettings() {
                 </a>
               </Button>
             </div>
+            
+            <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+              <h5 className="font-medium text-xs mb-2">{t("printing.build_instructions_title")}</h5>
+              <ol className="text-xs text-muted-foreground list-decimal ml-4 space-y-1">
+                <li>{t("printing.build_step_1")}</li>
+                <li>{t("printing.build_step_2")}</li>
+                <li>{t("printing.build_step_3")}</li>
+                <li>{t("printing.build_step_4")}</li>
+              </ol>
+            </div>
           </div>
 
           <p className="text-xs text-muted-foreground italic">
