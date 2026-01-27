@@ -225,6 +225,21 @@ export const loyaltyRewards = pgTable("loyalty_rewards", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Tax Rates
+export const taxRates = pgTable("tax_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  name: text("name").notNull(),
+  rate: decimal("rate", { precision: 5, scale: 2 }).notNull(),
+  isActive: boolean("is_active").default(true),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTaxRateSchema = createInsertSchema(taxRates).omit({ id: true, createdAt: true });
+export type InsertTaxRate = z.infer<typeof insertTaxRateSchema>;
+export type TaxRate = typeof taxRates.$inferSelect;
+
 // Orders
 export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

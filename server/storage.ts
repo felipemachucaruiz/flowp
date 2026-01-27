@@ -2,7 +2,7 @@ import {
   tenants, users, registers, registerSessions, categories, products,
   modifierGroups, modifiers, productModifierGroups, floors, tables,
   orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs, customers,
-  loyaltyTransactions, loyaltyRewards, subscriptionPlans, subscriptions,
+  loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions,
   systemSettings, passwordResetTokens, emailTemplates, emailLogs,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
@@ -10,6 +10,7 @@ import {
   type Customer, type InsertCustomer,
   type LoyaltyTransaction, type InsertLoyaltyTransaction,
   type LoyaltyReward, type InsertLoyaltyReward,
+  type TaxRate, type InsertTaxRate,
   type ModifierGroup, type InsertModifierGroup, type Modifier, type InsertModifier,
   type Floor, type InsertFloor, type Table, type InsertTable,
   type Order, type InsertOrder, type OrderItem, type InsertOrderItem,
@@ -69,6 +70,12 @@ export interface IStorage {
   updateLoyaltyReward(id: string, data: Partial<InsertLoyaltyReward>): Promise<LoyaltyReward | undefined>;
   deleteLoyaltyReward(id: string): Promise<void>;
   createLoyaltyTransaction(transaction: InsertLoyaltyTransaction): Promise<LoyaltyTransaction>;
+  
+  // Tax Rates
+  getTaxRatesByTenant(tenantId: string): Promise<TaxRate[]>;
+  createTaxRate(taxRate: InsertTaxRate): Promise<TaxRate>;
+  updateTaxRate(id: string, data: Partial<InsertTaxRate>): Promise<TaxRate | undefined>;
+  deleteTaxRate(id: string): Promise<void>;
   
   // Floors
   getFloorsByTenant(tenantId: string): Promise<Floor[]>;
@@ -310,6 +317,25 @@ export class DatabaseStorage implements IStorage {
   async createLoyaltyTransaction(transaction: InsertLoyaltyTransaction): Promise<LoyaltyTransaction> {
     const [created] = await db.insert(loyaltyTransactions).values(transaction).returning();
     return created;
+  }
+
+  // Tax Rates
+  async getTaxRatesByTenant(tenantId: string): Promise<TaxRate[]> {
+    return db.select().from(taxRates).where(eq(taxRates.tenantId, tenantId)).orderBy(taxRates.createdAt);
+  }
+
+  async createTaxRate(taxRate: InsertTaxRate): Promise<TaxRate> {
+    const [created] = await db.insert(taxRates).values(taxRate).returning();
+    return created;
+  }
+
+  async updateTaxRate(id: string, data: Partial<InsertTaxRate>): Promise<TaxRate | undefined> {
+    const [updated] = await db.update(taxRates).set(data).where(eq(taxRates.id, id)).returning();
+    return updated;
+  }
+
+  async deleteTaxRate(id: string): Promise<void> {
+    await db.delete(taxRates).where(eq(taxRates.id, id));
   }
 
   // Floors
