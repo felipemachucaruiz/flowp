@@ -37,7 +37,18 @@ function saveConfig(config) {
 let printerConfig = loadConfig();
 
 const app = express();
-app.use(cors({ origin: true }));
+
+// Enable CORS for all origins (needed for browser access from HTTPS sites)
+app.use(cors({
+  origin: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'X-Auth-Token'],
+  credentials: true
+}));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
+
 app.use(express.json({ limit: '10mb' }));
 
 // Get available printers using PowerShell (works on all Windows versions)
