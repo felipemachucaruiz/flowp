@@ -2299,6 +2299,7 @@ export default function SettingsPage() {
               <div className="flex justify-center mt-4">
                 <Button
                   onClick={async () => {
+                    printBridge.clearCache();
                     const status = await printBridge.checkStatus();
                     if (status.isAvailable) {
                       const result = await printBridge.printReceipt({

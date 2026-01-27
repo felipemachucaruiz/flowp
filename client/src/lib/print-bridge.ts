@@ -79,6 +79,11 @@ class PrintBridgeClient {
     this.authToken = localStorage.getItem(TOKEN_STORAGE_KEY);
   }
 
+  clearCache(): void {
+    this.statusCache = null;
+    this.statusCacheTime = 0;
+  }
+
   getToken(): string | null {
     return this.authToken;
   }
