@@ -17,17 +17,30 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '10mb' }));
 
-// Get available printers
+// Get available printers using PowerShell (works on all Windows versions)
 function getPrinters() {
   return new Promise((resolve) => {
-    exec('wmic printer get name', (error, stdout) => {
+    const psCommand = 'powershell -Command "Get-Printer | Select-Object -ExpandProperty Name"';
+    exec(psCommand, (error, stdout) => {
       if (error) {
-        console.log('Error getting printers:', error.message);
-        resolve([]);
+        console.log('PowerShell error, trying alternative method...');
+        // Fallback: try to get printers from registry or use net use
+        exec('powershell -Command "(Get-WmiObject -Query \\"SELECT Name FROM Win32_Printer\\").Name"', (error2, stdout2) => {
+          if (error2) {
+            console.log('Could not get printer list. Please enter printer name manually.');
+            resolve([]);
+            return;
+          }
+          const printers = stdout2.split('\n')
+            .map(line => line.trim())
+            .filter(name => name.length > 0)
+            .map(name => ({ type: 'windows', name }));
+          console.log('Found printers:', printers.map(p => p.name).join(', '));
+          resolve(printers);
+        });
         return;
       }
-      const lines = stdout.split('\n').slice(1);
-      const printers = lines
+      const printers = stdout.split('\n')
         .map(line => line.trim())
         .filter(name => name.length > 0)
         .map(name => ({ type: 'windows', name }));
