@@ -1284,6 +1284,319 @@ export async function registerRoutes(
     }
   });
 
+  // ===== SUPPLIER ROUTES =====
+
+  app.get("/api/suppliers", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const supplierList = await storage.getSuppliersByTenant(tenantId);
+      res.json(supplierList);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch suppliers" });
+    }
+  });
+
+  app.post("/api/suppliers", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const supplier = await storage.createSupplier({
+        ...req.body,
+        tenantId,
+      });
+      res.json(supplier);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to create supplier" });
+    }
+  });
+
+  app.patch("/api/suppliers/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      
+      // Verify supplier belongs to tenant
+      const existing = await storage.getSupplier(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      
+      const supplier = await storage.updateSupplier(id, req.body);
+      res.json(supplier);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update supplier" });
+    }
+  });
+
+  app.delete("/api/suppliers/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      
+      // Verify supplier belongs to tenant
+      const existing = await storage.getSupplier(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      
+      await storage.deleteSupplier(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete supplier" });
+    }
+  });
+
+  // ===== PURCHASE ORDER ROUTES =====
+
+  app.get("/api/purchase-orders", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const orderList = await storage.getPurchaseOrdersByTenant(tenantId);
+      res.json(orderList);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch purchase orders" });
+    }
+  });
+
+  app.get("/api/purchase-orders/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      
+      const order = await storage.getPurchaseOrder(id);
+      if (!order || order.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+      
+      const items = await storage.getPurchaseOrderItems(id);
+      res.json({ ...order, items });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch purchase order" });
+    }
+  });
+
+  app.post("/api/purchase-orders", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { items, ...orderData } = req.body;
+      
+      // Generate order number if not provided
+      const orderNumber = orderData.orderNumber || `PO-${Date.now().toString().slice(-8)}`;
+      
+      const order = await storage.createPurchaseOrder({
+        ...orderData,
+        orderNumber,
+        tenantId,
+        createdBy: userId || null,
+      });
+      
+      // Create items if provided
+      if (items && Array.isArray(items)) {
+        for (const item of items) {
+          await storage.createPurchaseOrderItem({
+            ...item,
+            purchaseOrderId: order.id,
+          });
+        }
+      }
+      
+      const orderItems = await storage.getPurchaseOrderItems(order.id);
+      res.json({ ...order, items: orderItems });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to create purchase order" });
+    }
+  });
+
+  app.patch("/api/purchase-orders/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      
+      // Verify order belongs to tenant
+      const existing = await storage.getPurchaseOrder(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+      
+      const { items, ...orderData } = req.body;
+      const order = await storage.updatePurchaseOrder(id, orderData);
+      
+      res.json(order);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update purchase order" });
+    }
+  });
+
+  app.delete("/api/purchase-orders/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      
+      // Verify order belongs to tenant
+      const existing = await storage.getPurchaseOrder(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+      
+      await storage.deletePurchaseOrder(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete purchase order" });
+    }
+  });
+
+  // ===== PURCHASE ORDER ITEMS ROUTES =====
+
+  app.post("/api/purchase-orders/:orderId/items", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { orderId } = req.params;
+      
+      // Verify order belongs to tenant
+      const order = await storage.getPurchaseOrder(orderId);
+      if (!order || order.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+      
+      const item = await storage.createPurchaseOrderItem({
+        ...req.body,
+        purchaseOrderId: orderId,
+      });
+      res.json(item);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to add item" });
+    }
+  });
+
+  app.patch("/api/purchase-order-items/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      
+      const item = await storage.updatePurchaseOrderItem(id, req.body);
+      res.json(item);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update item" });
+    }
+  });
+
+  app.delete("/api/purchase-order-items/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      
+      await storage.deletePurchaseOrderItem(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete item" });
+    }
+  });
+
+  // Receive stock from purchase order
+  app.post("/api/purchase-orders/:id/receive", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      const { items } = req.body; // Array of { itemId, receivedQuantity }
+      
+      // Verify order belongs to tenant
+      const order = await storage.getPurchaseOrder(id);
+      if (!order || order.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Purchase order not found" });
+      }
+      
+      const orderItems = await storage.getPurchaseOrderItems(id);
+      
+      // Process received items
+      for (const received of items) {
+        const orderItem = orderItems.find(i => i.id === received.itemId);
+        if (orderItem && received.receivedQuantity > 0) {
+          // Update item received quantity
+          await storage.updatePurchaseOrderItem(received.itemId, {
+            receivedQuantity: (orderItem.receivedQuantity || 0) + received.receivedQuantity,
+          });
+          
+          // Create stock movement for the received items
+          await storage.createStockMovement({
+            tenantId,
+            productId: orderItem.productId,
+            type: "purchase",
+            quantity: received.receivedQuantity,
+            referenceId: id,
+            notes: `Received from PO ${order.orderNumber}`,
+            userId: userId || null,
+          });
+        }
+      }
+      
+      // Check if all items are fully received
+      const updatedItems = await storage.getPurchaseOrderItems(id);
+      const allReceived = updatedItems.every(item => 
+        (item.receivedQuantity || 0) >= item.quantity
+      );
+      const partiallyReceived = updatedItems.some(item =>
+        (item.receivedQuantity || 0) > 0 && (item.receivedQuantity || 0) < item.quantity
+      );
+      
+      // Update order status
+      let newStatus: "received" | "partial" = "received";
+      if (!allReceived && partiallyReceived) {
+        newStatus = "partial";
+      }
+      
+      await storage.updatePurchaseOrder(id, {
+        status: newStatus,
+        receivedDate: allReceived ? new Date() : undefined,
+      });
+      
+      const updatedOrder = await storage.getPurchaseOrder(id);
+      res.json({ ...updatedOrder, items: updatedItems });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to receive stock" });
+    }
+  });
+
   // ===== TENANT ROUTES =====
 
   app.get("/api/auth/tenant", async (req: Request, res: Response) => {

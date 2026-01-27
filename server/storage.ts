@@ -4,6 +4,7 @@ import {
   orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs, customers,
   loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions,
   systemSettings, passwordResetTokens, emailTemplates, emailLogs,
+  suppliers, purchaseOrders, purchaseOrderItems,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
   type Category, type InsertCategory, type Product, type InsertProduct,
@@ -16,6 +17,9 @@ import {
   type Order, type InsertOrder, type OrderItem, type InsertOrderItem,
   type KitchenTicket, type InsertKitchenTicket, type Payment, type InsertPayment,
   type StockMovement, type InsertStockMovement,
+  type Supplier, type InsertSupplier,
+  type PurchaseOrder, type InsertPurchaseOrder,
+  type PurchaseOrderItem, type InsertPurchaseOrderItem,
   type SubscriptionPlan, type Subscription,
   type SystemSetting, type InsertSystemSetting,
   type PasswordResetToken, type InsertPasswordResetToken,
@@ -117,6 +121,26 @@ export interface IStorage {
   createStockMovement(movement: InsertStockMovement): Promise<StockMovement>;
   getStockLevel(productId: string): Promise<number>;
   getStockLevels(tenantId: string): Promise<Record<string, number>>;
+  
+  // Suppliers
+  getSuppliersByTenant(tenantId: string): Promise<Supplier[]>;
+  getSupplier(id: string): Promise<Supplier | undefined>;
+  createSupplier(supplier: InsertSupplier): Promise<Supplier>;
+  updateSupplier(id: string, data: Partial<InsertSupplier>): Promise<Supplier | undefined>;
+  deleteSupplier(id: string): Promise<boolean>;
+  
+  // Purchase Orders
+  getPurchaseOrdersByTenant(tenantId: string): Promise<PurchaseOrder[]>;
+  getPurchaseOrder(id: string): Promise<PurchaseOrder | undefined>;
+  createPurchaseOrder(order: InsertPurchaseOrder): Promise<PurchaseOrder>;
+  updatePurchaseOrder(id: string, data: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder | undefined>;
+  deletePurchaseOrder(id: string): Promise<boolean>;
+  
+  // Purchase Order Items
+  getPurchaseOrderItems(purchaseOrderId: string): Promise<PurchaseOrderItem[]>;
+  createPurchaseOrderItem(item: InsertPurchaseOrderItem): Promise<PurchaseOrderItem>;
+  updatePurchaseOrderItem(id: string, data: Partial<InsertPurchaseOrderItem>): Promise<PurchaseOrderItem | undefined>;
+  deletePurchaseOrderItem(id: string): Promise<boolean>;
   
   // Reports
   getDashboardStats(tenantId: string): Promise<{
@@ -578,6 +602,101 @@ export class DatabaseStorage implements IStorage {
       levels[r.productId] = r.total;
     }
     return levels;
+  }
+
+  // Suppliers
+  async getSuppliersByTenant(tenantId: string): Promise<Supplier[]> {
+    return db
+      .select()
+      .from(suppliers)
+      .where(eq(suppliers.tenantId, tenantId))
+      .orderBy(desc(suppliers.createdAt));
+  }
+
+  async getSupplier(id: string): Promise<Supplier | undefined> {
+    const [supplier] = await db.select().from(suppliers).where(eq(suppliers.id, id));
+    return supplier;
+  }
+
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
+    const [created] = await db.insert(suppliers).values(supplier).returning();
+    return created;
+  }
+
+  async updateSupplier(id: string, data: Partial<InsertSupplier>): Promise<Supplier | undefined> {
+    const [updated] = await db
+      .update(suppliers)
+      .set(data)
+      .where(eq(suppliers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSupplier(id: string): Promise<boolean> {
+    const result = await db.delete(suppliers).where(eq(suppliers.id, id));
+    return true;
+  }
+
+  // Purchase Orders
+  async getPurchaseOrdersByTenant(tenantId: string): Promise<PurchaseOrder[]> {
+    return db
+      .select()
+      .from(purchaseOrders)
+      .where(eq(purchaseOrders.tenantId, tenantId))
+      .orderBy(desc(purchaseOrders.createdAt));
+  }
+
+  async getPurchaseOrder(id: string): Promise<PurchaseOrder | undefined> {
+    const [order] = await db.select().from(purchaseOrders).where(eq(purchaseOrders.id, id));
+    return order;
+  }
+
+  async createPurchaseOrder(order: InsertPurchaseOrder): Promise<PurchaseOrder> {
+    const [created] = await db.insert(purchaseOrders).values(order).returning();
+    return created;
+  }
+
+  async updatePurchaseOrder(id: string, data: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder | undefined> {
+    const [updated] = await db
+      .update(purchaseOrders)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(purchaseOrders.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePurchaseOrder(id: string): Promise<boolean> {
+    // Delete items first
+    await db.delete(purchaseOrderItems).where(eq(purchaseOrderItems.purchaseOrderId, id));
+    await db.delete(purchaseOrders).where(eq(purchaseOrders.id, id));
+    return true;
+  }
+
+  // Purchase Order Items
+  async getPurchaseOrderItems(purchaseOrderId: string): Promise<PurchaseOrderItem[]> {
+    return db
+      .select()
+      .from(purchaseOrderItems)
+      .where(eq(purchaseOrderItems.purchaseOrderId, purchaseOrderId));
+  }
+
+  async createPurchaseOrderItem(item: InsertPurchaseOrderItem): Promise<PurchaseOrderItem> {
+    const [created] = await db.insert(purchaseOrderItems).values(item).returning();
+    return created;
+  }
+
+  async updatePurchaseOrderItem(id: string, data: Partial<InsertPurchaseOrderItem>): Promise<PurchaseOrderItem | undefined> {
+    const [updated] = await db
+      .update(purchaseOrderItems)
+      .set(data)
+      .where(eq(purchaseOrderItems.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deletePurchaseOrderItem(id: string): Promise<boolean> {
+    await db.delete(purchaseOrderItems).where(eq(purchaseOrderItems.id, id));
+    return true;
   }
 
   // Reports
