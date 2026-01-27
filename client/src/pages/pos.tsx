@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Category, Product, Customer, LoyaltyReward, User as UserType } from "@shared/schema";
+import type { Category, Product, Customer, LoyaltyReward, User as UserType, TaxRate } from "@shared/schema";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -90,7 +90,6 @@ export default function POSPage() {
   const [freeProductItemId, setFreeProductItemId] = useState<string | null>(null);
   const [selectedSalesRep, setSelectedSalesRep] = useState<UserType | null>(null);
 
-  const taxRate = parseFloat(tenant?.taxRate?.toString() || "0");
   const discountRate = parseFloat(discountPercent || "0");
   
   // Calculate discount amount based on subtotal (percentage + fixed)
@@ -200,6 +199,20 @@ export default function POSPage() {
     queryKey: ["/api/users"],
     enabled: !!tenant?.id,
   });
+
+  const { data: taxRates } = useQuery<TaxRate[]>({
+    queryKey: ["/api/tax-rates"],
+    enabled: !!tenant?.id,
+  });
+
+  // Get individual active tax rates for display
+  const activeTaxRates = taxRates?.filter(t => t.isActive) || [];
+
+  // Calculate total tax rate from active tax rates, fallback to tenant.taxRate for backward compatibility
+  // Only use tax rates table if there are active taxes, otherwise use legacy tenant.taxRate
+  const taxRate = activeTaxRates.length > 0
+    ? activeTaxRates.reduce((sum, t) => sum + parseFloat(t.rate || "0"), 0)
+    : parseFloat(tenant?.taxRate?.toString() || "0");
 
   const getAvailableRewards = (points: number) => {
     if (!loyaltyRewards) return [];
@@ -901,9 +914,25 @@ export default function POSPage() {
                   </div>
                 </div>
                 {taxRate > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t("pos.tax")} ({taxRate}%)</span>
-                    <span>{formatCurrency(getTaxAmountWithDiscount(taxRate))}</span>
+                  <div className="space-y-1">
+                    {activeTaxRates.length > 1 ? (
+                      // Show individual taxes when multiple are configured
+                      activeTaxRates.map((tax) => {
+                        const taxAmount = getTaxAmountWithDiscount(parseFloat(tax.rate || "0"));
+                        return (
+                          <div key={tax.id} className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">{tax.name} ({tax.rate}%)</span>
+                            <span>{formatCurrency(taxAmount)}</span>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      // Show single tax line when only one or legacy taxRate
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">{t("pos.tax")} ({taxRate.toFixed(2)}%)</span>
+                        <span>{formatCurrency(getTaxAmountWithDiscount(taxRate))}</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 <Separator />
