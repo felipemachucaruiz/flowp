@@ -1066,7 +1066,7 @@ export default function SettingsPage() {
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-currency">
-                                  <SelectValue placeholder="Select currency" />
+                                  <SelectValue placeholder={t("settings.select_currency")} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -1090,7 +1090,7 @@ export default function SettingsPage() {
                             <FormControl>
                               <Input
                                 {...field}
-                                placeholder="Business address"
+                                placeholder={t("form.business_address")}
                                 data-testid="input-business-address"
                               />
                             </FormControl>
@@ -1107,7 +1107,7 @@ export default function SettingsPage() {
                             <FormControl>
                               <Input
                                 {...field}
-                                placeholder="Business phone"
+                                placeholder={t("form.business_phone")}
                                 data-testid="input-business-phone"
                               />
                             </FormControl>
@@ -1124,7 +1124,7 @@ export default function SettingsPage() {
                             <Select onValueChange={field.onChange} value={field.value}>
                               <FormControl>
                                 <SelectTrigger data-testid="select-language">
-                                  <SelectValue placeholder="Select language" />
+                                  <SelectValue placeholder={t("form.select_language")} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -2540,12 +2540,12 @@ export default function SettingsPage() {
                   name="pin"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>PIN (optional)</FormLabel>
+                      <FormLabel>{t("settings.pin_optional")}</FormLabel>
                       <FormControl>
                         <Input 
                           type="password" 
                           maxLength={6} 
-                          placeholder="4-6 digits"
+                          placeholder={t("settings.pin_placeholder")}
                           {...field} 
                           data-testid="input-user-pin" 
                         />
