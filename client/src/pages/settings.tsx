@@ -402,25 +402,33 @@ function PrintBridgeSettings() {
   const checkBridgeStatus = async () => {
     setIsChecking(true);
     try {
+      printBridge.clearCache();
       const status = await printBridge.checkStatus();
       setBridgeStatus(status);
       
       if (status.isAvailable) {
         const detectedPrinters = await printBridge.getPrinters();
-        setPrinters(detectedPrinters);
-        setIsAuthenticated(true);
-        // Set current printer from config if available
-        if (status.printerConfig?.printerName && status.printerConfig.printerName !== 'Not configured') {
-          setSelectedPrinter(status.printerConfig.printerName);
+        if (detectedPrinters.length > 0) {
+          setPrinters(detectedPrinters);
+          setIsAuthenticated(true);
+          // Sync selected printer with server config
+          const configuredPrinter = status.printerConfig?.printerName || '';
+          setSelectedPrinter(configuredPrinter);
+        } else {
+          setPrinters([]);
+          setIsAuthenticated(false);
+          setSelectedPrinter('');
         }
       } else {
         setIsAuthenticated(false);
         setPrinters([]);
+        setSelectedPrinter('');
       }
     } catch {
       setBridgeStatus({ isAvailable: false });
       setIsAuthenticated(false);
       setPrinters([]);
+      setSelectedPrinter('');
     }
     setIsChecking(false);
   };
@@ -436,6 +444,15 @@ function PrintBridgeSettings() {
         title: t("printing.printer_configured"),
         description: printerName,
       });
+      // Refresh status to confirm save
+      printBridge.clearCache();
+    } else {
+      toast({
+        title: t("printing.printer_config_error"),
+        description: t("printing.check_bridge_running"),
+        variant: "destructive",
+      });
+      setSelectedPrinter('');
     }
   };
 
