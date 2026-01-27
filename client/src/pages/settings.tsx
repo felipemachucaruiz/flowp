@@ -45,7 +45,6 @@ import { Wifi, WifiOff, Download } from "lucide-react";
 const businessSettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
   currency: z.string().min(1, "Currency is required"),
-  taxRate: z.string().min(0, "Tax rate is required"),
   country: z.string().min(1, "Country is required"),
   city: z.string().optional(),
   address: z.string().optional(),
@@ -580,7 +579,6 @@ export default function SettingsPage() {
     defaultValues: {
       name: tenant?.name || "",
       currency: tenant?.currency || "USD",
-      taxRate: tenant?.taxRate?.toString() || "0",
       country: tenant?.country || "",
       city: tenant?.city || "",
       address: tenant?.address || "",
@@ -916,7 +914,6 @@ export default function SettingsPage() {
                     businessForm.reset({
                       name: tenant?.name || "",
                       currency: tenant?.currency || "USD",
-                      taxRate: tenant?.taxRate?.toString() || "0",
                       country: tenant?.country || "",
                       city: tenant?.city || "",
                       address: tenant?.address || "",
@@ -1086,27 +1083,6 @@ export default function SettingsPage() {
                       />
                       <FormField
                         control={businessForm.control}
-                        name="taxRate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("business.tax_rate")}</FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                placeholder="0.00"
-                                data-testid="input-tax-rate"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={businessForm.control}
                         name="address"
                         render={({ field }) => (
                           <FormItem>
@@ -1234,10 +1210,6 @@ export default function SettingsPage() {
                     <div>
                       <p className="text-sm text-muted-foreground">{t("business.currency")}</p>
                       <p className="font-medium">{CURRENCIES.find(c => c.value === tenant?.currency)?.label || tenant?.currency || "$"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t("business.tax_rate")}</p>
-                      <p className="font-medium">{tenant?.taxRate || "0"}%</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">{t("business.language")}</p>
