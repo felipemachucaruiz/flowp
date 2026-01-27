@@ -655,6 +655,95 @@ export async function registerRoutes(
     res.send(csvContent);
   });
 
+  app.get("/api/csv/template/stock", (req: Request, res: Response) => {
+    const csvContent = "sku,barcode,quantity,notes\nSKU001,123456789,100,Initial stock\nSKU002,987654321,50,Opening inventory";
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=stock_template.csv");
+    res.send(csvContent);
+  });
+
+  // Batch stock import
+  app.post("/api/inventory/batch", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { stock: stockList } = req.body;
+      if (!Array.isArray(stockList) || stockList.length === 0) {
+        return res.status(400).json({ message: "Stock array is required" });
+      }
+
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as { row: number; error: string }[],
+      };
+
+      // Get all products for this tenant
+      const products = await storage.getProductsByTenant(tenantId);
+
+      for (let i = 0; i < stockList.length; i++) {
+        const item = stockList[i];
+        try {
+          // Find product by SKU or barcode
+          const product = products.find(
+            p => (item.sku && p.sku === item.sku) || (item.barcode && p.barcode === item.barcode)
+          );
+
+          if (!product) {
+            results.failed++;
+            results.errors.push({
+              row: i + 2,
+              error: `Product not found: SKU=${item.sku || 'N/A'}, Barcode=${item.barcode || 'N/A'}`,
+            });
+            continue;
+          }
+
+          if (!product.trackInventory) {
+            results.failed++;
+            results.errors.push({
+              row: i + 2,
+              error: `Product ${product.name} does not track inventory`,
+            });
+            continue;
+          }
+
+          const quantity = parseInt(item.quantity) || 0;
+          if (quantity > 0) {
+            await storage.createStockMovement({
+              tenantId,
+              productId: product.id,
+              type: "purchase",
+              quantity,
+              notes: item.notes || "Imported via CSV",
+              userId: null,
+            });
+            results.success++;
+          } else {
+            results.failed++;
+            results.errors.push({
+              row: i + 2,
+              error: `Invalid quantity: ${item.quantity}`,
+            });
+          }
+        } catch (error) {
+          results.failed++;
+          results.errors.push({
+            row: i + 2,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error("Batch stock import error:", error);
+      res.status(400).json({ message: "Failed to import stock" });
+    }
+  });
+
   // Batch category creation
   app.post("/api/categories/batch", async (req: Request, res: Response) => {
     try {

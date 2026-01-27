@@ -156,8 +156,10 @@ function CsvImportSection() {
   const queryClient = useQueryClient();
   const [categoriesFile, setCategoriesFile] = useState<File | null>(null);
   const [productsFile, setProductsFile] = useState<File | null>(null);
+  const [stockFile, setStockFile] = useState<File | null>(null);
   const [isImportingCategories, setIsImportingCategories] = useState(false);
   const [isImportingProducts, setIsImportingProducts] = useState(false);
+  const [isImportingStock, setIsImportingStock] = useState(false);
 
   const parseCSV = (text: string): Record<string, string>[] => {
     const lines = text.trim().split('\n');
@@ -243,6 +245,42 @@ function CsvImportSection() {
     }
   };
 
+  const handleStockImport = async () => {
+    if (!stockFile || !tenant) return;
+    setIsImportingStock(true);
+    try {
+      const text = await stockFile.text();
+      const rows = parseCSV(text);
+      if (rows.length === 0) {
+        toast({ title: t("inventory.csv_no_data"), variant: "destructive" });
+        return;
+      }
+      const stockData = rows.map(r => ({
+        sku: r.sku,
+        barcode: r.barcode,
+        quantity: parseInt(r.quantity) || 0,
+        notes: r.notes || t("settings.import_stock_note"),
+      }));
+      const response = await fetch('/api/inventory/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-tenant-id': tenant.id },
+        body: JSON.stringify({ stock: stockData }),
+      });
+      const result = await response.json();
+      if (response.ok) {
+        toast({ title: t("inventory.csv_import_complete"), description: t("settings.import_stock_result").replace("{success}", result.success).replace("{failed}", result.failed) });
+        queryClient.invalidateQueries({ queryKey: ['/api/inventory/levels'] });
+        setStockFile(null);
+      } else {
+        toast({ title: t("inventory.csv_import_error"), variant: "destructive" });
+      }
+    } catch {
+      toast({ title: t("inventory.csv_import_error"), variant: "destructive" });
+    } finally {
+      setIsImportingStock(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -307,6 +345,40 @@ function CsvImportSection() {
               data-testid="button-import-products"
             >
               {isImportingProducts ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+              {t("inventory.import_csv")}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("settings.import_stock")}</CardTitle>
+          <CardDescription>{t("settings.import_stock_desc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild data-testid="button-download-stock-template">
+              <a href="/api/csv/template/stock" download>
+                <Download className="w-4 h-4 mr-2" />
+                {t("inventory.download_template")}
+              </a>
+            </Button>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              type="file"
+              accept=".csv"
+              onChange={(e) => setStockFile(e.target.files?.[0] || null)}
+              className="flex-1"
+              data-testid="input-stock-csv"
+            />
+            <Button
+              onClick={handleStockImport}
+              disabled={!stockFile || isImportingStock}
+              data-testid="button-import-stock"
+            >
+              {isImportingStock ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
               {t("inventory.import_csv")}
             </Button>
           </div>
