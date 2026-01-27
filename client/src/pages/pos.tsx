@@ -909,7 +909,7 @@ export default function POSPage() {
         </div>
 
         {/* Products Grid */}
-        <ScrollArea className="flex-1 p-3 sm:p-4 pb-20 sm:pb-4">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 pb-20 sm:pb-4">
           {productsLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
               {[...Array(10)].map((_, i) => (
@@ -952,7 +952,7 @@ export default function POSPage() {
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {/* Held Orders */}
         {heldOrders.length > 0 && (
