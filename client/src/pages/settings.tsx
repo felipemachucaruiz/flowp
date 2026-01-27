@@ -40,7 +40,7 @@ import {
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
-import { Wifi, WifiOff, Download } from "lucide-react";
+import { Wifi, WifiOff, Download, ChevronDown } from "lucide-react";
 import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 
 const businessSettingsSchema = z.object({
@@ -396,6 +396,7 @@ function PrintBridgeSettings() {
   const [isChecking, setIsChecking] = useState(false);
   const [tokenInput, setTokenInput] = useState(printBridge.getToken() || '');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const checkBridgeStatus = async () => {
     setIsChecking(true);
@@ -406,7 +407,6 @@ function PrintBridgeSettings() {
       if (status.isAvailable) {
         const detectedPrinters = await printBridge.getPrinters();
         setPrinters(detectedPrinters);
-        // Only consider authenticated if we have at least one printer or config
         setIsAuthenticated(status.printerConfig?.printerName !== 'Not configured' || detectedPrinters.length > 0);
       } else {
         setIsAuthenticated(false);
@@ -435,107 +435,101 @@ function PrintBridgeSettings() {
     return () => clearInterval(interval);
   }, []);
 
+  const isConnected = bridgeStatus?.isAvailable && isAuthenticated;
+
   return (
-    <div className="mt-6 p-4 rounded-lg bg-muted/50 border border-dashed">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          {bridgeStatus?.isAvailable && isAuthenticated ? (
-            <Wifi className="w-5 h-5 text-green-500" />
-          ) : bridgeStatus?.isAvailable ? (
-            <Wifi className="w-5 h-5 text-yellow-500" />
+    <div className="mt-6 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isConnected ? (
+            <div className="w-2 h-2 rounded-full bg-green-500" />
           ) : (
-            <WifiOff className="w-5 h-5 text-muted-foreground" />
+            <div className="w-2 h-2 rounded-full bg-muted-foreground" />
           )}
           <span className="font-medium">{t("printing.bridge_title")}</span>
         </div>
-        <Badge variant={bridgeStatus?.isAvailable && isAuthenticated ? "default" : "secondary"}>
-          {bridgeStatus?.isAvailable && isAuthenticated 
-            ? t("printing.bridge_connected") 
-            : bridgeStatus?.isAvailable 
-              ? t("printing.bridge_needs_token")
-              : t("printing.bridge_disconnected")}
+        <Badge variant={isConnected ? "default" : "secondary"}>
+          {isConnected ? t("printing.bridge_connected") : t("printing.bridge_disconnected")}
         </Badge>
       </div>
-      
-      <p className="text-sm text-muted-foreground mb-4">
-        {t("printing.bridge_description")}
+
+      <p className="text-sm text-muted-foreground">
+        {t("printing.bridge_instructions")}
       </p>
 
-      {bridgeStatus?.isAvailable && isAuthenticated ? (
-        <div className="space-y-3">
-          <div className="text-sm">
-            <strong>{t("printing.bridge_version")}</strong> {bridgeStatus.version}
+      {isConnected ? (
+        /* Connected State */
+        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 space-y-3">
+          <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+            <Check className="w-5 h-5" />
+            <span className="font-medium">{t("printing.direct_print_desc")}</span>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            <span className="font-medium">{t("printing.bridge_version")}</span> {bridgeStatus?.version}
           </div>
           {printers.length > 0 && (
             <div className="text-sm">
-              <strong>{t("printing.bridge_printers")}</strong>
-              <ul className="mt-1 ml-4 list-disc">
-                {printers.map((printer, idx) => (
-                  <li key={idx}>{printer.name} ({printer.type})</li>
-                ))}
-              </ul>
+              <span className="font-medium">{t("printing.bridge_printers")}</span>
+              <span className="ml-2">{printers.map(p => p.name).join(", ")}</span>
             </div>
           )}
-          <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
-            <Check className="w-4 h-4" />
-            {t("printing.direct_print_desc")}
-          </div>
-          <div className="pt-3 border-t flex gap-2 flex-wrap">
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              data-testid="button-download-printbridge-connected"
-            >
-              <a href="/flowp-print-bridge.exe" download="FlowpPrintBridge.exe">
-                <Download className="w-4 h-4 mr-2" />
-                {t("printing.bridge_download")}
-              </a>
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              data-testid="button-download-printbridge-source"
-            >
-              <a href="/printbridge-source.zip" download="printbridge-source.zip">
-                <Download className="w-4 h-4 mr-2" />
-                {t("printing.bridge_download_source")}
-              </a>
-            </Button>
-          </div>
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="text-sm text-muted-foreground whitespace-pre-line">
-            {t("printing.bridge_instructions")}
-          </div>
-          
-          <div className="bg-card border rounded-lg p-4 space-y-3">
-            <h4 className="font-medium text-sm">{t("printing.bridge_setup_steps")}</h4>
-            <ol className="text-sm text-muted-foreground list-decimal ml-4 space-y-1">
+        /* Not Connected State */
+        <div className="p-4 rounded-lg bg-card border space-y-4">
+          <div>
+            <h4 className="font-medium text-sm mb-2">{t("printing.bridge_setup_steps")}</h4>
+            <ol className="text-sm text-muted-foreground space-y-1.5 ml-5 list-decimal">
               <li>{t("printing.bridge_step_1")}</li>
               <li>{t("printing.bridge_step_2")}</li>
               <li>{t("printing.bridge_step_3")}</li>
               <li>{t("printing.bridge_step_4")}</li>
             </ol>
-            <div className="pt-3 space-y-2">
-              <Button
-                asChild
-                variant="default"
-                className="w-full"
-                data-testid="button-download-printbridge"
-              >
-                <a href="/flowp-print-bridge.exe" download="FlowpPrintBridge.exe">
-                  <Download className="w-4 h-4 mr-2" />
-                  {t("printing.bridge_download")}
-                </a>
-              </Button>
+          </div>
+
+          <Button
+            asChild
+            className="w-full"
+            data-testid="button-download-printbridge"
+          >
+            <a href="/flowp-print-bridge.exe" download="FlowpPrintBridge.exe">
+              <Download className="w-4 h-4 mr-2" />
+              {t("printing.bridge_download_exe")}
+            </a>
+          </Button>
+        </div>
+      )}
+
+      {/* Advanced Section (Collapsible) */}
+      <div className="border-t pt-4">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          data-testid="button-toggle-advanced-bridge"
+        >
+          <ChevronDown className={`w-4 h-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+          {t("printing.bridge_advanced_options")}
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-4 space-y-4">
+            {/* Build from Source */}
+            <div className="p-3 rounded-lg bg-muted/50 space-y-3">
+              <h5 className="font-medium text-sm">{t("printing.build_instructions_title")}</h5>
+              <ol className="text-xs text-muted-foreground space-y-1 ml-4 list-decimal">
+                <li>{t("printing.build_step_1")}</li>
+                <li>{t("printing.build_step_2")}</li>
+                <li>{t("printing.build_step_3")}</li>
+                <li>{t("printing.build_step_4")}</li>
+              </ol>
               <Button
                 asChild
                 variant="outline"
+                size="sm"
                 className="w-full"
-                data-testid="button-download-printbridge-source-disconnected"
+                data-testid="button-download-printbridge-source"
               >
                 <a href="/printbridge-source.zip" download="printbridge-source.zip">
                   <Download className="w-4 h-4 mr-2" />
@@ -543,62 +537,48 @@ function PrintBridgeSettings() {
                 </a>
               </Button>
             </div>
-            
-            <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-              <h5 className="font-medium text-xs mb-2">{t("printing.build_instructions_title")}</h5>
-              <ol className="text-xs text-muted-foreground list-decimal ml-4 space-y-1">
-                <li>{t("printing.build_step_1")}</li>
-                <li>{t("printing.build_step_2")}</li>
-                <li>{t("printing.build_step_3")}</li>
-                <li>{t("printing.build_step_4")}</li>
-              </ol>
-            </div>
-          </div>
 
-          <p className="text-xs text-muted-foreground italic">
-            {t("printing.bridge_contact_admin")}
-          </p>
-          
-          <div className="pt-2 border-t">
-            <p className="text-sm text-muted-foreground mb-2">
-              {t("printing.bridge_token_optional")}
-            </p>
-            <div className="flex gap-2">
-              <Input
-                type="text"
-                placeholder={t("printing.token_placeholder")}
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                className="flex-1"
-                data-testid="input-bridge-token"
-              />
-              <Button 
-                size="sm" 
-                onClick={handleSaveToken}
-                data-testid="button-save-token"
-              >
-                {t("common.save")}
-              </Button>
+            {/* Security Token */}
+            <div className="p-3 rounded-lg bg-muted/50 space-y-2">
+              <h5 className="font-medium text-sm">{t("printing.bridge_token_label")}</h5>
+              <p className="text-xs text-muted-foreground">{t("printing.bridge_token_optional")}</p>
+              <div className="flex gap-2">
+                <Input
+                  type="text"
+                  placeholder={t("printing.token_placeholder")}
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  className="flex-1 h-9 text-sm"
+                  data-testid="input-bridge-token"
+                />
+                <Button 
+                  size="sm" 
+                  onClick={handleSaveToken}
+                  data-testid="button-save-token"
+                >
+                  {t("common.save")}
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={checkBridgeStatus}
-        disabled={isChecking}
-        className="mt-3"
-        data-testid="button-check-bridge"
-      >
-        {isChecking ? (
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-        ) : (
-          <Wifi className="w-4 h-4 mr-2" />
+            {/* Check Status */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={checkBridgeStatus}
+              disabled={isChecking}
+              data-testid="button-check-bridge"
+            >
+              {isChecking ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Wifi className="w-4 h-4 mr-2" />
+              )}
+              {t("printing.bridge_status")}
+            </Button>
+          </div>
         )}
-        {t("printing.bridge_status")}
-      </Button>
+      </div>
     </div>
   );
 }
