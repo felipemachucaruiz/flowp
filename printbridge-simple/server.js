@@ -35,7 +35,6 @@ function getPrinters() {
             .map(line => line.trim())
             .filter(name => name.length > 0)
             .map(name => ({ type: 'windows', name }));
-          console.log('Found printers:', printers.map(p => p.name).join(', '));
           resolve(printers);
         });
         return;
@@ -44,7 +43,6 @@ function getPrinters() {
         .map(line => line.trim())
         .filter(name => name.length > 0)
         .map(name => ({ type: 'windows', name }));
-      console.log('Found printers:', printers.map(p => p.name).join(', '));
       resolve(printers);
     });
   });
