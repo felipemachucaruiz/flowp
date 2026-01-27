@@ -11,6 +11,7 @@ A production-ready, multi-tenant POS + Inventory system delivered as a Progressi
 ## User Preferences
 - **Onboarding**: All fields are mandatory except for logo uploads (company logo and receipt logo are optional)
 - **Display Language**: ALL text and dates must use the selected display language. Never use hardcoded English strings. Always use translation keys (t() function) for text and locale-aware date formatting. This is critical and applies to every page, component, and feature.
+- **Receipt Logo**: Can be as large as the full width of receipt paper (no size restrictions up to max paper width)
 
 ## Management Portal (Phase 1 Complete)
 Internal admin portal for SaaS management with role-based access control.
