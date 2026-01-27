@@ -12,7 +12,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Category, Product, Customer, LoyaltyReward, User as UserType, TaxRate } from "@shared/schema";
 import { Label } from "@/components/ui/label";
@@ -61,6 +63,8 @@ export default function POSPage() {
     getTotal,
   } = usePOS();
 
+  const isMobile = useIsMobile();
+  const [showMobileCart, setShowMobileCart] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -651,12 +655,202 @@ export default function POSPage() {
   };
 
   
+  const CartContent = () => (
+    <>
+      <div className="p-4 pr-6 border-b">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="w-5 h-5 text-primary" />
+            <h2 className="font-semibold">{t("pos.current_order")}</h2>
+            <NetworkStatusIndicator />
+          </div>
+          {cart.length > 0 && (
+            <Badge variant="secondary">{cart.length} {t("pos.items")}</Badge>
+          )}
+        </div>
+      </div>
+
+      {cart.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-muted-foreground">
+          <Receipt className="w-16 h-16 mb-4 opacity-30" />
+          <p className="text-center font-medium">{t("pos.no_items")}</p>
+          <p className="text-sm text-center mt-1">
+            {t("pos.tap_products")}
+          </p>
+        </div>
+      ) : (
+        <>
+          <ScrollArea className="flex-1">
+            <div className="p-4 pr-6 space-y-3">
+              {cart.map((item) => (
+                <Card key={item.id} className="p-3">
+                  <div className="flex items-start gap-3">
+                    {item.product.image ? (
+                      <img
+                        src={item.product.image}
+                        alt={item.product.name}
+                        className="w-12 h-12 rounded-md object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                        <Package className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {item.product.name}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatCurrency(parseFloat(item.product.price))} {t("pos.each")}
+                      </p>
+                      {item.modifiers.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {item.modifiers.map((mod) => (
+                            <Badge key={mod.id} variant="secondary" className="text-xs">
+                              {mod.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        data-testid={`button-decrease-${item.id}`}
+                      >
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="w-8 text-center font-medium text-sm">
+                        {item.quantity}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        data-testid={`button-increase-${item.id}`}
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => removeFromCart(item.id)}
+                        data-testid={`button-remove-${item.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="text-right mt-2">
+                    <span className="font-semibold">
+                      {formatCurrency(parseFloat(item.product.price) * item.quantity)}
+                    </span>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <div className="border-t p-4 pr-6 space-y-3 bg-muted/30">
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("pos.subtotal")}</span>
+                <span>{formatCurrency(getSubtotal())}</span>
+              </div>
+              <div className="flex justify-between items-center gap-2">
+                <span className="text-muted-foreground">{t("pos.discount")}</span>
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={discountPercent}
+                    onChange={(e) => setDiscountPercent(e.target.value)}
+                    className="w-16 h-7 text-right text-sm"
+                    data-testid="input-discount-percent"
+                  />
+                  <span className="text-muted-foreground">%</span>
+                  {discountRate > 0 && (
+                    <span className="text-destructive ml-2">
+                      -{formatCurrency(getDiscountAmount())}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {taxRate > 0 && (
+                <div className="space-y-1">
+                  {activeTaxRates.length > 1 ? (
+                    activeTaxRates.map((tax) => {
+                      const taxAmount = getTaxAmountWithDiscount(parseFloat(tax.rate || "0"));
+                      return (
+                        <div key={tax.id} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{tax.name} ({tax.rate}%)</span>
+                          <span>{formatCurrency(taxAmount)}</span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{t("pos.tax")} ({taxRate.toFixed(2)}%)</span>
+                      <span>{formatCurrency(getTaxAmountWithDiscount(taxRate))}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              <Separator />
+              <div className="flex justify-between text-lg font-bold">
+                <span>{t("pos.total")}</span>
+                <span className="text-primary">{formatCurrency(getTotalWithDiscount(taxRate))}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { holdOrder(); if (isMobile) setShowMobileCart(false); }}
+                data-testid="button-hold-order"
+              >
+                <Pause className="w-4 h-4 mr-2" />
+                {t("pos.hold")}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { clearCart(); if (isMobile) setShowMobileCart(false); }}
+                data-testid="button-clear-cart"
+              >
+                <X className="w-4 h-4 mr-2" />
+                {t("pos.clear")}
+              </Button>
+            </div>
+
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={() => { setShowPaymentDialog(true); if (isMobile) setShowMobileCart(false); }}
+              data-testid="button-checkout"
+            >
+              <CreditCard className="w-4 h-4 mr-2" />
+              {t("pos.checkout")}
+            </Button>
+          </div>
+        </>
+      )}
+    </>
+  );
+
   return (
-    <div className="flex h-full">
+    <div className="flex h-full relative">
       {/* Products Section */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Search and Categories */}
-        <div className="p-4 border-b space-y-4">
+        <div className="p-3 sm:p-4 border-b space-y-3 sm:space-y-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -715,11 +909,11 @@ export default function POSPage() {
         </div>
 
         {/* Products Grid */}
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea className="flex-1 p-3 sm:p-4 pb-20 sm:pb-4">
           {productsLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
               {[...Array(10)].map((_, i) => (
-                <Skeleton key={i} className="h-28 rounded-lg" />
+                <Skeleton key={i} className="h-28 sm:h-32 rounded-lg" />
               ))}
             </div>
           ) : filteredProducts?.length === 0 ? (
@@ -729,29 +923,29 @@ export default function POSPage() {
               <p className="text-sm">{t("pos.adjust_search")}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
               {filteredProducts?.map((product) => (
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="flex flex-col items-center justify-center p-3 rounded-lg border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[120px]"
+                  className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-lg border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[100px] sm:min-h-[120px]"
                   data-testid={`button-product-${product.id}`}
                 >
                   {product.image ? (
                     <img 
                       src={product.image} 
                       alt={product.name}
-                      className="w-12 h-12 object-cover rounded mb-2"
+                      className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded mb-2"
                     />
                   ) : (
-                    <div className="w-12 h-12 bg-muted rounded mb-2 flex items-center justify-center">
-                      <Package className="w-6 h-6 text-muted-foreground" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-muted rounded mb-2 flex items-center justify-center">
+                      <Package className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
                     </div>
                   )}
-                  <span className="font-medium text-sm text-center line-clamp-2 mb-1">
+                  <span className="font-medium text-xs sm:text-sm text-center line-clamp-2 mb-1">
                     {product.name}
                   </span>
-                  <span className="text-primary font-semibold text-sm">
+                  <span className="text-primary font-semibold text-xs sm:text-sm">
                     {formatCurrency(parseFloat(product.price))}
                   </span>
                 </button>
@@ -762,7 +956,7 @@ export default function POSPage() {
 
         {/* Held Orders */}
         {heldOrders.length > 0 && (
-          <div className="p-4 border-t bg-muted/30">
+          <div className="p-3 sm:p-4 border-t bg-muted/30">
             <div className="flex items-center gap-2 mb-2">
               <Pause className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">{t("pos.held_orders")}</span>
@@ -784,198 +978,39 @@ export default function POSPage() {
         )}
       </div>
 
-      {/* Cart Section */}
-      <div className="w-80 lg:w-[420px] border-l bg-card flex flex-col">
-        <div className="p-4 pr-6 border-b">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5 text-primary" />
-              <h2 className="font-semibold">{t("pos.current_order")}</h2>
-              <NetworkStatusIndicator />
-            </div>
-            {cart.length > 0 && (
-              <Badge variant="secondary">{cart.length} {t("pos.items")}</Badge>
-            )}
-          </div>
+      {/* Desktop Cart Section - Hidden on mobile */}
+      {!isMobile && (
+        <div className="w-80 lg:w-[420px] border-l bg-card flex flex-col">
+          <CartContent />
         </div>
+      )}
 
-        {cart.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-muted-foreground">
-            <Receipt className="w-16 h-16 mb-4 opacity-30" />
-            <p className="text-center font-medium">{t("pos.no_items")}</p>
-            <p className="text-sm text-center mt-1">
-              {t("pos.tap_products")}
-            </p>
-          </div>
-        ) : (
-          <>
-            <ScrollArea className="flex-1">
-              <div className="p-4 pr-6 space-y-3">
-                {cart.map((item) => (
-                  <Card key={item.id} className="p-3">
-                    <div className="flex items-start gap-3">
-                      {item.product.image ? (
-                        <img
-                          src={item.product.image}
-                          alt={item.product.name}
-                          className="w-12 h-12 rounded-md object-cover flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                          <Package className="w-5 h-5 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">
-                          {item.product.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatCurrency(parseFloat(item.product.price))} {t("pos.each")}
-                        </p>
-                        {item.modifiers.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {item.modifiers.map((mod) => (
-                              <Badge key={mod.id} variant="secondary" className="text-xs">
-                                {mod.name}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          data-testid={`button-decrease-${item.id}`}
-                        >
-                          <Minus className="w-3 h-3" />
-                        </Button>
-                        <span className="w-8 text-center font-medium text-sm">
-                          {item.quantity}
-                        </span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          data-testid={`button-increase-${item.id}`}
-                        >
-                          <Plus className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-destructive"
-                          onClick={() => removeFromCart(item.id)}
-                          data-testid={`button-remove-${item.id}`}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="text-right mt-2">
-                      <span className="font-semibold">
-                        {formatCurrency(parseFloat(item.product.price) * item.quantity)}
-                      </span>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
+      {/* Mobile Cart Button - Fixed at bottom right */}
+      {isMobile && (
+        <Button
+          size="lg"
+          className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg z-50"
+          onClick={() => setShowMobileCart(true)}
+          data-testid="button-mobile-cart"
+        >
+          <ShoppingCart className="w-6 h-6" />
+          {cart.length > 0 && (
+            <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+              {cart.length}
+            </span>
+          )}
+        </Button>
+      )}
 
-            {/* Order Summary */}
-            <div className="border-t p-4 pr-6 space-y-3 bg-muted/30">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t("pos.subtotal")}</span>
-                  <span>{formatCurrency(getSubtotal())}</span>
-                </div>
-                {/* Discount selector */}
-                <div className="flex justify-between items-center gap-2">
-                  <span className="text-muted-foreground">{t("pos.discount")}</span>
-                  <div className="flex items-center gap-1">
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={discountPercent}
-                      onChange={(e) => setDiscountPercent(e.target.value)}
-                      className="w-16 h-7 text-right text-sm"
-                      data-testid="input-discount-percent"
-                    />
-                    <span className="text-muted-foreground">%</span>
-                    {discountRate > 0 && (
-                      <span className="text-destructive ml-2">
-                        -{formatCurrency(getDiscountAmount())}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {taxRate > 0 && (
-                  <div className="space-y-1">
-                    {activeTaxRates.length > 1 ? (
-                      // Show individual taxes when multiple are configured
-                      activeTaxRates.map((tax) => {
-                        const taxAmount = getTaxAmountWithDiscount(parseFloat(tax.rate || "0"));
-                        return (
-                          <div key={tax.id} className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">{tax.name} ({tax.rate}%)</span>
-                            <span>{formatCurrency(taxAmount)}</span>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      // Show single tax line when only one or legacy taxRate
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t("pos.tax")} ({taxRate.toFixed(2)}%)</span>
-                        <span>{formatCurrency(getTaxAmountWithDiscount(taxRate))}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <Separator />
-                <div className="flex justify-between text-lg font-bold">
-                  <span>{t("pos.total")}</span>
-                  <span className="text-primary">{formatCurrency(getTotalWithDiscount(taxRate))}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={holdOrder}
-                  data-testid="button-hold-order"
-                >
-                  <Pause className="w-4 h-4 mr-2" />
-                  {t("pos.hold")}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={clearCart}
-                  data-testid="button-clear-cart"
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  {t("pos.clear")}
-                </Button>
-              </div>
-
-              <Button
-                className="w-full"
-                size="lg"
-                onClick={() => setShowPaymentDialog(true)}
-                data-testid="button-checkout"
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                {t("pos.checkout")}
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
+      {/* Mobile Cart Sheet */}
+      <Sheet open={showMobileCart} onOpenChange={setShowMobileCart}>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col">
+          <SheetHeader className="sr-only">
+            <SheetTitle>{t("pos.current_order")}</SheetTitle>
+          </SheetHeader>
+          <CartContent />
+        </SheetContent>
+      </Sheet>
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={(open) => {
