@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flowp PrintBridge</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #6E51CD 0%, #16006F 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: white;
+    }
+    .container {
+      max-width: 460px;
+      margin: 0 auto;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+    .header p {
+      opacity: 0.8;
+      font-size: 14px;
+    }
+    .status-card {
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(10px);
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .status-row:last-child {
+      margin-bottom: 0;
+    }
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ef4444;
+    }
+    .status-dot.running {
+      background: #22c55e;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .card {
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card h3 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      opacity: 0.9;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 4px;
+      opacity: 0.8;
+    }
+    select, input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    select option {
+      background: #16006F;
+      color: white;
+    }
+    select:focus, input:focus {
+      outline: none;
+      border-color: rgba(255,255,255,0.5);
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 8px;
+    }
+    .btn-primary {
+      background: white;
+      color: #6E51CD;
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.2);
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.3);
+    }
+    .token-display {
+      font-family: monospace;
+      font-size: 11px;
+      background: rgba(0,0,0,0.2);
+      padding: 8px;
+      border-radius: 6px;
+      word-break: break-all;
+      margin-bottom: 8px;
+    }
+    .message {
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .message.success {
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid rgba(34, 197, 94, 0.5);
+    }
+    .message.error {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+    }
+    .radio-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .radio-option input[type="radio"] {
+      width: auto;
+      margin: 0;
+    }
+    .network-config {
+      display: none;
+    }
+    .network-config.show {
+      display: block;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      opacity: 0.6;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🖨️ Flowp PrintBridge</h1>
+      <p>Silent thermal printing for Flowp POS</p>
+    </div>
+
+    <div class="status-card">
+      <div class="status-row">
+        <span>Server Status</span>
+        <div class="status-indicator">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Checking...</span>
+        </div>
+      </div>
+      <div class="status-row">
+        <span>Port</span>
+        <span id="portText">9638</span>
+      </div>
+    </div>
+
+    <div id="message" class="message" style="display: none;"></div>
+
+    <div class="card">
+      <h3>🖨️ Printer Configuration</h3>
+      
+      <label>Connection Type</label>
+      <div class="radio-group">
+        <label class="radio-option">
+          <input type="radio" name="printerType" value="windows" checked onchange="toggleNetworkConfig()">
+          <span>Windows USB Printer</span>
+        </label>
+        <label class="radio-option">
+          <input type="radio" name="printerType" value="network" onchange="toggleNetworkConfig()">
+          <span>Network Printer</span>
+        </label>
+      </div>
+
+      <div id="windowsConfig">
+        <label>Select Printer</label>
+        <select id="printerSelect">
+          <option value="">Loading printers...</option>
+        </select>
+      </div>
+
+      <div id="networkConfig" class="network-config">
+        <label>Printer IP Address</label>
+        <input type="text" id="networkIp" placeholder="192.168.1.100">
+        
+        <label>Port (default: 9100)</label>
+        <input type="number" id="networkPort" value="9100">
+      </div>
+
+      <label>Paper Width</label>
+      <select id="paperWidth">
+        <option value="58">58mm</option>
+        <option value="80" selected>80mm</option>
+      </select>
+
+      <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
+      <button class="btn btn-secondary" onclick="testPrint()">Test Print</button>
+    </div>
+
+    <div class="card">
+      <h3>🔐 Security Token (Optional)</h3>
+      <p style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;">
+        Use this token in Flowp settings for additional security.
+      </p>
+      <div class="token-display" id="authToken">Loading...</div>
+      <button class="btn btn-secondary" onclick="regenerateToken()">Regenerate Token</button>
+    </div>
+
+    <div class="footer">
+      PrintBridge runs in the system tray when minimized.
+    </div>
+  </div>
+
+  <script>
+    let currentConfig = {};
+
+    async function init() {
+      // Get server status
+      const status = await window.printBridge.getServerStatus();
+      updateStatus(status);
+
+      // Get current config
+      currentConfig = await window.printBridge.getConfig();
+      
+      // Set printer type
+      if (currentConfig.type === 'network') {
+        document.querySelector('input[value="network"]').checked = true;
+        toggleNetworkConfig();
+        document.getElementById('networkIp').value = currentConfig.networkIp || '';
+        document.getElementById('networkPort').value = currentConfig.networkPort || 9100;
+      }
+      
+      document.getElementById('paperWidth').value = currentConfig.paperWidth || 80;
+
+      // Load printers
+      const printers = await window.printBridge.getPrinters();
+      const select = document.getElementById('printerSelect');
+      select.innerHTML = '<option value="">Select a printer...</option>';
+      printers.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.name;
+        option.textContent = p.name;
+        if (currentConfig.printerName === p.name) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+
+      // Get auth token
+      const token = await window.printBridge.getAuthToken();
+      document.getElementById('authToken').textContent = token;
+
+      // Listen for status updates
+      window.printBridge.onServerStatus(updateStatus);
+    }
+
+    function updateStatus(status) {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      const port = document.getElementById('portText');
+
+      if (status.running) {
+        dot.classList.add('running');
+        text.textContent = 'Running';
+        port.textContent = status.port || 9638;
+      } else {
+        dot.classList.remove('running');
+        text.textContent = 'Stopped';
+      }
+    }
+
+    function toggleNetworkConfig() {
+      const isNetwork = document.querySelector('input[value="network"]').checked;
+      document.getElementById('windowsConfig').style.display = isNetwork ? 'none' : 'block';
+      document.getElementById('networkConfig').classList.toggle('show', isNetwork);
+    }
+
+    async function saveConfig() {
+      const isNetwork = document.querySelector('input[value="network"]').checked;
+      
+      const config = {
+        type: isNetwork ? 'network' : 'windows',
+        paperWidth: parseInt(document.getElementById('paperWidth').value)
+      };
+
+      if (isNetwork) {
+        config.networkIp = document.getElementById('networkIp').value;
+        config.networkPort = parseInt(document.getElementById('networkPort').value) || 9100;
+      } else {
+        config.printerName = document.getElementById('printerSelect').value;
+      }
+
+      await window.printBridge.saveConfig(config);
+      showMessage('Configuration saved!', 'success');
+    }
+
+    async function testPrint() {
+      showMessage('Sending test print...', 'success');
+      const result = await window.printBridge.testPrint();
+      if (result.success) {
+        showMessage('Test receipt printed successfully!', 'success');
+      } else {
+        showMessage('Print failed: ' + (result.error || 'Unknown error'), 'error');
+      }
+    }
+
+    async function regenerateToken() {
+      const token = await window.printBridge.regenerateToken();
+      document.getElementById('authToken').textContent = token;
+      showMessage('Token regenerated! Update it in Flowp settings.', 'success');
+    }
+
+    function showMessage(text, type) {
+      const msg = document.getElementById('message');
+      msg.textContent = text;
+      msg.className = 'message ' + type;
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 5000);
+    }
+
+    init();
+  </script>
+</body>
+</html>

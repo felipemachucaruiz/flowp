@@ -1,0 +1,46 @@
+{
+  "name": "flowp-printbridge",
+  "version": "1.0.0",
+  "description": "Flowp PrintBridge - Silent thermal printer for Flowp POS",
+  "main": "main.js",
+  "author": "Flowp",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win --x64"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "electron-store": "^8.1.0",
+    "escpos": "^3.0.0-alpha.6",
+    "escpos-usb": "^3.0.0-alpha.4",
+    "escpos-network": "^3.0.0-alpha.4",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.flowp.printbridge",
+    "productName": "Flowp PrintBridge",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "printer.js",
+      "server.js",
+      "index.html",
+      "icon.png"
+    ]
+  }
+}
