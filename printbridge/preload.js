@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('printBridge', {
   testPrint: () => ipcRenderer.invoke('test-print'),
   getAuthToken: () => ipcRenderer.invoke('get-auth-token'),
   regenerateToken: () => ipcRenderer.invoke('regenerate-token'),
+  setLanguage: (lang) => ipcRenderer.invoke('set-language', lang),
+  getLanguage: () => ipcRenderer.invoke('get-language'),
   onServerStatus: (callback) => {
     ipcRenderer.on('server-status', (event, status) => callback(status));
   }

@@ -7,8 +7,8 @@
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder",
-    "build:win": "electron-builder --win --x64"
+    "build": "electron-builder --win --x64",
+    "build:portable": "electron-builder --win portable --x64"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -26,13 +26,16 @@
     "appId": "com.flowp.printbridge",
     "productName": "Flowp PrintBridge",
     "win": {
-      "target": "nsis",
-      "icon": "icon.ico"
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "icon.png"
     },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": false
+    "portable": {
+      "artifactName": "FlowpPrintBridge.exe"
     },
     "files": [
       "main.js",

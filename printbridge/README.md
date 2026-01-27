@@ -1,81 +1,30 @@
 # Flowp PrintBridge
 
-Silent thermal printing companion for Flowp POS. This Windows application allows Flowp to print receipts directly to thermal printers without browser dialogs.
+Silent ESC/POS thermal printer bridge for Flowp POS.
+
+## Quick Start (Recommended)
+
+1. **Download** `FlowpPrintBridge.exe` from Flowp Settings > Printers
+2. **Run** the .exe - no installation needed, just double-click!
+3. **Select** your thermal printer from the dropdown
+4. **Save** your configuration
+5. **Connect** in Flowp POS: Settings > Printers > enter `http://localhost:9638`
+
+That's it! PrintBridge runs in your system tray.
+
+## Languages
+
+PrintBridge supports **English**, **Spanish**, and **Portuguese**. Click the language buttons (EN / ES / PT) in the top-right corner to switch.
 
 ## Features
 
-- **Silent Printing**: Print receipts directly without browser dialogs
-- **ESC/POS Support**: Full thermal printer command support
-- **USB & Network Printers**: Connect via USB or network IP
-- **Cash Drawer Control**: Automatically open cash drawer
+- **Portable .exe**: No installation required - just download and run
+- **Silent Printing**: Print receipts instantly without browser dialogs
+- **USB & Network**: Supports USB and network thermal printers
+- **58mm & 80mm Paper**: Configurable paper width
 - **System Tray**: Runs quietly in the background
-- **Auto-start**: Automatically starts the print server
-
-## Building from Source
-
-### Prerequisites
-
-- Node.js 18 or later
-- Windows 10/11 (for building Windows executable)
-
-### Install Dependencies
-
-```bash
-cd printbridge
-npm install
-```
-
-### Run in Development
-
-```bash
-npm start
-```
-
-### Build Windows Executable
-
-```bash
-npm run build:win
-```
-
-The installer will be created in the `dist` folder.
-
-## Usage
-
-1. Install PrintBridge on your Windows computer
-2. Launch PrintBridge - it will appear in the system tray
-3. Configure your printer:
-   - Select USB printer from the list, OR
-   - Enter network printer IP address
-4. Click "Test Print" to verify
-5. Open Flowp POS - it will automatically detect PrintBridge
-
-## API Endpoints
-
-PrintBridge runs a local HTTP server on `http://127.0.0.1:9638`:
-
-- `GET /health` - Check status
-- `GET /printers` - List available printers
-- `POST /config` - Update printer configuration
-- `POST /print` - Print receipt
-- `POST /drawer` - Open cash drawer
-- `POST /print-raw` - Print raw ESC/POS commands
-
-## Troubleshooting
-
-### Printer not found
-- Make sure your printer driver is installed
-- Check USB connection
-- For network printers, verify IP address and port 9100
-
-### Print not working
-- Ensure the printer supports ESC/POS commands
-- Check paper width setting matches your printer
-- Try the test print button
-
-### Flowp can't connect
-- Make sure PrintBridge is running (check system tray)
-- Verify firewall isn't blocking port 9638
-- Check that the server status shows "Running"
+- **Multi-Language**: English, Spanish, Portuguese
+- **Cash Drawer**: Open drawer command support
 
 ## Supported Printers
 
@@ -85,6 +34,64 @@ Any ESC/POS compatible thermal printer:
 - Citizen CT-S310
 - Bixolon SRP-350
 - And many more...
+
+## Building from Source
+
+If you want to build the .exe yourself:
+
+```bash
+# Install dependencies
+npm install
+
+# Build portable .exe
+npm run build
+
+# Find FlowpPrintBridge.exe in the dist/ folder
+```
+
+### Run in Development
+
+```bash
+npm install
+npm start
+```
+
+## API Reference
+
+PrintBridge runs on `http://localhost:9638`:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Server status |
+| `/printers` | GET | List available printers |
+| `/config` | POST | Update printer settings |
+| `/print` | POST | Print receipt (JSON `receipt` object) |
+| `/drawer` | POST | Open cash drawer |
+| `/print-raw` | POST | Send raw ESC/POS data |
+
+## Security
+
+- CORS restricted to localhost and Flowp domains
+- Optional security token for additional protection
+
+## Troubleshooting
+
+### Printer not detected?
+- Make sure it's connected and has Windows drivers installed
+- Try restarting PrintBridge
+
+### Print quality issues?
+- Verify paper width setting matches your printer (58mm or 80mm)
+- Check paper roll alignment
+
+### Network printer not connecting?
+- Verify the IP address is correct
+- Check that port 9100 is not blocked
+
+### Flowp can't connect?
+- Make sure PrintBridge is running (check system tray icon)
+- Verify firewall isn't blocking port 9638
+- Check that status shows "Running"
 
 ## License
 

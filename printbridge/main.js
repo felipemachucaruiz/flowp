@@ -11,10 +11,36 @@ let serverRunning = false;
 
 const PORT = 9638;
 
+const trayTranslations = {
+  en: {
+    open: 'Open PrintBridge',
+    start: 'Start Server',
+    stop: 'Stop Server',
+    quit: 'Quit'
+  },
+  es: {
+    open: 'Abrir PrintBridge',
+    start: 'Iniciar Servidor',
+    stop: 'Detener Servidor',
+    quit: 'Salir'
+  },
+  pt: {
+    open: 'Abrir PrintBridge',
+    start: 'Iniciar Servidor',
+    stop: 'Parar Servidor',
+    quit: 'Sair'
+  }
+};
+
+function getTrayLabels() {
+  const lang = store.get('language', 'en');
+  return trayTranslations[lang] || trayTranslations.en;
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 500,
-    height: 600,
+    height: 620,
     resizable: false,
     icon: path.join(__dirname, 'icon.png'),
     webPreferences: {
@@ -35,22 +61,27 @@ function createWindow() {
   });
 }
 
+function updateTrayMenu() {
+  if (!tray) return;
+  const labels = getTrayLabels();
+  const contextMenu = Menu.buildFromTemplate([
+    { label: labels.open, click: () => mainWindow.show() },
+    { type: 'separator' },
+    { label: labels.start, click: () => startPrintServer() },
+    { label: labels.stop, click: () => stopPrintServer() },
+    { type: 'separator' },
+    { label: labels.quit, click: () => { app.isQuitting = true; app.quit(); } }
+  ]);
+  tray.setContextMenu(contextMenu);
+}
+
 function createTray() {
   const iconPath = path.join(__dirname, 'icon.png');
   const icon = nativeImage.createFromPath(iconPath);
   tray = new Tray(icon.resize({ width: 16, height: 16 }));
 
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Open PrintBridge', click: () => mainWindow.show() },
-    { type: 'separator' },
-    { label: 'Start Server', click: () => startPrintServer() },
-    { label: 'Stop Server', click: () => stopPrintServer() },
-    { type: 'separator' },
-    { label: 'Quit', click: () => { app.isQuitting = true; app.quit(); } }
-  ]);
-
   tray.setToolTip('Flowp PrintBridge');
-  tray.setContextMenu(contextMenu);
+  updateTrayMenu();
   tray.on('double-click', () => mainWindow.show());
 }
 
@@ -136,4 +167,14 @@ ipcMain.handle('regenerate-token', () => {
   const token = require('crypto').randomBytes(32).toString('hex');
   store.set('authToken', token);
   return token;
+});
+
+ipcMain.handle('set-language', (event, lang) => {
+  store.set('language', lang);
+  updateTrayMenu();
+  return true;
+});
+
+ipcMain.handle('get-language', () => {
+  return store.get('language', 'en');
 });

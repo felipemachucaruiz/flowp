@@ -33,6 +33,32 @@
       opacity: 0.8;
       font-size: 14px;
     }
+    .lang-toggle {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 4px;
+    }
+    .lang-btn {
+      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .lang-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    .lang-btn.active {
+      background: white;
+      color: #6E51CD;
+      border-color: white;
+    }
     .status-card {
       background: rgba(255,255,255,0.15);
       border-radius: 12px;
@@ -182,22 +208,28 @@
   </style>
 </head>
 <body>
+  <div class="lang-toggle">
+    <button class="lang-btn active" data-lang="en" onclick="setLanguage('en')">EN</button>
+    <button class="lang-btn" data-lang="es" onclick="setLanguage('es')">ES</button>
+    <button class="lang-btn" data-lang="pt" onclick="setLanguage('pt')">PT</button>
+  </div>
+
   <div class="container">
     <div class="header">
       <h1>Flowp PrintBridge</h1>
-      <p>Silent thermal printing for Flowp POS</p>
+      <p data-i18n="subtitle">Silent thermal printing for Flowp POS</p>
     </div>
 
     <div class="status-card">
       <div class="status-row">
-        <span>Server Status</span>
+        <span data-i18n="serverStatus">Server Status</span>
         <div class="status-indicator">
           <div class="status-dot" id="statusDot"></div>
-          <span id="statusText">Checking...</span>
+          <span id="statusText" data-i18n="checking">Checking...</span>
         </div>
       </div>
       <div class="status-row">
-        <span>Port</span>
+        <span data-i18n="port">Port</span>
         <span id="portText">9638</span>
       </div>
     </div>
@@ -205,71 +237,188 @@
     <div id="message" class="message" style="display: none;"></div>
 
     <div class="card">
-      <h3>Printer Configuration</h3>
+      <h3 data-i18n="printerConfig">Printer Configuration</h3>
       
-      <label>Connection Type</label>
+      <label data-i18n="connectionType">Connection Type</label>
       <div class="radio-group">
         <label class="radio-option">
           <input type="radio" name="printerType" value="windows" checked onchange="toggleNetworkConfig()">
-          <span>Windows USB Printer</span>
+          <span data-i18n="windowsUsb">Windows USB Printer</span>
         </label>
         <label class="radio-option">
           <input type="radio" name="printerType" value="network" onchange="toggleNetworkConfig()">
-          <span>Network Printer</span>
+          <span data-i18n="networkPrinter">Network Printer</span>
         </label>
       </div>
 
       <div id="windowsConfig">
-        <label>Select Printer</label>
+        <label data-i18n="selectPrinter">Select Printer</label>
         <select id="printerSelect">
-          <option value="">Loading printers...</option>
+          <option value="" data-i18n="loadingPrinters">Loading printers...</option>
         </select>
       </div>
 
       <div id="networkConfig" class="network-config">
-        <label>Printer IP Address</label>
+        <label data-i18n="printerIp">Printer IP Address</label>
         <input type="text" id="networkIp" placeholder="192.168.1.100">
         
-        <label>Port (default: 9100)</label>
+        <label data-i18n="portDefault">Port (default: 9100)</label>
         <input type="number" id="networkPort" value="9100">
       </div>
 
-      <label>Paper Width</label>
+      <label data-i18n="paperWidth">Paper Width</label>
       <select id="paperWidth">
         <option value="58">58mm</option>
         <option value="80" selected>80mm</option>
       </select>
 
-      <button class="btn btn-primary" onclick="saveConfig()">Save Configuration</button>
-      <button class="btn btn-secondary" onclick="testPrint()">Test Print</button>
+      <button class="btn btn-primary" onclick="saveConfig()" data-i18n="saveConfig">Save Configuration</button>
+      <button class="btn btn-secondary" onclick="testPrint()" data-i18n="testPrint">Test Print</button>
     </div>
 
     <div class="card">
-      <h3>Security Token (Optional)</h3>
-      <p style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;">
+      <h3 data-i18n="securityToken">Security Token (Optional)</h3>
+      <p style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;" data-i18n="tokenDesc">
         Use this token in Flowp settings for additional security.
       </p>
       <div class="token-display" id="authToken">Loading...</div>
-      <button class="btn btn-secondary" onclick="regenerateToken()">Regenerate Token</button>
+      <button class="btn btn-secondary" onclick="regenerateToken()" data-i18n="regenerateToken">Regenerate Token</button>
     </div>
 
-    <div class="footer">
+    <div class="footer" data-i18n="footer">
       PrintBridge runs in the system tray when minimized.
     </div>
   </div>
 
   <script>
+    const translations = {
+      en: {
+        subtitle: "Silent thermal printing for Flowp POS",
+        serverStatus: "Server Status",
+        checking: "Checking...",
+        running: "Running",
+        stopped: "Stopped",
+        port: "Port",
+        printerConfig: "Printer Configuration",
+        connectionType: "Connection Type",
+        windowsUsb: "Windows USB Printer",
+        networkPrinter: "Network Printer",
+        selectPrinter: "Select Printer",
+        loadingPrinters: "Loading printers...",
+        selectAPrinter: "Select a printer...",
+        printerIp: "Printer IP Address",
+        portDefault: "Port (default: 9100)",
+        paperWidth: "Paper Width",
+        saveConfig: "Save Configuration",
+        testPrint: "Test Print",
+        securityToken: "Security Token (Optional)",
+        tokenDesc: "Use this token in Flowp settings for additional security.",
+        regenerateToken: "Regenerate Token",
+        footer: "PrintBridge runs in the system tray when minimized.",
+        configSaved: "Configuration saved!",
+        sendingTest: "Sending test print...",
+        testSuccess: "Test receipt printed successfully!",
+        printFailed: "Print failed: ",
+        tokenRegenerated: "Token regenerated! Update it in Flowp settings."
+      },
+      es: {
+        subtitle: "Impresión térmica silenciosa para Flowp POS",
+        serverStatus: "Estado del Servidor",
+        checking: "Verificando...",
+        running: "Ejecutando",
+        stopped: "Detenido",
+        port: "Puerto",
+        printerConfig: "Configuración de Impresora",
+        connectionType: "Tipo de Conexión",
+        windowsUsb: "Impresora USB Windows",
+        networkPrinter: "Impresora de Red",
+        selectPrinter: "Seleccionar Impresora",
+        loadingPrinters: "Cargando impresoras...",
+        selectAPrinter: "Selecciona una impresora...",
+        printerIp: "Dirección IP de la Impresora",
+        portDefault: "Puerto (predeterminado: 9100)",
+        paperWidth: "Ancho del Papel",
+        saveConfig: "Guardar Configuración",
+        testPrint: "Imprimir Prueba",
+        securityToken: "Token de Seguridad (Opcional)",
+        tokenDesc: "Usa este token en la configuración de Flowp para mayor seguridad.",
+        regenerateToken: "Regenerar Token",
+        footer: "PrintBridge se ejecuta en la bandeja del sistema cuando se minimiza.",
+        configSaved: "¡Configuración guardada!",
+        sendingTest: "Enviando impresión de prueba...",
+        testSuccess: "¡Recibo de prueba impreso exitosamente!",
+        printFailed: "Impresión fallida: ",
+        tokenRegenerated: "¡Token regenerado! Actualízalo en la configuración de Flowp."
+      },
+      pt: {
+        subtitle: "Impressão térmica silenciosa para Flowp POS",
+        serverStatus: "Status do Servidor",
+        checking: "Verificando...",
+        running: "Executando",
+        stopped: "Parado",
+        port: "Porta",
+        printerConfig: "Configuração da Impressora",
+        connectionType: "Tipo de Conexão",
+        windowsUsb: "Impressora USB Windows",
+        networkPrinter: "Impressora de Rede",
+        selectPrinter: "Selecionar Impressora",
+        loadingPrinters: "Carregando impressoras...",
+        selectAPrinter: "Selecione uma impressora...",
+        printerIp: "Endereço IP da Impressora",
+        portDefault: "Porta (padrão: 9100)",
+        paperWidth: "Largura do Papel",
+        saveConfig: "Salvar Configuração",
+        testPrint: "Imprimir Teste",
+        securityToken: "Token de Segurança (Opcional)",
+        tokenDesc: "Use este token nas configurações do Flowp para maior segurança.",
+        regenerateToken: "Regenerar Token",
+        footer: "PrintBridge executa na bandeja do sistema quando minimizado.",
+        configSaved: "Configuração salva!",
+        sendingTest: "Enviando impressão de teste...",
+        testSuccess: "Recibo de teste impresso com sucesso!",
+        printFailed: "Impressão falhou: ",
+        tokenRegenerated: "Token regenerado! Atualize nas configurações do Flowp."
+      }
+    };
+
+    let currentLang = 'en';
     let currentConfig = {};
 
+    function t(key) {
+      return translations[currentLang][key] || translations['en'][key] || key;
+    }
+
+    async function setLanguage(lang) {
+      currentLang = lang;
+      await window.printBridge.setLanguage(lang);
+      
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+      
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        el.textContent = t(key);
+      });
+      
+      const statusDot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      if (statusDot.classList.contains('running')) {
+        statusText.textContent = t('running');
+      } else if (statusText.textContent !== t('checking')) {
+        statusText.textContent = t('stopped');
+      }
+    }
+
     async function init() {
-      // Get server status
+      currentLang = await window.printBridge.getLanguage() || 'en';
+      await setLanguage(currentLang);
+      
       const status = await window.printBridge.getServerStatus();
       updateStatus(status);
 
-      // Get current config
       currentConfig = await window.printBridge.getConfig();
       
-      // Set printer type
       if (currentConfig.type === 'network') {
         document.querySelector('input[value="network"]').checked = true;
         toggleNetworkConfig();
@@ -279,10 +428,9 @@
       
       document.getElementById('paperWidth').value = currentConfig.paperWidth || 80;
 
-      // Load printers
       const printers = await window.printBridge.getPrinters();
       const select = document.getElementById('printerSelect');
-      select.innerHTML = '<option value="">Select a printer...</option>';
+      select.innerHTML = '<option value="">' + t('selectAPrinter') + '</option>';
       printers.forEach(p => {
         const option = document.createElement('option');
         option.value = p.name;
@@ -293,11 +441,9 @@
         select.appendChild(option);
       });
 
-      // Get auth token
       const token = await window.printBridge.getAuthToken();
       document.getElementById('authToken').textContent = token;
 
-      // Listen for status updates
       window.printBridge.onServerStatus(updateStatus);
     }
 
@@ -308,11 +454,11 @@
 
       if (status.running) {
         dot.classList.add('running');
-        text.textContent = 'Running';
+        text.textContent = t('running');
         port.textContent = status.port || 9638;
       } else {
         dot.classList.remove('running');
-        text.textContent = 'Stopped';
+        text.textContent = t('stopped');
       }
     }
 
@@ -338,23 +484,23 @@
       }
 
       await window.printBridge.saveConfig(config);
-      showMessage('Configuration saved!', 'success');
+      showMessage(t('configSaved'), 'success');
     }
 
     async function testPrint() {
-      showMessage('Sending test print...', 'success');
+      showMessage(t('sendingTest'), 'success');
       const result = await window.printBridge.testPrint();
       if (result.success) {
-        showMessage('Test receipt printed successfully!', 'success');
+        showMessage(t('testSuccess'), 'success');
       } else {
-        showMessage('Print failed: ' + (result.error || 'Unknown error'), 'error');
+        showMessage(t('printFailed') + (result.error || 'Unknown error'), 'error');
       }
     }
 
     async function regenerateToken() {
       const token = await window.printBridge.regenerateToken();
       document.getElementById('authToken').textContent = token;
-      showMessage('Token regenerated! Update it in Flowp settings.', 'success');
+      showMessage(t('tokenRegenerated'), 'success');
     }
 
     function showMessage(text, type) {
