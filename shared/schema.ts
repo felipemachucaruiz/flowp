@@ -231,6 +231,7 @@ export const orders = pgTable("orders", {
   tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   registerId: varchar("register_id").references(() => registers.id),
   userId: varchar("user_id").references(() => users.id).notNull(),
+  salesRepId: varchar("sales_rep_id").references(() => users.id),
   customerId: varchar("customer_id").references(() => customers.id),
   tableId: varchar("table_id").references(() => tables.id),
   orderNumber: integer("order_number").notNull(),
