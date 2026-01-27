@@ -169,15 +169,15 @@ export default function SalesHistoryPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Receipt className="w-6 h-6" />
+        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+          <Receipt className="w-5 h-5 sm:w-6 sm:h-6" />
           {t("sales.title")}
         </h1>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input

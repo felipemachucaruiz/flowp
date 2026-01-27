@@ -856,44 +856,52 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("settings.title")}</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("settings.title")}</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           {t("settings.subtitle")}
         </p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="business" data-testid="tab-business">
-            <Store className="w-4 h-4 mr-2" />
-            {t("settings.business")}
-          </TabsTrigger>
-          <TabsTrigger value="taxes" data-testid="tab-taxes">
-            <Receipt className="w-4 h-4 mr-2" />
-            {t("taxes.title")}
-          </TabsTrigger>
-          <TabsTrigger value="products" data-testid="tab-products">
-            <Package className="w-4 h-4 mr-2" />
-            {t("settings.products")}
-          </TabsTrigger>
-          {isRestaurant && (
-            <TabsTrigger value="tables" data-testid="tab-tables">
-              <LayoutGrid className="w-4 h-4 mr-2" />
-              {t("settings.tables")}
+        <ScrollArea className="w-full">
+          <TabsList className="inline-flex w-auto min-w-full sm:w-auto">
+            <TabsTrigger value="business" data-testid="tab-business" className="text-xs sm:text-sm">
+              <Store className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">{t("settings.business")}</span>
+              <span className="sm:hidden">{t("settings.business").split(' ')[0]}</span>
             </TabsTrigger>
-          )}
-          <TabsTrigger value="printing" data-testid="tab-printing">
-            <Printer className="w-4 h-4 mr-2" />
-            {t("settings.printing")}
-          </TabsTrigger>
-          <TabsTrigger value="users" data-testid="tab-users">
-            <Users className="w-4 h-4 mr-2" />
-            {t("settings.users")}
-          </TabsTrigger>
-        </TabsList>
+            <TabsTrigger value="taxes" data-testid="tab-taxes" className="text-xs sm:text-sm">
+              <Receipt className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">{t("taxes.title")}</span>
+              <span className="sm:hidden">{t("taxes.title").split(' ')[0]}</span>
+            </TabsTrigger>
+            <TabsTrigger value="products" data-testid="tab-products" className="text-xs sm:text-sm">
+              <Package className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">{t("settings.products")}</span>
+              <span className="sm:hidden">{t("settings.products").split(' ')[0]}</span>
+            </TabsTrigger>
+            {isRestaurant && (
+              <TabsTrigger value="tables" data-testid="tab-tables" className="text-xs sm:text-sm">
+                <LayoutGrid className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.tables")}</span>
+                <span className="sm:hidden">{t("settings.tables").split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="printing" data-testid="tab-printing" className="text-xs sm:text-sm">
+              <Printer className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">{t("settings.printing")}</span>
+              <span className="sm:hidden">{t("settings.printing").split(' ')[0]}</span>
+            </TabsTrigger>
+            <TabsTrigger value="users" data-testid="tab-users" className="text-xs sm:text-sm">
+              <Users className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">{t("settings.users")}</span>
+              <span className="sm:hidden">{t("settings.users").split(' ')[0]}</span>
+            </TabsTrigger>
+          </TabsList>
+        </ScrollArea>
 
         {/* Business Settings */}
         <TabsContent value="business" className="mt-6 space-y-6">

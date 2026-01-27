@@ -8,12 +8,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, Order, LoyaltyTransaction, LoyaltyReward, Product } from "@shared/schema";
@@ -48,6 +50,8 @@ export default function CustomersPage() {
   const { tenant } = useAuth();
   const { t, formatDate, formatDateTime } = useI18n();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const [showMobileDetails, setShowMobileDetails] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithOrders | null>(null);
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
@@ -243,13 +247,13 @@ export default function CustomersPage() {
 
   return (
     <div className="flex h-full">
-      {/* Customer List Sidebar */}
-      <div className="w-80 lg:w-96 border-r flex flex-col bg-card">
-        <div className="p-4 border-b space-y-4">
-          <div className="flex items-center justify-between">
+      {/* Customer List - Full width on mobile, sidebar on desktop */}
+      <div className={`${isMobile ? 'w-full' : 'w-80 lg:w-96'} border-r flex flex-col bg-card`}>
+        <div className="p-3 sm:p-4 border-b space-y-3 sm:space-y-4">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
-              <h1 className="text-lg font-semibold">{t("nav.customers")}</h1>
+              <h1 className="text-base sm:text-lg font-semibold">{t("nav.customers")}</h1>
             </div>
             <Button
               size="sm"
@@ -261,7 +265,8 @@ export default function CustomersPage() {
               data-testid="button-add-customer"
             >
               <Plus className="w-4 h-4 mr-1" />
-              {t("customers.add")}
+              <span className="hidden sm:inline">{t("customers.add")}</span>
+              <span className="sm:hidden">{t("common.add")}</span>
             </Button>
           </div>
           <div className="relative">
@@ -292,9 +297,10 @@ export default function CustomersPage() {
                     setSelectedCustomer(customer);
                     setIsEditingNotes(false);
                     setNotesText("");
+                    if (isMobile) setShowMobileDetails(true);
                   }}
                   className={`w-full p-3 rounded-lg text-left hover-elevate transition-colors ${
-                    selectedCustomer?.id === customer.id ? "bg-primary/10 border border-primary/30" : ""
+                    selectedCustomer?.id === customer.id && !isMobile ? "bg-primary/10 border border-primary/30" : ""
                   }`}
                   data-testid={`button-customer-${customer.id}`}
                 >
@@ -332,35 +338,36 @@ export default function CustomersPage() {
         </ScrollArea>
       </div>
 
-      {/* Customer Details */}
-      <div className="flex-1 overflow-hidden">
-        {selectedCustomer ? (
-          <div className="h-full flex flex-col">
-            <div className="p-6 border-b bg-card">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="w-8 h-8 text-primary" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold">{selectedCustomer.name}</h2>
-                    <div className="flex items-center gap-4 mt-1 text-muted-foreground">
-                      {selectedCustomer.phone && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="w-4 h-4" />
-                          {selectedCustomer.phone}
-                        </span>
-                      )}
-                      {selectedCustomer.email && (
-                        <span className="flex items-center gap-1">
-                          <Mail className="w-4 h-4" />
-                          {selectedCustomer.email}
-                        </span>
-                      )}
+      {/* Customer Details - Hidden on mobile */}
+      {!isMobile && (
+        <div className="flex-1 overflow-hidden">
+          {selectedCustomer ? (
+            <div className="h-full flex flex-col">
+              <div className="p-6 border-b bg-card">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-8 h-8 text-primary" />
                     </div>
-                    {selectedCustomer.idType && selectedCustomer.idNumber && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {idTypeLabels[selectedCustomer.idType] || selectedCustomer.idType}: {selectedCustomer.idNumber}
+                    <div>
+                      <h2 className="text-2xl font-bold">{selectedCustomer.name}</h2>
+                      <div className="flex items-center gap-4 mt-1 text-muted-foreground">
+                        {selectedCustomer.phone && (
+                          <span className="flex items-center gap-1">
+                            <Phone className="w-4 h-4" />
+                            {selectedCustomer.phone}
+                          </span>
+                        )}
+                        {selectedCustomer.email && (
+                          <span className="flex items-center gap-1">
+                            <Mail className="w-4 h-4" />
+                            {selectedCustomer.email}
+                          </span>
+                        )}
+                      </div>
+                      {selectedCustomer.idType && selectedCustomer.idNumber && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {idTypeLabels[selectedCustomer.idType] || selectedCustomer.idType}: {selectedCustomer.idNumber}
                       </p>
                     )}
                   </div>
@@ -631,9 +638,10 @@ export default function CustomersPage() {
           </div>
         )}
       </div>
+      )}
 
-      {/* Rewards Panel */}
-      <div className="w-72 border-l bg-card flex flex-col">
+      {/* Rewards Panel - Desktop only */}
+      <div className={`${isMobile ? 'hidden' : 'w-72'} border-l bg-card flex flex-col`}>
         <div className="p-4 border-b">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -697,6 +705,64 @@ export default function CustomersPage() {
           )}
         </ScrollArea>
       </div>
+
+      {/* Mobile Customer Details Sheet */}
+      {isMobile && selectedCustomer && (
+        <Sheet open={showMobileDetails} onOpenChange={setShowMobileDetails}>
+          <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+            <SheetHeader className="p-4 border-b">
+              <SheetTitle className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <User className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <div className="font-semibold">{selectedCustomer.name}</div>
+                  <div className="text-sm text-muted-foreground font-normal">{selectedCustomer.phone}</div>
+                </div>
+              </SheetTitle>
+            </SheetHeader>
+            <ScrollArea className="flex-1 p-4">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Card>
+                    <CardContent className="p-3 text-center">
+                      <Star className="w-5 h-5 mx-auto mb-1 text-primary" />
+                      <p className="text-lg font-bold">{selectedCustomer.loyaltyPoints || 0}</p>
+                      <p className="text-xs text-muted-foreground">{t("customers.loyalty_points")}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-3 text-center">
+                      <ShoppingBag className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                      <p className="text-lg font-bold">{selectedCustomer.orderCount || 0}</p>
+                      <p className="text-xs text-muted-foreground">{t("customers.orders_count")}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+                <Card>
+                  <CardContent className="p-3">
+                    <p className="text-sm text-muted-foreground mb-1">{t("customers.total_spent")}</p>
+                    <p className="text-xl font-bold">{formatCurrency(selectedCustomer.totalSpent || 0)}</p>
+                  </CardContent>
+                </Card>
+                <div className="flex gap-2">
+                  <Button 
+                    className="flex-1" 
+                    variant="outline"
+                    onClick={() => {
+                      handleEditCustomer(selectedCustomer);
+                      setShowMobileDetails(false);
+                    }}
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    {t("customers.edit")}
+                  </Button>
+                </div>
+              </div>
+            </ScrollArea>
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* Customer Dialog */}
       <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>

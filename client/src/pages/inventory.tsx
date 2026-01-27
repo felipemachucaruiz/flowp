@@ -287,24 +287,24 @@ export default function InventoryPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-2">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("inventory.title")}</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("inventory.title")}</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             {t("inventory.subtitle")}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
             onClick={downloadCsvTemplate}
             data-testid="button-download-csv-template"
           >
-            <Download className="w-4 h-4 mr-2" />
-            {t("inventory.download_template")}
+            <Download className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">{t("inventory.download_template")}</span>
           </Button>
           <Button
             variant="default"
@@ -314,11 +314,11 @@ export default function InventoryPage() {
             data-testid="button-upload-csv"
           >
             {isUploadingCsv ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
             ) : (
-              <Upload className="w-4 h-4 mr-2" />
+              <Upload className="w-4 h-4 sm:mr-2" />
             )}
-            {t("inventory.import_csv")}
+            <span className="hidden sm:inline">{t("inventory.import_csv")}</span>
           </Button>
           <input
             id="csv-upload"

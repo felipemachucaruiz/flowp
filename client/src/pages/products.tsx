@@ -126,15 +126,15 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{t("nav.products")}</h1>
-          <p className="text-muted-foreground">{t("products.subtitle")}</p>
+          <h1 className="text-xl sm:text-2xl font-bold">{t("nav.products")}</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">{t("products.subtitle")}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <Card className="lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
