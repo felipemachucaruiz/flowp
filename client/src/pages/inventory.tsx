@@ -30,8 +30,6 @@ import {
   AlertTriangle,
   History,
   Loader2,
-  Download,
-  Upload,
 } from "lucide-react";
 import type { Category } from "@shared/schema";
 
@@ -50,7 +48,6 @@ export default function InventoryPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [adjustmentDirection, setAdjustmentDirection] = useState<"add" | "remove">("add");
-  const [isUploadingCsv, setIsUploadingCsv] = useState(false);
 
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -68,29 +65,7 @@ export default function InventoryPage() {
     queryKey: ["/api/inventory/movements"],
   });
 
-  const batchProductMutation = useMutation({
-    mutationFn: async (productList: Array<Record<string, unknown>>) => {
-      const res = await apiRequest("POST", "/api/products/batch", { products: productList });
-      return res.json() as Promise<{ success: number; failed: number; errors: Array<{ row: number; error: string }> }>;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: t("inventory.csv_import_complete"),
-        description: `${data.success} ${t("inventory.csv_import_result").replace("{success}", String(data.success)).replace("{failed}", String(data.failed))}`,
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      setIsUploadingCsv(false);
-    },
-    onError: () => {
-      toast({
-        title: t("common.error"),
-        description: t("inventory.csv_import_error"),
-        variant: "destructive",
-      });
-      setIsUploadingCsv(false);
-    },
-  });
-
+  
   const adjustStockMutation = useMutation({
     mutationFn: async (data: {
       productId: string;
@@ -185,150 +160,16 @@ export default function InventoryPage() {
     outOfStock: products?.filter((p) => p.trackInventory && getStockLevel(p.id) <= 0).length || 0,
   };
 
-  // CSV Template download
-  const downloadCsvTemplate = () => {
-    const categoryNames = categories?.map(c => c.name).join(", ") || "";
-    const headers = ["name", "sku", "barcode", "price", "cost", "categoryName", "description", "trackInventory"];
-    const exampleRow = ["Example Product", "SKU-001", "1234567890123", "9.99", "5.00", categoryNames.split(", ")[0] || "", "Product description", "true"];
-    
-    const csvContent = [
-      headers.join(","),
-      exampleRow.map(v => `"${v}"`).join(","),
-      `# ${t("inventory.csv_template_hint")}`,
-      `# ${t("inventory.csv_categories_available")}: ${categoryNames}`,
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = "products_template.csv";
-    link.click();
-    URL.revokeObjectURL(link.href);
-  };
-
-  // CSV Upload handler
-  const handleCsvUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploadingCsv(true);
-    const reader = new FileReader();
-    
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result as string;
-        const lines = text.split("\n").filter(line => line.trim() && !line.startsWith("#"));
-        
-        if (lines.length < 2) {
-          toast({
-            title: t("common.error"),
-            description: t("inventory.csv_no_data"),
-            variant: "destructive",
-          });
-          setIsUploadingCsv(false);
-          return;
-        }
-
-        const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""));
-        const productList = [];
-
-        for (let i = 1; i < lines.length; i++) {
-          const values = lines[i].split(",").map(v => v.trim().replace(/^"|"$/g, ""));
-          const product: Record<string, unknown> = {};
-          
-          headers.forEach((header, index) => {
-            const value = values[index] || "";
-            if (header === "price" || header === "cost") {
-              product[header] = parseFloat(value) || 0;
-            } else if (header === "trackInventory") {
-              product[header] = value.toLowerCase() !== "false";
-            } else {
-              product[header] = value;
-            }
-          });
-
-          if (product.name) {
-            productList.push(product);
-          }
-        }
-
-        if (productList.length === 0) {
-          toast({
-            title: t("common.error"),
-            description: t("inventory.csv_no_valid_products"),
-            variant: "destructive",
-          });
-          setIsUploadingCsv(false);
-          return;
-        }
-
-        batchProductMutation.mutate(productList);
-      } catch {
-        toast({
-          title: t("common.error"),
-          description: t("inventory.csv_parse_error"),
-          variant: "destructive",
-        });
-        setIsUploadingCsv(false);
-      }
-    };
-
-    reader.onerror = () => {
-      toast({
-        title: t("common.error"),
-        description: t("inventory.csv_read_error"),
-        variant: "destructive",
-      });
-      setIsUploadingCsv(false);
-    };
-
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-
+  
   return (
     <div className="h-full overflow-y-auto touch-scroll">
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-2">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("inventory.title")}</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            {t("inventory.subtitle")}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={downloadCsvTemplate}
-            data-testid="button-download-csv-template"
-          >
-            <Download className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">{t("inventory.download_template")}</span>
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
-            disabled={isUploadingCsv}
-            onClick={() => document.getElementById("csv-upload")?.click()}
-            data-testid="button-upload-csv"
-          >
-            {isUploadingCsv ? (
-              <Loader2 className="w-4 h-4 sm:mr-2 animate-spin" />
-            ) : (
-              <Upload className="w-4 h-4 sm:mr-2" />
-            )}
-            <span className="hidden sm:inline">{t("inventory.import_csv")}</span>
-          </Button>
-          <input
-            id="csv-upload"
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={handleCsvUpload}
-          />
-        </div>
+      <div>
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("inventory.title")}</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
+          {t("inventory.subtitle")}
+        </p>
       </div>
 
       {/* Stats Cards */}

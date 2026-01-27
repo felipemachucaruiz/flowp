@@ -290,6 +290,10 @@ const translations = {
     "inventory.csv_read_error": "Failed to read CSV file",
     "inventory.csv_template_hint": "Remove this line and the example row before importing",
     "inventory.csv_categories_available": "Available categories",
+    "inventory.no_products": "No products with inventory tracking",
+    "inventory.adjust_search": "Search and select a product to adjust stock",
+    "inventory.movements_appear_here": "Stock movements will appear here",
+    "inventory.select_reason": "Select a reason",
     
     // Purchasing / Restocking
     "nav.purchasing": "Purchasing",
@@ -1330,6 +1334,10 @@ const translations = {
     "inventory.csv_read_error": "Error al leer el archivo CSV",
     "inventory.csv_template_hint": "Elimina esta línea y la fila de ejemplo antes de importar",
     "inventory.csv_categories_available": "Categorías disponibles",
+    "inventory.no_products": "No hay productos con seguimiento de inventario",
+    "inventory.adjust_search": "Buscar y seleccionar un producto para ajustar stock",
+    "inventory.movements_appear_here": "Los movimientos de stock aparecerán aquí",
+    "inventory.select_reason": "Seleccionar una razón",
     
     // Purchasing / Restocking
     "nav.purchasing": "Compras",
@@ -2367,6 +2375,10 @@ const translations = {
     "inventory.csv_read_error": "Falha ao ler o arquivo CSV",
     "inventory.csv_template_hint": "Remova esta linha e a linha de exemplo antes de importar",
     "inventory.csv_categories_available": "Categorias disponíveis",
+    "inventory.no_products": "Nenhum produto com rastreamento de inventário",
+    "inventory.adjust_search": "Pesquisar e selecionar um produto para ajustar estoque",
+    "inventory.movements_appear_here": "Os movimentos de estoque aparecerão aqui",
+    "inventory.select_reason": "Selecionar um motivo",
     
     // Purchasing / Restocking
     "nav.purchasing": "Compras",
