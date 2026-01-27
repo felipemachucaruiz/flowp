@@ -444,7 +444,6 @@ function PrintBridgeSettings() {
         title: t("printing.printer_configured"),
         description: printerName,
       });
-      // Refresh status to confirm save
       printBridge.clearCache();
     } else {
       toast({
@@ -453,6 +452,10 @@ function PrintBridgeSettings() {
         variant: "destructive",
       });
       setSelectedPrinter('');
+      // Update status to reflect bridge is not available
+      setBridgeStatus({ isAvailable: false });
+      setIsAuthenticated(false);
+      setPrinters([]);
     }
   };
 
