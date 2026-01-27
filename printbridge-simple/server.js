@@ -260,8 +260,9 @@ public class RawPrinter {
 // Routes
 app.get('/health', (req, res) => {
   res.json({
+    app: 'flowp-printbridge',
     status: 'ok',
-    version: '1.0.0',
+    version: '1.0.1',
     printer: printerConfig
   });
 });

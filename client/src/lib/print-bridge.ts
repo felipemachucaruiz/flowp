@@ -129,7 +129,7 @@ class PrintBridgeClient {
       if (response.ok) {
         const data = await response.json();
         // Verify it's actually Flowp PrintBridge (not some other service on this port)
-        if (data.status === 'ok' && data.version) {
+        if (data.app === 'flowp-printbridge' && data.status === 'ok' && data.version) {
           this.statusCache = {
             isAvailable: true,
             version: data.version,
