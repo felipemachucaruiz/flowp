@@ -64,6 +64,9 @@ export default function CustomersPage() {
     notes: "",
     defaultDiscount: "",
   });
+  
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesText, setNotesText] = useState("");
 
   const [rewardForm, setRewardForm] = useState({
     name: "",
@@ -285,7 +288,11 @@ export default function CustomersPage() {
               {customers.map((customer) => (
                 <button
                   key={customer.id}
-                  onClick={() => setSelectedCustomer(customer)}
+                  onClick={() => {
+                    setSelectedCustomer(customer);
+                    setIsEditingNotes(false);
+                    setNotesText("");
+                  }}
                   className={`w-full p-3 rounded-lg text-left hover-elevate transition-colors ${
                     selectedCustomer?.id === customer.id ? "bg-primary/10 border border-primary/30" : ""
                   }`}
@@ -546,10 +553,71 @@ export default function CustomersPage() {
 
               <TabsContent value="notes" className="flex-1 p-6 overflow-auto m-0">
                 <Card>
-                  <CardContent className="p-4">
-                    <p className="text-muted-foreground">
-                      {selectedCustomer.notes || t("customers.no_notes")}
-                    </p>
+                  <CardContent className="p-4 space-y-4">
+                    {isEditingNotes ? (
+                      <div className="space-y-3">
+                        <Textarea
+                          value={notesText}
+                          onChange={(e) => setNotesText(e.target.value)}
+                          placeholder={t("customers.notes_placeholder")}
+                          rows={6}
+                          data-testid="textarea-customer-notes"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setIsEditingNotes(false);
+                              setNotesText(selectedCustomer.notes || "");
+                            }}
+                            data-testid="button-cancel-notes"
+                          >
+                            {t("customers.cancel")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              updateCustomerMutation.mutate({
+                                ...customerForm,
+                                id: selectedCustomer.id,
+                                name: selectedCustomer.name,
+                                phone: selectedCustomer.phone || "",
+                                email: selectedCustomer.email || "",
+                                address: selectedCustomer.address || "",
+                                idType: selectedCustomer.idType || "",
+                                idNumber: selectedCustomer.idNumber || "",
+                                notes: notesText,
+                                defaultDiscount: selectedCustomer.defaultDiscount || "",
+                              });
+                              setIsEditingNotes(false);
+                            }}
+                            disabled={updateCustomerMutation.isPending}
+                            data-testid="button-save-notes"
+                          >
+                            {t("customers.save_notes")}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className={selectedCustomer.notes ? "whitespace-pre-wrap" : "text-muted-foreground"}>
+                          {selectedCustomer.notes || t("customers.no_notes")}
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setNotesText(selectedCustomer.notes || "");
+                            setIsEditingNotes(true);
+                          }}
+                          data-testid="button-edit-notes"
+                        >
+                          <Edit className="w-4 h-4 mr-2" />
+                          {selectedCustomer.notes ? t("customers.edit_notes") : t("customers.add_notes")}
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
