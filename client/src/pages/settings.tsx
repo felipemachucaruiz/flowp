@@ -621,6 +621,82 @@ export default function SettingsPage() {
     },
   });
 
+  const printTestReceiptBrowser = () => {
+    const fontSize = receiptForm.watch("receiptFontSize") || 12;
+    const fontFamily = receiptForm.watch("receiptFontFamily") || "monospace";
+    const fontFamilyMap: Record<string, string> = {
+      monospace: "'Courier New', monospace",
+      "sans-serif": "Arial, Helvetica, sans-serif",
+      serif: "'Times New Roman', Georgia, serif",
+    };
+    const cssFontFamily = fontFamilyMap[fontFamily] || fontFamilyMap.monospace;
+
+    const receiptHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${t("printing.test_receipt")}</title>
+  <style>
+    @page { size: 80mm auto; margin: 0; }
+    body { font-family: ${cssFontFamily}; font-size: ${fontSize}px; width: 80mm; margin: 0 auto; padding: 2mm; }
+    .header { text-align: center; margin-bottom: 10px; }
+    .logo { max-width: 60mm; max-height: 20mm; margin-bottom: 5px; }
+    .company-name { font-weight: bold; font-size: ${Math.round(fontSize * 1.17)}px; }
+    .divider { border-top: 1px dashed #000; margin: 8px 0; }
+    .row { display: flex; justify-content: space-between; margin: 3px 0; }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .total { font-size: ${Math.round(fontSize * 1.17)}px; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
+    .coupon { border-top: 2px dashed #000; margin-top: 15px; padding-top: 10px; text-align: center; }
+    .coupon-title { font-weight: bold; font-size: ${Math.round(fontSize * 1.2)}px; margin-bottom: 10px; }
+    .coupon-text { white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    ${receiptForm.watch("receiptShowLogo") && receiptLogoPath ? `<img src="${receiptLogoPath.startsWith('/objects') ? receiptLogoPath : '/objects' + receiptLogoPath}" class="logo" alt="Logo" />` : ""}
+    <div class="company-name">${tenant?.name || "Business Name"}</div>
+    ${receiptForm.watch("receiptShowAddress") && tenant?.address ? `<div>${tenant.address}</div>` : ""}
+    ${receiptForm.watch("receiptShowPhone") && tenant?.phone ? `<div>Tel: ${tenant.phone}</div>` : ""}
+    ${tenant?.receiptTaxId ? `<div>${t("pos.tax_id")}: ${tenant.receiptTaxId}</div>` : ""}
+    ${receiptForm.watch("receiptHeaderText") ? `<div style="font-style: italic; margin-top: 5px;">${receiptForm.watch("receiptHeaderText")}</div>` : ""}
+  </div>
+  <div class="divider"></div>
+  <div class="row"><span>${t("pos.order")} #TEST-1234</span><span>${formatDate(new Date())}</span></div>
+  <div class="divider"></div>
+  <div class="row"><span>2x ${t("printing.sample_item")} 1</span><span>$10.00</span></div>
+  <div class="row"><span>1x ${t("printing.sample_item")} 2</span><span>$15.00</span></div>
+  <div class="divider"></div>
+  <div class="row"><span>${t("pos.subtotal")}</span><span>$25.00</span></div>
+  <div class="row"><span>${t("pos.tax")} (${tenant?.taxRate || 10}%)</span><span>$2.50</span></div>
+  <div class="row bold total"><span>${t("pos.total")}</span><span>$27.50</span></div>
+  <div class="divider"></div>
+  <div class="row"><span>${t("pos.payment_cash")}</span><span>$30.00</span></div>
+  <div class="row"><span>${t("pos.change")}</span><span>$2.50</span></div>
+  ${receiptForm.watch("receiptFooterText") ? `<div class="divider"></div><div class="center" style="font-style: italic;">${receiptForm.watch("receiptFooterText")}</div>` : ""}
+  <div class="divider"></div>
+  <div class="center bold">${t("printing.thank_you")}</div>
+  ${receiptForm.watch("couponEnabled") && receiptForm.watch("couponText") ? `
+    <div class="coupon">
+      <div>✂ - - - - - - - - - - - - ✂</div>
+      <div class="coupon-title">🎟️ ${t("printing.coupon_label")}</div>
+      <div class="coupon-text">${receiptForm.watch("couponText")}</div>
+      <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px;">${tenant?.name || ""}</div>
+    </div>
+  ` : ""}
+  <script>window.onload = function() { window.print(); };</script>
+</body>
+</html>
+    `;
+
+    const printWindow = window.open("", "_blank", "width=350,height=600");
+    if (printWindow) {
+      printWindow.document.write(receiptHTML);
+      printWindow.document.close();
+    }
+  };
+
   // Mutations
   const businessSettingsMutation = useMutation({
     mutationFn: async (data: z.infer<typeof businessSettingsSchema>) => {
@@ -1958,39 +2034,45 @@ export default function SettingsPage() {
               <div className="flex justify-center mt-4">
                 <Button
                   onClick={async () => {
-                    const result = await printBridge.printReceipt({
-                      language: tenant?.language || "en",
-                      businessName: tenant?.name || "Business Name",
-                      headerText: receiptForm.watch("receiptHeaderText") || undefined,
-                      address: receiptForm.watch("receiptShowAddress") ? (tenant?.address || "123 Main Street, City") : undefined,
-                      phone: receiptForm.watch("receiptShowPhone") ? (tenant?.phone || "(555) 123-4567") : undefined,
-                      taxId: tenant?.receiptTaxId || undefined,
-                      orderNumber: "TEST-1234",
-                      date: new Date().toLocaleString(tenant?.language || "en"),
-                      fontSize: receiptForm.watch("receiptFontSize") || 12,
-                      fontFamily: receiptForm.watch("receiptFontFamily") || "monospace",
-                      logoSize: receiptForm.watch("receiptLogoSize") || 200,
-                      logoUrl: receiptLogoPath || undefined,
-                      items: [
-                        { name: `${t("printing.sample_item")} 1`, quantity: 2, unitPrice: 5.00, total: 10.00 },
-                        { name: `${t("printing.sample_item")} 2`, quantity: 1, unitPrice: 15.00, total: 15.00 },
-                      ],
-                      subtotal: 25.00,
-                      tax: 2.50,
-                      taxRate: Number(tenant?.taxRate) || 10,
-                      total: 27.50,
-                      payments: [{ type: t("pos.payment_cash"), amount: 30.00 }],
-                      change: 2.50,
-                      currency: tenant?.currency || "$",
-                      footerText: receiptForm.watch("receiptFooterText") || undefined,
-                      couponEnabled: receiptForm.watch("couponEnabled") || false,
-                      couponText: receiptForm.watch("couponText") || undefined,
-                      cutPaper: true,
-                    });
-                    if (result.success) {
-                      toast({ title: t("printing.test_printed") });
+                    const status = await printBridge.checkStatus();
+                    if (status.isAvailable) {
+                      const result = await printBridge.printReceipt({
+                        language: tenant?.language || "en",
+                        businessName: tenant?.name || "Business Name",
+                        headerText: receiptForm.watch("receiptHeaderText") || undefined,
+                        address: receiptForm.watch("receiptShowAddress") ? (tenant?.address || "123 Main Street, City") : undefined,
+                        phone: receiptForm.watch("receiptShowPhone") ? (tenant?.phone || "(555) 123-4567") : undefined,
+                        taxId: tenant?.receiptTaxId || undefined,
+                        orderNumber: "TEST-1234",
+                        date: new Date().toLocaleString(tenant?.language || "en"),
+                        fontSize: receiptForm.watch("receiptFontSize") || 12,
+                        fontFamily: receiptForm.watch("receiptFontFamily") || "monospace",
+                        logoSize: receiptForm.watch("receiptLogoSize") || 200,
+                        logoUrl: receiptLogoPath || undefined,
+                        items: [
+                          { name: `${t("printing.sample_item")} 1`, quantity: 2, unitPrice: 5.00, total: 10.00 },
+                          { name: `${t("printing.sample_item")} 2`, quantity: 1, unitPrice: 15.00, total: 15.00 },
+                        ],
+                        subtotal: 25.00,
+                        tax: 2.50,
+                        taxRate: Number(tenant?.taxRate) || 10,
+                        total: 27.50,
+                        payments: [{ type: t("pos.payment_cash"), amount: 30.00 }],
+                        change: 2.50,
+                        currency: tenant?.currency || "$",
+                        footerText: receiptForm.watch("receiptFooterText") || undefined,
+                        couponEnabled: receiptForm.watch("couponEnabled") || false,
+                        couponText: receiptForm.watch("couponText") || undefined,
+                        cutPaper: true,
+                      });
+                      if (result.success) {
+                        toast({ title: t("printing.test_printed") });
+                      } else {
+                        toast({ title: t("printing.test_error"), description: result.error, variant: "destructive" });
+                      }
                     } else {
-                      toast({ title: t("printing.test_error"), description: result.error, variant: "destructive" });
+                      printTestReceiptBrowser();
+                      toast({ title: t("printing.test_printed_browser") });
                     }
                   }}
                   data-testid="button-print-test-receipt"
@@ -2001,6 +2083,42 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Coupon Preview */}
+          {receiptForm.watch("couponEnabled") && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("printing.coupon_preview_title")}</CardTitle>
+                <CardDescription>{t("printing.coupon_preview_desc")}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center">
+                  <div 
+                    className="bg-white text-black p-4 shadow-lg border rounded-sm"
+                    style={{ 
+                      width: '280px',
+                      fontFamily: receiptForm.watch("receiptFontFamily") || "monospace",
+                      fontSize: `${receiptForm.watch("receiptFontSize") || 12}px`
+                    }}
+                    data-testid="coupon-preview"
+                  >
+                    <div className="text-center border-b-2 border-dashed border-gray-400 pb-2 mb-3">
+                      <span className="text-gray-500">✂ - - - - - - - - - - - - ✂</span>
+                    </div>
+                    <div className="text-center font-bold mb-3" style={{ fontSize: '1.2em' }}>
+                      🎟️ {t("printing.coupon_label")}
+                    </div>
+                    <div className="text-center whitespace-pre-wrap mb-3" style={{ fontSize: '1em' }}>
+                      {receiptForm.watch("couponText") || t("printing.coupon_sample_text")}
+                    </div>
+                    <div className="text-center border-t border-dashed border-gray-400 pt-2 text-sm text-gray-600">
+                      {tenant?.name || "Business Name"}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
