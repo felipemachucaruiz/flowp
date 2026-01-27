@@ -1019,7 +1019,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const { items, paymentMethod, subtotal, taxAmount, total, customerId } = req.body;
+      const { items, paymentMethod, subtotal, taxAmount, total, customerId, salesRepId } = req.body;
 
       // Get next order number
       const orderNumber = await storage.getNextOrderNumber(tenantId);
@@ -1028,6 +1028,7 @@ export async function registerRoutes(
       const order = await storage.createOrder({
         tenantId,
         userId,
+        salesRepId: salesRepId || null,
         orderNumber,
         status: "completed",
         subtotal: subtotal.toString(),

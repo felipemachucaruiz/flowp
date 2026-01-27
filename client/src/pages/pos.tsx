@@ -14,7 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Category, Product, Customer, LoyaltyReward } from "@shared/schema";
+import type { Category, Product, Customer, LoyaltyReward, User as UserType } from "@shared/schema";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -36,6 +36,7 @@ import {
   User,
   UserPlus,
   Check,
+  UserCheck,
 } from "lucide-react";
 import { NetworkStatusIndicator } from "@/components/network-status-indicator";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
@@ -87,6 +88,7 @@ export default function POSPage() {
   const [fixedDiscountAmount, setFixedDiscountAmount] = useState<number>(0);
   const [appliedReward, setAppliedReward] = useState<LoyaltyReward | null>(null);
   const [freeProductItemId, setFreeProductItemId] = useState<string | null>(null);
+  const [selectedSalesRep, setSelectedSalesRep] = useState<UserType | null>(null);
 
   const taxRate = parseFloat(tenant?.taxRate?.toString() || "0");
   const discountRate = parseFloat(discountPercent || "0");
@@ -191,6 +193,11 @@ export default function POSPage() {
 
   const { data: loyaltyRewards } = useQuery<LoyaltyReward[]>({
     queryKey: ["/api/loyalty/rewards"],
+    enabled: !!tenant?.id,
+  });
+
+  const { data: salesReps } = useQuery<UserType[]>({
+    queryKey: ["/api/users"],
     enabled: !!tenant?.id,
   });
 
@@ -457,6 +464,7 @@ export default function POSPage() {
       }
       clearCart();
       setSelectedCustomer(null);
+      setSelectedSalesRep(null);
       setAppliedReward(null);
       setFreeProductItemId(null);
       setFixedDiscountAmount(0);
@@ -571,6 +579,7 @@ export default function POSPage() {
       taxAmount: getTaxAmountWithDiscount(taxRate),
       total: getTotalWithDiscount(taxRate),
       customerId: selectedCustomer.id,
+      salesRepId: selectedSalesRep?.id,
     };
 
     const totalCashReceived = paymentEntries
@@ -944,6 +953,7 @@ export default function POSPage() {
         setShowPaymentDialog(open);
         if (!open) {
           setSelectedCustomer(null);
+          setSelectedSalesRep(null);
           setDiscountPercent("0");
           setCustomerSearchQuery("");
           setShowNewCustomerForm(false);
@@ -970,6 +980,32 @@ export default function POSPage() {
                   {t("pos.discount")}: {discountRate}% (-{formatCurrency(getDiscountAmount())})
                 </p>
               )}
+            </div>
+
+            {/* Sales Rep Selection */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-2">
+                <UserCheck className="w-4 h-4" />
+                {t("pos.sales_rep")}
+              </Label>
+              <Select
+                value={selectedSalesRep?.id || ""}
+                onValueChange={(value) => {
+                  const rep = salesReps?.find(r => r.id === value);
+                  setSelectedSalesRep(rep || null);
+                }}
+              >
+                <SelectTrigger data-testid="select-sales-rep">
+                  <SelectValue placeholder={t("pos.select_sales_rep")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {salesReps?.filter(rep => rep.isActive).map((rep) => (
+                    <SelectItem key={rep.id} value={rep.id}>
+                      {rep.name} {rep.id === user?.id ? `(${t("pos.you")})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Customer Selection */}
