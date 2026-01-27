@@ -370,51 +370,56 @@ export default function CustomersPage() {
               </div>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
-                <Card>
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                      <Star className="w-4 h-4 shrink-0" />
-                      <span className="text-xs">{t("customers.loyalty_points")}</span>
-                    </div>
-                    <p className="text-xl font-bold text-primary">
-                      {selectedCustomer.loyaltyPoints || 0}
-                    </p>
-                  </CardContent>
-                </Card>
+              <div className="space-y-3 mt-6">
+                {/* Total Spent - Full Width */}
                 <Card>
                   <CardContent className="p-3">
                     <div className="flex items-center gap-2 text-muted-foreground mb-1">
                       <TrendingUp className="w-4 h-4 shrink-0" />
                       <span className="text-xs">{t("customers.total_spent")}</span>
                     </div>
-                    <p className="text-xl font-bold truncate" title={formatCurrency(selectedCustomer.totalSpent || 0)}>
+                    <p className="text-2xl font-bold">
                       {formatCurrency(selectedCustomer.totalSpent || 0)}
                     </p>
                   </CardContent>
                 </Card>
-                <Card>
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                      <ShoppingBag className="w-4 h-4 shrink-0" />
-                      <span className="text-xs">{t("customers.total_orders")}</span>
-                    </div>
-                    <p className="text-xl font-bold">{selectedCustomer.orderCount || 0}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-3">
-                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                      <Clock className="w-4 h-4 shrink-0" />
-                      <span className="text-xs">{t("customers.member_since")}</span>
-                    </div>
-                    <p className="text-base font-semibold">
-                      {selectedCustomer.lastPurchaseAt
-                        ? formatDate(new Date(selectedCustomer.lastPurchaseAt))
-                        : "-"}
-                    </p>
-                  </CardContent>
-                </Card>
+                
+                {/* Other Stats */}
+                <div className="grid grid-cols-3 gap-3">
+                  <Card>
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <Star className="w-4 h-4 shrink-0" />
+                        <span className="text-xs">{t("customers.loyalty_points")}</span>
+                      </div>
+                      <p className="text-xl font-bold text-primary">
+                        {selectedCustomer.loyaltyPoints || 0}
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <ShoppingBag className="w-4 h-4 shrink-0" />
+                        <span className="text-xs">{t("customers.total_orders")}</span>
+                      </div>
+                      <p className="text-xl font-bold">{selectedCustomer.orderCount || 0}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                        <Clock className="w-4 h-4 shrink-0" />
+                        <span className="text-xs">{t("customers.member_since")}</span>
+                      </div>
+                      <p className="text-base font-semibold">
+                        {selectedCustomer.lastPurchaseAt
+                          ? formatDate(new Date(selectedCustomer.lastPurchaseAt))
+                          : "-"}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
             </div>
 
