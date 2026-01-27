@@ -430,7 +430,7 @@ function PrintBridgeSettings() {
                 className="w-full"
                 data-testid="button-download-printbridge"
               >
-                <a href="/printbridge/PrintBridge-Source.zip" download>
+                <a href="/flowp-print-bridge.exe" download="FlowpPrintBridge.exe">
                   <Download className="w-4 h-4 mr-2" />
                   {t("printing.bridge_download")}
                 </a>
