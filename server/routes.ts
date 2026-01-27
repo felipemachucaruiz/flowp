@@ -819,6 +819,63 @@ export async function registerRoutes(
     }
   });
 
+  // ===== TAX RATES ROUTES =====
+
+  app.get("/api/tax-rates", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const taxRates = await storage.getTaxRatesByTenant(tenantId);
+      res.json(taxRates);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tax rates" });
+    }
+  });
+
+  app.post("/api/tax-rates", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const taxRate = await storage.createTaxRate({ ...req.body, tenantId });
+      res.json(taxRate);
+    } catch (error) {
+      console.error("Create tax rate error:", error);
+      res.status(400).json({ message: "Failed to create tax rate" });
+    }
+  });
+
+  app.patch("/api/tax-rates/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      const taxRate = await storage.updateTaxRate(id, req.body);
+      res.json(taxRate);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update tax rate" });
+    }
+  });
+
+  app.delete("/api/tax-rates/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      await storage.deleteTaxRate(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete tax rate" });
+    }
+  });
+
   // ===== FLOORS ROUTES =====
 
   app.get("/api/floors", async (req: Request, res: Response) => {
