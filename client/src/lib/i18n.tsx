@@ -143,6 +143,7 @@ const translations = {
     "business.save": "Save Changes",
     "business.cancel": "Cancel",
     "business.not_set": "Not set",
+    "business.tax_id": "Tax ID",
     
     // Tax Configuration
     "taxes.title": "Tax Configuration",
@@ -1022,6 +1023,7 @@ const translations = {
     "business.save": "Guardar Cambios",
     "business.cancel": "Cancelar",
     "business.not_set": "No configurado",
+    "business.tax_id": "ID Fiscal",
     
     // Tax Configuration
     "taxes.title": "Configuración de Impuestos",
@@ -1898,6 +1900,7 @@ const translations = {
     "business.save": "Salvar Alterações",
     "business.cancel": "Cancelar",
     "business.not_set": "Não configurado",
+    "business.tax_id": "NIF/CPF",
     
     // Tax Configuration
     "taxes.title": "Configuração de Impostos",
