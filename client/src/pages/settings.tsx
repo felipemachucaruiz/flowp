@@ -394,9 +394,9 @@ function PrintBridgeSettings() {
   const [bridgeStatus, setBridgeStatus] = useState<PrintBridgeStatus | null>(null);
   const [printers, setPrinters] = useState<PrinterInfo[]>([]);
   const [isChecking, setIsChecking] = useState(false);
-  const [tokenInput, setTokenInput] = useState(printBridge.getToken() || '');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedPrinter, setSelectedPrinter] = useState<string>('');
 
   const checkBridgeStatus = async () => {
     setIsChecking(true);
@@ -407,7 +407,11 @@ function PrintBridgeSettings() {
       if (status.isAvailable) {
         const detectedPrinters = await printBridge.getPrinters();
         setPrinters(detectedPrinters);
-        setIsAuthenticated(status.printerConfig?.printerName !== 'Not configured' || detectedPrinters.length > 0);
+        setIsAuthenticated(true);
+        // Set current printer from config if available
+        if (status.printerConfig?.printerName && status.printerConfig.printerName !== 'Not configured') {
+          setSelectedPrinter(status.printerConfig.printerName);
+        }
       } else {
         setIsAuthenticated(false);
         setPrinters([]);
@@ -420,13 +424,18 @@ function PrintBridgeSettings() {
     setIsChecking(false);
   };
 
-  const handleSaveToken = () => {
-    printBridge.setToken(tokenInput.trim() || null);
-    checkBridgeStatus();
-    toast({
-      title: t("printing.token_saved"),
-      description: t("printing.token_saved_desc"),
+  const handlePrinterSelect = async (printerName: string) => {
+    setSelectedPrinter(printerName);
+    const success = await printBridge.configurePrinter({ 
+      type: 'windows', 
+      printerName 
     });
+    if (success) {
+      toast({
+        title: t("printing.printer_configured"),
+        description: printerName,
+      });
+    }
   };
 
   useEffect(() => {
@@ -469,9 +478,23 @@ function PrintBridgeSettings() {
             <span className="font-medium">{t("printing.bridge_version")}</span> {bridgeStatus?.version}
           </div>
           {printers.length > 0 && (
-            <div className="text-sm">
-              <span className="font-medium">{t("printing.bridge_printers")}</span>
-              <span className="ml-2">{printers.map(p => p.name).join(", ")}</span>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t("printing.select_printer")}</Label>
+              <Select
+                value={selectedPrinter}
+                onValueChange={handlePrinterSelect}
+              >
+                <SelectTrigger className="w-full" data-testid="select-printer">
+                  <SelectValue placeholder={t("printing.select_printer_placeholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {printers.map((p) => (
+                    <SelectItem key={p.name} value={p.name}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
         </div>
@@ -518,30 +541,6 @@ function PrintBridgeSettings() {
 
         {showAdvanced && (
           <div className="mt-4 space-y-4">
-
-            {/* Security Token */}
-            <div className="p-3 rounded-lg bg-muted/50 space-y-2">
-              <h5 className="font-medium text-sm">{t("printing.bridge_token_label")}</h5>
-              <p className="text-xs text-muted-foreground">{t("printing.bridge_token_optional")}</p>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  placeholder={t("printing.token_placeholder")}
-                  value={tokenInput}
-                  onChange={(e) => setTokenInput(e.target.value)}
-                  className="flex-1 h-9 text-sm"
-                  data-testid="input-bridge-token"
-                />
-                <Button 
-                  size="sm" 
-                  onClick={handleSaveToken}
-                  data-testid="button-save-token"
-                >
-                  {t("common.save")}
-                </Button>
-              </div>
-            </div>
-
             {/* Check Status */}
             <Button
               variant="ghost"

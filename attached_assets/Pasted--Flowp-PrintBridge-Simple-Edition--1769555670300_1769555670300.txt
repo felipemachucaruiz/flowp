@@ -1,0 +1,37 @@
+
+========================================
+  Flowp PrintBridge - Simple Edition
+========================================
+
+Starting PrintBridge server...
+
+
+========================================
+  Flowp PrintBridge - Simple Edition
+========================================
+
+Server running on http://127.0.0.1:9638
+
+Found printers: Adobe PDF, AnyDesk Printer, EPSON TM-T88V Receipt, HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), Magicard 300 (V2), Microsoft Print to PDF, OneNote (Desktop)
+Available printers:
+  1. Adobe PDF
+  2. AnyDesk Printer
+  3. EPSON TM-T88V Receipt
+  4. HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red)
+  5. Magicard 300 (V2)
+  6. Microsoft Print to PDF
+  7. OneNote (Desktop)
+
+Keep this window open while using Flowp POS.
+Press Ctrl+C to stop.
+
+Found printers: Adobe PDF, AnyDesk Printer, EPSON TM-T88V Receipt, HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), Magicard 300 (V2), Microsoft Print to PDF, OneNote (Desktop)
+Found printers: Adobe PDF, AnyDesk Printer, EPSON TM-T88V Receipt, HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), Magicard 300 (V2), Microsoft Print to PDF, OneNote (Desktop)
+Found printers: Adobe PDF, AnyDesk Printer, EPSON TM-T88V Receipt, HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), Magicard 300 (V2), Microsoft Print to PDF, OneNote (Desktop)
+Found printers: Adobe PDF, AnyDesk Printer, EPSON TM-T88V Receipt, HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), Magicard 300 (V2), Microsoft Print to PDF, OneNote (Desktop)
+Found printers: Adobe PDF, AnyDesk Printer, EPSON TM-T88V Receipt, HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), Magicard 300 (V2), Microsoft Print to PDF, OneNote (Desktop)
+Found printers: Adobe PDF, AnyDesk Printer, EPSON TM-T88V Receipt, HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), Magicard 300 (V2), Microsoft Print to PDF, OneNote (Desktop)
+Found printers: OneNote (Desktop), Microsoft Print to PDF, Magicard 300 (V2), HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), EPSON TM-T88V Receipt, AnyDesk Printer, Adobe PDF
+Found printers: Adobe PDF, AnyDesk Printer, EPSON TM-T88V Receipt, HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), Magicard 300 (V2), Microsoft Print to PDF, OneNote (Desktop)
+Found printers: Adobe PDF, AnyDesk Printer, EPSON TM-T88V Receipt, HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), Magicard 300 (V2), Microsoft Print to PDF, OneNote (Desktop)
+Found printers: Adobe PDF, AnyDesk Printer, EPSON TM-T88V Receipt, HP LaserJet MFP M631 M632 M633 PCL-6 (V4) (Red), Magicard 300 (V2), Microsoft Print to PDF, OneNote (Desktop)
