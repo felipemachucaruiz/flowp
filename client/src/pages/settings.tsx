@@ -1983,6 +1983,8 @@ export default function SettingsPage() {
                       change: 2.50,
                       currency: tenant?.currency || "$",
                       footerText: receiptForm.watch("receiptFooterText") || undefined,
+                      couponEnabled: receiptForm.watch("couponEnabled") || false,
+                      couponText: receiptForm.watch("couponText") || undefined,
                       cutPaper: true,
                     });
                     if (result.success) {
