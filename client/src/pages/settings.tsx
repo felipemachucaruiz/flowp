@@ -189,7 +189,7 @@ function CsvImportSection() {
       });
       const result = await response.json();
       if (response.ok) {
-        toast({ title: t("inventory.csv_import_complete"), description: t("inventory.csv_import_result").replace("{success}", result.success).replace("{failed}", result.failed) });
+        toast({ title: t("inventory.csv_import_complete"), description: t("inventory.csv_import_result_categories").replace("{success}", result.success).replace("{failed}", result.failed) });
         queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
         setCategoriesFile(null);
       } else {
