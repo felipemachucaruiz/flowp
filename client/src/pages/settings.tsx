@@ -61,7 +61,7 @@ const userSchema = z.object({
   phone: z.string().min(1, "Phone is required"),
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
-  role: z.enum(["admin", "manager", "cashier", "kitchen"]),
+  role: z.enum(["admin", "manager", "cashier", "kitchen", "sales_rep"]),
   pin: z.string().optional(),
 });
 
@@ -2220,7 +2220,7 @@ export default function SettingsPage() {
                                 phone: user.phone || "",
                                 username: user.username,
                                 password: "",
-                                role: user.role as "admin" | "manager" | "cashier" | "kitchen",
+                                role: user.role as "admin" | "manager" | "cashier" | "kitchen" | "sales_rep",
                                 pin: user.pin || "",
                               });
                               setShowUserDialog(true);
@@ -2693,6 +2693,7 @@ export default function SettingsPage() {
                           <SelectItem value="manager">{t("form.role_manager")}</SelectItem>
                           <SelectItem value="cashier">{t("form.role_cashier")}</SelectItem>
                           <SelectItem value="kitchen">{t("form.role_kitchen")}</SelectItem>
+                          <SelectItem value="sales_rep">{t("form.role_sales_rep")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
