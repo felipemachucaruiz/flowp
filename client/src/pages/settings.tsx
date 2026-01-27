@@ -1955,6 +1955,48 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+              <div className="flex justify-center mt-4">
+                <Button
+                  onClick={async () => {
+                    const result = await printBridge.printReceipt({
+                      language: tenant?.language || "en",
+                      businessName: tenant?.name || "Business Name",
+                      headerText: receiptForm.watch("receiptHeaderText") || undefined,
+                      address: receiptForm.watch("receiptShowAddress") ? (tenant?.address || "123 Main Street, City") : undefined,
+                      phone: receiptForm.watch("receiptShowPhone") ? (tenant?.phone || "(555) 123-4567") : undefined,
+                      taxId: tenant?.receiptTaxId || undefined,
+                      orderNumber: "TEST-1234",
+                      date: new Date().toLocaleString(tenant?.language || "en"),
+                      fontSize: receiptForm.watch("receiptFontSize") || 12,
+                      fontFamily: receiptForm.watch("receiptFontFamily") || "monospace",
+                      logoSize: receiptForm.watch("receiptLogoSize") || 200,
+                      logoUrl: receiptLogoPath || undefined,
+                      items: [
+                        { name: `${t("printing.sample_item")} 1`, quantity: 2, unitPrice: 5.00, total: 10.00 },
+                        { name: `${t("printing.sample_item")} 2`, quantity: 1, unitPrice: 15.00, total: 15.00 },
+                      ],
+                      subtotal: 25.00,
+                      tax: 2.50,
+                      taxRate: Number(tenant?.taxRate) || 10,
+                      total: 27.50,
+                      payments: [{ type: t("pos.payment_cash"), amount: 30.00 }],
+                      change: 2.50,
+                      currency: tenant?.currency || "$",
+                      footerText: receiptForm.watch("receiptFooterText") || undefined,
+                      cutPaper: true,
+                    });
+                    if (result.success) {
+                      toast({ title: t("printing.test_printed") });
+                    } else {
+                      toast({ title: t("printing.test_error"), description: result.error, variant: "destructive" });
+                    }
+                  }}
+                  data-testid="button-print-test-receipt"
+                >
+                  <Printer className="w-4 h-4 mr-2" />
+                  {t("printing.print_test")}
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
