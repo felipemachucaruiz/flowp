@@ -374,7 +374,9 @@
         enableKitchenPrinter: "Enable Kitchen Printer",
         testKitchenPrint: "Test Kitchen Print",
         kitchenTestSuccess: "Kitchen test printed successfully!",
-        sendingKitchenTest: "Sending kitchen test print..."
+        sendingKitchenTest: "Sending kitchen test print...",
+        noPrintersFound: "No printers found",
+        errorLoadingPrinters: "Error loading printers"
       },
       es: {
         subtitle: "Impresión térmica silenciosa para Flowp POS",
@@ -409,7 +411,9 @@
         enableKitchenPrinter: "Habilitar Impresora de Cocina",
         testKitchenPrint: "Probar Impresión Cocina",
         kitchenTestSuccess: "¡Prueba de cocina impresa exitosamente!",
-        sendingKitchenTest: "Enviando prueba de cocina..."
+        sendingKitchenTest: "Enviando prueba de cocina...",
+        noPrintersFound: "No se encontraron impresoras",
+        errorLoadingPrinters: "Error cargando impresoras"
       },
       pt: {
         subtitle: "Impressão térmica silenciosa para Flowp POS",
@@ -444,7 +448,9 @@
         enableKitchenPrinter: "Habilitar Impressora de Cozinha",
         testKitchenPrint: "Testar Impressão Cozinha",
         kitchenTestSuccess: "Teste de cozinha impresso com sucesso!",
-        sendingKitchenTest: "Enviando teste de cozinha..."
+        sendingKitchenTest: "Enviando teste de cozinha...",
+        noPrintersFound: "Nenhuma impressora encontrada",
+        errorLoadingPrinters: "Erro ao carregar impressoras"
       }
     };
 
@@ -495,28 +501,42 @@
       
       document.getElementById('paperWidth').value = currentConfig.paperWidth || 80;
 
-      const printers = await window.printBridge.getPrinters();
-      const select = document.getElementById('printerSelect');
-      const kitchenSelect = document.getElementById('kitchenPrinterSelect');
-      select.innerHTML = '<option value="">' + t('selectAPrinter') + '</option>';
-      kitchenSelect.innerHTML = '<option value="">' + t('selectAPrinter') + '</option>';
-      printers.forEach(p => {
-        const option = document.createElement('option');
-        option.value = p.name;
-        option.textContent = p.name;
-        if (currentConfig.printerName === p.name) {
-          option.selected = true;
-        }
-        select.appendChild(option);
+      try {
+        const printers = await window.printBridge.getPrinters();
+        const select = document.getElementById('printerSelect');
+        const kitchenSelect = document.getElementById('kitchenPrinterSelect');
         
-        const kitchenOption = document.createElement('option');
-        kitchenOption.value = p.name;
-        kitchenOption.textContent = p.name;
-        if (currentConfig.kitchenPrinterName === p.name) {
-          kitchenOption.selected = true;
+        if (!printers || printers.length === 0) {
+          select.innerHTML = '<option value="">' + t('noPrintersFound') + '</option>';
+          kitchenSelect.innerHTML = '<option value="">' + t('noPrintersFound') + '</option>';
+        } else {
+          select.innerHTML = '<option value="">' + t('selectAPrinter') + '</option>';
+          kitchenSelect.innerHTML = '<option value="">' + t('selectAPrinter') + '</option>';
+          printers.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.name;
+            option.textContent = p.name;
+            if (currentConfig.printerName === p.name) {
+              option.selected = true;
+            }
+            select.appendChild(option);
+            
+            const kitchenOption = document.createElement('option');
+            kitchenOption.value = p.name;
+            kitchenOption.textContent = p.name;
+            if (currentConfig.kitchenPrinterName === p.name) {
+              kitchenOption.selected = true;
+            }
+            kitchenSelect.appendChild(kitchenOption);
+          });
         }
-        kitchenSelect.appendChild(kitchenOption);
-      });
+      } catch (err) {
+        console.error('Failed to load printers:', err);
+        const select = document.getElementById('printerSelect');
+        const kitchenSelect = document.getElementById('kitchenPrinterSelect');
+        select.innerHTML = '<option value="">' + t('errorLoadingPrinters') + '</option>';
+        kitchenSelect.innerHTML = '<option value="">' + t('errorLoadingPrinters') + '</option>';
+      }
 
       // Load kitchen config
       if (currentConfig.kitchenEnabled) {
