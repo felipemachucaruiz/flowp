@@ -18,8 +18,21 @@ import { Plus, Pencil, Trash2, Package, Tag } from "lucide-react";
 
 export default function ProductsPage() {
   const { tenant } = useAuth();
-  const { t, formatCurrency } = useI18n();
+  const { t } = useI18n();
   const { toast } = useToast();
+
+  const formatCurrency = (amount: number) => {
+    const currency = tenant?.currency || "USD";
+    const localeMap: Record<string, string> = {
+      COP: "es-CO", MXN: "es-MX", USD: "en-US", EUR: "de-DE", BRL: "pt-BR",
+    };
+    const locale = localeMap[currency] || "en-US";
+    try {
+      return new Intl.NumberFormat(locale, { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
+    } catch {
+      return `${currency} ${amount.toLocaleString()}`;
+    }
+  };
   
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
