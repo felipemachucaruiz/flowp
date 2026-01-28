@@ -194,53 +194,107 @@ function padLine(left, right, width = 32) {
   return left + ' '.repeat(Math.max(1, padding)) + right;
 }
 
-// Print to Windows printer - multiple fallback methods
+// Print to Windows printer - RAW printing for thermal printers
 async function printToWindows(printerName, data) {
   return new Promise((resolve) => {
-    const tempFile = path.join(os.tmpdir(), 'flowp_' + Date.now() + '.txt');
+    const tempFile = path.join(os.tmpdir(), 'flowp_' + Date.now() + '.prn');
     fs.writeFileSync(tempFile, data, 'binary');
     
     console.log('Printing to:', printerName);
+    console.log('Data length:', data.length, 'bytes');
     
-    // Method 1: Use RUNDLL32 with printui (most reliable for Windows printers)
-    const printCmd = `powershell -Command "Get-Content -Path '${tempFile.replace(/'/g, "''")}' -Raw -Encoding Byte | Out-Printer -Name '${printerName.replace(/'/g, "''")}'"`; 
+    // For thermal printers, we need to send RAW data
+    // Method 1: Use Windows print spooler with RAW datatype via PowerShell
+    const rawPrintScript = `
+      $printerName = '${printerName.replace(/'/g, "''")}'
+      $filePath = '${tempFile.replace(/\\/g, '\\\\').replace(/'/g, "''")}'
+      
+      Add-Type -TypeDefinition @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class RawPrinter {
+          [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+          public class DOCINFOA {
+            [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
+            [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;
+            [MarshalAs(UnmanagedType.LPStr)] public string pDataType;
+          }
+          [DllImport("winspool.drv", EntryPoint = "OpenPrinterA", SetLastError = true, CharSet = CharSet.Ansi)]
+          public static extern bool OpenPrinter([MarshalAs(UnmanagedType.LPStr)] string szPrinter, out IntPtr hPrinter, IntPtr pd);
+          [DllImport("winspool.drv", EntryPoint = "ClosePrinter", SetLastError = true)]
+          public static extern bool ClosePrinter(IntPtr hPrinter);
+          [DllImport("winspool.drv", EntryPoint = "StartDocPrinterA", SetLastError = true, CharSet = CharSet.Ansi)]
+          public static extern bool StartDocPrinter(IntPtr hPrinter, Int32 level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
+          [DllImport("winspool.drv", EntryPoint = "EndDocPrinter", SetLastError = true)]
+          public static extern bool EndDocPrinter(IntPtr hPrinter);
+          [DllImport("winspool.drv", EntryPoint = "StartPagePrinter", SetLastError = true)]
+          public static extern bool StartPagePrinter(IntPtr hPrinter);
+          [DllImport("winspool.drv", EntryPoint = "EndPagePrinter", SetLastError = true)]
+          public static extern bool EndPagePrinter(IntPtr hPrinter);
+          [DllImport("winspool.drv", EntryPoint = "WritePrinter", SetLastError = true)]
+          public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, Int32 dwCount, out Int32 dwWritten);
+          
+          public static bool SendBytesToPrinter(string szPrinterName, byte[] pBytes) {
+            IntPtr hPrinter = IntPtr.Zero;
+            DOCINFOA di = new DOCINFOA();
+            di.pDocName = "Flowp Receipt";
+            di.pDataType = "RAW";
+            
+            if (!OpenPrinter(szPrinterName.Normalize(), out hPrinter, IntPtr.Zero)) return false;
+            if (!StartDocPrinter(hPrinter, 1, di)) { ClosePrinter(hPrinter); return false; }
+            if (!StartPagePrinter(hPrinter)) { EndDocPrinter(hPrinter); ClosePrinter(hPrinter); return false; }
+            
+            IntPtr pUnmanagedBytes = Marshal.AllocCoTaskMem(pBytes.Length);
+            Marshal.Copy(pBytes, 0, pUnmanagedBytes, pBytes.Length);
+            int dwWritten;
+            bool success = WritePrinter(hPrinter, pUnmanagedBytes, pBytes.Length, out dwWritten);
+            Marshal.FreeCoTaskMem(pUnmanagedBytes);
+            
+            EndPagePrinter(hPrinter);
+            EndDocPrinter(hPrinter);
+            ClosePrinter(hPrinter);
+            return success;
+          }
+        }
+"@
+      
+      $bytes = [System.IO.File]::ReadAllBytes($filePath)
+      $result = [RawPrinter]::SendBytesToPrinter($printerName, $bytes)
+      if ($result) { exit 0 } else { exit 1 }
+    `;
+    
+    const psFile = path.join(os.tmpdir(), 'flowp_print_' + Date.now() + '.ps1');
+    fs.writeFileSync(psFile, rawPrintScript);
+    
+    const printCmd = `powershell -ExecutionPolicy Bypass -File "${psFile}"`;
     
     exec(printCmd, { timeout: 30000 }, (error, stdout, stderr) => {
+      // Clean up temp files
+      try { fs.unlinkSync(tempFile); } catch (e) {}
+      try { fs.unlinkSync(psFile); } catch (e) {}
+      
       if (!error) {
-        console.log('Print: SUCCESS (Out-Printer)');
-        try { fs.unlinkSync(tempFile); } catch (e) {}
+        console.log('Print: SUCCESS (RAW)');
         resolve({ success: true });
         return;
       }
       
-      console.log('Out-Printer failed, trying notepad method...');
+      console.log('RAW print failed:', error.message);
+      console.log('Trying copy method...');
       
-      // Method 2: Use notepad /p (works for most printers)
-      const notepadCmd = `notepad /p "${tempFile}"`;
-      exec(notepadCmd, { timeout: 30000 }, (error2) => {
+      // Method 2: Try copy to shared printer
+      // Re-create temp file for second attempt
+      fs.writeFileSync(tempFile, data, 'binary');
+      const copyCmd = `copy /b "${tempFile}" "\\\\%COMPUTERNAME%\\${printerName}"`;
+      exec(copyCmd, { shell: 'cmd.exe', timeout: 30000 }, (error2) => {
+        try { fs.unlinkSync(tempFile); } catch (e) {}
         if (!error2) {
-          console.log('Print: SUCCESS (notepad)');
-          setTimeout(() => {
-            try { fs.unlinkSync(tempFile); } catch (e) {}
-          }, 5000);
+          console.log('Print: SUCCESS (copy)');
           resolve({ success: true });
-          return;
+        } else {
+          console.log('Print: FAILED -', error2.message);
+          resolve({ success: false, error: 'Could not send to printer. Make sure printer is shared or check printer settings.' });
         }
-        
-        console.log('Notepad failed, trying print command...');
-        
-        // Method 3: Use print command
-        const directCmd = `print /D:"${printerName}" "${tempFile}"`;
-        exec(directCmd, { shell: 'cmd.exe', timeout: 30000 }, (error3) => {
-          try { fs.unlinkSync(tempFile); } catch (e) {}
-          if (!error3) {
-            console.log('Print: SUCCESS (print command)');
-            resolve({ success: true });
-          } else {
-            console.log('Print: FAILED -', error3.message);
-            resolve({ success: false, error: 'Could not send to printer. Check if printer is online.' });
-          }
-        });
       });
     });
   });
