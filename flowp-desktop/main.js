@@ -22,6 +22,16 @@ function createWindow() {
     y: undefined
   });
 
+  // Find icon - check build folder first, then root
+  let iconPath = path.join(__dirname, 'build', 'icon.ico');
+  const fs = require('fs');
+  if (!fs.existsSync(iconPath)) {
+    iconPath = path.join(__dirname, 'build', 'icon.png');
+  }
+  if (!fs.existsSync(iconPath)) {
+    iconPath = path.join(__dirname, 'icon.png');
+  }
+
   mainWindow = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
@@ -30,14 +40,15 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 600,
     title: 'Flowp POS',
-    icon: path.join(__dirname, 'icon.png'),
+    icon: iconPath,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     },
     autoHideMenuBar: true,
-    show: false
+    show: false,
+    backgroundColor: '#1a1a2e'
   });
 
   // Save window position on close
