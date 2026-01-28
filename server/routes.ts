@@ -126,6 +126,28 @@ export async function registerRoutes(
     archive.finalize();
   });
 
+  // Flowp Desktop (Electron) source download for developers
+  app.get("/desktop/source.zip", (req: Request, res: Response) => {
+    const desktopPath = path.join(process.cwd(), "flowp-desktop");
+    
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", "attachment; filename=Flowp-Desktop-Source.zip");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    
+    const archive = archiver("zip", { store: true });
+    archive.on("error", () => {
+      res.status(500).json({ error: "Failed to create archive" });
+    });
+    
+    archive.pipe(res);
+    archive.file(path.join(desktopPath, "package.json"), { name: "flowp-desktop/package.json" });
+    archive.file(path.join(desktopPath, "main.js"), { name: "flowp-desktop/main.js" });
+    archive.file(path.join(desktopPath, "preload.js"), { name: "flowp-desktop/preload.js" });
+    archive.file(path.join(desktopPath, "printer.js"), { name: "flowp-desktop/printer.js" });
+    archive.file(path.join(desktopPath, "README.md"), { name: "flowp-desktop/README.md" });
+    archive.finalize();
+  });
+
   // ===== PAYPAL ROUTES =====
   // PayPal integration for subscription payments
   const paypalEnabled = process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET;

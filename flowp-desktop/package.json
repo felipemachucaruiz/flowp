@@ -1,0 +1,59 @@
+{
+  "name": "flowp-desktop",
+  "version": "1.0.0",
+  "description": "Flowp POS - Desktop Edition with built-in thermal printing",
+  "main": "main.js",
+  "author": "Flowp",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win",
+    "build:dir": "electron-builder --win --dir"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "jimp": "^0.22.12"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "app.flowp.pos",
+    "productName": "Flowp POS",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "installerHeaderIcon": "icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Flowp POS"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "printer.js",
+      "icon.ico",
+      "icon.png"
+    ],
+    "extraResources": []
+  }
+}

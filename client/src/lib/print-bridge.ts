@@ -1,6 +1,27 @@
 const PRINT_BRIDGE_URL = 'http://127.0.0.1:9638';
 const TOKEN_STORAGE_KEY = 'flowp_print_bridge_token';
 
+// Electron Desktop API (injected by preload.js when running in Electron)
+interface FlowpDesktopAPI {
+  isElectron: boolean;
+  getVersion: () => Promise<string>;
+  getPrinters: () => Promise<Array<{ name: string; isDefault: boolean }>>;
+  printReceipt: (printerName: string, receipt: unknown) => Promise<{ success: boolean; error?: string }>;
+  printRaw: (printerName: string, rawBase64: string) => Promise<{ success: boolean; error?: string }>;
+  openCashDrawer: (printerName: string) => Promise<{ success: boolean; error?: string }>;
+}
+
+declare global {
+  interface Window {
+    flowpDesktop?: FlowpDesktopAPI;
+  }
+}
+
+// Check if running in Electron desktop app
+function isElectron(): boolean {
+  return !!(window.flowpDesktop?.isElectron);
+}
+
 interface PrintBridgeStatus {
   isAvailable: boolean;
   version?: string;
@@ -114,6 +135,24 @@ class PrintBridgeClient {
       return this.statusCache;
     }
 
+    // Check if running in Electron desktop app first
+    if (isElectron()) {
+      try {
+        const version = await window.flowpDesktop!.getVersion();
+        console.log('[Electron] Desktop app detected, version:', version);
+        this.statusCache = {
+          isAvailable: true,
+          version: `Electron ${version}`,
+          requiresAuth: false
+        };
+        this.statusCacheTime = now;
+        return this.statusCache;
+      } catch (e) {
+        console.log('[Electron] Error getting version:', e);
+      }
+    }
+
+    // Fall back to PrintBridge HTTP connection
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
@@ -154,6 +193,18 @@ class PrintBridgeClient {
   }
 
   async getPrinters(): Promise<PrinterInfo[]> {
+    // Use Electron API if available
+    if (isElectron()) {
+      try {
+        const printers = await window.flowpDesktop!.getPrinters();
+        return printers.map(p => ({ type: 'windows', name: p.name }));
+      } catch (e) {
+        console.log('[Electron] Error getting printers:', e);
+        return [];
+      }
+    }
+
+    // Fall back to PrintBridge HTTP
     try {
       const response = await fetch(`${PRINT_BRIDGE_URL}/printers`, {
         headers: this.getAuthHeaders()
@@ -184,7 +235,28 @@ class PrintBridgeClient {
     return false;
   }
 
-  async printReceipt(receipt: ReceiptData): Promise<{ success: boolean; error?: string }> {
+  async printReceipt(receipt: ReceiptData, printerName?: string): Promise<{ success: boolean; error?: string }> {
+    // Use Electron API if available
+    if (isElectron()) {
+      try {
+        // Get default printer if none specified
+        let targetPrinter = printerName;
+        if (!targetPrinter) {
+          const printers = await window.flowpDesktop!.getPrinters();
+          const defaultPrinter = printers.find(p => p.isDefault);
+          targetPrinter = defaultPrinter?.name || printers[0]?.name;
+        }
+        if (!targetPrinter) {
+          return { success: false, error: 'No printer available' };
+        }
+        return await window.flowpDesktop!.printReceipt(targetPrinter, receipt);
+      } catch (e) {
+        console.log('[Electron] Print error:', e);
+        return { success: false, error: e instanceof Error ? e.message : 'Print failed' };
+      }
+    }
+
+    // Fall back to PrintBridge HTTP
     try {
       const response = await fetch(`${PRINT_BRIDGE_URL}/print`, {
         method: 'POST',
@@ -220,7 +292,28 @@ class PrintBridgeClient {
     }
   }
 
-  async openCashDrawer(): Promise<{ success: boolean; error?: string }> {
+  async openCashDrawer(printerName?: string): Promise<{ success: boolean; error?: string }> {
+    // Use Electron API if available
+    if (isElectron()) {
+      try {
+        // Get default printer if none specified
+        let targetPrinter = printerName;
+        if (!targetPrinter) {
+          const printers = await window.flowpDesktop!.getPrinters();
+          const defaultPrinter = printers.find(p => p.isDefault);
+          targetPrinter = defaultPrinter?.name || printers[0]?.name;
+        }
+        if (!targetPrinter) {
+          return { success: false, error: 'No printer available' };
+        }
+        return await window.flowpDesktop!.openCashDrawer(targetPrinter);
+      } catch (e) {
+        console.log('[Electron] Cash drawer error:', e);
+        return { success: false, error: e instanceof Error ? e.message : 'Cash drawer failed' };
+      }
+    }
+
+    // Fall back to PrintBridge HTTP
     try {
       const response = await fetch(`${PRINT_BRIDGE_URL}/drawer`, {
         method: 'POST',
@@ -235,6 +328,11 @@ class PrintBridgeClient {
         error: error instanceof Error ? error.message : 'Print bridge not available' 
       };
     }
+  }
+
+  // Check if running in Electron desktop app
+  isElectronApp(): boolean {
+    return isElectron();
   }
 }
 

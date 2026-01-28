@@ -594,6 +594,26 @@ function PrintBridgeSettings() {
       ) : (
         /* Not Connected State */
         <div className="p-4 rounded-lg bg-card border space-y-4">
+          {/* Desktop App Option */}
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+            <h4 className="font-medium text-sm mb-1 text-primary">{t("printing.desktop_app")}</h4>
+            <p className="text-xs text-muted-foreground mb-2">{t("printing.desktop_app_desc")}</p>
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+              data-testid="button-download-desktop"
+            >
+              <a href="/desktop/source.zip" download="Flowp-Desktop-Source.zip">
+                <Download className="w-4 h-4 mr-2" />
+                {t("printing.desktop_download")}
+              </a>
+            </Button>
+          </div>
+
+          <Separator />
+
           <div>
             <h4 className="font-medium text-sm mb-2">{t("printing.bridge_setup_steps")}</h4>
             <ol className="text-sm text-muted-foreground space-y-1.5 ml-5 list-decimal">
