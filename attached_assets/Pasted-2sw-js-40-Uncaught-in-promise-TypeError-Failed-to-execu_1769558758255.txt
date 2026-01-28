@@ -1,0 +1,125 @@
+2sw.js:40 Uncaught (in promise) TypeError: Failed to execute 'put' on 'Cache': Request scheme 'chrome-extension' is unsupported
+    at sw.js:40:19Understand this error
+client:745 WebSocket connection to 'wss://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/vite-hmr?token=uHCPN9ghKnHA' failed: 
+createConnection @ client:745Understand this error
+chunk-LPF6KSF2.js?v=8f3c99b0:21609 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+chunk-LPF6KSF2.js?v=8f3c99b0:521 Warning: Function components cannot be given refs. Attempts to access this ref will fail. Did you mean to use React.forwardRef()?
+
+Check the render method of `Primitive.button.SlotClone`.
+    at SidebarMenuButton (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/components/ui/sidebar.tsx:737:3)
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PRALEZRL.js?v=8f3c99b0:79:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PRALEZRL.js?v=8f3c99b0:56:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-SVUUWUBB.js?v=8f3c99b0:42:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PRALEZRL.js?v=8f3c99b0:79:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PRALEZRL.js?v=8f3c99b0:56:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-SVUUWUBB.js?v=8f3c99b0:42:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-62FUAUB7.js?v=8f3c99b0:1929:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js?v=8f3c99b0:145:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js?v=8f3c99b0:930:13
+    at Provider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6BRII5CC.js?v=8f3c99b0:37:15)
+    at Provider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6BRII5CC.js?v=8f3c99b0:37:15)
+    at Provider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6BRII5CC.js?v=8f3c99b0:37:15)
+    at Popper (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-62FUAUB7.js?v=8f3c99b0:1921:11)
+    at Menu (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js?v=8f3c99b0:99:11)
+    at Provider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6BRII5CC.js?v=8f3c99b0:37:15)
+    at DropdownMenu (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-dropdown-menu.js?v=8f3c99b0:896:5)
+    at li
+    at SidebarMenuItem (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/components/ui/sidebar.tsx:694:28)
+    at ul
+    at SidebarMenu (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/components/ui/sidebar.tsx:672:24)
+    at div
+    at SidebarFooter (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/components/ui/sidebar.tsx:489:26)
+    at div
+    at div
+    at div
+    at Sidebar (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/components/ui/sidebar.tsx:151:3)
+    at AppSidebar (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/components/app-sidebar.tsx:64:22)
+    at div
+    at div
+    at Provider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6BRII5CC.js?v=8f3c99b0:37:15)
+    at TooltipProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=8f3c99b0:64:5)
+    at SidebarProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/components/ui/sidebar.tsx:59:3)
+    at AppLayout (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/App.tsx:132:22)
+    at TenantRouter (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/App.tsx:343:26)
+    at Switch (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8f3c99b0:320:17)
+    at Router (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/App.tsx:510:22)
+    at Provider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6BRII5CC.js?v=8f3c99b0:37:15)
+    at TooltipProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=8f3c99b0:64:5)
+    at POSProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/lib/pos-context.tsx:20:31)
+    at TourProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/lib/tour-context.tsx:38:32)
+    at I18nProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/lib/i18n.tsx:3138:32)
+    at AppContent (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/App.tsx:559:22)
+    at AuthProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/lib/auth-context.tsx:20:32)
+    at ThemeProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/lib/theme-provider.tsx:20:33)
+    at QueryClientProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=8f3c99b0:2747:3)
+    at App
+printWarning @ chunk-LPF6KSF2.js?v=8f3c99b0:521Understand this error
+chunk-LPF6KSF2.js?v=8f3c99b0:521 Warning: Function components cannot be given refs. Attempts to access this ref will fail. Did you mean to use React.forwardRef()?
+
+Check the render method of `Primitive.button.SlotClone`.
+    at Badge (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/components/ui/badge.tsx:36:18)
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PRALEZRL.js?v=8f3c99b0:79:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PRALEZRL.js?v=8f3c99b0:56:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-SVUUWUBB.js?v=8f3c99b0:42:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PRALEZRL.js?v=8f3c99b0:79:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PRALEZRL.js?v=8f3c99b0:56:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-SVUUWUBB.js?v=8f3c99b0:42:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-62FUAUB7.js?v=8f3c99b0:1929:13
+    at https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=8f3c99b0:199:13
+    at Provider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6BRII5CC.js?v=8f3c99b0:37:15)
+    at Provider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6BRII5CC.js?v=8f3c99b0:37:15)
+    at Popper (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-62FUAUB7.js?v=8f3c99b0:1921:11)
+    at Tooltip (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=8f3c99b0:108:5)
+    at NetworkStatusIndicator (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/components/network-status-indicator.tsx:25:69)
+    at div
+    at div
+    at div
+    at CartContent
+    at div
+    at div
+    at POSPage (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/pages/pos.tsx:65:21)
+    at ProtectedRoute (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/App.tsx:55:38)
+    at Route (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8f3c99b0:264:16)
+    at Switch (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8f3c99b0:320:17)
+    at main
+    at div
+    at div
+    at div
+    at Provider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6BRII5CC.js?v=8f3c99b0:37:15)
+    at TooltipProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=8f3c99b0:64:5)
+    at SidebarProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/components/ui/sidebar.tsx:59:3)
+    at AppLayout (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/App.tsx:132:22)
+    at TenantRouter (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/App.tsx:343:26)
+    at Switch (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=8f3c99b0:320:17)
+    at Router (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/App.tsx:510:22)
+    at Provider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6BRII5CC.js?v=8f3c99b0:37:15)
+    at TooltipProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=8f3c99b0:64:5)
+    at POSProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/lib/pos-context.tsx:20:31)
+    at TourProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/lib/tour-context.tsx:38:32)
+    at I18nProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/lib/i18n.tsx:3138:32)
+    at AppContent (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/App.tsx:559:22)
+    at AuthProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/lib/auth-context.tsx:20:32)
+    at ThemeProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/src/lib/theme-provider.tsx:20:33)
+    at QueryClientProvider (https://5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=8f3c99b0:2747:3)
+    at App
+printWarning @ chunk-LPF6KSF2.js?v=8f3c99b0:521Understand this error
+VM194 pos:5 Service worker registered
+pos:1 <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">Understand this warning
+pos:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+client:755 WebSocket connection to 'wss://localhost:5173/?token=uHCPN9ghKnHA' failed: 
+createConnection @ client:755Understand this error
+client:765 [vite] failed to connect to websocket.
+your current setup:
+  (browser) 5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co/ <--[HTTP]--> localhost:5173/ (server)
+  (browser) 5d847f56-2722-449f-901d-6953091911ce-00-r72jw1v54l2k.worf.repl.co:/vite-hmr <--[WebSocket (failing)]--> localhost:5173/ (server)
+Check out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr .
+connect @ client:765Understand this error
+print-bridge.ts:131 [PrintBridge] Response: {"status":"ok","version":"1.0.0","printer":{"type":"windows","printerName":"","paperWidth":80}}
+print-bridge.ts:131 [PrintBridge] Response: {"status":"ok","version":"1.0.0","printer":{"type":"windows","printerName":"EPSON TM-T88V Receipt","paperWidth":80}}
+chunk-P7ZJIKPL.js?v=8f3c99b0:335 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ chunk-P7ZJIKPL.js?v=8f3c99b0:335Understand this warning
+3print-bridge.ts:131 [PrintBridge] Response: {"status":"ok","version":"1.0.0","printer":{"type":"windows","printerName":"EPSON TM-T88V Receipt","paperWidth":80}}
+4print-bridge.ts:131 [PrintBridge] Response: {"status":"ok","version":"1.0.0","printer":{"type":"windows","printerName":"","paperWidth":80}}
+chunk-P7ZJIKPL.js?v=8f3c99b0:335 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ chunk-P7ZJIKPL.js?v=8f3c99b0:335Understand this warning
+7print-bridge.ts:131 [PrintBridge] Response: {"status":"ok","version":"1.0.0","printer":{"type":"windows","printerName":"EPSON TM-T88V Receipt","paperWidth":80}}
