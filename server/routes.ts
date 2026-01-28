@@ -85,6 +85,26 @@ export async function registerRoutes(
     archive.finalize();
   });
 
+  // PrintBridge Simple Edition download (dynamically created to avoid corruption)
+  app.get("/printbridge/simple.zip", (req: Request, res: Response) => {
+    const simplePath = path.join(process.cwd(), "printbridge-simple");
+    
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", "attachment; filename=PrintBridge-Simple.zip");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    
+    const archive = archiver("zip", { store: true });
+    archive.on("error", () => {
+      res.status(500).json({ error: "Failed to create archive" });
+    });
+    
+    archive.pipe(res);
+    archive.file(path.join(simplePath, "package.json"), { name: "PrintBridge-Simple/package.json" });
+    archive.file(path.join(simplePath, "server.js"), { name: "PrintBridge-Simple/server.js" });
+    archive.file(path.join(simplePath, "start.bat"), { name: "PrintBridge-Simple/start.bat" });
+    archive.finalize();
+  });
+
   // ===== PAYPAL ROUTES =====
   // PayPal integration for subscription payments
   const paypalEnabled = process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET;

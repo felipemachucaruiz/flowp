@@ -537,7 +537,7 @@ function PrintBridgeSettings() {
             className="w-full"
             data-testid="button-download-printbridge-simple"
           >
-            <a href="/printbridge-v102.zip" download="printbridge-v102.zip">
+            <a href="/printbridge/simple.zip" download="PrintBridge-Simple.zip">
               <Download className="w-4 h-4 mr-2" />
               {t("printing.bridge_download_simple")} <span className="ml-1 text-xs opacity-70">v1.0.2</span>
             </a>
