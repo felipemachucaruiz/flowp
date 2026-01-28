@@ -593,63 +593,10 @@ function PrintBridgeSettings() {
           </div>
         </div>
       ) : (
-        /* Not Connected State */
-        <div className="p-4 rounded-lg bg-card border space-y-4">
-          {/* Desktop App Option */}
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-            <h4 className="font-medium text-sm mb-1 text-primary">{t("printing.desktop_app")}</h4>
-            <p className="text-xs text-muted-foreground mb-2">{t("printing.desktop_app_desc")}</p>
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="w-full sm:w-auto"
-              data-testid="button-download-desktop"
-            >
-              <a href="/desktop/source.zip" download="Flowp-Desktop-Source.zip">
-                <Download className="w-4 h-4 mr-2" />
-                {t("printing.desktop_download")}
-              </a>
-            </Button>
-          </div>
-
-          <Separator />
-
-          <div>
-            <h4 className="font-medium text-sm mb-2">{t("printing.bridge_setup_steps")}</h4>
-            <ol className="text-sm text-muted-foreground space-y-1.5 ml-5 list-decimal">
-              <li>{t("printing.bridge_step_1")}</li>
-              <li>{t("printing.bridge_step_2")}</li>
-              <li>{t("printing.bridge_step_3")}</li>
-              <li>{t("printing.bridge_step_4")}</li>
-            </ol>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button
-              asChild
-              className="flex-1"
-              data-testid="button-download-printbridge-windows"
-            >
-              <a href="/printbridge/simple.zip" download="PrintBridge-Simple.zip">
-                <Download className="w-4 h-4 mr-2" />
-                Windows <span className="ml-1 text-xs opacity-70">v1.0.4</span>
-              </a>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="flex-1"
-              data-testid="button-download-printbridge-mac"
-            >
-              <a href="/printbridge/mac.zip" download="PrintBridge-Mac.zip">
-                <Download className="w-4 h-4 mr-2" />
-                Mac <span className="ml-1 text-xs opacity-70">v1.0.0</span>
-              </a>
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            {t("printing.bridge_simple_note")}
+        /* Not Connected State - Simple message */
+        <div className="p-4 rounded-lg bg-muted/50 border text-center">
+          <p className="text-sm text-muted-foreground">
+            {t("printing.bridge_not_running")}
           </p>
         </div>
       )}
