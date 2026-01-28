@@ -239,8 +239,11 @@ class PrintBridgeClient {
     // Use Electron API if available
     if (isElectron()) {
       try {
-        // Get default printer if none specified
+        // Get saved printer from localStorage, or fall back to default
         let targetPrinter = printerName;
+        if (!targetPrinter) {
+          targetPrinter = localStorage.getItem('flowp_electron_printer') || undefined;
+        }
         if (!targetPrinter) {
           const printers = await window.flowpDesktop!.getPrinters();
           const defaultPrinter = printers.find(p => p.isDefault);
@@ -296,8 +299,11 @@ class PrintBridgeClient {
     // Use Electron API if available
     if (isElectron()) {
       try {
-        // Get default printer if none specified
+        // Get saved printer from localStorage, or fall back to default
         let targetPrinter = printerName;
+        if (!targetPrinter) {
+          targetPrinter = localStorage.getItem('flowp_electron_printer') || undefined;
+        }
         if (!targetPrinter) {
           const printers = await window.flowpDesktop!.getPrinters();
           const defaultPrinter = printers.find(p => p.isDefault);

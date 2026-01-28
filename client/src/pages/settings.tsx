@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
-import { Wifi, WifiOff, Download, ChevronDown, DoorOpen } from "lucide-react";
+import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw } from "lucide-react";
 import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 
 const businessSettingsSchema = z.object({
@@ -402,6 +402,7 @@ function PrintBridgeSettings() {
   const [selectedPrinter, setSelectedPrinter] = useState<string>('');
   const [openCashDrawer, setOpenCashDrawer] = useState(tenant?.openCashDrawer ?? false);
   const [isTestingDrawer, setIsTestingDrawer] = useState(false);
+  const isElectron = printBridge.isElectronApp();
 
   const updateCashDrawerSetting = async (enabled: boolean) => {
     setOpenCashDrawer(enabled);
@@ -505,12 +506,125 @@ function PrintBridgeSettings() {
 
   useEffect(() => {
     checkBridgeStatus();
+    // Load saved printer from localStorage for Electron
+    if (isElectron) {
+      const savedPrinter = localStorage.getItem('flowp_electron_printer');
+      if (savedPrinter) {
+        setSelectedPrinter(savedPrinter);
+      }
+    }
     const interval = setInterval(checkBridgeStatus, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isElectron]);
 
   const isConnected = bridgeStatus?.isAvailable && isAuthenticated;
 
+  // Electron Desktop App UI - show native printer selection without PrintBridge
+  if (isElectron) {
+    return (
+      <div className="mt-6 space-y-4">
+        {/* Header - Electron Mode */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="font-medium">{t("printing.running_in_electron")}</span>
+          </div>
+          <Badge variant="default">{t("printing.bridge_connected")}</Badge>
+        </div>
+
+        <p className="text-sm text-muted-foreground">
+          {t("printing.electron_printing_ready")}
+        </p>
+
+        {/* Connected State - Native Printing */}
+        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 space-y-3">
+          <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+            <Check className="w-5 h-5" />
+            <span className="font-medium">{t("printing.direct_print_desc")}</span>
+          </div>
+          {bridgeStatus?.version && (
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium">{t("printing.bridge_version")}</span> {bridgeStatus.version}
+            </div>
+          )}
+          {printers.length > 0 && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">{t("printing.select_printer")}</Label>
+              <Select
+                value={selectedPrinter}
+                onValueChange={(value) => {
+                  setSelectedPrinter(value);
+                  localStorage.setItem('flowp_electron_printer', value);
+                  toast({
+                    title: t("printing.printer_configured"),
+                    description: value,
+                  });
+                }}
+              >
+                <SelectTrigger className="w-full" data-testid="select-printer-electron">
+                  <SelectValue placeholder={t("printing.select_printer_placeholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {printers.map((p) => (
+                    <SelectItem key={p.name} value={p.name}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
+          {/* Cash Drawer Settings */}
+          <div className="border-t pt-3 mt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">{t("printing.open_cash_drawer")}</Label>
+                <p className="text-xs text-muted-foreground">{t("printing.open_cash_drawer_desc")}</p>
+              </div>
+              <Switch
+                checked={openCashDrawer}
+                onCheckedChange={updateCashDrawerSetting}
+                data-testid="switch-cash-drawer-electron"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testCashDrawer}
+              disabled={isTestingDrawer}
+              data-testid="button-test-cash-drawer-electron"
+            >
+              {isTestingDrawer ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <DoorOpen className="w-4 h-4 mr-2" />
+              )}
+              {t("printing.test_cash_drawer")}
+            </Button>
+          </div>
+        </div>
+
+        {/* Refresh Printers */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={checkBridgeStatus}
+          disabled={isChecking}
+          data-testid="button-refresh-printers"
+        >
+          {isChecking ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <RefreshCw className="w-4 h-4 mr-2" />
+          )}
+          {t("printing.bridge_status")}
+        </Button>
+      </div>
+    );
+  }
+
+  // Regular Browser UI - show PrintBridge connection
   return (
     <div className="mt-6 space-y-4">
       {/* Header */}
