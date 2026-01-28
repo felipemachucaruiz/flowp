@@ -151,7 +151,37 @@ export async function registerRoutes(
     archive.file(path.join(desktopPath, "build/icon.png"), { name: "flowp-desktop/build/icon.png" });
     archive.file(path.join(desktopPath, "build/icon256.png"), { name: "flowp-desktop/build/icon256.png" });
     archive.file(path.join(desktopPath, "build/installerSidebar.bmp"), { name: "flowp-desktop/build/installerSidebar.bmp" });
+    archive.file(path.join(desktopPath, "build/installerHeader.bmp"), { name: "flowp-desktop/build/installerHeader.bmp" });
     archive.finalize();
+  });
+
+  // Flowp Desktop Installer download from Object Storage
+  app.get("/desktop/installer.exe", async (req: Request, res: Response) => {
+    try {
+      const bucketId = process.env.DEFAULT_OBJECT_STORAGE_BUCKET_ID;
+      if (!bucketId) {
+        return res.status(500).json({ error: "Object storage not configured" });
+      }
+      
+      const { Client } = await import("@replit/object-storage");
+      const client = new Client();
+      
+      // Try to get the installer from public folder
+      const fileName = "flowp pos setup 1.0.0.exe";
+      const result = await client.downloadAsBytes(`public/${fileName}`);
+      
+      if (!result.ok) {
+        return res.status(404).json({ error: "Installer not found" });
+      }
+      
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="Flowp POS Setup 1.0.0.exe"`);
+      res.setHeader("Content-Length", result.value.length);
+      res.send(Buffer.from(result.value));
+    } catch (error) {
+      console.error("Error downloading installer:", error);
+      res.status(500).json({ error: "Failed to download installer" });
+    }
   });
 
   // ===== PAYPAL ROUTES =====

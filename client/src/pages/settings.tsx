@@ -2582,16 +2582,28 @@ export default function SettingsPage() {
                       <p className="text-sm text-muted-foreground mb-3">
                         {t("downloads.desktop_app_desc")}
                       </p>
-                      <a 
-                        href="/desktop/source.zip" 
-                        download="Flowp-Desktop-Source.zip"
-                        className="inline-flex"
-                      >
-                        <Button variant="default" data-testid="button-download-desktop">
-                          <Download className="w-4 h-4 mr-2" />
-                          {t("downloads.download_source")}
-                        </Button>
-                      </a>
+                      <div className="flex flex-wrap gap-2">
+                        <a 
+                          href="/desktop/installer.exe" 
+                          download="Flowp POS Setup 1.0.0.exe"
+                          className="inline-flex"
+                        >
+                          <Button variant="default" data-testid="button-download-installer">
+                            <Download className="w-4 h-4 mr-2" />
+                            {t("downloads.download_installer")}
+                          </Button>
+                        </a>
+                        <a 
+                          href="/desktop/source.zip" 
+                          download="Flowp-Desktop-Source.zip"
+                          className="inline-flex"
+                        >
+                          <Button variant="outline" data-testid="button-download-desktop">
+                            <Download className="w-4 h-4 mr-2" />
+                            {t("downloads.download_source")}
+                          </Button>
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
