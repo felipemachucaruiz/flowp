@@ -2583,7 +2583,7 @@ export default function SettingsPage() {
                         {t("downloads.desktop_app_desc")}
                       </p>
                       <a 
-                        href="/api/download/desktop" 
+                        href="/desktop/source.zip" 
                         download="Flowp-Desktop-Source.zip"
                         className="inline-flex"
                       >
