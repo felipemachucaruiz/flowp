@@ -305,7 +305,7 @@ app.get('/health', (req, res) => {
   res.json({
     app: 'flowp-printbridge',
     status: 'ok',
-    version: '1.0.1',
+    version: '1.0.2',
     printer: printerConfig
   });
 });
