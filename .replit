@@ -41,3 +41,6 @@ waitForPort = 5000
 
 [agent]
 integrations = ["javascript_websocket:1.0.0", "javascript_database:1.0.0", "javascript_object_storage:2.0.0", "javascript_paypal:1.0.0"]
+
+[objectStorage]
+defaultBucketID = "replit-objstore-5fed7d17-9074-4f93-901e-16efb3e94697"
