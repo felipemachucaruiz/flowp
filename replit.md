@@ -46,6 +46,13 @@ Internal admin portal for SaaS management with role-based access control.
 - Split payment support (cash/card)
 - Tax calculation
 
+### Desktop App (Electron)
+- Windows installer with multi-language wizard (EN/ES/PT)
+- **Native local printing** - NO PrintBridge required when using desktop app
+- App detects Electron environment and shows native printer selection in Settings
+- Direct ESC/POS thermal printer support with cash drawer control
+- Production URL: pos.flowp.app
+
 ### Restaurant Module (enabled for restaurant tenants)
 - Floor and table management
 - Table status tracking (free, occupied, dirty, reserved)
