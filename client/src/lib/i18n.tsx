@@ -137,6 +137,25 @@ const translations = {
     "common.inactive": "Inactive",
     "settings.printing": "Printing",
     "settings.invoicing": "Invoicing",
+    "settings.downloads": "Downloads",
+    
+    // Downloads Section
+    "downloads.title": "Downloads",
+    "downloads.subtitle": "Download desktop apps and printing tools",
+    "downloads.desktop_app": "Flowp Desktop App",
+    "downloads.desktop_app_desc": "Full desktop application with built-in thermal printing. No PrintBridge required.",
+    "downloads.download_source": "Download Desktop Source",
+    "downloads.printbridge_windows": "PrintBridge for Windows",
+    "downloads.printbridge_windows_desc": "Lightweight printing helper for web browser use.",
+    "downloads.download_windows": "Download for Windows",
+    "downloads.printbridge_mac": "PrintBridge for Mac",
+    "downloads.printbridge_mac_desc": "Printing helper for macOS systems.",
+    "downloads.download_mac": "Download for Mac",
+    "downloads.instructions_title": "Installation Instructions",
+    "downloads.instruction_1": "Download and extract the ZIP file",
+    "downloads.instruction_2": "Open a terminal/command prompt in the extracted folder",
+    "downloads.instruction_3": "Run: npm install",
+    "downloads.instruction_4": "Run: npm run build (for desktop) or npm start (for PrintBridge)",
     
     // Business Settings
     "business.title": "Business Information",
@@ -1214,6 +1233,25 @@ const translations = {
     "common.inactive": "Inactivo",
     "settings.printing": "Impresión",
     "settings.invoicing": "Facturación",
+    "settings.downloads": "Descargas",
+    
+    // Downloads Section
+    "downloads.title": "Descargas",
+    "downloads.subtitle": "Descargar aplicaciones de escritorio y herramientas de impresión",
+    "downloads.desktop_app": "Aplicación de Escritorio Flowp",
+    "downloads.desktop_app_desc": "Aplicación de escritorio completa con impresión térmica integrada. No requiere PrintBridge.",
+    "downloads.download_source": "Descargar Código Fuente",
+    "downloads.printbridge_windows": "PrintBridge para Windows",
+    "downloads.printbridge_windows_desc": "Herramienta ligera de impresión para uso en navegador.",
+    "downloads.download_windows": "Descargar para Windows",
+    "downloads.printbridge_mac": "PrintBridge para Mac",
+    "downloads.printbridge_mac_desc": "Herramienta de impresión para sistemas macOS.",
+    "downloads.download_mac": "Descargar para Mac",
+    "downloads.instructions_title": "Instrucciones de Instalación",
+    "downloads.instruction_1": "Descarga y extrae el archivo ZIP",
+    "downloads.instruction_2": "Abre una terminal en la carpeta extraída",
+    "downloads.instruction_3": "Ejecuta: npm install",
+    "downloads.instruction_4": "Ejecuta: npm run build (para escritorio) o npm start (para PrintBridge)",
     
     // Business Settings
     "business.title": "Información del Negocio",
@@ -2288,6 +2326,25 @@ const translations = {
     "common.inactive": "Inativo",
     "settings.printing": "Impressão",
     "settings.invoicing": "Faturamento",
+    "settings.downloads": "Downloads",
+    
+    // Downloads Section
+    "downloads.title": "Downloads",
+    "downloads.subtitle": "Baixar aplicativos de desktop e ferramentas de impressão",
+    "downloads.desktop_app": "Aplicativo Desktop Flowp",
+    "downloads.desktop_app_desc": "Aplicativo de desktop completo com impressão térmica integrada. Não requer PrintBridge.",
+    "downloads.download_source": "Baixar Código Fonte",
+    "downloads.printbridge_windows": "PrintBridge para Windows",
+    "downloads.printbridge_windows_desc": "Ferramenta de impressão leve para uso em navegador.",
+    "downloads.download_windows": "Baixar para Windows",
+    "downloads.printbridge_mac": "PrintBridge para Mac",
+    "downloads.printbridge_mac_desc": "Ferramenta de impressão para sistemas macOS.",
+    "downloads.download_mac": "Baixar para Mac",
+    "downloads.instructions_title": "Instruções de Instalação",
+    "downloads.instruction_1": "Baixe e extraia o arquivo ZIP",
+    "downloads.instruction_2": "Abra um terminal na pasta extraída",
+    "downloads.instruction_3": "Execute: npm install",
+    "downloads.instruction_4": "Execute: npm run build (para desktop) ou npm start (para PrintBridge)",
     
     // Business Settings
     "business.title": "Informações do Negócio",

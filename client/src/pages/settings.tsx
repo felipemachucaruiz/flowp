@@ -1361,6 +1361,11 @@ export default function SettingsPage() {
               <span className="hidden sm:inline">{t("settings.import")}</span>
               <span className="sm:hidden">{t("settings.import").split(' ')[0]}</span>
             </TabsTrigger>
+            <TabsTrigger value="downloads" data-testid="tab-downloads" className="text-xs sm:text-sm">
+              <Download className="w-4 h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">{t("settings.downloads")}</span>
+              <span className="sm:hidden">{t("settings.downloads").split(' ')[0]}</span>
+            </TabsTrigger>
           </TabsList>
         </ScrollArea>
 
@@ -2609,6 +2614,103 @@ export default function SettingsPage() {
         {/* Import Tab */}
         <TabsContent value="import" className="mt-6 space-y-6">
           <CsvImportSection />
+        </TabsContent>
+
+        {/* Downloads Tab */}
+        <TabsContent value="downloads" className="mt-6 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("downloads.title")}</CardTitle>
+              <CardDescription>{t("downloads.subtitle")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Download className="w-6 h-6 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{t("downloads.desktop_app")}</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {t("downloads.desktop_app_desc")}
+                      </p>
+                      <a 
+                        href="/api/download/desktop" 
+                        download="Flowp-Desktop-Source.zip"
+                        className="inline-flex"
+                      >
+                        <Button variant="default" data-testid="button-download-desktop">
+                          <Download className="w-4 h-4 mr-2" />
+                          {t("downloads.download_source")}
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-blue-500/10 rounded-lg">
+                      <Printer className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{t("downloads.printbridge_windows")}</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {t("downloads.printbridge_windows_desc")}
+                      </p>
+                      <a 
+                        href="/printbridge/simple.zip" 
+                        download="PrintBridge-Windows.zip"
+                        className="inline-flex"
+                      >
+                        <Button variant="outline" data-testid="button-download-printbridge-win">
+                          <Download className="w-4 h-4 mr-2" />
+                          {t("downloads.download_windows")}
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-gray-500/10 rounded-lg">
+                      <Printer className="w-6 h-6 text-gray-500" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{t("downloads.printbridge_mac")}</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {t("downloads.printbridge_mac_desc")}
+                      </p>
+                      <a 
+                        href="/printbridge/mac.zip" 
+                        download="PrintBridge-Mac.zip"
+                        className="inline-flex"
+                      >
+                        <Button variant="outline" data-testid="button-download-printbridge-mac">
+                          <Download className="w-4 h-4 mr-2" />
+                          {t("downloads.download_mac")}
+                        </Button>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <h4 className="font-medium text-sm mb-2">{t("downloads.instructions_title")}</h4>
+                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                  <li>{t("downloads.instruction_1")}</li>
+                  <li>{t("downloads.instruction_2")}</li>
+                  <li>{t("downloads.instruction_3")}</li>
+                  <li>{t("downloads.instruction_4")}</li>
+                </ol>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
