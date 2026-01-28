@@ -1,4 +1,5 @@
 @echo off
+title Flowp PrintBridge
 cd /d "%~dp0"
 
 echo.
@@ -25,5 +26,16 @@ if not exist node_modules (
 
 echo Starting PrintBridge server...
 echo.
+
+REM Run node server - when this exits, cleanup will run
 node server.js
-pause
+
+REM Cleanup: Kill any remaining node processes from PrintBridge
+echo.
+echo Shutting down PrintBridge...
+for /f "tokens=2" %%a in ('tasklist /fi "WINDOWTITLE eq Flowp PrintBridge" /fo list ^| find "PID"') do (
+    taskkill /f /pid %%a >nul 2>&1
+)
+
+echo Done.
+timeout /t 2 >nul

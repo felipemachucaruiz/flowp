@@ -377,6 +377,25 @@ app.post('/drawer', async (req, res) => {
   }
 });
 
+// Graceful shutdown handler
+process.on('SIGINT', () => {
+  console.log('\nShutting down PrintBridge...');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\nShutting down PrintBridge...');
+  process.exit(0);
+});
+
+// Handle Windows console close
+if (process.platform === 'win32') {
+  process.on('SIGHUP', () => {
+    console.log('\nWindow closed, shutting down...');
+    process.exit(0);
+  });
+}
+
 // Start server
 app.listen(PORT, '127.0.0.1', async () => {
   console.log('');
