@@ -2,6 +2,15 @@
 
 Native Windows desktop application with built-in thermal printing support.
 
+## Quick Start (GitHub Releases)
+
+1. Create a new GitHub repository
+2. Push this folder to the repository
+3. GitHub Actions will automatically build the Windows installer
+4. Download the `.exe` from the "Actions" tab → Latest workflow → "flowp-pos-windows" artifact
+
+Or create a release tag (`git tag v1.0.0 && git push --tags`) to auto-publish to Releases.
+
 ## Features
 
 - **No PrintBridge required** - Printing is built directly into the app

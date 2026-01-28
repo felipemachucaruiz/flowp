@@ -145,6 +145,7 @@ export async function registerRoutes(
     archive.file(path.join(desktopPath, "preload.js"), { name: "flowp-desktop/preload.js" });
     archive.file(path.join(desktopPath, "printer.js"), { name: "flowp-desktop/printer.js" });
     archive.file(path.join(desktopPath, "README.md"), { name: "flowp-desktop/README.md" });
+    archive.file(path.join(desktopPath, ".github/workflows/build.yml"), { name: "flowp-desktop/.github/workflows/build.yml" });
     archive.finalize();
   });
 
