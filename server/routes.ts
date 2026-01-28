@@ -135,34 +135,22 @@ export async function registerRoutes(
     res.setHeader("Content-Disposition", "attachment; filename=Flowp-Desktop-Source.zip");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     
-    // Use deflate compression for maximum Windows compatibility
-    const archive = archiver("zip", { 
-      zlib: { level: 6 },
-      forceLocalTime: true
-    });
-    
-    archive.on("error", (err) => {
-      console.error("Archive error:", err);
-      if (!res.headersSent) {
-        res.status(500).json({ error: "Failed to create archive" });
-      }
-    });
-    
-    archive.on("warning", (err) => {
-      console.warn("Archive warning:", err);
+    const archive = archiver("zip", { store: false });
+    archive.on("error", () => {
+      res.status(500).json({ error: "Failed to create archive" });
     });
     
     archive.pipe(res);
-    
-    // Add entire flowp-desktop directory
-    archive.directory(desktopPath, "flowp-desktop", (entry) => {
-      // Exclude node_modules and dist folders
-      if (entry.name.includes("node_modules") || entry.name.includes("dist")) {
-        return false;
-      }
-      return entry;
-    });
-    
+    archive.file(path.join(desktopPath, "package.json"), { name: "flowp-desktop/package.json" });
+    archive.file(path.join(desktopPath, "main.js"), { name: "flowp-desktop/main.js" });
+    archive.file(path.join(desktopPath, "preload.js"), { name: "flowp-desktop/preload.js" });
+    archive.file(path.join(desktopPath, "printer.js"), { name: "flowp-desktop/printer.js" });
+    archive.file(path.join(desktopPath, "README.md"), { name: "flowp-desktop/README.md" });
+    archive.file(path.join(desktopPath, ".github/workflows/build.yml"), { name: "flowp-desktop/.github/workflows/build.yml" });
+    archive.file(path.join(desktopPath, "build/icon.ico"), { name: "flowp-desktop/build/icon.ico" });
+    archive.file(path.join(desktopPath, "build/icon.png"), { name: "flowp-desktop/build/icon.png" });
+    archive.file(path.join(desktopPath, "build/icon256.png"), { name: "flowp-desktop/build/icon256.png" });
+    archive.file(path.join(desktopPath, "build/installerSidebar.bmp"), { name: "flowp-desktop/build/installerSidebar.bmp" });
     archive.finalize();
   });
 
