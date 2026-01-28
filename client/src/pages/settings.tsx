@@ -41,7 +41,7 @@ import {
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
-import { Wifi, WifiOff, Download, ChevronDown } from "lucide-react";
+import { Wifi, WifiOff, Download, ChevronDown, DoorOpen } from "lucide-react";
 import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 
 const businessSettingsSchema = z.object({
@@ -392,12 +392,55 @@ function CsvImportSection() {
 function PrintBridgeSettings() {
   const { t } = useI18n();
   const { toast } = useToast();
+  const { tenant, refreshTenant } = useAuth();
   const [bridgeStatus, setBridgeStatus] = useState<PrintBridgeStatus | null>(null);
   const [printers, setPrinters] = useState<PrinterInfo[]>([]);
   const [isChecking, setIsChecking] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedPrinter, setSelectedPrinter] = useState<string>('');
+  const [openCashDrawer, setOpenCashDrawer] = useState(tenant?.openCashDrawer ?? false);
+  const [isTestingDrawer, setIsTestingDrawer] = useState(false);
+
+  const updateCashDrawerSetting = async (enabled: boolean) => {
+    setOpenCashDrawer(enabled);
+    try {
+      await apiRequest("PATCH", "/api/settings", { openCashDrawer: enabled });
+      if (refreshTenant) refreshTenant();
+      toast({
+        title: enabled ? t("printing.cash_drawer_opened") : t("common.saved"),
+      });
+    } catch {
+      toast({
+        title: t("common.error"),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const testCashDrawer = async () => {
+    setIsTestingDrawer(true);
+    try {
+      const result = await printBridge.openCashDrawer();
+      if (result.success) {
+        toast({
+          title: t("printing.cash_drawer_opened"),
+        });
+      } else {
+        toast({
+          title: t("printing.cash_drawer_error"),
+          description: result.error,
+          variant: "destructive",
+        });
+      }
+    } catch {
+      toast({
+        title: t("printing.cash_drawer_error"),
+        variant: "destructive",
+      });
+    }
+    setIsTestingDrawer(false);
+  };
 
   const checkBridgeStatus = async () => {
     setIsChecking(true);
@@ -518,6 +561,35 @@ function PrintBridgeSettings() {
               </Select>
             </div>
           )}
+          
+          {/* Cash Drawer Settings */}
+          <div className="border-t pt-3 mt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">{t("printing.open_cash_drawer")}</Label>
+                <p className="text-xs text-muted-foreground">{t("printing.open_cash_drawer_desc")}</p>
+              </div>
+              <Switch
+                checked={openCashDrawer}
+                onCheckedChange={updateCashDrawerSetting}
+                data-testid="switch-cash-drawer"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={testCashDrawer}
+              disabled={isTestingDrawer}
+              data-testid="button-test-cash-drawer"
+            >
+              {isTestingDrawer ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <DoorOpen className="w-4 h-4 mr-2" />
+              )}
+              {t("printing.test_cash_drawer")}
+            </Button>
+          </div>
         </div>
       ) : (
         /* Not Connected State */

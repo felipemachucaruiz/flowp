@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { printReceipt } from "@/lib/print-receipt";
+import { printBridge } from "@/lib/print-bridge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -466,6 +467,16 @@ export default function POSPage() {
           change: receiptData.cashReceived ? receiptData.cashReceived - receiptData.total : undefined,
           cashier: user?.name,
         });
+        
+        // Open cash drawer for cash payments if enabled
+        const hasCashPayment = receiptData.paymentMethod === 'cash' || 
+          receiptData.payments?.some(p => p.type === 'cash');
+        if (hasCashPayment && tenant?.openCashDrawer) {
+          printBridge.openCashDrawer().catch(() => {
+            // Silently fail - cash drawer is optional
+          });
+        }
+        
         pendingReceiptData.current = null;
       }
       if (response.offline) {

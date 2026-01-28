@@ -52,6 +52,8 @@ export const tenants = pgTable("tenants", {
   receiptTaxId: text("receipt_tax_id"),
   receiptFontSize: integer("receipt_font_size").default(12),
   receiptFontFamily: text("receipt_font_family").default("monospace"),
+  // Cash drawer settings
+  openCashDrawer: boolean("open_cash_drawer").default(false),
   // Coupon settings
   couponEnabled: boolean("coupon_enabled").default(false),
   couponText: text("coupon_text"),
@@ -88,6 +90,7 @@ export const registers = pgTable("registers", {
     printerName?: string;
     paperSize?: "58mm" | "80mm";
     autoPrint?: boolean;
+    openCashDrawer?: boolean;
   }>(),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
