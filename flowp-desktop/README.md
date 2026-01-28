@@ -136,11 +136,50 @@ window.flowpDesktop = {
 - Try running as Administrator
 - Check antivirus isn't blocking
 
+## Customizing Icons and Graphics
+
+To add your own branding to the installer:
+
+### Required Files (place in `build/` folder):
+
+| File | Size | Description |
+|------|------|-------------|
+| `icon.ico` | 256x256px | Main app icon (Windows ICO format) |
+| `icon.png` | 256x256px | PNG version of icon |
+
+### Optional Installer Graphics:
+
+| File | Size | Description |
+|------|------|-------------|
+| `installerSidebar.bmp` | 164x314px | Left sidebar image in installer |
+| `installerHeader.bmp` | 150x57px | Header banner in installer |
+
+### Creating Icons:
+
+1. Create a 256x256px PNG logo
+2. Convert to ICO using an online tool (e.g., icoconvert.com)
+3. Place files in the `build/` folder
+4. Run `npm run build`
+
+### Folder Structure:
+```
+flowp-desktop/
+├── build/
+│   ├── icon.ico           (your custom icon)
+│   ├── icon.png           (PNG version)
+│   ├── installerSidebar.bmp  (optional)
+│   └── installerHeader.bmp   (optional)
+├── main.js
+├── package.json
+└── ...
+```
+
 ## Building from Source
 
 1. Clone the repository
 2. Run `npm install` in the `flowp-desktop` folder
-3. Run `npm run build`
+3. Add your custom icons to the `build/` folder (optional)
+4. Run `npm run build`
 
 The installer will be in the `dist` folder.
 
