@@ -6,7 +6,7 @@ const printer = require('./printer');
 const store = new Store();
 
 // Production URL - change to your Flowp deployment
-const FLOWP_URL = process.env.FLOWP_URL || 'https://flowp.app';
+const FLOWP_URL = process.env.FLOWP_URL || 'https://pos.flowp.app';
 
 // Disable hardware acceleration for better compatibility
 app.disableHardwareAcceleration();
@@ -145,6 +145,7 @@ function createWindow() {
 
   // Security: Restrict navigation to allowed origins only
   const allowedOrigins = [
+    'https://pos.flowp.app',
     'https://flowp.app',
     'https://www.flowp.app',
     FLOWP_URL
