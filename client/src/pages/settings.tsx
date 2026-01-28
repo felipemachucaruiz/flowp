@@ -539,7 +539,7 @@ function PrintBridgeSettings() {
           >
             <a href="/printbridge-simple.zip?v=1.0.3" download="printbridge-simple.zip">
               <Download className="w-4 h-4 mr-2" />
-              {t("printing.bridge_download_simple")}
+              {t("printing.bridge_download_simple")} <span className="ml-1 text-xs opacity-70">v1.0.2</span>
             </a>
           </Button>
           <p className="text-xs text-muted-foreground text-center mt-2">
