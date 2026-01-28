@@ -46,6 +46,7 @@
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerSidebar": "build/installerSidebar.bmp",
+      "installerHeader": "build/installerHeader.bmp",
       "installerLanguages": ["en_US", "es_ES", "pt_BR"],
       "language": "0"
     },
