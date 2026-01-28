@@ -118,9 +118,10 @@ class PrintBridgeClient {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-      const response = await fetch(`${PRINT_BRIDGE_URL}/health`, {
+      const response = await fetch(`${PRINT_BRIDGE_URL}/health?_=${now}`, {
         method: 'GET',
         mode: 'cors',
+        cache: 'no-store',
         signal: controller.signal
       });
       
