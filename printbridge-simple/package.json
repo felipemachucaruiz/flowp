@@ -1,13 +1,14 @@
 {
   "name": "flowp-printbridge-simple",
-  "version": "1.0.0",
-  "description": "Flowp PrintBridge - Simple Node.js version",
+  "version": "1.0.4",
+  "description": "Flowp PrintBridge - Simple Node.js version with logo support",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "jimp": "^0.22.12"
   }
 }

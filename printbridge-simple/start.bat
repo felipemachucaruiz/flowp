@@ -1,10 +1,11 @@
 @echo off
-title Flowp PrintBridge
+title Flowp PrintBridge v1.0.4
 cd /d "%~dp0"
 
 echo.
 echo ========================================
-echo   Flowp PrintBridge - Simple Edition
+echo   Flowp PrintBridge v1.0.4
+echo   With Logo and Coupon Support
 echo ========================================
 echo.
 
