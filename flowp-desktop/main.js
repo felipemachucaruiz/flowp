@@ -68,16 +68,79 @@ function createWindow() {
   mainWindow.on('maximize', () => store.set('maximized', true));
   mainWindow.on('unmaximize', () => store.set('maximized', false));
 
-  // Load Flowp
-  mainWindow.loadURL(FLOWP_URL);
+  // Show loading page first
+  const loadingHtml = `
+    <html>
+      <head>
+        <style>
+          body { 
+            margin: 0; 
+            background: #1a1a2e; 
+            color: white; 
+            font-family: system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+          }
+          .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.2);
+            border-top-color: #8b5cf6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+          }
+          @keyframes spin { to { transform: rotate(360deg); } }
+          h1 { margin-top: 20px; font-size: 24px; }
+          p { color: #888; margin-top: 10px; }
+          .error { color: #f87171; margin-top: 20px; display: none; }
+          .retry { 
+            margin-top: 15px; 
+            padding: 10px 20px; 
+            background: #8b5cf6; 
+            color: white; 
+            border: none; 
+            border-radius: 6px;
+            cursor: pointer;
+            display: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="spinner"></div>
+        <h1>Flowp POS</h1>
+        <p id="status">Connecting to flowp.app...</p>
+        <p class="error" id="error"></p>
+        <button class="retry" id="retry" onclick="location.reload()">Retry</button>
+      </body>
+    </html>
+  `;
+  
+  mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(loadingHtml));
+  
+  // Try to load the actual site after a brief moment
+  setTimeout(() => {
+    console.log('Loading:', FLOWP_URL);
+    mainWindow.loadURL(FLOWP_URL);
+  }, 500);
 
   // Handle page errors
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-    console.error('Failed to load:', errorDescription);
-    // Retry after 5 seconds
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+    console.error('Failed to load:', errorDescription, 'URL:', validatedURL, 'Code:', errorCode);
+    
+    const errorHtml = loadingHtml
+      .replace('Connecting to flowp.app...', 'Connection failed')
+      .replace('display: none; }', 'display: block; }')
+      .replace('<p class="error" id="error"></p>', '<p class="error" id="error">Error: ' + errorDescription + '</p>');
+    
+    mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(errorHtml));
+    
+    // Retry after 10 seconds
     setTimeout(() => {
       mainWindow.loadURL(FLOWP_URL);
-    }, 5000);
+    }, 10000);
   });
 
   // Security: Restrict navigation to allowed origins only
