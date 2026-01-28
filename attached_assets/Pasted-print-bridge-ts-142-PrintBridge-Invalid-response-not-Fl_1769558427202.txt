@@ -1,0 +1,39 @@
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+print-bridge.ts:142 [PrintBridge] Invalid response - not Flowp PrintBridge
+print-bridge.ts:144 [PrintBridge] Health check failed: 200 OK
+﻿
+
+Press ctrl i to turn on code suggestions. Press ctrl x to disable code suggestions.
+ctrl
+i
+ to turn on code suggestions. Don't show again
+
