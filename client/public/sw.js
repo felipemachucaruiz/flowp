@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flowp-v1';
+const CACHE_NAME = 'flowp-v2';
 const urlsToCache = [
   '/',
   '/pos',

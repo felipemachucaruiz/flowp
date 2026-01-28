@@ -226,14 +226,27 @@
     @apply border-border;
   }
 
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+
   body {
     @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
   }
 
   /* Mobile touch scrolling improvements */
   .touch-scroll {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
+    touch-action: pan-y;
   }
 
   /* Prevent body scroll when modal/sheet is open on mobile */
