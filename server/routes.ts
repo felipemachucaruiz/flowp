@@ -162,7 +162,7 @@ export async function registerRoutes(
       const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage");
       const storageService = new ObjectStorageService();
       
-      const fileName = "flowp pos setup 1.0.0.exe";
+      const fileName = "Flowp POS Setup 1.0.0.exe";
       const file = await storageService.searchPublicObject(fileName);
       
       if (!file) {
