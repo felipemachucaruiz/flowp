@@ -302,6 +302,11 @@ async function printToWindows(printerName, data) {
 
 // Routes
 app.get('/health', (req, res) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
   res.json({
     app: 'flowp-printbridge',
     status: 'ok',
