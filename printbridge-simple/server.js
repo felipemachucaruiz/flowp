@@ -82,107 +82,144 @@ function getPrinters() {
   });
 }
 
-// Generate ESC/POS commands
+// Generate ESC/POS commands as Buffer for proper binary handling
 function generateReceiptCommands(receipt) {
-  const ESC = '\x1B';
-  const GS = '\x1D';
-  const commands = [];
+  const ESC = 0x1B;
+  const GS = 0x1D;
+  const LF = 0x0A;
+  const buffers = [];
   
-  commands.push(ESC + '@'); // Initialize
-  commands.push(ESC + 't\x10'); // Character set
-  commands.push(ESC + 'a\x01'); // Center
+  // Helper to add text (converts to printer encoding)
+  const addText = (text) => {
+    if (text) buffers.push(Buffer.from(String(text), 'utf8'));
+  };
   
-  // Business name
-  commands.push(ESC + 'E\x01');
-  commands.push(GS + '!\x11');
-  commands.push(receipt.businessName || 'Store');
-  commands.push('\n');
-  commands.push(GS + '!\x00');
-  commands.push(ESC + 'E\x00');
+  // Helper to add raw bytes
+  const addBytes = (...bytes) => {
+    buffers.push(Buffer.from(bytes));
+  };
   
-  if (receipt.address) commands.push(receipt.address + '\n');
-  if (receipt.phone) commands.push('Tel: ' + receipt.phone + '\n');
+  // Helper for line feed
+  const newLine = () => addBytes(LF);
+  
+  // Helper for line with text
+  const addLine = (text) => {
+    addText(text);
+    newLine();
+  };
+  
+  // ===== INITIALIZE PRINTER =====
+  addBytes(ESC, 0x40); // Initialize printer
+  addBytes(ESC, 0x74, 0x00); // Character code table (PC437 - supports special chars)
+  
+  // ===== CENTER ALIGNMENT =====
+  addBytes(ESC, 0x61, 0x01); // Center
+  
+  // ===== BUSINESS NAME (Large, Bold) =====
+  addBytes(ESC, 0x45, 0x01); // Bold ON
+  addBytes(GS, 0x21, 0x11); // Double width + height
+  addLine(receipt.businessName || 'Store');
+  addBytes(GS, 0x21, 0x00); // Normal size
+  addBytes(ESC, 0x45, 0x00); // Bold OFF
+  
+  // ===== HEADER INFO =====
+  if (receipt.address) addLine(receipt.address);
+  if (receipt.phone) addLine('Tel: ' + receipt.phone);
   if (receipt.taxId) {
     const taxLabel = receipt.language === 'es' ? 'NIT' : receipt.language === 'pt' ? 'CNPJ' : 'Tax ID';
-    commands.push(taxLabel + ': ' + receipt.taxId + '\n');
+    addLine(taxLabel + ': ' + receipt.taxId);
   }
-  if (receipt.headerText) commands.push(receipt.headerText + '\n');
+  if (receipt.headerText) addLine(receipt.headerText);
   
-  commands.push('--------------------------------\n');
-  commands.push(ESC + 'a\x00'); // Left align
+  // ===== SEPARATOR =====
+  addLine('--------------------------------');
   
+  // ===== LEFT ALIGNMENT =====
+  addBytes(ESC, 0x61, 0x00); // Left align
+  
+  // ===== ORDER INFO =====
   const orderLabel = receipt.language === 'es' ? 'Pedido' : receipt.language === 'pt' ? 'Pedido' : 'Order';
-  commands.push(orderLabel + ' #' + (receipt.orderNumber || '----') + '\n');
-  if (receipt.date) commands.push(receipt.date + '\n');
+  addLine(orderLabel + ' #' + (receipt.orderNumber || '----'));
+  if (receipt.date) addLine(receipt.date);
   if (receipt.cashier) {
     const label = receipt.language === 'es' ? 'Cajero' : receipt.language === 'pt' ? 'Caixa' : 'Cashier';
-    commands.push(label + ': ' + receipt.cashier + '\n');
+    addLine(label + ': ' + receipt.cashier);
   }
   if (receipt.customer) {
     const label = receipt.language === 'es' ? 'Cliente' : 'Customer';
-    commands.push(label + ': ' + receipt.customer + '\n');
+    addLine(label + ': ' + receipt.customer);
   }
   
-  commands.push('--------------------------------\n');
+  addLine('--------------------------------');
   
-  // Items
+  // ===== ITEMS =====
   if (receipt.items && receipt.items.length > 0) {
     for (const item of receipt.items) {
-      commands.push(item.quantity + 'x ' + item.name + '\n');
+      addLine(item.quantity + 'x ' + item.name);
       if (item.unitPrice) {
-        commands.push('   @ ' + formatCurrency(item.unitPrice, receipt.currency) + ' = ' + formatCurrency(item.total, receipt.currency) + '\n');
+        addLine('   @ ' + formatCurrency(item.unitPrice, receipt.currency) + ' = ' + formatCurrency(item.total, receipt.currency));
       } else {
-        commands.push('   ' + formatCurrency(item.total, receipt.currency) + '\n');
+        addLine('   ' + formatCurrency(item.total, receipt.currency));
       }
-      if (item.modifiers) commands.push('   ' + item.modifiers + '\n');
+      if (item.modifiers) addLine('   ' + item.modifiers);
     }
   }
   
-  commands.push('--------------------------------\n');
+  addLine('--------------------------------');
   
-  // Totals
-  commands.push(padLine('Subtotal', formatCurrency(receipt.subtotal, receipt.currency)) + '\n');
+  // ===== TOTALS =====
+  addLine(padLine('Subtotal', formatCurrency(receipt.subtotal, receipt.currency)));
   if (receipt.discount && receipt.discount > 0) {
-    commands.push(padLine('Discount', '-' + formatCurrency(receipt.discount, receipt.currency)) + '\n');
+    addLine(padLine('Discount', '-' + formatCurrency(receipt.discount, receipt.currency)));
   }
-  if (receipt.tax !== undefined) {
-    commands.push(padLine('Tax', formatCurrency(receipt.tax, receipt.currency)) + '\n');
+  if (receipt.tax !== undefined && receipt.tax !== null) {
+    addLine(padLine('Tax', formatCurrency(receipt.tax, receipt.currency)));
   }
   
-  commands.push(ESC + 'E\x01');
-  commands.push(GS + '!\x10');
-  commands.push(padLine('TOTAL', formatCurrency(receipt.total, receipt.currency)) + '\n');
-  commands.push(GS + '!\x00');
-  commands.push(ESC + 'E\x00');
+  // ===== TOTAL (Bold, Large) =====
+  addBytes(ESC, 0x45, 0x01); // Bold ON
+  addBytes(GS, 0x21, 0x10); // Double height
+  addLine(padLine('TOTAL', formatCurrency(receipt.total, receipt.currency)));
+  addBytes(GS, 0x21, 0x00); // Normal size
+  addBytes(ESC, 0x45, 0x00); // Bold OFF
   
-  commands.push('--------------------------------\n');
+  addLine('--------------------------------');
   
+  // ===== PAYMENTS =====
   if (receipt.payments && receipt.payments.length > 0) {
     for (const payment of receipt.payments) {
-      commands.push(padLine(payment.type, formatCurrency(payment.amount, receipt.currency)) + '\n');
+      const payType = payment.type.toUpperCase();
+      addLine(padLine(payType, formatCurrency(payment.amount, receipt.currency)));
     }
-    if (receipt.change > 0) {
-      const label = receipt.language === 'es' ? 'Cambio' : 'Change';
-      commands.push(padLine(label, formatCurrency(receipt.change, receipt.currency)) + '\n');
+    if (receipt.change && receipt.change > 0) {
+      const label = receipt.language === 'es' ? 'Cambio' : receipt.language === 'pt' ? 'Troco' : 'Change';
+      addLine(padLine(label, formatCurrency(receipt.change, receipt.currency)));
     }
   }
   
+  // ===== FOOTER =====
   if (receipt.footerText) {
-    commands.push('--------------------------------\n');
-    commands.push(ESC + 'a\x01');
-    commands.push(receipt.footerText + '\n');
+    addLine('--------------------------------');
+    addBytes(ESC, 0x61, 0x01); // Center
+    addLine(receipt.footerText);
   }
   
-  commands.push(ESC + 'a\x01');
-  const thankYou = receipt.language === 'es' ? '¡Gracias!' : receipt.language === 'pt' ? 'Obrigado!' : 'Thank you!';
-  commands.push('\n' + thankYou + '\n');
+  // ===== THANK YOU =====
+  addBytes(ESC, 0x61, 0x01); // Center
+  const thankYou = receipt.language === 'es' ? 'Gracias por su compra!' : receipt.language === 'pt' ? 'Obrigado pela compra!' : 'Thank you!';
+  newLine();
+  addLine(thankYou);
   
-  commands.push('\n\n\n');
+  // ===== FEED AND CUT =====
+  newLine();
+  newLine();
+  newLine();
   if (receipt.cutPaper !== false) {
-    commands.push(GS + 'V\x00');
+    addBytes(GS, 0x56, 0x00); // Full cut
   }
   
-  return commands.join('');
+  // Combine all buffers
+  return Buffer.concat(buffers);
 }
 
 function formatCurrency(amount, currency = '$') {
@@ -198,7 +235,8 @@ function padLine(left, right, width = 32) {
 async function printToWindows(printerName, data) {
   return new Promise((resolve) => {
     const tempFile = path.join(os.tmpdir(), 'flowp_' + Date.now() + '.prn');
-    fs.writeFileSync(tempFile, data, 'binary');
+    // Write as Buffer directly - no encoding needed for binary data
+    fs.writeFileSync(tempFile, Buffer.isBuffer(data) ? data : Buffer.from(data, 'binary'));
     
     console.log('Printing to:', printerName);
     console.log('Data length:', data.length, 'bytes');
@@ -284,7 +322,7 @@ async function printToWindows(printerName, data) {
       
       // Method 2: Try copy to shared printer
       // Re-create temp file for second attempt
-      fs.writeFileSync(tempFile, data, 'binary');
+      fs.writeFileSync(tempFile, Buffer.isBuffer(data) ? data : Buffer.from(data, 'binary'));
       const copyCmd = `copy /b "${tempFile}" "\\\\%COMPUTERNAME%\\${printerName}"`;
       exec(copyCmd, { shell: 'cmd.exe', timeout: 30000 }, (error2) => {
         try { fs.unlinkSync(tempFile); } catch (e) {}
@@ -310,7 +348,7 @@ app.get('/health', (req, res) => {
   res.json({
     app: 'flowp-printbridge',
     status: 'ok',
-    version: '1.0.2',
+    version: '1.0.3',
     printer: printerConfig
   });
 });
@@ -406,7 +444,7 @@ app.listen(PORT, '127.0.0.1', async () => {
   console.log('');
   console.log('========================================');
   console.log('  Flowp PrintBridge - Simple Edition');
-  console.log('  Version: 1.0.2');
+  console.log('  Version: 1.0.3');
   console.log('========================================');
   console.log('');
   console.log(`Server running on http://127.0.0.1:${PORT}`);
