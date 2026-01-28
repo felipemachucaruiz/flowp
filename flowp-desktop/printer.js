@@ -43,7 +43,7 @@ function getPrinters() {
 function printRaw(printerName, data) {
   return new Promise(function(resolve, reject) {
     var tempFile = path.join(os.tmpdir(), 'flowp-print-' + Date.now() + '.bin');
-    var safePrinter = printerName.replace(/"/g, '');
+    var safePrinter = printerName.replace(/"/g, '\\"').replace(/'/g, "''");
     
     fs.writeFile(tempFile, data, function(err) {
       if (err) {
@@ -51,23 +51,93 @@ function printRaw(printerName, data) {
         return;
       }
       
-      // Use simple copy command to network printer share
-      var copyCmd = 'copy /b "' + tempFile + '" "\\\\localhost\\' + safePrinter + '"';
+      // Use PowerShell RawPrinterHelper for direct RAW printing to local printers
+      var psScript = `
+$printerName = '${safePrinter}'
+$filePath = '${tempFile.replace(/\\/g, '\\\\')}'
+
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public class RawPrinterHelper
+{
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    public class DOCINFOA
+    {
+        [MarshalAs(UnmanagedType.LPStr)] public string pDocName;
+        [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;
+        [MarshalAs(UnmanagedType.LPStr)] public string pDataType;
+    }
+    
+    [DllImport("winspool.Drv", EntryPoint = "OpenPrinterA", CharSet = CharSet.Ansi, SetLastError = true)]
+    public static extern bool OpenPrinter([MarshalAs(UnmanagedType.LPStr)] string szPrinter, out IntPtr hPrinter, IntPtr pd);
+    
+    [DllImport("winspool.Drv", EntryPoint = "ClosePrinter", SetLastError = true)]
+    public static extern bool ClosePrinter(IntPtr hPrinter);
+    
+    [DllImport("winspool.Drv", EntryPoint = "StartDocPrinterA", CharSet = CharSet.Ansi, SetLastError = true)]
+    public static extern bool StartDocPrinter(IntPtr hPrinter, Int32 level, [In, MarshalAs(UnmanagedType.LPStruct)] DOCINFOA di);
+    
+    [DllImport("winspool.Drv", EntryPoint = "EndDocPrinter", SetLastError = true)]
+    public static extern bool EndDocPrinter(IntPtr hPrinter);
+    
+    [DllImport("winspool.Drv", EntryPoint = "StartPagePrinter", SetLastError = true)]
+    public static extern bool StartPagePrinter(IntPtr hPrinter);
+    
+    [DllImport("winspool.Drv", EntryPoint = "EndPagePrinter", SetLastError = true)]
+    public static extern bool EndPagePrinter(IntPtr hPrinter);
+    
+    [DllImport("winspool.Drv", EntryPoint = "WritePrinter", SetLastError = true)]
+    public static extern bool WritePrinter(IntPtr hPrinter, IntPtr pBytes, Int32 dwCount, out Int32 dwWritten);
+    
+    public static bool SendBytesToPrinter(string szPrinterName, IntPtr pBytes, Int32 dwCount)
+    {
+        IntPtr hPrinter = IntPtr.Zero;
+        DOCINFOA di = new DOCINFOA();
+        di.pDocName = "Flowp Receipt";
+        di.pDataType = "RAW";
+        
+        if (OpenPrinter(szPrinterName, out hPrinter, IntPtr.Zero))
+        {
+            if (StartDocPrinter(hPrinter, 1, di))
+            {
+                if (StartPagePrinter(hPrinter))
+                {
+                    int written = 0;
+                    WritePrinter(hPrinter, pBytes, dwCount, out written);
+                    EndPagePrinter(hPrinter);
+                }
+                EndDocPrinter(hPrinter);
+            }
+            ClosePrinter(hPrinter);
+            return true;
+        }
+        return false;
+    }
+    
+    public static bool SendFileToPrinter(string szPrinterName, string szFileName)
+    {
+        byte[] bytes = System.IO.File.ReadAllBytes(szFileName);
+        IntPtr pUnmanagedBytes = Marshal.AllocCoTaskMem(bytes.Length);
+        Marshal.Copy(bytes, 0, pUnmanagedBytes, bytes.Length);
+        bool result = SendBytesToPrinter(szPrinterName, pUnmanagedBytes, bytes.Length);
+        Marshal.FreeCoTaskMem(pUnmanagedBytes);
+        return result;
+    }
+}
+'@
+
+$result = [RawPrinterHelper]::SendFileToPrinter($printerName, $filePath)
+if (-not $result) { throw "Failed to send data to printer" }
+Write-Output "OK"
+`;
       
-      exec(copyCmd, { shell: 'cmd.exe' }, function(error, stdout, stderr) {
+      exec('powershell -Command "' + psScript.replace(/"/g, '\\"').replace(/\n/g, ' ') + '"', { maxBuffer: 1024 * 1024 }, function(error, stdout, stderr) {
         fs.unlink(tempFile, function() {});
         
         if (error) {
-          // Fallback: try PowerShell Out-Printer
-          var psCmd = 'powershell -Command "Get-Content -Path \'' + tempFile.replace(/\\/g, '\\\\') + '\' -Encoding Byte -Raw | Out-Printer -Name \'' + safePrinter + '\'"';
-          exec(psCmd, function(psError) {
-            fs.unlink(tempFile, function() {});
-            if (psError) {
-              reject(new Error('Print failed: ' + (stderr || error.message)));
-            } else {
-              resolve({ success: true });
-            }
-          });
+          reject(new Error('Print failed: ' + (stderr || error.message)));
         } else {
           resolve({ success: true });
         }
