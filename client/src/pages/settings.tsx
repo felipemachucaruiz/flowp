@@ -604,16 +604,29 @@ function PrintBridgeSettings() {
             </ol>
           </div>
 
-          <Button
-            asChild
-            className="w-full"
-            data-testid="button-download-printbridge-simple"
-          >
-            <a href="/printbridge/simple.zip" download="PrintBridge-Simple.zip">
-              <Download className="w-4 h-4 mr-2" />
-              {t("printing.bridge_download_simple")} <span className="ml-1 text-xs opacity-70">v1.0.4</span>
-            </a>
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              asChild
+              className="flex-1"
+              data-testid="button-download-printbridge-windows"
+            >
+              <a href="/printbridge/simple.zip" download="PrintBridge-Simple.zip">
+                <Download className="w-4 h-4 mr-2" />
+                Windows <span className="ml-1 text-xs opacity-70">v1.0.4</span>
+              </a>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              className="flex-1"
+              data-testid="button-download-printbridge-mac"
+            >
+              <a href="/printbridge/mac.zip" download="PrintBridge-Mac.zip">
+                <Download className="w-4 h-4 mr-2" />
+                Mac <span className="ml-1 text-xs opacity-70">v1.0.0</span>
+              </a>
+            </Button>
+          </div>
           <p className="text-xs text-muted-foreground text-center mt-2">
             {t("printing.bridge_simple_note")}
           </p>

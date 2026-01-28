@@ -1,0 +1,13 @@
+{
+  "name": "printbridge-mac",
+  "version": "1.0.0",
+  "description": "PrintBridge for Mac - Thermal printer support for Flowp POS",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "install-deps": "npm install jimp"
+  },
+  "dependencies": {
+    "jimp": "^0.22.12"
+  }
+}
