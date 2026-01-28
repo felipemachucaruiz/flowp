@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import path from "path";
+import fs from "fs";
 import archiver from "archiver";
 import { storage } from "./storage";
 import { emailService } from "./email";
@@ -134,19 +135,41 @@ export async function registerRoutes(
     res.setHeader("Content-Disposition", "attachment; filename=Flowp-Desktop-Source.zip");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     
-    const archive = archiver("zip", { zlib: { level: 9 } });
-    archive.on("error", () => {
-      res.status(500).json({ error: "Failed to create archive" });
+    const archive = archiver("zip", { zlib: { level: 5 } });
+    archive.on("error", (err) => {
+      console.error("Archive error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to create archive" });
+      }
     });
     
     archive.pipe(res);
+    
+    // Add core files
     archive.file(path.join(desktopPath, "package.json"), { name: "flowp-desktop/package.json" });
     archive.file(path.join(desktopPath, "main.js"), { name: "flowp-desktop/main.js" });
     archive.file(path.join(desktopPath, "preload.js"), { name: "flowp-desktop/preload.js" });
     archive.file(path.join(desktopPath, "printer.js"), { name: "flowp-desktop/printer.js" });
     archive.file(path.join(desktopPath, "README.md"), { name: "flowp-desktop/README.md" });
-    archive.file(path.join(desktopPath, ".github/workflows/build.yml"), { name: "flowp-desktop/.github/workflows/build.yml" });
-    archive.directory(path.join(desktopPath, "build"), "flowp-desktop/build");
+    
+    // Add GitHub workflow
+    const workflowPath = path.join(desktopPath, ".github/workflows/build.yml");
+    if (fs.existsSync(workflowPath)) {
+      archive.file(workflowPath, { name: "flowp-desktop/.github/workflows/build.yml" });
+    }
+    
+    // Add build folder files individually
+    const buildPath = path.join(desktopPath, "build");
+    if (fs.existsSync(buildPath)) {
+      const buildFiles = fs.readdirSync(buildPath);
+      for (const file of buildFiles) {
+        const filePath = path.join(buildPath, file);
+        if (fs.statSync(filePath).isFile()) {
+          archive.file(filePath, { name: `flowp-desktop/build/${file}` });
+        }
+      }
+    }
+    
     archive.finalize();
   });
 
