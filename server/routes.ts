@@ -93,7 +93,7 @@ export async function registerRoutes(
     res.setHeader("Content-Disposition", "attachment; filename=PrintBridge-Simple.zip");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     
-    const archive = archiver("zip", { store: true });
+    const archive = archiver("zip", { zlib: { level: 9 } });
     archive.on("error", () => {
       res.status(500).json({ error: "Failed to create archive" });
     });
@@ -113,7 +113,7 @@ export async function registerRoutes(
     res.setHeader("Content-Disposition", "attachment; filename=PrintBridge-Mac.zip");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     
-    const archive = archiver("zip", { store: true });
+    const archive = archiver("zip", { zlib: { level: 9 } });
     archive.on("error", () => {
       res.status(500).json({ error: "Failed to create archive" });
     });
@@ -134,7 +134,7 @@ export async function registerRoutes(
     res.setHeader("Content-Disposition", "attachment; filename=Flowp-Desktop-Source.zip");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     
-    const archive = archiver("zip", { store: true });
+    const archive = archiver("zip", { zlib: { level: 9 } });
     archive.on("error", () => {
       res.status(500).json({ error: "Failed to create archive" });
     });
