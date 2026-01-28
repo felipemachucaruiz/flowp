@@ -323,13 +323,17 @@ app.post('/config', (req, res) => {
 });
 
 app.post('/print', async (req, res) => {
+  console.log('=== PRINT REQUEST RECEIVED ===');
   try {
     const { receipt } = req.body;
+    console.log('Receipt data:', receipt ? 'Present' : 'Missing');
     if (!receipt) {
+      console.log('ERROR: No receipt data in request');
       return res.json({ success: false, error: 'No receipt data' });
     }
     
     const commands = generateReceiptCommands(receipt);
+    console.log('Commands generated:', commands.length, 'bytes');
     
     if (printerConfig.type === 'network') {
       const client = new net.Socket();
