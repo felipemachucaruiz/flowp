@@ -34,15 +34,11 @@
           "target": "portable",
           "arch": ["x64"]
         }
-      ],
-      "icon": "icon.ico"
+      ]
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerIcon": "icon.ico",
-      "uninstallerIcon": "icon.ico",
-      "installerHeaderIcon": "icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Flowp POS"
@@ -50,9 +46,7 @@
     "files": [
       "main.js",
       "preload.js",
-      "printer.js",
-      "icon.ico",
-      "icon.png"
+      "printer.js"
     ],
     "extraResources": []
   }
