@@ -406,6 +406,7 @@ app.listen(PORT, '127.0.0.1', async () => {
   console.log('');
   console.log('========================================');
   console.log('  Flowp PrintBridge - Simple Edition');
+  console.log('  Version: 1.0.2');
   console.log('========================================');
   console.log('');
   console.log(`Server running on http://127.0.0.1:${PORT}`);
