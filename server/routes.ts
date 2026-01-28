@@ -76,7 +76,7 @@ export async function registerRoutes(
     res.setHeader("Content-Type", "application/zip");
     res.setHeader("Content-Disposition", "attachment; filename=PrintBridge-Source.zip");
     
-    const archive = archiver("zip", { zlib: { level: 9 } });
+    const archive = archiver("zip", { store: false });
     archive.on("error", (err) => {
       res.status(500).json({ error: "Failed to create archive" });
     });
@@ -94,7 +94,7 @@ export async function registerRoutes(
     res.setHeader("Content-Disposition", "attachment; filename=PrintBridge-Simple.zip");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     
-    const archive = archiver("zip", { zlib: { level: 9 } });
+    const archive = archiver("zip", { store: false });
     archive.on("error", () => {
       res.status(500).json({ error: "Failed to create archive" });
     });
@@ -114,7 +114,7 @@ export async function registerRoutes(
     res.setHeader("Content-Disposition", "attachment; filename=PrintBridge-Mac.zip");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     
-    const archive = archiver("zip", { zlib: { level: 9 } });
+    const archive = archiver("zip", { store: false });
     archive.on("error", () => {
       res.status(500).json({ error: "Failed to create archive" });
     });
@@ -135,7 +135,12 @@ export async function registerRoutes(
     res.setHeader("Content-Disposition", "attachment; filename=Flowp-Desktop-Source.zip");
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
     
-    const archive = archiver("zip", { zlib: { level: 5 } });
+    // Use deflate compression for maximum Windows compatibility
+    const archive = archiver("zip", { 
+      zlib: { level: 6 },
+      forceLocalTime: true
+    });
+    
     archive.on("error", (err) => {
       console.error("Archive error:", err);
       if (!res.headersSent) {
@@ -143,32 +148,20 @@ export async function registerRoutes(
       }
     });
     
+    archive.on("warning", (err) => {
+      console.warn("Archive warning:", err);
+    });
+    
     archive.pipe(res);
     
-    // Add core files
-    archive.file(path.join(desktopPath, "package.json"), { name: "flowp-desktop/package.json" });
-    archive.file(path.join(desktopPath, "main.js"), { name: "flowp-desktop/main.js" });
-    archive.file(path.join(desktopPath, "preload.js"), { name: "flowp-desktop/preload.js" });
-    archive.file(path.join(desktopPath, "printer.js"), { name: "flowp-desktop/printer.js" });
-    archive.file(path.join(desktopPath, "README.md"), { name: "flowp-desktop/README.md" });
-    
-    // Add GitHub workflow
-    const workflowPath = path.join(desktopPath, ".github/workflows/build.yml");
-    if (fs.existsSync(workflowPath)) {
-      archive.file(workflowPath, { name: "flowp-desktop/.github/workflows/build.yml" });
-    }
-    
-    // Add build folder files individually
-    const buildPath = path.join(desktopPath, "build");
-    if (fs.existsSync(buildPath)) {
-      const buildFiles = fs.readdirSync(buildPath);
-      for (const file of buildFiles) {
-        const filePath = path.join(buildPath, file);
-        if (fs.statSync(filePath).isFile()) {
-          archive.file(filePath, { name: `flowp-desktop/build/${file}` });
-        }
+    // Add entire flowp-desktop directory
+    archive.directory(desktopPath, "flowp-desktop", (entry) => {
+      // Exclude node_modules and dist folders
+      if (entry.name.includes("node_modules") || entry.name.includes("dist")) {
+        return false;
       }
-    }
+      return entry;
+    });
     
     archive.finalize();
   });
