@@ -14,7 +14,9 @@ function isNativePlatform(): boolean {
   // Check if we're in a Capacitor native app by looking for Capacitor on window
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const win = window as any;
-  return !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
+  const isNative = !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
+  console.log("[Biometric] isNativePlatform:", isNative, "Capacitor exists:", !!win.Capacitor);
+  return isNative;
 }
 
 async function getNativeBiometric(): Promise<NativeBiometric | null> {
@@ -39,14 +41,19 @@ async function getNativeBiometric(): Promise<NativeBiometric | null> {
 }
 
 export async function isBiometricAvailable(): Promise<boolean> {
+  console.log("[Biometric] Checking availability...");
   const plugin = await getNativeBiometric();
-  if (!plugin) return false;
+  if (!plugin) {
+    console.log("[Biometric] Plugin not available");
+    return false;
+  }
   
   try {
     const result = await plugin.isAvailable();
+    console.log("[Biometric] isAvailable result:", result);
     return result.isAvailable;
   } catch (e) {
-    console.log("Biometric check failed:", e);
+    console.log("[Biometric] Check failed:", e);
     return false;
   }
 }
