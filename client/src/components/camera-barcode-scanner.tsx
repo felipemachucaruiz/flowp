@@ -10,20 +10,39 @@ interface CameraBarcodeScannerProps {
   isOpen: boolean;
 }
 
+// Types for @capacitor-mlkit/barcode-scanning
+interface MLKitBarcode {
+  displayValue: string;
+  rawValue: string;
+  format: string;
+}
+
+interface MLKitScanResult {
+  barcodes: MLKitBarcode[];
+}
+
+interface MLKitBarcodeScanner {
+  scan: () => Promise<MLKitScanResult>;
+  requestPermissions: () => Promise<{ camera: string }>;
+  checkPermissions: () => Promise<{ camera: string }>;
+  isSupported: () => Promise<{ supported: boolean }>;
+  isGoogleBarcodeScannerModuleAvailable: () => Promise<{ available: boolean }>;
+  installGoogleBarcodeScannerModule: () => Promise<void>;
+  startScan: () => Promise<void>;
+  stopScan: () => Promise<void>;
+  addListener: (eventName: string, callback: (result: { barcode: MLKitBarcode }) => void) => Promise<{ remove: () => void }>;
+  removeAllListeners: () => Promise<void>;
+}
+
 declare global {
   interface Window {
     Capacitor?: {
       isNativePlatform: () => boolean;
       Plugins?: {
-        BarcodeScanner?: {
-          scan: () => Promise<{ barcodes: { rawValue: string }[] }>;
-          requestPermissions: () => Promise<{ camera: string }>;
-          checkPermissions: () => Promise<{ camera: string }>;
-          isSupported: () => Promise<{ supported: boolean }>;
-          isGoogleBarcodeScannerModuleAvailable: () => Promise<{ available: boolean }>;
-          installGoogleBarcodeScannerModule: () => Promise<void>;
-        };
+        BarcodeScanner?: MLKitBarcodeScanner;
+        CapacitorMLKitBarcodeScanning?: MLKitBarcodeScanner;
       };
+      registerPlugin?: (name: string) => MLKitBarcodeScanner;
     };
   }
 }
@@ -56,17 +75,52 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
     setIsNativeScanning(false);
   }, []);
 
+  const getMLKitScanner = useCallback((): MLKitBarcodeScanner | null => {
+    // Try different ways to access the MLKit Barcode Scanner
+    // The plugin registers under 'BarcodeScanner' in Capacitor
+    const plugins = window.Capacitor?.Plugins;
+    if (plugins?.BarcodeScanner) {
+      return plugins.BarcodeScanner;
+    }
+    if (plugins?.CapacitorMLKitBarcodeScanning) {
+      return plugins.CapacitorMLKitBarcodeScanning;
+    }
+    // Try to register the plugin manually
+    if (window.Capacitor?.registerPlugin) {
+      try {
+        return window.Capacitor.registerPlugin('BarcodeScanner');
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, []);
+
   const tryNativeScan = useCallback(async (): Promise<boolean> => {
     if (!isCapacitor) return false;
     
     try {
-      const BarcodeScanner = window.Capacitor?.Plugins?.BarcodeScanner;
+      const BarcodeScanner = getMLKitScanner();
       if (!BarcodeScanner) {
+        console.log('MLKit BarcodeScanner plugin not found');
         return false;
       }
 
       setIsNativeScanning(true);
       
+      // Check if the plugin is supported on this device
+      try {
+        const supported = await BarcodeScanner.isSupported();
+        if (!supported.supported) {
+          console.log('MLKit BarcodeScanner not supported on this device');
+          setIsNativeScanning(false);
+          return false;
+        }
+      } catch (e) {
+        console.log('isSupported check failed, continuing anyway', e);
+      }
+
+      // Request camera permissions
       const permission = await BarcodeScanner.requestPermissions();
       if (permission.camera !== 'granted') {
         setError(t("pos.camera_permission_denied"));
@@ -74,22 +128,37 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
         return true;
       }
 
+      // On Android, check if Google Barcode Scanner module is available
+      try {
+        const moduleAvailable = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
+        if (!moduleAvailable.available) {
+          console.log('Installing Google Barcode Scanner module...');
+          await BarcodeScanner.installGoogleBarcodeScannerModule();
+        }
+      } catch (e) {
+        // iOS doesn't have this method, so we ignore errors
+        console.log('Google Barcode Scanner module check skipped (iOS)', e);
+      }
+
+      // Use the scan() method which opens a full-screen scanner UI
       const result = await BarcodeScanner.scan();
       
       if (result.barcodes && result.barcodes.length > 0) {
-        const barcode = result.barcodes[0].rawValue;
-        onScan(barcode);
-        onClose();
+        const barcode = result.barcodes[0].rawValue || result.barcodes[0].displayValue;
+        if (barcode) {
+          onScan(barcode);
+          onClose();
+        }
       }
       
       setIsNativeScanning(false);
       return true;
     } catch (err) {
-      console.log('Native scanner not available, falling back to web', err);
+      console.log('Native scanner error, falling back to web:', err);
       setIsNativeScanning(false);
       return false;
     }
-  }, [isCapacitor, onScan, onClose, t]);
+  }, [isCapacitor, getMLKitScanner, onScan, onClose, t]);
 
   const startScanning = useCallback(async () => {
     if (!videoRef.current || !isOpen) return;
