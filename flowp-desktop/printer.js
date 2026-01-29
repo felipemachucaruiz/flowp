@@ -331,6 +331,44 @@ async function imageToEscPos(imageData, maxWidth) {
   return Buffer.from(commands);
 }
 
+// Fetch image from URL and convert to base64
+async function fetchImageAsBase64(url) {
+  if (!url) return null;
+  
+  try {
+    // Handle relative URLs by prepending the production domain
+    var fullUrl = url;
+    if (url.startsWith('/')) {
+      fullUrl = 'https://pos.flowp.app' + url;
+    }
+    
+    const https = require('https');
+    const http = require('http');
+    const protocol = fullUrl.startsWith('https') ? https : http;
+    
+    return new Promise(function(resolve) {
+      protocol.get(fullUrl, function(response) {
+        if (response.statusCode !== 200) {
+          console.log('Failed to fetch image:', response.statusCode);
+          resolve(null);
+          return;
+        }
+        
+        var chunks = [];
+        response.on('data', function(chunk) { chunks.push(chunk); });
+        response.on('end', function() {
+          var buffer = Buffer.concat(chunks);
+          resolve('data:image/png;base64,' + buffer.toString('base64'));
+        });
+        response.on('error', function() { resolve(null); });
+      }).on('error', function() { resolve(null); });
+    });
+  } catch (e) {
+    console.error('Fetch image error:', e);
+    return null;
+  }
+}
+
 // Build ESC/POS receipt from structured data
 async function buildReceipt(data) {
   var commands = [];
@@ -341,29 +379,54 @@ async function buildReceipt(data) {
   // Center alignment
   commands.push(0x1B, 0x61, 0x01);
   
-  // Print logo if provided
-  if (data.logo && Jimp) {
+  // Print logo if provided (support both 'logo' and 'logoUrl' field names)
+  var logoSource = data.logo || data.logoUrl;
+  if (logoSource && Jimp) {
     try {
-      var logoBuffer = await imageToEscPos(data.logo, data.logoWidth || 200);
-      commands.push.apply(commands, logoBuffer);
-      commands.push(0x0A);
+      // If it's a URL, fetch it first
+      var logoData = logoSource;
+      if (logoSource.startsWith('http') || logoSource.startsWith('/')) {
+        logoData = await fetchImageAsBase64(logoSource);
+      }
+      
+      if (logoData) {
+        var logoWidth = data.logoWidth || data.logoSize || 200;
+        var logoBuffer = await imageToEscPos(logoData, logoWidth);
+        commands.push.apply(commands, logoBuffer);
+        commands.push(0x0A);
+      }
     } catch (e) {
       console.error('Logo error:', e.message);
     }
   }
   
-  // Company name - double height/width
-  if (data.companyName) {
+  // Company name - double height/width (support both field names)
+  var companyName = data.companyName || data.businessName;
+  if (companyName) {
     commands.push(0x1B, 0x21, 0x30);
-    commands.push.apply(commands, Buffer.from(data.companyName + '\n'));
+    commands.push.apply(commands, Buffer.from(companyName + '\n'));
     commands.push(0x1B, 0x21, 0x00);
   }
   
-  // Header lines
+  // Header text (support single headerText or headerLines array)
+  if (data.headerText) {
+    commands.push.apply(commands, Buffer.from(data.headerText + '\n'));
+  }
   if (data.headerLines) {
     for (var i = 0; i < data.headerLines.length; i++) {
       commands.push.apply(commands, Buffer.from(data.headerLines[i] + '\n'));
     }
+  }
+  
+  // Address and phone
+  if (data.address) {
+    commands.push.apply(commands, Buffer.from(data.address + '\n'));
+  }
+  if (data.phone) {
+    commands.push.apply(commands, Buffer.from('Tel: ' + data.phone + '\n'));
+  }
+  if (data.taxId) {
+    commands.push.apply(commands, Buffer.from('Tax ID: ' + data.taxId + '\n'));
   }
   
   commands.push(0x0A);
@@ -381,9 +444,19 @@ async function buildReceipt(data) {
   if (data.cashier) {
     commands.push.apply(commands, Buffer.from('Cashier: ' + data.cashier + '\n'));
   }
+  if (data.customer) {
+    commands.push.apply(commands, Buffer.from('Customer: ' + data.customer + '\n'));
+  }
   
   // Separator
   commands.push.apply(commands, Buffer.from('--------------------------------\n'));
+  
+  // Get currency symbol (moved up for items)
+  var currencySymbol = '$';
+  if (data.currency) {
+    var currencyMap = { 'USD': '$', 'EUR': '\u20AC', 'GBP': '\u00A3', 'COP': '$', 'BRL': 'R$', 'MXN': '$' };
+    currencySymbol = currencyMap[data.currency] || data.currency + ' ';
+  }
   
   // Items
   if (data.items) {
@@ -391,9 +464,24 @@ async function buildReceipt(data) {
       var item = data.items[j];
       var qty = item.quantity || 1;
       var name = (item.name || '').substring(0, 20);
-      var total = (item.total || 0).toFixed(2);
+      var itemTotal = item.total || 0;
+      var unitPrice = item.unitPrice || item.price || 0;
+      
+      // Item line with quantity and name
       commands.push.apply(commands, Buffer.from(qty + 'x ' + name + '\n'));
-      commands.push.apply(commands, Buffer.from('   $' + total + '\n'));
+      
+      // Price line - show unit price if different from total (when qty > 1)
+      if (qty > 1 && unitPrice > 0) {
+        commands.push.apply(commands, Buffer.from('   @' + currencySymbol + formatNumber(unitPrice) + ' = ' + currencySymbol + formatNumber(itemTotal) + '\n'));
+      } else {
+        commands.push.apply(commands, Buffer.from('   ' + currencySymbol + formatNumber(itemTotal) + '\n'));
+      }
+      
+      // Modifiers if any
+      if (item.modifiers && item.modifiers.length > 0) {
+        var mods = Array.isArray(item.modifiers) ? item.modifiers.join(', ') : item.modifiers;
+        commands.push.apply(commands, Buffer.from('   + ' + mods + '\n'));
+      }
     }
   }
   
@@ -403,35 +491,59 @@ async function buildReceipt(data) {
   commands.push(0x1B, 0x61, 0x02);
   
   if (data.subtotal !== undefined) {
-    commands.push.apply(commands, Buffer.from('Subtotal: $' + data.subtotal.toFixed(2) + '\n'));
+    commands.push.apply(commands, Buffer.from('Subtotal: ' + currencySymbol + formatNumber(data.subtotal) + '\n'));
   }
-  if (data.taxAmount !== undefined) {
-    commands.push.apply(commands, Buffer.from('Tax: $' + data.taxAmount.toFixed(2) + '\n'));
+  
+  // Support both 'tax' and 'taxAmount' field names
+  var taxAmount = data.tax !== undefined ? data.tax : data.taxAmount;
+  if (taxAmount !== undefined && taxAmount > 0) {
+    var taxLabel = 'Tax';
+    if (data.taxRate) {
+      taxLabel = 'Tax (' + data.taxRate + '%)';
+    }
+    commands.push.apply(commands, Buffer.from(taxLabel + ': ' + currencySymbol + formatNumber(taxAmount) + '\n'));
   }
-  if (data.discount) {
-    commands.push.apply(commands, Buffer.from('Discount: -$' + data.discount.toFixed(2) + '\n'));
+  
+  if (data.discount && data.discount > 0) {
+    var discountLabel = 'Discount';
+    if (data.discountPercent) {
+      discountLabel = 'Discount (' + data.discountPercent + '%)';
+    }
+    commands.push.apply(commands, Buffer.from(discountLabel + ': -' + currencySymbol + formatNumber(data.discount) + '\n'));
   }
   
   // Total - emphasized
   commands.push(0x1B, 0x21, 0x30);
-  commands.push.apply(commands, Buffer.from('TOTAL: $' + (data.total || 0).toFixed(2) + '\n'));
+  commands.push.apply(commands, Buffer.from('TOTAL: ' + currencySymbol + formatNumber(data.total || 0) + '\n'));
   commands.push(0x1B, 0x21, 0x00);
   
-  // Payment info
-  if (data.paymentMethod) {
+  // Payment info - support payments array
+  if (data.payments && data.payments.length > 0) {
+    commands.push(0x0A);
+    for (var p = 0; p < data.payments.length; p++) {
+      var payment = data.payments[p];
+      var payType = payment.type ? payment.type.toUpperCase() : 'PAYMENT';
+      commands.push.apply(commands, Buffer.from(payType + ': ' + currencySymbol + formatNumber(payment.amount) + '\n'));
+    }
+  } else if (data.paymentMethod) {
     commands.push.apply(commands, Buffer.from('Paid: ' + data.paymentMethod + '\n'));
   }
+  
   if (data.cashReceived) {
-    commands.push.apply(commands, Buffer.from('Cash: $' + data.cashReceived.toFixed(2) + '\n'));
+    commands.push.apply(commands, Buffer.from('Cash: ' + currencySymbol + formatNumber(data.cashReceived) + '\n'));
   }
-  if (data.change) {
-    commands.push.apply(commands, Buffer.from('Change: $' + data.change.toFixed(2) + '\n'));
+  if (data.change && data.change > 0) {
+    commands.push.apply(commands, Buffer.from('Change: ' + currencySymbol + formatNumber(data.change) + '\n'));
   }
   
   // Center for footer
   commands.push(0x1B, 0x61, 0x01);
   commands.push(0x0A);
   
+  // Footer text (support both footerText and footerLines)
+  if (data.footerText) {
+    commands.push.apply(commands, Buffer.from(data.footerText + '\n'));
+  }
   if (data.footerLines) {
     for (var k = 0; k < data.footerLines.length; k++) {
       commands.push.apply(commands, Buffer.from(data.footerLines[k] + '\n'));
@@ -445,9 +557,19 @@ async function buildReceipt(data) {
   
   // Feed and cut
   commands.push(0x0A, 0x0A, 0x0A);
-  commands.push(0x1D, 0x56, 0x00); // Full cut
+  
+  // Cut paper if requested (default true)
+  if (data.cutPaper !== false) {
+    commands.push(0x1D, 0x56, 0x00); // Full cut
+  }
   
   return Buffer.from(commands);
+}
+
+// Format number with proper decimal places
+function formatNumber(num) {
+  if (typeof num !== 'number') num = parseFloat(num) || 0;
+  return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // Print receipt

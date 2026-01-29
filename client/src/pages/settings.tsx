@@ -519,32 +519,32 @@ function PrintBridgeSettings() {
 
   const isConnected = bridgeStatus?.isAvailable && isAuthenticated;
 
-  // Electron Desktop App UI - show native printer selection without PrintBridge
+  // Electron Desktop App UI - show native printer selection (Local Printing)
   if (isElectron) {
     return (
       <div className="mt-6 space-y-4">
-        {/* Header - Electron Mode */}
+        {/* Header - Local Printing Mode */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="font-medium">{t("printing.running_in_electron")}</span>
+            <span className="font-medium">{t("printing.local_printing")}</span>
           </div>
-          <Badge variant="default">{t("printing.bridge_connected")}</Badge>
+          <Badge variant="default">{t("printing.ready")}</Badge>
         </div>
 
         <p className="text-sm text-muted-foreground">
-          {t("printing.electron_printing_ready")}
+          {t("printing.local_printing_desc")}
         </p>
 
         {/* Connected State - Native Printing */}
         <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 space-y-3">
           <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
             <Check className="w-5 h-5" />
-            <span className="font-medium">{t("printing.direct_print_desc")}</span>
+            <span className="font-medium">{t("printing.direct_print_active")}</span>
           </div>
           {bridgeStatus?.version && (
             <div className="text-sm text-muted-foreground">
-              <span className="font-medium">{t("printing.bridge_version")}</span> {bridgeStatus.version}
+              <span className="font-medium">{t("printing.app_version")}</span> {bridgeStatus.version}
             </div>
           )}
           {printers.length > 0 && (
