@@ -107,10 +107,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider style={style as React.CSSProperties} defaultOpen={window.innerWidth >= 1280}>
-      <div className="flex h-screen min-h-dvh w-full bg-background safe-area-pt safe-area-pb">
+      <div className="flex h-screen min-h-dvh w-full bg-background safe-area-pb">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex h-10 items-center justify-between gap-2 border-b px-3 bg-card shrink-0">
+          <header className="flex h-10 items-center justify-between gap-2 border-b px-3 bg-card shrink-0 safe-area-pt">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
               <div className="hidden sm:block"><TourButton /></div>
