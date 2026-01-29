@@ -248,11 +248,48 @@ export default function SalesHistoryPage() {
             filteredOrders.map((order) => (
               <Card key={order.id} className="overflow-hidden">
                 <div
-                  className="p-4 cursor-pointer hover-elevate"
+                  className="p-3 sm:p-4 cursor-pointer hover-elevate"
                   onClick={() => toggleOrderExpansion(order.id)}
                   data-testid={`card-order-${order.id}`}
                 >
-                  <div className="flex items-center justify-between">
+                  {/* Mobile Layout - Row based like reference */}
+                  <div className="flex sm:hidden items-start gap-3">
+                    <div className="p-2 rounded-lg bg-muted shrink-0">
+                      <Receipt className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold">{t("sales.order_number")}{order.orderNumber}</span>
+                        <Badge variant={order.status === "completed" ? "default" : "secondary"} className="text-xs">
+                          {t(`sales.status_${order.status || "pending"}` as any)}
+                        </Badge>
+                        {order.customer && (
+                          <span className="text-sm font-medium">{order.customer.name}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                        <Clock className="w-3 h-3" />
+                        {order.createdAt && formatDateTime(new Date(order.createdAt))}
+                        {order.customer?.phone && (
+                          <span className="ml-1">{order.customer.phone}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-base">{formatCurrency(order.total)}</p>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
+                        {order.payments?.[0]?.method === "card" ? (
+                          <CreditCard className="w-3 h-3" />
+                        ) : (
+                          <Banknote className="w-3 h-3" />
+                        )}
+                        {order.payments?.[0]?.method || "cash"}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Desktop Layout */}
+                  <div className="hidden sm:flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="p-2 rounded-lg bg-muted">
                         <Receipt className="w-5 h-5" />
