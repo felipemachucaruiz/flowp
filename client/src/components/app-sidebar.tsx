@@ -171,7 +171,7 @@ export function AppSidebar() {
     <Sidebar data-tour="sidebar">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-3">
-          <img src={flowpLogo} alt="Flowp" className="h-8" />
+          <img src={flowpLogo} alt="Flowp" className="h-10 sm:h-8" />
         </div>
       </SidebarHeader>
 
