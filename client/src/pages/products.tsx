@@ -188,8 +188,7 @@ export default function ProductsPage() {
             ) : categories?.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">{t("categories.empty")}</p>
             ) : (
-              <ScrollArea className="h-[400px]">
-                <div className="space-y-2">
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
                   {categories?.map((category) => (
                     <div
                       key={category.id}
@@ -224,7 +223,6 @@ export default function ProductsPage() {
                     </div>
                   ))}
                 </div>
-              </ScrollArea>
             )}
           </CardContent>
         </Card>
@@ -253,8 +251,7 @@ export default function ProductsPage() {
             ) : products?.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">{t("products.empty")}</p>
             ) : (
-              <ScrollArea className="h-[500px]">
-                <div className="space-y-2">
+              <div className="space-y-2 max-h-[500px] overflow-y-auto">
                   {products?.map((product) => (
                     <div
                       key={product.id}
@@ -305,8 +302,7 @@ export default function ProductsPage() {
                       </div>
                     </div>
                   ))}
-                </div>
-              </ScrollArea>
+              </div>
             )}
           </CardContent>
         </Card>
