@@ -898,11 +898,11 @@ export default function POSPage() {
   );
 
   return (
-    <div className="flex h-full relative overflow-hidden">
+    <div className="flex h-full relative overflow-hidden bg-background">
       {/* Products Section */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Search and Categories */}
-        <div className="p-3 sm:p-4 border-b space-y-3 sm:space-y-4">
+        <div className="px-2 sm:p-4 py-2 border-b space-y-2 sm:space-y-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -964,7 +964,7 @@ export default function POSPage() {
         {/* Products Grid */}
         <div 
           data-tour="pos-products"
-          className="flex-1 overflow-y-auto p-3 sm:p-4 pb-28 sm:pb-4 overscroll-contain touch-scroll"
+          className="flex-1 overflow-y-auto px-2 sm:p-4 py-2 pb-20 sm:pb-4 overscroll-contain touch-scroll"
         >
           {productsLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-2">
@@ -979,12 +979,12 @@ export default function POSPage() {
               <p className="text-sm">{t("pos.adjust_search")}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-1.5 sm:gap-2">
               {filteredProducts?.map((product) => (
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="flex flex-col items-center justify-center p-3 sm:p-2 rounded-xl border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[120px] sm:min-h-[100px]"
+                  className="flex flex-col items-center justify-center p-2 sm:p-2 rounded-lg border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[100px] sm:min-h-[100px]"
                   data-testid={`button-product-${product.id}`}
                 >
                   {product.image ? (
