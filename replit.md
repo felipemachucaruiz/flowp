@@ -62,9 +62,24 @@ Internal admin portal for SaaS management with role-based access control.
 - `/api/internal/*` - Internal admin routes (SuperAdmin, SupportAgent, BillingOps)
 - `/api/tenant/*` - Tenant portal routes (Owner, Admin, Accountant, Manager)
 
-### Roles (7 Total)
-- **Internal**: SuperAdmin, SupportAgent, BillingOps
-- **Tenant**: Owner, Admin, Accountant, Manager
+### Internal Portal Roles (3 Total)
+- **SuperAdmin**: Full platform control
+- **SupportAgent**: Tenant support access
+- **BillingOps**: Billing management
+
+### Tenant User Roles (6 Total) - UI Enforced
+- **Owner**: Full tenant control, can manage users/settings/taxes
+- **Admin**: Operations management (no taxes/printing settings)
+- **Manager**: Daily operations (reports, inventory, customers)
+- **Cashier**: Sales only (POS screen, hold/resume)
+- **Kitchen**: Kitchen display only (no prices visible)
+- **Inventory**: Stock and purchasing management
+
+### Permission Matrix (client/src/lib/permissions.ts)
+Each role has granular permissions for:
+- Navigation access (sidebar visibility)
+- Feature access (view/create/edit/delete per module)
+- Settings tabs (taxes, printing, users - owner only)
 
 ### Security Notes (Phase 2)
 - Current auth uses localStorage (frontend-only session state)
