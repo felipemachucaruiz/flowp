@@ -17,13 +17,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import flowpLogo from "@assets/Sin_título-1_1769033877071.webp";
 import {
   ShoppingCart,
@@ -204,75 +197,58 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <SidebarMenuButton
-                  className="w-full h-auto py-3"
-                  data-testid="button-user-menu"
-                >
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                      {user?.name ? getInitials(user.name) : <User className="w-4 h-4" />}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col items-start flex-1 text-left min-w-0">
-                    <span className="text-xs text-muted-foreground truncate w-full">
-                      {tenant?.name || "Store"}
-                    </span>
-                    <span className="text-sm font-medium truncate w-full">
-                      {user?.name || "User"}
-                    </span>
-                    <span className="text-xs text-muted-foreground capitalize truncate w-full">
-                      {user?.role || "Staff"}
-                    </span>
-                  </div>
-                </SidebarMenuButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side="top"
-                align="start"
-                className="w-[--radix-dropdown-menu-trigger-width]"
+        <div className="p-3 space-y-3">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-8 h-8">
+              <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                {user?.name ? getInitials(user.name) : <User className="w-4 h-4" />}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col flex-1 min-w-0">
+              <span className="text-xs text-muted-foreground truncate">
+                {tenant?.name || "Store"}
+              </span>
+              <span className="text-sm font-medium truncate">
+                {user?.name || "User"}
+              </span>
+              <span className="text-xs text-muted-foreground capitalize truncate">
+                {user?.role || "Staff"}
+              </span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={toggleTheme}
+              data-testid="button-toggle-theme"
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </Button>
+            {installPrompt && !isInstalled && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={handleInstallClick}
+                data-testid="button-install-app"
               >
-                <DropdownMenuItem
-                  onClick={toggleTheme}
-                  data-testid="button-toggle-theme"
-                >
-                  {theme === "light" ? (
-                    <>
-                      <Moon className="w-4 h-4 mr-2" />
-                      Dark Mode
-                    </>
-                  ) : (
-                    <>
-                      <Sun className="w-4 h-4 mr-2" />
-                      Light Mode
-                    </>
-                  )}
-                </DropdownMenuItem>
-                {installPrompt && !isInstalled && (
-                  <DropdownMenuItem
-                    onClick={handleInstallClick}
-                    data-testid="button-install-app"
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    {t("nav.install_app")}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={logout}
-                  className="text-destructive focus:text-destructive"
-                  data-testid="button-logout"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  {t("nav.logout")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </SidebarMenuItem>
-        </SidebarMenu>
+                <Download className="w-4 h-4" />
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-destructive hover:text-destructive"
+              onClick={() => { logout(); if (isMobile) setOpenMobile(false); }}
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4 mr-1" />
+              {t("nav.logout")}
+            </Button>
+          </div>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
