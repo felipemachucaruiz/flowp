@@ -1,0 +1,164 @@
+Roles oficiales de Flowp (recomendados)
+👑 Owner (Propietario)
+
+Dueño del negocio
+
+Control total
+
+Acceso a todo, incluidos ajustes críticos
+
+🛠 Admin
+
+Administra la operación
+
+No puede borrar el negocio ni ver datos SaaS internos
+
+Ideal para gerentes generales
+
+📊 Manager (Supervisor / Encargado)
+
+Controla operación diaria
+
+Revisa reportes
+
+Puede corregir errores operativos
+
+💰 Cashier (Cajero)
+
+Solo vende
+
+No toca configuración
+
+Acceso mínimo
+
+🍽 Kitchen (Cocina) (solo restaurante)
+
+Solo ve y gestiona comandas
+
+No ve precios ni ventas
+
+📦 Inventory (Bodega / Compras) (opcional pero recomendado)
+
+Maneja inventario y compras
+
+No vende
+
+2️⃣ Reglas generales de permisos (muy importante)
+
+🔒 Todo es DENY por defecto
+
+✅ Se habilita solo lo necesario
+
+👀 Ver ≠ Editar ≠ Eliminar
+
+🧾 Acciones sensibles requieren rol alto:
+
+Borrar ventas
+
+Ajustes de inventario
+
+Cambios de precios
+
+Configuración fiscal
+
+3️⃣ Matriz de permisos por opción del menú
+🧾 Punto de Venta
+Rol	Acceso
+Owner	✅ Completo
+Admin	✅ Completo
+Manager	✅ Vender + anular
+Cashier	✅ Vender
+Kitchen	❌
+Inventory	❌
+
+Notas
+
+Cashier ❌ anula ventas
+
+Manager/Admin pueden anular con motivo
+
+Owner puede todo
+
+🏷 Productos
+Rol	Acceso
+Owner	✅ CRUD
+Admin	✅ CRUD
+Manager	👁 Ver + Editar
+Cashier	👁 Ver
+Kitchen	👁 Ver (sin precios)
+Inventory	✅ CRUD
+📦 Inventario
+Rol	Acceso
+Owner	✅ Completo
+Admin	✅ Completo
+Manager	👁 Ver + Ajustes
+Cashier	👁 Ver
+Kitchen	👁 Ver
+Inventory	✅ Completo
+
+Restricción clave
+
+Ajustes manuales = solo Manager+
+
+🚚 Compras
+Rol	Acceso
+Owner	✅
+Admin	✅
+Manager	✅
+Cashier	❌
+Kitchen	❌
+Inventory	✅
+👥 Clientes
+Rol	Acceso
+Owner	✅
+Admin	✅
+Manager	✅
+Cashier	👁 Crear + Ver
+Kitchen	❌
+Inventory	❌
+🎁 Lealtad
+Rol	Acceso
+Owner	✅
+Admin	✅
+Manager	👁 Ver
+Cashier	👁 Ver / Aplicar
+Kitchen	❌
+Inventory	❌
+📊 Reportes
+Rol	Acceso
+Owner	✅ Todos
+Admin	✅ Todos
+Manager	✅ Operativos
+Cashier	❌
+Kitchen	❌
+Inventory	👁 Stock
+💵 Historial de Ventas
+Rol	Acceso
+Owner	✅
+Admin	✅
+Manager	✅
+Cashier	👁 Solo propias
+Kitchen	❌
+Inventory	❌
+⚙️ Configuración
+Rol	Acceso
+Owner	✅ Completo
+Admin	✅ Operativa
+Manager	❌
+Cashier	❌
+Kitchen	❌
+Inventory	❌
+
+Configuración crítica (solo Owner)
+
+Facturación electrónica
+
+Impresoras
+
+Usuarios
+
+Roles
+
+Impuestos
+
+Plan / suscripción
