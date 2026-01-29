@@ -108,7 +108,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider style={style as React.CSSProperties} defaultOpen={window.innerWidth >= 1280}>
-      <div className="flex h-screen min-h-dvh w-full bg-background">
+      <div className="flex h-screen min-h-dvh w-full bg-background safe-area-pt">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
           <header className="flex h-10 items-center justify-between gap-2 border-b px-3 bg-card shrink-0">
