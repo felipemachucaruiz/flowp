@@ -555,6 +555,54 @@ async function buildReceipt(data) {
     commands.push.apply(commands, Buffer.from(data.thankYouMessage + '\n'));
   }
   
+  // Coupon section
+  if (data.couponEnabled && data.couponLines && data.couponLines.length > 0) {
+    commands.push(0x0A);
+    
+    // Dashed separator for coupon
+    commands.push(0x1B, 0x61, 0x01); // Center
+    commands.push.apply(commands, Buffer.from('- - - - - - - - - - - - - - - -\n'));
+    
+    // "COUPON" header - emphasized
+    commands.push(0x1B, 0x21, 0x30); // Double height/width
+    var couponLabel = data.language === 'es' ? 'CUPON' : data.language === 'pt' ? 'CUPOM' : 'COUPON';
+    commands.push.apply(commands, Buffer.from(couponLabel + '\n'));
+    commands.push(0x1B, 0x21, 0x00); // Normal
+    commands.push(0x0A);
+    
+    // Coupon content lines
+    for (var cl = 0; cl < data.couponLines.length; cl++) {
+      var couponLine = data.couponLines[cl];
+      var lineText = couponLine.text || '';
+      
+      // Set alignment
+      var alignCode = 0x01; // Center default
+      if (couponLine.align === 'left') alignCode = 0x00;
+      else if (couponLine.align === 'right') alignCode = 0x02;
+      commands.push(0x1B, 0x61, alignCode);
+      
+      // Set emphasis based on size/bold
+      if (couponLine.size === 'xlarge' || couponLine.size === 'large') {
+        commands.push(0x1B, 0x21, 0x30); // Double height/width
+      } else if (couponLine.bold) {
+        commands.push(0x1B, 0x45, 0x01); // Bold on
+      }
+      
+      commands.push.apply(commands, Buffer.from(lineText + '\n'));
+      
+      // Reset formatting
+      if (couponLine.size === 'xlarge' || couponLine.size === 'large') {
+        commands.push(0x1B, 0x21, 0x00);
+      } else if (couponLine.bold) {
+        commands.push(0x1B, 0x45, 0x00); // Bold off
+      }
+    }
+    
+    // Dashed separator
+    commands.push(0x1B, 0x61, 0x01); // Center
+    commands.push.apply(commands, Buffer.from('- - - - - - - - - - - - - - - -\n'));
+  }
+  
   // Feed and cut
   commands.push(0x0A, 0x0A, 0x0A);
   

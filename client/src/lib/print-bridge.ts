@@ -79,7 +79,12 @@ interface ReceiptData {
   openCashDrawer?: boolean;
   cutPaper?: boolean;
   couponEnabled?: boolean;
-  couponText?: string;
+  couponLines?: Array<{
+    text: string;
+    bold?: boolean;
+    align?: "left" | "center" | "right";
+    size?: "small" | "normal" | "large" | "xlarge";
+  }>;
 }
 
 interface PrinterConfig {

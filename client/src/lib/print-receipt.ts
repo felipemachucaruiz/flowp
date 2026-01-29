@@ -1,6 +1,28 @@
 import type { Tenant } from "@shared/schema";
 import { printBridge } from "./print-bridge";
-import { renderCouponContent } from "@/components/coupon-editor";
+import { renderCouponContent, getCouponPlainText } from "@/components/coupon-editor";
+
+interface CouponLine {
+  text: string;
+  bold?: boolean;
+  align?: "left" | "center" | "right";
+  size?: "small" | "normal" | "large" | "xlarge";
+}
+
+function parseCouponLines(couponText: string | null | undefined): CouponLine[] {
+  if (!couponText) return [];
+  try {
+    const parsed = JSON.parse(couponText);
+    if (parsed.lines && Array.isArray(parsed.lines)) {
+      return parsed.lines;
+    }
+  } catch {
+    if (couponText) {
+      return [{ text: couponText, align: "center", size: "normal" }];
+    }
+  }
+  return [];
+}
 
 interface ReceiptItem {
   name: string;
@@ -84,7 +106,7 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
       openCashDrawer: data.paymentMethod === "cash" || data.payments?.some(p => p.type === "cash"),
       cutPaper: true,
       couponEnabled: tenant?.couponEnabled || false,
-      couponText: tenant?.couponText || undefined,
+      couponLines: tenant?.couponEnabled ? parseCouponLines(tenant?.couponText) : undefined,
     });
 
     return result.success;
