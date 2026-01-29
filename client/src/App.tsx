@@ -113,7 +113,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           <header className="flex h-10 items-center justify-between gap-2 border-b px-3 bg-card shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
-              <TourButton />
+              <div className="hidden sm:block"><TourButton /></div>
               <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout">
                 <LogOut className="h-4 w-4 mr-2" />
                 {t("nav.logout")}
