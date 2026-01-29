@@ -18,7 +18,10 @@ declare global {
         BarcodeScanner?: {
           scan: () => Promise<{ barcodes: { rawValue: string }[] }>;
           requestPermissions: () => Promise<{ camera: string }>;
+          checkPermissions: () => Promise<{ camera: string }>;
           isSupported: () => Promise<{ supported: boolean }>;
+          isGoogleBarcodeScannerModuleAvailable: () => Promise<{ available: boolean }>;
+          installGoogleBarcodeScannerModule: () => Promise<void>;
         };
       };
     };
