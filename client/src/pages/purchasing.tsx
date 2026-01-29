@@ -387,8 +387,8 @@ export default function PurchasingPage() {
   );
 
   return (
-    <div className="h-full overflow-y-auto touch-scroll">
-      <div className="p-4 md:p-6 space-y-6">
+    <div className="h-full overflow-y-auto touch-scroll overscroll-contain">
+      <div className="p-4 md:p-6 pb-24 md:pb-6 space-y-6">
         <div>
           <h1 className="text-2xl font-bold" data-testid="text-purchasing-title">{t("purchasing.title")}</h1>
           <p className="text-muted-foreground">{t("purchasing.subtitle")}</p>

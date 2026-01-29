@@ -135,8 +135,8 @@ export default function TablesPage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto touch-scroll">
-    <div className="p-4 lg:p-6 space-y-4">
+    <div className="h-full overflow-y-auto touch-scroll overscroll-contain">
+    <div className="p-4 lg:p-6 pb-24 lg:pb-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">

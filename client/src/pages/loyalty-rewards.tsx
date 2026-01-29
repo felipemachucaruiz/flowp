@@ -169,8 +169,8 @@ export default function LoyaltyRewardsPage() {
   ) || [];
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b">
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="p-4 border-b shrink-0">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <Gift className="w-5 h-5 text-primary" />
@@ -200,7 +200,7 @@ export default function LoyaltyRewardsPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 pb-24 sm:pb-4 touch-scroll overscroll-contain">
         {rewardsLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {[1, 2, 3, 4].map((i) => (

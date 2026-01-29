@@ -158,8 +158,8 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto touch-scroll">
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="h-full overflow-y-auto touch-scroll overscroll-contain">
+    <div className="p-3 sm:p-6 pb-24 sm:pb-6 space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("reports.title")}</h1>

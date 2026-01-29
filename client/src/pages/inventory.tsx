@@ -162,8 +162,8 @@ export default function InventoryPage() {
 
   
   return (
-    <div className="h-full overflow-y-auto touch-scroll">
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="h-full overflow-y-auto touch-scroll overscroll-contain">
+    <div className="p-3 sm:p-6 pb-24 sm:pb-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("inventory.title")}</h1>

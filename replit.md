@@ -21,7 +21,11 @@ A production-ready, multi-tenant POS + Inventory system delivered as a Progressi
 - **Safe Area Insets**: CSS utilities for iPhone notch and home indicator (safe-area-pt, safe-area-pb)
 - **Camera Barcode Scanner**: Uses @zxing/library for camera-based barcode scanning on mobile
 - **Touch Targets**: Min 120px height for product cards, 64px for cart button
-- **Mobile Cart**: Floating button (bottom-24) opens sheet with full cart functionality
+- **Mobile Cart**: Floating button (bottom-24 right-4) opens sheet with full cart functionality
+- **Portrait Lock**: PWA manifest locks to portrait-only orientation
+- **Sidebar Auto-Close**: Sidebar collapses after clicking navigation links on mobile
+- **Scroll Padding**: All pages have pb-24 on mobile to prevent bottom nav from obscuring content
+- **Horizontal Tab Scrolling**: Settings and other tab interfaces scroll horizontally on mobile
 
 ## User Preferences
 - **Onboarding**: All fields are mandatory except for logo uploads (company logo and receipt logo are optional)

@@ -228,7 +228,7 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto touch-scroll">
+        <div className="flex-1 overflow-y-auto touch-scroll overscroll-contain pb-24 sm:pb-0">
           {customersLoading ? (
             <div className="p-4 space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (

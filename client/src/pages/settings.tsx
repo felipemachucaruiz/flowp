@@ -1377,8 +1377,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto touch-scroll">
-    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="h-full overflow-y-auto touch-scroll overscroll-contain">
+    <div className="p-3 sm:p-6 pb-24 sm:pb-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("settings.title")}</h1>
@@ -1388,8 +1388,8 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <ScrollArea className="w-full">
-          <TabsList className="inline-flex w-auto min-w-full sm:w-auto">
+        <div className="w-full overflow-x-auto pb-2">
+          <TabsList className="inline-flex w-max min-w-full gap-1">
             <TabsTrigger value="business" data-testid="tab-business" className="text-xs sm:text-sm">
               <Store className="w-4 h-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">{t("settings.business")}</span>
@@ -1428,7 +1428,7 @@ export default function SettingsPage() {
               <span className="sm:hidden">{t("settings.downloads").split(' ')[0]}</span>
             </TabsTrigger>
           </TabsList>
-        </ScrollArea>
+        </div>
 
         {/* Business Settings */}
         <TabsContent value="business" className="mt-6 space-y-6">
