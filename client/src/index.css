@@ -2,39 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Ensure html and body fill the viewport with proper background - edge to edge on iOS */
-html {
+/* Ensure html and body fill the viewport with proper background */
+html, body {
   height: 100%;
   width: 100%;
+  margin: 0;
+  padding: 0;
   background-color: hsl(var(--background));
   overscroll-behavior: none;
-  overflow: hidden;
 }
 
 body {
-  min-height: 100%;
   min-height: 100dvh;
   min-height: -webkit-fill-available;
-  width: 100%;
-  background-color: hsl(var(--background));
-  overscroll-behavior: none;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
 }
 
 #root {
   height: 100%;
   min-height: 100dvh;
-  min-height: -webkit-fill-available;
-  width: 100%;
   background-color: hsl(var(--background));
-  overflow: hidden;
 }
 
 /* LIGHT MODE - Professional POS Theme */
