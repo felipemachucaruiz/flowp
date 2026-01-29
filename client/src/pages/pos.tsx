@@ -1040,9 +1040,8 @@ export default function POSPage() {
 
       {/* Mobile Cart Button - Fixed above bottom nav */}
       {isMobile && (
-        <Button
-          size="lg"
-          className="fixed bottom-20 right-4 h-16 w-16 rounded-full shadow-xl z-40 bg-primary hover:bg-primary/90"
+        <button
+          className="fixed bottom-24 right-4 h-16 w-16 rounded-full shadow-xl z-40 bg-primary text-primary-foreground flex items-center justify-center hover-elevate active-elevate-2 safe-area-pb"
           onClick={() => setShowMobileCart(true)}
           data-testid="button-mobile-cart"
         >
@@ -1052,7 +1051,7 @@ export default function POSPage() {
               {cart.length}
             </span>
           )}
-        </Button>
+        </button>
       )}
 
       {/* Mobile Cart Sheet */}
