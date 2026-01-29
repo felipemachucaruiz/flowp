@@ -55,6 +55,7 @@ export default function POSPage() {
     heldOrders,
     addToCart,
     removeFromCart,
+    removeFreeItems,
     updateQuantity,
     clearCart,
     holdOrder,
@@ -228,17 +229,9 @@ export default function POSPage() {
 
   // Helper to clear any applied reward
   const clearAppliedReward = () => {
-    // Remove free product from cart if it was added
-    if (freeProductItemId) {
-      removeFromCart(freeProductItemId);
-      setFreeProductItemId(null);
-    }
-    // Also remove any items with IDs starting with "free-" (for safety/legacy items)
-    cart.forEach(item => {
-      if (item.id.startsWith("free-")) {
-        removeFromCart(item.id);
-      }
-    });
+    // Remove all free items from cart (both tracked and legacy)
+    removeFreeItems();
+    setFreeProductItemId(null);
     // Clear all discount values
     setDiscountPercent("0");
     setFixedDiscountAmount(0);

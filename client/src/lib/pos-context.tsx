@@ -15,6 +15,7 @@ interface POSContextType {
   heldOrders: { id: string; items: CartItem[]; tableId?: string }[];
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (itemId: string) => void;
+  removeFreeItems: () => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   updateModifiers: (itemId: string, modifiers: { id: string; name: string; price: string }[]) => void;
   updateNotes: (itemId: string, notes: string) => void;
@@ -62,6 +63,10 @@ export function POSProvider({ children }: { children: ReactNode }) {
 
   const removeFromCart = (itemId: string) => {
     setCart(cart.filter((item) => item.id !== itemId));
+  };
+
+  const removeFreeItems = () => {
+    setCart(cart.filter((item) => !item.id.startsWith("free-")));
   };
 
   const updateQuantity = (itemId: string, quantity: number) => {
@@ -147,6 +152,7 @@ export function POSProvider({ children }: { children: ReactNode }) {
         heldOrders,
         addToCart,
         removeFromCart,
+        removeFreeItems,
         updateQuantity,
         updateModifiers,
         updateNotes,
