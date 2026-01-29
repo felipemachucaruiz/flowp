@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { initializeStatusBar, updateStatusBarStyle } from "./status-bar";
 
 type Theme = "light" | "dark";
 
@@ -19,13 +20,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
+    initializeStatusBar();
+  }, []);
+
+  useEffect(() => {
     const root = document.documentElement;
-    if (theme === "dark") {
+    const isDark = theme === "dark";
+    
+    if (isDark) {
       root.classList.add("dark");
     } else {
       root.classList.remove("dark");
     }
     localStorage.setItem("pos_theme", theme);
+    
+    updateStatusBarStyle(isDark);
   }, [theme]);
 
   const toggleTheme = () => {
