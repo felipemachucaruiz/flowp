@@ -155,10 +155,9 @@ export async function registerRoutes(
     archive.finalize();
   });
 
-  // Flowp Desktop Installer download from Object Storage
+  // Flowp Desktop Installer download from Object Storage (Windows)
   app.get("/desktop/installer.exe", async (req: Request, res: Response) => {
     try {
-      // Use the existing ObjectStorageService
       const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage");
       const storageService = new ObjectStorageService();
       
@@ -166,17 +165,41 @@ export async function registerRoutes(
       const file = await storageService.searchPublicObject(fileName);
       
       if (!file) {
-        return res.status(404).json({ error: "Installer not found. Please upload the installer to Object Storage public folder." });
+        return res.status(404).json({ error: "Windows installer not found. Please upload the installer to Object Storage public folder." });
       }
       
       res.setHeader("Content-Type", "application/octet-stream");
       res.setHeader("Content-Disposition", `attachment; filename="Flowp POS Setup 1.0.0.exe"`);
       res.setHeader("Cache-Control", "public, max-age=3600");
       
-      // Stream the file
       file.createReadStream().pipe(res);
     } catch (error) {
-      console.error("Error downloading installer:", error);
+      console.error("Error downloading Windows installer:", error);
+      res.status(500).json({ error: "Failed to download installer" });
+    }
+  });
+
+  // Flowp Desktop Installer download from Object Storage (macOS)
+  app.get("/desktop/installer.dmg", async (req: Request, res: Response) => {
+    try {
+      const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage");
+      const storageService = new ObjectStorageService();
+      
+      // Search for DMG file in public folder
+      const fileName = "Flowp POS-1.0.0.dmg";
+      const file = await storageService.searchPublicObject(fileName);
+      
+      if (!file) {
+        return res.status(404).json({ error: "Mac installer not found. Please upload the DMG to Object Storage public folder." });
+      }
+      
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.setHeader("Content-Disposition", `attachment; filename="Flowp POS.dmg"`);
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      
+      file.createReadStream().pipe(res);
+    } catch (error) {
+      console.error("Error downloading Mac installer:", error);
       res.status(500).json({ error: "Failed to download installer" });
     }
   });

@@ -2702,9 +2702,19 @@ export default function SettingsPage() {
                           download="Flowp POS Setup 1.0.0.exe"
                           className="inline-flex"
                         >
-                          <Button variant="default" data-testid="button-download-installer">
+                          <Button variant="default" data-testid="button-download-installer-win">
                             <Download className="w-4 h-4 mr-2" />
                             {t("downloads.download_installer")}
+                          </Button>
+                        </a>
+                        <a 
+                          href="/desktop/installer.dmg" 
+                          download="Flowp POS.dmg"
+                          className="inline-flex"
+                        >
+                          <Button variant="default" data-testid="button-download-installer-mac">
+                            <Download className="w-4 h-4 mr-2" />
+                            {t("downloads.download_installer_mac")}
                           </Button>
                         </a>
                         <a 
@@ -2712,7 +2722,7 @@ export default function SettingsPage() {
                           download="Flowp-Desktop-Source.zip"
                           className="inline-flex"
                         >
-                          <Button variant="outline" data-testid="button-download-desktop">
+                          <Button variant="outline" data-testid="button-download-source">
                             <Download className="w-4 h-4 mr-2" />
                             {t("downloads.download_source")}
                           </Button>
