@@ -27,6 +27,7 @@ import ProductsPage from "@/pages/products";
 import ReportsPage from "@/pages/reports";
 import SalesHistoryPage from "@/pages/sales-history";
 import CustomersPage from "@/pages/customers";
+import LoyaltyRewardsPage from "@/pages/loyalty-rewards";
 import SettingsPage from "@/pages/settings";
 
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -219,6 +220,9 @@ function TenantRouter() {
         </Route>
         <Route path="/customers">
           <ProtectedRoute component={CustomersPage} />
+        </Route>
+        <Route path="/loyalty">
+          <ProtectedRoute component={LoyaltyRewardsPage} />
         </Route>
         <Route path="/settings">
           <ProtectedRoute component={SettingsPage} />

@@ -31,7 +31,6 @@ import {
   Plus,
   Edit,
   Trash2,
-  Award,
   TrendingUp,
   Clock,
   CreditCard,
@@ -54,7 +53,6 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerWithOrders | null>(null);
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
-  const [showRewardDialog, setShowRewardDialog] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
 
   const [customerForm, setCustomerForm] = useState({
@@ -71,16 +69,6 @@ export default function CustomersPage() {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesText, setNotesText] = useState("");
 
-  const [rewardForm, setRewardForm] = useState({
-    name: "",
-    description: "",
-    pointsCost: "",
-    rewardType: "discount" as "discount" | "product",
-    discountType: "fixed",
-    discountValue: "",
-    productId: "",
-  });
-
   const { data: customers, isLoading: customersLoading } = useQuery<Customer[]>({
     queryKey: ["/api/customers", searchQuery],
     queryFn: async () => {
@@ -89,11 +77,6 @@ export default function CustomersPage() {
       });
       return response.json();
     },
-    enabled: !!tenant?.id,
-  });
-
-  const { data: rewards, isLoading: rewardsLoading } = useQuery<LoyaltyReward[]>({
-    queryKey: ["/api/loyalty/rewards"],
     enabled: !!tenant?.id,
   });
 
@@ -145,29 +128,6 @@ export default function CustomersPage() {
     },
   });
 
-  const createRewardMutation = useMutation({
-    mutationFn: async (data: typeof rewardForm) => {
-      return apiRequest("POST", "/api/loyalty/rewards", {
-        name: data.name,
-        description: data.description,
-        pointsCost: parseInt(data.pointsCost),
-        rewardType: data.rewardType,
-        discountType: data.rewardType === "discount" ? data.discountType : null,
-        discountValue: data.rewardType === "discount" ? parseFloat(data.discountValue) : null,
-        productId: data.rewardType === "product" ? data.productId : null,
-      });
-    },
-    onSuccess: () => {
-      toast({ title: t("customers.reward_created") });
-      setShowRewardDialog(false);
-      resetRewardForm();
-      queryClient.invalidateQueries({ queryKey: ["/api/loyalty/rewards"] });
-    },
-    onError: () => {
-      toast({ title: t("customers.reward_error"), variant: "destructive" });
-    },
-  });
-
   const resetCustomerForm = () => {
     setCustomerForm({
       name: "",
@@ -178,18 +138,6 @@ export default function CustomersPage() {
       idNumber: "",
       notes: "",
       defaultDiscount: "",
-    });
-  };
-
-  const resetRewardForm = () => {
-    setRewardForm({
-      name: "",
-      description: "",
-      pointsCost: "",
-      rewardType: "discount",
-      discountType: "fixed",
-      discountValue: "",
-      productId: "",
     });
   };
 
@@ -397,39 +345,26 @@ export default function CustomersPage() {
                   </CardContent>
                 </Card>
                 
-                {/* Other Stats */}
-                <div className="grid grid-cols-3 gap-3">
+                {/* Other Stats - 2 columns for better fit */}
+                <div className="grid grid-cols-2 gap-2">
                   <Card>
-                    <CardContent className="p-3">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <Star className="w-4 h-4 shrink-0" />
-                        <span className="text-xs">{t("customers.loyalty_points")}</span>
+                    <CardContent className="p-2">
+                      <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
+                        <Star className="w-3.5 h-3.5 shrink-0" />
+                        <span className="text-[10px] truncate">{t("customers.pts")}</span>
                       </div>
-                      <p className="text-xl font-bold text-primary">
+                      <p className="text-lg font-bold text-primary">
                         {selectedCustomer.loyaltyPoints || 0}
                       </p>
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardContent className="p-3">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <ShoppingBag className="w-4 h-4 shrink-0" />
-                        <span className="text-xs">{t("customers.total_orders")}</span>
+                    <CardContent className="p-2">
+                      <div className="flex items-center gap-1.5 text-muted-foreground mb-0.5">
+                        <ShoppingBag className="w-3.5 h-3.5 shrink-0" />
+                        <span className="text-[10px] truncate">{t("customers.orders")}</span>
                       </div>
-                      <p className="text-xl font-bold">{selectedCustomer.orderCount || 0}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-3">
-                      <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                        <Clock className="w-4 h-4 shrink-0" />
-                        <span className="text-xs">{t("customers.member_since")}</span>
-                      </div>
-                      <p className="text-base font-semibold">
-                        {selectedCustomer.lastPurchaseAt
-                          ? formatDate(new Date(selectedCustomer.lastPurchaseAt))
-                          : "-"}
-                      </p>
+                      <p className="text-lg font-bold">{selectedCustomer.orderCount || 0}</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -639,72 +574,6 @@ export default function CustomersPage() {
       </div>
       )}
 
-      {/* Rewards Panel - Desktop only */}
-      <div className={`${isMobile ? 'hidden' : 'w-72'} border-l bg-card flex flex-col`}>
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Gift className="w-5 h-5 text-primary" />
-              <h2 className="font-semibold">{t("customers.loyalty_rewards")}</h2>
-            </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() => setShowRewardDialog(true)}
-              data-testid="button-add-reward"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto touch-scroll">
-          {rewardsLoading ? (
-            <div className="p-4 space-y-3">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-24 w-full" />
-              ))}
-            </div>
-          ) : rewards && rewards.length > 0 ? (
-            <div className="p-4 space-y-3">
-              {rewards.map((reward) => (
-                <Card key={reward.id} className="hover-elevate">
-                  <CardContent className="p-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Award className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{reward.name}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {reward.description || "No description"}
-                        </p>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="secondary" className="text-xs">
-                            <Star className="w-3 h-3 mr-1" />
-                            {reward.pointsCost} pts
-                          </Badge>
-                          <span className="text-xs text-green-600 font-medium">
-                            {reward.discountType === "percentage"
-                              ? `${reward.discountValue}% off`
-                              : formatCurrency(reward.discountValue || 0)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-64 p-4 text-muted-foreground text-center">
-              <Gift className="w-10 h-10 mb-3 opacity-30" />
-              <p className="font-medium text-sm">{t("customers.no_rewards")}</p>
-              <p className="text-xs">{t("customers.create_rewards")}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Mobile Customer Details Sheet */}
       {isMobile && selectedCustomer && (
         <Sheet open={showMobileDetails} onOpenChange={setShowMobileDetails}>
@@ -884,136 +753,6 @@ export default function CustomersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Reward Dialog */}
-      <Dialog open={showRewardDialog} onOpenChange={setShowRewardDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("customers.create_loyalty_reward")}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>{t("customers.reward_name")} *</Label>
-              <Input
-                value={rewardForm.name}
-                onChange={(e) => setRewardForm({ ...rewardForm, name: e.target.value })}
-                placeholder={t("customers.reward_name_placeholder")}
-                data-testid="input-reward-name"
-              />
-            </div>
-            <div>
-              <Label>{t("customers.description")}</Label>
-              <Textarea
-                value={rewardForm.description}
-                onChange={(e) => setRewardForm({ ...rewardForm, description: e.target.value })}
-                placeholder={t("customers.reward_description_placeholder")}
-                rows={2}
-                data-testid="input-reward-description"
-              />
-            </div>
-            <div>
-              <Label>{t("customers.points_required")} *</Label>
-              <Input
-                type="number"
-                value={rewardForm.pointsCost}
-                onChange={(e) => setRewardForm({ ...rewardForm, pointsCost: e.target.value })}
-                placeholder="100"
-                data-testid="input-reward-points"
-              />
-            </div>
-            
-            {/* Reward Type Selection */}
-            <div>
-              <Label>{t("customers.reward_type")}</Label>
-              <Select
-                value={rewardForm.rewardType}
-                onValueChange={(value: "discount" | "product") => setRewardForm({ ...rewardForm, rewardType: value, productId: "", discountValue: "" })}
-              >
-                <SelectTrigger data-testid="select-reward-category">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="discount">{t("customers.reward_type_discount")}</SelectItem>
-                  <SelectItem value="product">{t("customers.reward_type_product")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Discount Fields */}
-            {rewardForm.rewardType === "discount" && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>{t("customers.discount_type")}</Label>
-                  <Select
-                    value={rewardForm.discountType}
-                    onValueChange={(value) => setRewardForm({ ...rewardForm, discountType: value })}
-                  >
-                    <SelectTrigger data-testid="select-discount-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="fixed">{t("customers.fixed_amount")}</SelectItem>
-                      <SelectItem value="percentage">{t("customers.percentage")}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>{t("customers.discount_value")} *</Label>
-                  <Input
-                    type="number"
-                    value={rewardForm.discountValue}
-                    onChange={(e) => setRewardForm({ ...rewardForm, discountValue: e.target.value })}
-                    placeholder={rewardForm.discountType === "percentage" ? "10" : "5000"}
-                    data-testid="input-reward-value"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Product Selection */}
-            {rewardForm.rewardType === "product" && (
-              <div>
-                <Label>{t("customers.select_product")} *</Label>
-                <Select
-                  value={rewardForm.productId}
-                  onValueChange={(value) => setRewardForm({ ...rewardForm, productId: value })}
-                >
-                  <SelectTrigger data-testid="select-reward-product">
-                    <SelectValue placeholder={t("customers.select_product_placeholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products?.filter(p => p.isActive).map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {formatCurrency(product.price)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("customers.free_product_hint")}
-                </p>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRewardDialog(false)}>
-              {t("customers.cancel")}
-            </Button>
-            <Button
-              onClick={() => createRewardMutation.mutate(rewardForm)}
-              disabled={
-                !rewardForm.name.trim() || 
-                !rewardForm.pointsCost || 
-                (rewardForm.rewardType === "discount" && !rewardForm.discountValue) ||
-                (rewardForm.rewardType === "product" && !rewardForm.productId) ||
-                createRewardMutation.isPending
-              }
-              data-testid="button-save-reward"
-            >
-              {t("customers.create_reward")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+      </div>
   );
 }

@@ -668,16 +668,18 @@ export default function POSPage() {
   
   const CartContent = () => (
     <>
-      <div className="p-4 pr-6 border-b">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="w-5 h-5 text-primary" />
-            <h2 className="font-semibold">{t("pos.current_order")}</h2>
-            <NetworkStatusIndicator />
+      <div className="p-3 border-b">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <ShoppingCart className="w-4 h-4 text-primary shrink-0" />
+            <h2 className="font-semibold text-sm truncate">{t("pos.current_order")}</h2>
           </div>
-          {cart.length > 0 && (
-            <Badge variant="secondary">{cart.length} {t("pos.items")}</Badge>
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <NetworkStatusIndicator />
+            {cart.length > 0 && (
+              <Badge variant="secondary" className="text-xs">{cart.length}</Badge>
+            )}
+          </div>
         </div>
       </div>
 
