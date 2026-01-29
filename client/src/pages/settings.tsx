@@ -2787,44 +2787,32 @@ export default function SettingsPage() {
                       <Printer className="w-6 h-6 text-blue-500" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold">{t("downloads.printbridge_windows")}</h3>
+                      <h3 className="font-semibold">PrintBridge</h3>
                       <p className="text-sm text-muted-foreground mb-3">
-                        {t("downloads.printbridge_windows_desc")}
+                        {t("downloads.printbridge_desc")}
                       </p>
-                      <a 
-                        href="/printbridge/simple.zip" 
-                        download="PrintBridge-Windows.zip"
-                        className="inline-flex"
-                      >
-                        <Button variant="outline" data-testid="button-download-printbridge-win">
-                          <Download className="w-4 h-4 mr-2" />
-                          {t("downloads.download_windows")}
-                        </Button>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-gray-500/10 rounded-lg">
-                      <Printer className="w-6 h-6 text-gray-500" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold">{t("downloads.printbridge_mac")}</h3>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {t("downloads.printbridge_mac_desc")}
-                      </p>
-                      <a 
-                        href="/printbridge/mac.zip" 
-                        download="PrintBridge-Mac.zip"
-                        className="inline-flex"
-                      >
-                        <Button variant="outline" data-testid="button-download-printbridge-mac">
-                          <Download className="w-4 h-4 mr-2" />
-                          {t("downloads.download_mac")}
-                        </Button>
-                      </a>
+                      <div className="flex flex-wrap gap-2">
+                        <a 
+                          href="/printbridge/simple.zip" 
+                          download="PrintBridge-Windows.zip"
+                          className="inline-flex"
+                        >
+                          <Button variant="outline" data-testid="button-download-printbridge-win">
+                            <Download className="w-4 h-4 mr-2" />
+                            {t("downloads.download_windows")}
+                          </Button>
+                        </a>
+                        <a 
+                          href="/printbridge/mac.zip" 
+                          download="PrintBridge-Mac.zip"
+                          className="inline-flex"
+                        >
+                          <Button variant="outline" data-testid="button-download-printbridge-mac">
+                            <Download className="w-4 h-4 mr-2" />
+                            {t("downloads.download_mac")}
+                          </Button>
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
