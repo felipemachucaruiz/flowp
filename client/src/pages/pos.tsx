@@ -1010,12 +1010,15 @@ export default function POSPage() {
 
         {/* Held Orders */}
         {heldOrders.length > 0 && (
-          <div className="p-3 sm:p-4 border-t bg-muted/30">
+          <div 
+            className="p-3 sm:p-4 border-t bg-muted/30"
+            style={{ paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}
+          >
             <div className="flex items-center gap-2 mb-2">
               <Pause className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">{t("pos.held_orders")}</span>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap pb-16 sm:pb-0">
               {heldOrders.map((order, index) => (
                 <Button
                   key={order.id}
