@@ -233,6 +233,12 @@ export default function POSPage() {
       removeFromCart(freeProductItemId);
       setFreeProductItemId(null);
     }
+    // Also remove any items with IDs starting with "free-" (for safety/legacy items)
+    cart.forEach(item => {
+      if (item.id.startsWith("free-")) {
+        removeFromCart(item.id);
+      }
+    });
     // Clear all discount values
     setDiscountPercent("0");
     setFixedDiscountAmount(0);
@@ -601,14 +607,33 @@ export default function POSPage() {
     , paymentEntries[0]);
 
     // Transform cart items to use original product IDs for free items
-    const orderItems = cart.map(item => ({
-      ...item,
-      product: {
-        ...item.product,
-        // Use original product ID if this is a free loyalty reward item
-        id: (item.product as { originalProductId?: string }).originalProductId || item.product.id,
+    // For legacy items without originalProductId, look up the product by name
+    const orderItems = cart.map(item => {
+      const productWithOriginal = item.product as { originalProductId?: string };
+      let productId = item.product.id;
+      
+      // If this is a free item (ID starts with "free-"), use the original product ID
+      if (item.id.startsWith("free-") || item.product.id.startsWith("free-")) {
+        if (productWithOriginal.originalProductId) {
+          productId = productWithOriginal.originalProductId;
+        } else {
+          // Legacy: Find the actual product by matching name (without the "(GRATIS)" suffix)
+          const cleanName = item.product.name.replace(/\s*\([^)]*GRATIS[^)]*\)\s*$/i, "").replace(/\s*\([^)]*FREE[^)]*\)\s*$/i, "").trim();
+          const matchingProduct = products?.find(p => p.name === cleanName);
+          if (matchingProduct) {
+            productId = matchingProduct.id;
+          }
+        }
       }
-    }));
+      
+      return {
+        ...item,
+        product: {
+          ...item.product,
+          id: productId,
+        }
+      };
+    });
 
     const orderData = {
       items: orderItems,
@@ -713,7 +738,7 @@ export default function POSPage() {
       ) : (
         <>
           <ScrollArea className="flex-1">
-            <div className="p-4 pr-6 space-y-3">
+            <div className="p-4 pr-8 space-y-3">
               {cart.map((item) => (
                 <Card key={item.id} className="p-3">
                   <div className="flex items-start gap-3">
@@ -788,7 +813,7 @@ export default function POSPage() {
             </div>
           </ScrollArea>
 
-          <div className="border-t p-4 pr-6 space-y-3 bg-muted/30">
+          <div className="border-t p-4 pr-8 space-y-3 bg-muted/30">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("pos.subtotal")}</span>
