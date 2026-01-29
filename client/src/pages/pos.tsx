@@ -45,6 +45,7 @@ import { NetworkStatusIndicator } from "@/components/network-status-indicator";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { saveOfflineOrder } from "@/lib/offline-storage";
 import { syncManager } from "@/lib/sync-manager";
+import { CameraBarcodeScanner } from "@/components/camera-barcode-scanner";
 
 export default function POSPage() {
   const { toast } = useToast();
@@ -71,6 +72,7 @@ export default function POSPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [barcodeMode, setBarcodeMode] = useState(false);
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
   
   // Split payment state
   interface PaymentEntry {
@@ -919,7 +921,8 @@ export default function POSPage() {
               size="icon"
               className="shrink-0"
               title={t("pos.barcode_ready")}
-              data-testid="button-barcode-indicator"
+              onClick={() => setShowCameraScanner(true)}
+              data-testid="button-barcode-scan"
             >
               <ScanBarcode className="w-4 h-4" />
             </Button>
@@ -1498,6 +1501,16 @@ export default function POSPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Camera Barcode Scanner */}
+      <CameraBarcodeScanner
+        isOpen={showCameraScanner}
+        onClose={() => setShowCameraScanner(false)}
+        onScan={(barcode) => {
+          handleBarcodeInput(barcode, products);
+          setShowCameraScanner(false);
+        }}
+      />
     </div>
   );
 }
