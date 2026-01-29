@@ -22,7 +22,7 @@ const config: CapacitorConfig = {
       splashImmersive: true
     },
     StatusBar: {
-      style: 'Dark',
+      style: 'DARK',
       backgroundColor: '#f8fafc',
       overlaysWebView: true
     },
@@ -39,11 +39,9 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false
   },
   ios: {
-    contentInset: 'never',
     allowsLinkPreview: false,
     backgroundColor: '#f8fafc',
     scrollEnabled: true,
-    limitsNavigationsToAppBoundDomains: false,
     preferredContentMode: 'mobile'
   }
 };
