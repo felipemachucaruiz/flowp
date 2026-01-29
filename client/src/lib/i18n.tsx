@@ -101,6 +101,7 @@ const translations = {
     "pos.camera_not_supported": "Camera is not supported in this app. Please use Safari browser to scan barcodes.",
     "pos.camera_permission_denied": "Camera permission denied. Please allow camera access in your browser settings.",
     "pos.no_camera_found": "No camera found on this device.",
+    "pos.install_barcode_plugin": "Barcode scanner plugin not installed. Please install @capacitor-mlkit/barcode-scanning in your mobile project.",
     
     // Network Status
     "network.online": "Online",
@@ -1257,6 +1258,7 @@ const translations = {
     "pos.camera_not_supported": "La cámara no es compatible con esta app. Usa Safari para escanear códigos.",
     "pos.camera_permission_denied": "Permiso de cámara denegado. Permite el acceso a la cámara en configuración.",
     "pos.no_camera_found": "No se encontró cámara en este dispositivo.",
+    "pos.install_barcode_plugin": "Plugin de escáner no instalado. Instala @capacitor-mlkit/barcode-scanning en tu proyecto.",
     
     // Network Status
     "network.online": "En línea",
@@ -2410,6 +2412,7 @@ const translations = {
     "pos.camera_not_supported": "A câmera não é suportada neste app. Use o Safari para escanear códigos.",
     "pos.camera_permission_denied": "Permissão de câmera negada. Permita o acesso à câmera nas configurações.",
     "pos.no_camera_found": "Nenhuma câmera encontrada neste dispositivo.",
+    "pos.install_barcode_plugin": "Plugin de scanner não instalado. Instale @capacitor-mlkit/barcode-scanning no seu projeto.",
     
     // Network Status
     "network.online": "Online",

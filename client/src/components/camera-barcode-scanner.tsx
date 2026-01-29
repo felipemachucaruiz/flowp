@@ -1,13 +1,28 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import { Button } from "@/components/ui/button";
-import { X, SwitchCamera } from "lucide-react";
+import { X, SwitchCamera, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 interface CameraBarcodeScannerProps {
   onScan: (barcode: string) => void;
   onClose: () => void;
   isOpen: boolean;
+}
+
+declare global {
+  interface Window {
+    Capacitor?: {
+      isNativePlatform: () => boolean;
+      Plugins?: {
+        BarcodeScanner?: {
+          scan: () => Promise<{ barcodes: { rawValue: string }[] }>;
+          requestPermissions: () => Promise<{ camera: string }>;
+          isSupported: () => Promise<{ supported: boolean }>;
+        };
+      };
+    };
+  }
 }
 
 export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeScannerProps) {
@@ -20,8 +35,11 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedDeviceIndex, setSelectedDeviceIndex] = useState(0);
   const [isScanning, setIsScanning] = useState(false);
+  const [isNativeScanning, setIsNativeScanning] = useState(false);
   const lastScannedRef = useRef<string>("");
   const lastScanTimeRef = useRef<number>(0);
+
+  const isCapacitor = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.();
 
   const stopScanning = useCallback(() => {
     if (readerRef.current) {
@@ -32,7 +50,43 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
       streamRef.current = null;
     }
     setIsScanning(false);
+    setIsNativeScanning(false);
   }, []);
+
+  const tryNativeScan = useCallback(async (): Promise<boolean> => {
+    if (!isCapacitor) return false;
+    
+    try {
+      const BarcodeScanner = window.Capacitor?.Plugins?.BarcodeScanner;
+      if (!BarcodeScanner) {
+        return false;
+      }
+
+      setIsNativeScanning(true);
+      
+      const permission = await BarcodeScanner.requestPermissions();
+      if (permission.camera !== 'granted') {
+        setError(t("pos.camera_permission_denied"));
+        setIsNativeScanning(false);
+        return true;
+      }
+
+      const result = await BarcodeScanner.scan();
+      
+      if (result.barcodes && result.barcodes.length > 0) {
+        const barcode = result.barcodes[0].rawValue;
+        onScan(barcode);
+        onClose();
+      }
+      
+      setIsNativeScanning(false);
+      return true;
+    } catch (err) {
+      console.log('Native scanner not available, falling back to web', err);
+      setIsNativeScanning(false);
+      return false;
+    }
+  }, [isCapacitor, onScan, onClose, t]);
 
   const startScanning = useCallback(async () => {
     if (!videoRef.current || !isOpen) return;
@@ -41,21 +95,31 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
       setError(null);
       setIsScanning(true);
 
-      // Check if camera API is available
+      // Try native scanner first for Capacitor apps
+      if (isCapacitor) {
+        const usedNative = await tryNativeScan();
+        if (usedNative) {
+          return;
+        }
+      }
+
+      // Check if camera API is available (web fallback)
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setError(t("pos.camera_not_supported"));
+        if (isCapacitor) {
+          setError(t("pos.install_barcode_plugin"));
+        } else {
+          setError(t("pos.camera_not_supported"));
+        }
         setHasPermission(false);
         setIsScanning(false);
         return;
       }
 
       // First request camera permission via getUserMedia
-      // This is required on mobile before enumerateDevices returns cameras
       try {
         const initialStream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" }
         });
-        // Stop the initial stream immediately, we'll start the real one below
         initialStream.getTracks().forEach(track => track.stop());
         setHasPermission(true);
       } catch (permErr) {
@@ -80,12 +144,11 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
         readerRef.current = new BrowserMultiFormatReader();
       }
 
-      // Now enumerate devices after permission is granted
       const videoInputDevices = await navigator.mediaDevices.enumerateDevices();
       const cameras = videoInputDevices.filter(device => device.kind === "videoinput");
       
       if (cameras.length === 0) {
-        setError("No camera found on this device.");
+        setError(t("pos.no_camera_found"));
         setHasPermission(false);
         setIsScanning(false);
         return;
@@ -103,7 +166,6 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
       
       const deviceId = orderedDevices[selectedDeviceIndex]?.deviceId || orderedDevices[0]?.deviceId;
 
-      // Start decoding from video device
       await readerRef.current.decodeFromVideoDevice(
         deviceId,
         videoRef.current,
@@ -112,11 +174,12 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
             const scannedText = result.getText();
             const now = Date.now();
             
-            // Debounce: don't trigger same barcode within 2 seconds
             if (scannedText !== lastScannedRef.current || now - lastScanTimeRef.current > 2000) {
               lastScannedRef.current = scannedText;
               lastScanTimeRef.current = now;
               onScan(scannedText);
+              stopScanning();
+              onClose();
             }
           }
           if (err && !(err instanceof NotFoundException)) {
@@ -124,100 +187,80 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
           }
         }
       );
+
+      if (videoRef.current.srcObject) {
+        streamRef.current = videoRef.current.srcObject as MediaStream;
+      }
     } catch (err) {
       console.error("Camera error:", err);
-      if (err instanceof Error) {
-        if (err.name === "NotAllowedError") {
-          setError("Camera permission denied. Please allow camera access in your browser settings.");
-          setHasPermission(false);
-        } else if (err.name === "NotFoundError") {
-          setError("No camera found on this device.");
-          setHasPermission(false);
-        } else if (err.name === "NotReadableError") {
-          setError("Camera is in use by another app. Please close other apps using the camera.");
-          setHasPermission(false);
-        } else {
-          setError(`Camera error: ${err.message}`);
-        }
-      }
+      setError(`Camera error: ${err instanceof Error ? err.message : String(err)}`);
       setIsScanning(false);
     }
-  }, [isOpen, selectedDeviceIndex, onScan]);
+  }, [isOpen, isCapacitor, tryNativeScan, selectedDeviceIndex, onScan, onClose, stopScanning, t]);
 
   const switchCamera = useCallback(() => {
-    if (devices.length > 1) {
-      stopScanning();
-      setSelectedDeviceIndex((prev) => (prev + 1) % devices.length);
-    }
-  }, [devices.length, stopScanning]);
+    if (devices.length <= 1) return;
+    
+    stopScanning();
+    const nextIndex = (selectedDeviceIndex + 1) % devices.length;
+    setSelectedDeviceIndex(nextIndex);
+  }, [devices.length, selectedDeviceIndex, stopScanning]);
 
-  // Start scanning when opened
   useEffect(() => {
     if (isOpen) {
-      const timer = setTimeout(() => {
-        startScanning();
-      }, 100);
-      return () => clearTimeout(timer);
+      startScanning();
     } else {
       stopScanning();
     }
-  }, [isOpen, startScanning, stopScanning]);
-
-  // Restart scanning when device changes
-  useEffect(() => {
-    if (isOpen && devices.length > 0 && selectedDeviceIndex > 0) {
-      stopScanning();
-      const timer = setTimeout(() => {
-        startScanning();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedDeviceIndex]);
-
-  // Cleanup on unmount
-  useEffect(() => {
+    
     return () => {
       stopScanning();
     };
-  }, [stopScanning]);
+  }, [isOpen, startScanning, stopScanning]);
+
+  useEffect(() => {
+    if (isOpen && selectedDeviceIndex > 0) {
+      startScanning();
+    }
+  }, [selectedDeviceIndex]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-black/80 safe-area-pt">
-        <h2 className="text-white font-semibold text-lg">{t("pos.scan_barcode")}</h2>
-        <div className="flex items-center gap-2">
-          {devices.length > 1 && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="text-white hover:bg-white/20"
-              onClick={switchCamera}
-              data-testid="button-switch-camera"
-            >
-              <SwitchCamera className="w-6 h-6" />
-            </Button>
-          )}
-          <Button
-            size="icon"
-            variant="ghost"
-            className="text-white hover:bg-white/20"
-            onClick={onClose}
-            data-testid="button-close-scanner"
-          >
-            <X className="w-6 h-6" />
-          </Button>
-        </div>
+    <div className="fixed inset-0 z-50 bg-black flex flex-col safe-area-pt safe-area-pb">
+      <div className="flex items-center justify-between p-4 bg-black/80">
+        <h2 className="text-white text-lg font-semibold">{t("pos.scan_barcode")}</h2>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            stopScanning();
+            onClose();
+          }}
+          className="text-white hover:bg-white/20"
+          data-testid="button-close-scanner"
+        >
+          <X className="w-6 h-6" />
+        </Button>
       </div>
 
-      {/* Camera View */}
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-        {error ? (
-          <div className="text-center p-6">
-            <p className="text-white text-lg mb-4">{error}</p>
-            <Button onClick={startScanning} variant="secondary" data-testid="button-try-again-camera">
+      <div className="flex-1 relative flex items-center justify-center">
+        {isNativeScanning ? (
+          <div className="text-center text-white">
+            <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin" />
+            <p className="text-lg">{t("pos.starting_camera")}</p>
+          </div>
+        ) : error ? (
+          <div className="text-center text-white px-4">
+            <p className="text-red-400 mb-4">{error}</p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setError(null);
+                startScanning();
+              }}
+              data-testid="button-retry-camera"
+            >
               {t("common.try_again")}
             </Button>
           </div>
@@ -226,43 +269,38 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
             <video
               ref={videoRef}
               className="w-full h-full object-cover"
-              playsInline
               autoPlay
+              playsInline
               muted
-              webkit-playsinline="true"
-              x5-playsinline="true"
+              {...{ "webkit-playsinline": "true" } as any}
+              {...{ "x5-playsinline": "true" } as any}
             />
-            
-            {/* Scan area overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-72 h-48 relative">
-                {/* Corner brackets */}
-                <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-primary rounded-tl-lg" />
-                <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-primary rounded-tr-lg" />
-                <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-primary rounded-bl-lg" />
-                <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-primary rounded-br-lg" />
-                
-                {/* Scan line animation */}
-                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-primary/50 animate-pulse" />
-              </div>
-            </div>
-            
-            {/* Loading state */}
-            {!isScanning && hasPermission === null && (
+            {!isScanning && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                <div className="text-white text-center">
-                  <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-2" />
-                  <p>{t("pos.starting_camera")}</p>
-                </div>
+                <Loader2 className="w-10 h-10 text-white animate-spin" />
+                <span className="text-white ml-3">{t("pos.starting_camera")}</span>
               </div>
             )}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-32 border-2 border-white/50 rounded-lg" />
+            </div>
           </>
         )}
       </div>
 
-      {/* Footer */}
-      <div className="p-4 bg-black/80 text-center safe-area-pb">
-        <p className="text-white/70 text-sm">
+      <div className="p-4 bg-black/80 flex justify-center gap-4">
+        {devices.length > 1 && !error && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={switchCamera}
+            className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+            data-testid="button-switch-camera"
+          >
+            <SwitchCamera className="w-5 h-5" />
+          </Button>
+        )}
+        <p className="text-white/70 text-sm self-center">
           {t("pos.point_camera_at_barcode")}
         </p>
       </div>
