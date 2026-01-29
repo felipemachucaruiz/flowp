@@ -1422,7 +1422,7 @@ export default function SettingsPage() {
               <span className="hidden sm:inline">{t("settings.import")}</span>
               <span className="sm:hidden">{t("settings.import").split(' ')[0]}</span>
             </TabsTrigger>
-            <TabsTrigger value="downloads" data-testid="tab-downloads" className="text-xs sm:text-sm">
+            <TabsTrigger value="downloads" data-testid="tab-downloads" className="hidden sm:flex text-xs sm:text-sm">
               <Download className="w-4 h-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">{t("settings.downloads")}</span>
               <span className="sm:hidden">{t("settings.downloads").split(' ')[0]}</span>
@@ -2562,7 +2562,9 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <PrintBridgeSettings />
+              <div className="hidden sm:block">
+                <PrintBridgeSettings />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
