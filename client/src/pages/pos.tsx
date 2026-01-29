@@ -255,10 +255,17 @@ export default function POSPage() {
       // Find the product and add it to cart for free
       const product = products?.find(p => p.id === reward.productId);
       if (product) {
-        // Create a unique ID for tracking this free item
+        // Create a unique ID for tracking this free item in the cart
         const freeItemId = `free-${Date.now()}`;
         // Create a copy of the product with price = 0 for free item
-        const freeProduct = { ...product, id: freeItemId, price: "0", name: `${product.name} (${t("pos.free_item")})` };
+        // Store the original product ID for order submission
+        const freeProduct = { 
+          ...product, 
+          id: freeItemId, 
+          originalProductId: product.id,
+          price: "0", 
+          name: `${product.name} (${t("pos.free_item")})` 
+        };
         addToCart(freeProduct);
         setFreeProductItemId(freeItemId);
         setAppliedReward(reward);
@@ -593,8 +600,18 @@ export default function POSPage() {
       parseFloat(entry.amount) > parseFloat(max.amount) ? entry : max
     , paymentEntries[0]);
 
+    // Transform cart items to use original product IDs for free items
+    const orderItems = cart.map(item => ({
+      ...item,
+      product: {
+        ...item.product,
+        // Use original product ID if this is a free loyalty reward item
+        id: (item.product as { originalProductId?: string }).originalProductId || item.product.id,
+      }
+    }));
+
     const orderData = {
-      items: cart,
+      items: orderItems,
       paymentMethod: paymentEntries.length > 1 ? "split" : primaryPayment.type,
       payments: paymentEntries.map(e => ({
         type: e.type,
