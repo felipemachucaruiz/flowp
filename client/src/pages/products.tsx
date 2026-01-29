@@ -163,8 +163,8 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
-        <Card className="xl:col-span-1">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -173,8 +173,8 @@ export default function ProductsPage() {
               </CardTitle>
               <CardDescription>{t("categories.subtitle")}</CardDescription>
             </div>
-            <Button size="sm" onClick={() => openCategoryDialog()} data-testid="button-add-category">
-              <Plus className="w-4 h-4 mr-1" />
+            <Button onClick={() => openCategoryDialog()} data-testid="button-add-category">
+              <Plus className="w-4 h-4 mr-2" />
               {t("categories.add")}
             </Button>
           </CardHeader>
@@ -227,7 +227,7 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-2">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
