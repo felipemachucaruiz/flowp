@@ -5,66 +5,44 @@ function isNativePlatform(): boolean {
   return !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
 }
 
-let StatusBarPlugin: any = null;
-let StyleEnum: any = null;
-
-async function getStatusBar() {
-  if (!isNativePlatform()) {
-    return null;
-  }
-  
-  if (!StatusBarPlugin) {
-    try {
-      const module = await import('@capacitor/status-bar');
-      StatusBarPlugin = module.StatusBar;
-      StyleEnum = module.Style;
-    } catch (e) {
-      console.log('[StatusBar] Plugin not available:', e);
-      return null;
-    }
-  }
-  
-  return { StatusBar: StatusBarPlugin, Style: StyleEnum };
-}
-
 export async function initializeStatusBar() {
-  const plugins = await getStatusBar();
-  if (!plugins) return;
-  
-  const { StatusBar } = plugins;
+  if (!isNativePlatform()) return;
   
   try {
-    await StatusBar.setOverlaysWebView({ overlay: true });
-    console.log('[StatusBar] Overlay enabled');
+    const win = window as any;
+    if (win.Capacitor?.Plugins?.StatusBar) {
+      await win.Capacitor.Plugins.StatusBar.setOverlaysWebView({ overlay: true });
+      console.log('[StatusBar] Overlay enabled');
+    }
   } catch (e) {
     console.log('[StatusBar] Init error:', e);
   }
 }
 
 export async function updateStatusBarStyle(isDarkMode: boolean) {
-  const plugins = await getStatusBar();
-  if (!plugins || !plugins.Style) return;
-  
-  const { StatusBar, Style } = plugins;
+  if (!isNativePlatform()) return;
   
   try {
-    await StatusBar.setStyle({ 
-      style: isDarkMode ? Style.Dark : Style.Light 
-    });
-    console.log('[StatusBar] Style set to:', isDarkMode ? 'Dark' : 'Light');
+    const win = window as any;
+    if (win.Capacitor?.Plugins?.StatusBar) {
+      await win.Capacitor.Plugins.StatusBar.setStyle({ 
+        style: isDarkMode ? 'DARK' : 'LIGHT'
+      });
+      console.log('[StatusBar] Style set to:', isDarkMode ? 'Dark' : 'Light');
+    }
   } catch (e) {
     console.log('[StatusBar] Style error:', e);
   }
 }
 
 export async function setStatusBarBackgroundColor(color: string) {
-  const plugins = await getStatusBar();
-  if (!plugins) return;
-  
-  const { StatusBar } = plugins;
+  if (!isNativePlatform()) return;
   
   try {
-    await StatusBar.setBackgroundColor({ color });
+    const win = window as any;
+    if (win.Capacitor?.Plugins?.StatusBar) {
+      await win.Capacitor.Plugins.StatusBar.setBackgroundColor({ color });
+    }
   } catch (e) {
     console.log('[StatusBar] Background color error:', e);
   }
