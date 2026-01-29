@@ -12,8 +12,10 @@ import { TourOverlay, TourButton } from "@/components/tour-overlay";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -90,6 +92,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const { t } = useI18n();
   const [, navigate] = useLocation();
+  const isMobile = useIsMobile();
 
   if (!user) {
     return <>{children}</>;
@@ -104,6 +107,23 @@ function AppLayout({ children }: { children: React.ReactNode }) {
     "--sidebar-width": "12rem",
     "--sidebar-width-icon": "3rem",
   };
+
+  if (isMobile) {
+    return (
+      <div className="flex flex-col h-screen w-full">
+        <header className="flex h-12 items-center justify-between gap-2 border-b px-3 bg-card shrink-0 safe-area-pt">
+          <span className="text-sm font-semibold truncate">Flowp POS</span>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handleLogout} data-testid="button-logout-mobile">
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
+        </header>
+        <main className="flex-1 overflow-hidden pb-16">{children}</main>
+        <MobileBottomNav />
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider style={style as React.CSSProperties} defaultOpen={window.innerWidth >= 1280}>
