@@ -1041,10 +1041,11 @@ export default function POSPage() {
         </div>
       )}
 
-      {/* Mobile Cart Button - Fixed above bottom nav */}
+      {/* Mobile Cart Button */}
       {isMobile && (
         <button
-          className="fixed bottom-24 right-4 h-16 w-16 rounded-full shadow-xl z-40 bg-primary text-primary-foreground flex items-center justify-center hover-elevate active-elevate-2 safe-area-pb"
+          className="fixed bottom-6 right-4 h-16 w-16 rounded-full shadow-xl z-40 bg-primary text-primary-foreground flex items-center justify-center hover-elevate active-elevate-2"
+          style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
           onClick={() => setShowMobileCart(true)}
           data-testid="button-mobile-cart"
         >
