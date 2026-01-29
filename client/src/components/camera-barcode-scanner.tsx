@@ -41,6 +41,14 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
       setError(null);
       setIsScanning(true);
 
+      // Check if camera API is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError(t("pos.camera_not_supported"));
+        setHasPermission(false);
+        setIsScanning(false);
+        return;
+      }
+
       // First request camera permission via getUserMedia
       // This is required on mobile before enumerateDevices returns cameras
       try {
@@ -53,7 +61,13 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
       } catch (permErr) {
         if (permErr instanceof Error) {
           if (permErr.name === "NotAllowedError") {
-            setError("Camera permission denied. Please allow camera access in your browser settings and try again.");
+            setError(t("pos.camera_permission_denied"));
+            setHasPermission(false);
+            setIsScanning(false);
+            return;
+          }
+          if (permErr.name === "NotFoundError" || permErr.name === "DevicesNotFoundError") {
+            setError(t("pos.no_camera_found"));
             setHasPermission(false);
             setIsScanning(false);
             return;
