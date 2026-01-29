@@ -705,7 +705,7 @@ export default function POSPage() {
   
   const CartContent = () => (
     <>
-      <div className="p-3 border-b">
+      <div className="p-3 pr-12 border-b">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <ShoppingCart className="w-4 h-4 text-primary shrink-0" />
