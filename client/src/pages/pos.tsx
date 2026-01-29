@@ -961,12 +961,12 @@ export default function POSPage() {
         {/* Products Grid */}
         <div 
           data-tour="pos-products"
-          className="flex-1 overflow-y-auto p-3 sm:p-4 pb-20 sm:pb-4 overscroll-contain touch-scroll"
+          className="flex-1 overflow-y-auto p-3 sm:p-4 pb-28 sm:pb-4 overscroll-contain touch-scroll"
         >
           {productsLoading ? (
-            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-1.5 sm:gap-2">
-              {[...Array(10)].map((_, i) => (
-                <Skeleton key={i} className="h-24 sm:h-28 rounded-lg" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-2">
+              {[...Array(8)].map((_, i) => (
+                <Skeleton key={i} className="h-32 sm:h-28 rounded-lg" />
               ))}
             </div>
           ) : filteredProducts?.length === 0 ? (
@@ -976,29 +976,29 @@ export default function POSPage() {
               <p className="text-sm">{t("pos.adjust_search")}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-1.5 sm:gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-2">
               {filteredProducts?.map((product) => (
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="flex flex-col items-center justify-center p-1.5 sm:p-2 rounded-lg border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[80px] sm:min-h-[100px]"
+                  className="flex flex-col items-center justify-center p-3 sm:p-2 rounded-xl border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[120px] sm:min-h-[100px]"
                   data-testid={`button-product-${product.id}`}
                 >
                   {product.image ? (
                     <img 
                       src={product.image} 
                       alt={product.name}
-                      className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded mb-2"
+                      className="w-14 h-14 sm:w-12 sm:h-12 object-cover rounded-lg mb-2"
                     />
                   ) : (
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-muted rounded mb-2 flex items-center justify-center">
-                      <Package className="w-5 h-5 sm:w-6 sm:h-6 text-muted-foreground" />
+                    <div className="w-14 h-14 sm:w-12 sm:h-12 bg-muted rounded-lg mb-2 flex items-center justify-center">
+                      <Package className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground" />
                     </div>
                   )}
-                  <span className="font-medium text-xs sm:text-sm text-center line-clamp-2 mb-1">
+                  <span className="font-medium text-sm sm:text-sm text-center line-clamp-2 mb-1">
                     {product.name}
                   </span>
-                  <span className="text-primary font-semibold text-xs sm:text-sm">
+                  <span className="text-primary font-semibold text-sm sm:text-sm">
                     {formatCurrency(parseFloat(product.price))}
                   </span>
                 </button>
@@ -1038,17 +1038,17 @@ export default function POSPage() {
         </div>
       )}
 
-      {/* Mobile Cart Button - Fixed at bottom right */}
+      {/* Mobile Cart Button - Fixed above bottom nav */}
       {isMobile && (
         <Button
           size="lg"
-          className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-lg z-50 bg-primary hover:bg-primary/90"
+          className="fixed bottom-20 right-4 h-16 w-16 rounded-full shadow-xl z-40 bg-primary hover:bg-primary/90"
           onClick={() => setShowMobileCart(true)}
           data-testid="button-mobile-cart"
         >
-          <ShoppingCart className="w-6 h-6" />
+          <ShoppingCart className="w-7 h-7" />
           {cart.length > 0 && (
-            <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 h-7 w-7 rounded-full bg-destructive text-destructive-foreground text-sm font-bold flex items-center justify-center">
               {cart.length}
             </span>
           )}
