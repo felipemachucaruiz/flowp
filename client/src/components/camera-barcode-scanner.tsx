@@ -97,68 +97,11 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
   }, []);
 
   const tryNativeScan = useCallback(async (): Promise<boolean> => {
-    if (!isCapacitor) return false;
-    
-    try {
-      const BarcodeScanner = getMLKitScanner();
-      if (!BarcodeScanner) {
-        console.log('MLKit BarcodeScanner plugin not found');
-        return false;
-      }
-
-      setIsNativeScanning(true);
-      
-      // Check if the plugin is supported on this device
-      try {
-        const supported = await BarcodeScanner.isSupported();
-        if (!supported.supported) {
-          console.log('MLKit BarcodeScanner not supported on this device');
-          setIsNativeScanning(false);
-          return false;
-        }
-      } catch (e) {
-        console.log('isSupported check failed, continuing anyway', e);
-      }
-
-      // Request camera permissions
-      const permission = await BarcodeScanner.requestPermissions();
-      if (permission.camera !== 'granted') {
-        setError(t("pos.camera_permission_denied"));
-        setIsNativeScanning(false);
-        return true;
-      }
-
-      // On Android, check if Google Barcode Scanner module is available
-      try {
-        const moduleAvailable = await BarcodeScanner.isGoogleBarcodeScannerModuleAvailable();
-        if (!moduleAvailable.available) {
-          console.log('Installing Google Barcode Scanner module...');
-          await BarcodeScanner.installGoogleBarcodeScannerModule();
-        }
-      } catch (e) {
-        // iOS doesn't have this method, so we ignore errors
-        console.log('Google Barcode Scanner module check skipped (iOS)', e);
-      }
-
-      // Use the scan() method which opens a full-screen scanner UI
-      const result = await BarcodeScanner.scan();
-      
-      if (result.barcodes && result.barcodes.length > 0) {
-        const barcode = result.barcodes[0].rawValue || result.barcodes[0].displayValue;
-        if (barcode) {
-          onScan(barcode);
-          onClose();
-        }
-      }
-      
-      setIsNativeScanning(false);
-      return true;
-    } catch (err) {
-      console.log('Native scanner error, falling back to web:', err);
-      setIsNativeScanning(false);
-      return false;
-    }
-  }, [isCapacitor, getMLKitScanner, onScan, onClose, t]);
+    // Always use web-based scanner with our custom rectangle viewfinder
+    // The native plugin's scan() method shows its own UI which we don't want
+    // By returning false, we fall back to the web scanner which gives us the rectangle viewfinder
+    return false;
+  }, []);
 
   const startScanning = useCallback(async () => {
     if (!videoRef.current || !isOpen) return;
@@ -317,12 +260,7 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
       </div>
 
       <div className="flex-1 relative flex items-center justify-center">
-        {isNativeScanning ? (
-          <div className="text-center text-white">
-            <Loader2 className="w-12 h-12 mx-auto mb-4 animate-spin" />
-            <p className="text-lg">{t("pos.starting_camera")}</p>
-          </div>
-        ) : error ? (
+        {error ? (
           <div className="text-center text-white px-4">
             <p className="text-red-400 mb-4">{error}</p>
             <Button
