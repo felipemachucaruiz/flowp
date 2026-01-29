@@ -1,12 +1,13 @@
 # Flowp - Multi-Tenant Point of Sale System
 
 ## Overview
-A production-ready, multi-tenant POS + Inventory system delivered as a Progressive Web App (PWA), optimized for Windows devices with one-click receipt printing support. The system supports both Retail and Restaurant tenants with feature flags controlling module availability.
+A production-ready, multi-tenant POS + Inventory system delivered as a Progressive Web App (PWA) with native desktop and mobile apps. Supports Windows, macOS, iOS, and Android with thermal printing, barcode scanning, and offline capability. The system supports both Retail and Restaurant tenants with feature flags controlling module availability.
 
 ## Current State
-- **Status**: MVP Complete + Management Portal Phase 1
-- **Last Updated**: January 26, 2026
+- **Status**: MVP Complete + Management Portal Phase 1 + Mobile App
+- **Last Updated**: January 29, 2026
 - **Stack**: React + TypeScript frontend, Express + PostgreSQL backend
+- **Platforms**: Web (PWA), Windows (Electron), macOS (Electron), iOS (Capacitor), Android (Capacitor)
 
 ## User Preferences
 - **Onboarding**: All fields are mandatory except for logo uploads (company logo and receipt logo are optional)
@@ -47,11 +48,20 @@ Internal admin portal for SaaS management with role-based access control.
 - Tax calculation
 
 ### Desktop App (Electron)
-- Windows installer with multi-language wizard (EN/ES/PT)
+- Windows and macOS installers
+- Windows: Multi-language NSIS wizard (EN/ES/PT)
+- macOS: DMG installer for Intel and Apple Silicon
 - **Native local printing** - NO PrintBridge required when using desktop app
-- App detects Electron environment and shows native printer selection in Settings
 - Direct ESC/POS thermal printer support with cash drawer control
 - Production URL: pos.flowp.app
+
+### Mobile App (Capacitor)
+- iOS and Android native apps wrapping the PWA
+- Bluetooth LE thermal printing support
+- Camera-based barcode scanning
+- Haptic feedback for button interactions
+- Same features as web app with native enhancements
+- Source: flowp-mobile folder
 
 ### Restaurant Module (enabled for restaurant tenants)
 - Floor and table management
