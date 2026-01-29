@@ -1403,7 +1403,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const { items, paymentMethod, subtotal, taxAmount, total, customerId, salesRepId } = req.body;
+      const { items, paymentMethod, subtotal, taxAmount, total, customerId, salesRepId, appliedRewardId, appliedRewardPoints } = req.body;
 
       // Get next order number
       const orderNumber = await storage.getNextOrderNumber(tenantId);
@@ -1469,8 +1469,12 @@ export async function registerRoutes(
           const orderTotal = parseFloat(total.toString());
           const pointsEarned = Math.floor(orderTotal / 1000);
           
+          // Calculate net points change (earned minus redeemed)
+          const pointsRedeemed = appliedRewardId && appliedRewardPoints ? appliedRewardPoints : 0;
+          const netPointsChange = pointsEarned - pointsRedeemed;
+          
           if (pointsEarned > 0) {
-            // Create loyalty transaction
+            // Create loyalty transaction for earned points
             await storage.createLoyaltyTransaction({
               tenantId,
               customerId,
@@ -1480,9 +1484,20 @@ export async function registerRoutes(
             });
           }
           
-          // Update customer stats
+          // Create loyalty transaction for redeemed points (if reward was applied)
+          if (pointsRedeemed > 0) {
+            await storage.createLoyaltyTransaction({
+              tenantId,
+              customerId,
+              orderId: order.id,
+              type: "redeemed",
+              points: -pointsRedeemed,
+            });
+          }
+          
+          // Update customer stats with net points change
           await storage.updateCustomer(customerId, {
-            loyaltyPoints: (customer.loyaltyPoints || 0) + pointsEarned,
+            loyaltyPoints: Math.max(0, (customer.loyaltyPoints || 0) + netPointsChange),
             totalSpent: (parseFloat(customer.totalSpent?.toString() || "0") + orderTotal).toString(),
             orderCount: (customer.orderCount || 0) + 1,
             lastPurchaseAt: new Date(),

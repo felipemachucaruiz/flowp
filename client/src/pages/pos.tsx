@@ -608,6 +608,8 @@ export default function POSPage() {
       total: getTotalWithDiscount(taxRate),
       customerId: selectedCustomer.id,
       salesRepId: selectedSalesRep?.id,
+      appliedRewardId: appliedReward?.id,
+      appliedRewardPoints: appliedReward?.pointsCost,
     };
 
     const totalCashReceived = paymentEntries
