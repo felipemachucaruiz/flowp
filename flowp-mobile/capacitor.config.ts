@@ -22,8 +22,9 @@ const config: CapacitorConfig = {
       splashImmersive: true
     },
     StatusBar: {
-      style: 'LIGHT',
-      backgroundColor: '#f8fafc'
+      style: 'Dark',
+      backgroundColor: '#f8fafc',
+      overlaysWebView: true
     },
     Camera: {
       // Camera permissions for barcode scanning
@@ -38,8 +39,12 @@ const config: CapacitorConfig = {
     webContentsDebuggingEnabled: false
   },
   ios: {
-    contentInset: 'automatic',
-    allowsLinkPreview: false
+    contentInset: 'never',
+    allowsLinkPreview: false,
+    backgroundColor: '#f8fafc',
+    scrollEnabled: true,
+    limitsNavigationsToAppBoundDomains: false,
+    preferredContentMode: 'mobile'
   }
 };
 
