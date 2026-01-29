@@ -136,28 +136,29 @@ export default function TablesPage() {
 
   return (
     <div className="h-full overflow-y-auto touch-scroll">
-    <div className="p-6 space-y-6">
+    <div className="p-4 lg:p-6 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("tables.title")}</h1>
-          <p className="text-muted-foreground">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-xl lg:text-2xl font-bold tracking-tight truncate">{t("tables.title")}</h1>
+          <p className="text-sm text-muted-foreground truncate">
             {t("tables.subtitle")}
           </p>
         </div>
-        <Button onClick={() => navigate("/kitchen")} variant="outline" data-testid="button-goto-kitchen">
-          <ChefHat className="w-4 h-4 mr-2" />
-          {t("tables.kitchen_view")}
+        <Button onClick={() => navigate("/kitchen")} variant="outline" size="sm" data-testid="button-goto-kitchen">
+          <ChefHat className="w-4 h-4 mr-1" />
+          <span className="hidden sm:inline">{t("tables.kitchen_view")}</span>
         </Button>
       </div>
 
       {/* Floor Tabs */}
       <Tabs value={activeFloor || ""} onValueChange={setActiveFloor}>
-        <TabsList>
+        <TabsList className="h-9">
           {floors.map((floor) => (
             <TabsTrigger
               key={floor.id}
               value={floor.id}
+              className="text-sm px-3"
               data-testid={`tab-floor-${floor.id}`}
             >
               {floor.name}
@@ -166,55 +167,55 @@ export default function TablesPage() {
         </TabsList>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4 mt-4">
           <Card>
-            <CardContent className="pt-4">
+            <CardContent className="pt-3 pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">{t("tables.total_tables")}</p>
-                  <p className="text-2xl font-bold">{stats.total}</p>
+                  <p className="text-xs lg:text-sm text-muted-foreground">{t("tables.total_tables")}</p>
+                  <p className="text-xl lg:text-2xl font-bold">{stats.total}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                  <LayoutGrid className="w-5 h-5 text-muted-foreground" />
+                <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <LayoutGrid className="w-4 h-4 lg:w-5 lg:h-5 text-muted-foreground" />
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-4">
+            <CardContent className="pt-3 pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">{t("tables.available")}</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.free}</p>
+                  <p className="text-xs lg:text-sm text-muted-foreground">{t("tables.available")}</p>
+                  <p className="text-xl lg:text-2xl font-bold text-green-600">{stats.free}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <CircleDot className="w-5 h-5 text-green-600" />
+                <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <CircleDot className="w-4 h-4 lg:w-5 lg:h-5 text-green-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-4">
+            <CardContent className="pt-3 pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">{t("tables.occupied")}</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.occupied}</p>
+                  <p className="text-xs lg:text-sm text-muted-foreground">{t("tables.occupied")}</p>
+                  <p className="text-xl lg:text-2xl font-bold text-blue-600">{stats.occupied}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-blue-600" />
+                <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <Users className="w-4 h-4 lg:w-5 lg:h-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-4">
+            <CardContent className="pt-3 pb-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">{t("tables.needs_cleaning")}</p>
-                  <p className="text-2xl font-bold text-orange-600">{stats.dirty}</p>
+                  <p className="text-xs lg:text-sm text-muted-foreground">{t("tables.needs_cleaning")}</p>
+                  <p className="text-xl lg:text-2xl font-bold text-orange-600">{stats.dirty}</p>
                 </div>
-                <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-orange-600" />
+                <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                  <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-orange-600" />
                 </div>
               </div>
             </CardContent>
@@ -223,21 +224,21 @@ export default function TablesPage() {
 
         {/* Tables Grid */}
         {floors.map((floor) => (
-          <TabsContent key={floor.id} value={floor.id} className="mt-6">
+          <TabsContent key={floor.id} value={floor.id} className="mt-4">
             {tablesLoading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 lg:gap-4">
                 {[...Array(8)].map((_, i) => (
-                  <Skeleton key={i} className="h-32" />
+                  <Skeleton key={i} className="h-28 lg:h-32" />
                 ))}
               </div>
             ) : currentFloorTables.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <LayoutGrid className="w-12 h-12 mb-4 opacity-30" />
-                <p className="font-medium">{t("tables.no_tables_floor")}</p>
-                <p className="text-sm">{t("tables.add_tables_settings")}</p>
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                <LayoutGrid className="w-10 h-10 mb-3 opacity-30" />
+                <p className="font-medium text-sm">{t("tables.no_tables_floor")}</p>
+                <p className="text-xs">{t("tables.add_tables_settings")}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 lg:gap-4">
                 {currentFloorTables.map((table) => {
                   const status = statusColors[table.status || "free"];
                   return (

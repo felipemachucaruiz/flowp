@@ -4,10 +4,17 @@
 A production-ready, multi-tenant POS + Inventory system delivered as a Progressive Web App (PWA) with native desktop and mobile apps. Supports Windows, macOS, iOS, and Android with thermal printing, barcode scanning, and offline capability. The system supports both Retail and Restaurant tenants with feature flags controlling module availability.
 
 ## Current State
-- **Status**: MVP Complete + Management Portal Phase 1 + Mobile App
+- **Status**: MVP Complete + Management Portal Phase 1 + Mobile App + Responsive Design
 - **Last Updated**: January 29, 2026
 - **Stack**: React + TypeScript frontend, Express + PostgreSQL backend
 - **Platforms**: Web (PWA), Windows (Electron), macOS (Electron), iOS (Capacitor), Android (Capacitor)
+
+## Responsive Design (1024x768 Optimized)
+- **Sidebar**: 12rem width (collapsed by default on screens < 1280px)
+- **Cart Panel**: Responsive width (w-64 / xl:w-80 / 2xl:w-[420px])
+- **Product Grid**: Optimized for small screens (grid-cols-3 sm:3 md:4 lg:4 xl:5 2xl:6)
+- **Tables/Kitchen**: Compact stats cards and grids with responsive spacing
+- **Header**: Compact 10px height with smaller padding
 
 ## User Preferences
 - **Onboarding**: All fields are mandatory except for logo uploads (company logo and receipt logo are optional)

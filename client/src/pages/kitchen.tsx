@@ -217,49 +217,49 @@ export default function KitchenPage() {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-card shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <ChefHat className="w-5 h-5 text-primary" />
+          <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <ChefHat className="w-4 h-4 lg:w-5 lg:h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">{t("kitchen.title")}</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-lg lg:text-xl font-bold">{t("kitchen.title")}</h1>
+            <p className="text-xs lg:text-sm text-muted-foreground">
               {activeTickets.length} {t("kitchen.active_tickets")}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="text-right">
-            <p className="text-2xl font-bold font-mono">
+            <p className="text-xl lg:text-2xl font-bold font-mono">
               {currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </p>
           </div>
-          <Button variant="outline" onClick={() => refetch()} data-testid="button-refresh">
+          <Button variant="outline" size="sm" onClick={() => refetch()} data-testid="button-refresh">
             <RefreshCw className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
       {/* Stats Bar */}
-      <div className="grid grid-cols-3 gap-4 p-4 bg-muted/30 border-b">
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-red-500/10">
-          <AlertCircle className="w-6 h-6 text-red-500" />
+      <div className="grid grid-cols-3 gap-2 lg:gap-4 p-2 lg:p-4 bg-muted/30 border-b">
+        <div className="flex items-center gap-2 p-2 lg:p-3 rounded-lg bg-red-500/10">
+          <AlertCircle className="w-5 h-5 lg:w-6 lg:h-6 text-red-500" />
           <div>
-            <p className="text-sm text-muted-foreground">{t("kitchen.new")}</p>
-            <p className="text-2xl font-bold text-red-500">{newTickets.length}</p>
+            <p className="text-xs lg:text-sm text-muted-foreground">{t("kitchen.new")}</p>
+            <p className="text-xl lg:text-2xl font-bold text-red-500">{newTickets.length}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10">
-          <PlayCircle className="w-6 h-6 text-yellow-600" />
+        <div className="flex items-center gap-2 p-2 lg:p-3 rounded-lg bg-yellow-500/10">
+          <PlayCircle className="w-5 h-5 lg:w-6 lg:h-6 text-yellow-600" />
           <div>
-            <p className="text-sm text-muted-foreground">{t("kitchen.preparing")}</p>
-            <p className="text-2xl font-bold text-yellow-600">{preparingTickets.length}</p>
+            <p className="text-xs lg:text-sm text-muted-foreground">{t("kitchen.preparing")}</p>
+            <p className="text-xl lg:text-2xl font-bold text-yellow-600">{preparingTickets.length}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-green-500/10">
-          <CheckCircle2 className="w-6 h-6 text-green-500" />
+        <div className="flex items-center gap-2 p-2 lg:p-3 rounded-lg bg-green-500/10">
+          <CheckCircle2 className="w-5 h-5 lg:w-6 lg:h-6 text-green-500" />
           <div>
-            <p className="text-sm text-muted-foreground">{t("kitchen.ready")}</p>
-            <p className="text-2xl font-bold text-green-500">{readyTickets.length}</p>
+            <p className="text-xs lg:text-sm text-muted-foreground">{t("kitchen.ready")}</p>
+            <p className="text-xl lg:text-2xl font-bold text-green-500">{readyTickets.length}</p>
           </div>
         </div>
       </div>

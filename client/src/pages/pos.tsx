@@ -925,24 +925,24 @@ export default function POSPage() {
           className="flex-1 overflow-y-auto p-3 sm:p-4 pb-20 sm:pb-4 overscroll-contain touch-scroll"
         >
           {productsLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-1.5 sm:gap-2">
               {[...Array(10)].map((_, i) => (
-                <Skeleton key={i} className="h-28 sm:h-32 rounded-lg" />
+                <Skeleton key={i} className="h-24 sm:h-28 rounded-lg" />
               ))}
             </div>
           ) : filteredProducts?.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-              <Package className="w-12 h-12 mb-4 opacity-50" />
-              <p className="text-lg font-medium">{t("pos.no_products")}</p>
+              <Package className="w-10 h-10 mb-3 opacity-50" />
+              <p className="text-base font-medium">{t("pos.no_products")}</p>
               <p className="text-sm">{t("pos.adjust_search")}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-1.5 sm:gap-2">
               {filteredProducts?.map((product) => (
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="flex flex-col items-center justify-center p-2 sm:p-3 rounded-lg border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[100px] sm:min-h-[120px]"
+                  className="flex flex-col items-center justify-center p-1.5 sm:p-2 rounded-lg border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[80px] sm:min-h-[100px]"
                   data-testid={`button-product-${product.id}`}
                 >
                   {product.image ? (
@@ -992,9 +992,9 @@ export default function POSPage() {
         )}
       </div>
 
-      {/* Desktop Cart Section - Hidden on mobile */}
+      {/* Desktop Cart Section - Hidden on mobile, responsive width */}
       {!isMobile && (
-        <div data-tour="pos-cart" className="w-80 lg:w-[420px] border-l bg-card flex flex-col">
+        <div data-tour="pos-cart" className="w-64 xl:w-80 2xl:w-[420px] border-l bg-card flex flex-col">
           <CartContent />
         </div>
       )}

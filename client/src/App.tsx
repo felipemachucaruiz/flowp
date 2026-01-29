@@ -100,16 +100,16 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   const style = {
-    "--sidebar-width": "16rem",
+    "--sidebar-width": "12rem",
     "--sidebar-width-icon": "3rem",
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={window.innerWidth >= 1280}>
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex h-12 items-center justify-between gap-2 border-b px-4 bg-card shrink-0">
+          <header className="flex h-10 items-center justify-between gap-2 border-b px-3 bg-card shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
               <TourButton />
@@ -135,16 +135,16 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
   }
 
   const style = {
-    "--sidebar-width": "16rem",
+    "--sidebar-width": "12rem",
     "--sidebar-width-icon": "3rem",
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={window.innerWidth >= 1280}>
       <div className="flex h-screen w-full">
         <AdminSidebar />
         <div className="flex flex-col flex-1 min-w-0">
-          <header className="flex h-12 items-center gap-2 border-b px-4 bg-card shrink-0">
+          <header className="flex h-10 items-center gap-2 border-b px-3 bg-card shrink-0">
             <SidebarTrigger data-testid="button-admin-sidebar-toggle" />
           </header>
           <main className="flex-1 overflow-hidden">{children}</main>
