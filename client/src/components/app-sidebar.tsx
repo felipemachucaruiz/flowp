@@ -185,13 +185,14 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     isActive={location === item.url}
+                    className="h-12 sm:h-9 text-base sm:text-sm"
                     data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
                   >
                     <Link 
                       href={item.url}
                       onClick={() => { if (isMobile) setOpenMobile(false); }}
                     >
-                      <item.icon className="w-4 h-4" />
+                      <item.icon className="w-5 h-5 sm:w-4 sm:h-4" />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
