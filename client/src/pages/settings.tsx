@@ -2698,7 +2698,7 @@ export default function SettingsPage() {
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <a 
-                          href="/desktop/installer.exe" 
+                          href="/objects/public/installer.exe" 
                           download="Flowp POS Setup 1.0.0.exe"
                           className="inline-flex"
                         >
@@ -2708,13 +2708,23 @@ export default function SettingsPage() {
                           </Button>
                         </a>
                         <a 
-                          href="/desktop/installer.dmg" 
+                          href="/objects/public/installer.dmg" 
                           download="Flowp POS.dmg"
                           className="inline-flex"
                         >
                           <Button variant="default" data-testid="button-download-installer-mac">
                             <Download className="w-4 h-4 mr-2" />
-                            {t("downloads.download_installer_mac")}
+                            {t("downloads.download_installer_mac")} (Intel)
+                          </Button>
+                        </a>
+                        <a 
+                          href="/objects/public/installer-arm64.dmg" 
+                          download="Flowp POS Apple Silicon.dmg"
+                          className="inline-flex"
+                        >
+                          <Button variant="default" data-testid="button-download-installer-mac-arm">
+                            <Download className="w-4 h-4 mr-2" />
+                            {t("downloads.download_installer_mac")} (Apple Silicon)
                           </Button>
                         </a>
                         <a 
