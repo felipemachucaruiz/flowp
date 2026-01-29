@@ -109,14 +109,17 @@ export default function SalesHistoryPage() {
       };
     }) || [];
 
-    const taxRate = parseFloat(tenant.taxRate?.toString() || "0");
+    // Calculate tax rate from stored order amounts (tax rate was applied at time of sale)
+    const subtotal = parseFloat(order.subtotal);
+    const taxAmount = parseFloat(order.taxAmount || "0");
+    const taxRate = subtotal > 0 ? (taxAmount / subtotal) * 100 : 0;
     
     printReceipt(tenant, {
       orderNumber: order.orderNumber.toString(),
       date: order.createdAt ? new Date(order.createdAt) : new Date(),
       items,
-      subtotal: parseFloat(order.subtotal),
-      taxAmount: parseFloat(order.taxAmount || "0"),
+      subtotal,
+      taxAmount,
       taxRate,
       total: parseFloat(order.total),
       paymentMethod: order.payments?.[0]?.method || "cash",

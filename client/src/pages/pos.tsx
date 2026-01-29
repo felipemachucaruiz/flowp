@@ -216,11 +216,9 @@ export default function POSPage() {
   // Get individual active tax rates for display
   const activeTaxRates = taxRates?.filter(t => t.isActive) || [];
 
-  // Calculate total tax rate from active tax rates, fallback to tenant.taxRate for backward compatibility
-  // Only use tax rates table if there are active taxes, otherwise use legacy tenant.taxRate
-  const taxRate = activeTaxRates.length > 0
-    ? activeTaxRates.reduce((sum, t) => sum + parseFloat(t.rate || "0"), 0)
-    : parseFloat(tenant?.taxRate?.toString() || "0");
+  // Calculate total tax rate from active tax rates only - no fallback to legacy tenant.taxRate
+  // If no taxes are configured in tax chart, tax is 0
+  const taxRate = activeTaxRates.reduce((sum, t) => sum + parseFloat(t.rate || "0"), 0);
 
   const getAvailableRewards = (points: number) => {
     if (!loyaltyRewards) return [];
