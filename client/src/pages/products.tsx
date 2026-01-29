@@ -163,7 +163,7 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+      <div className="flex flex-col gap-4 sm:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
