@@ -10,40 +10,120 @@ try {
   console.log('Jimp not available - image printing disabled');
 }
 
-// Get list of available printers (Windows)
+const platform = os.platform();
+
+// Get list of available printers (cross-platform)
 function getPrinters() {
   return new Promise(function(resolve) {
-    const script = '$printers = Get-Printer | Select-Object Name, Default | ConvertTo-Json; $printers';
-    
-    exec('powershell -Command "' + script + '"', { encoding: 'utf8' }, function(error, stdout) {
-      if (error) {
-        console.error('Get printers error:', error);
-        resolve([]);
-        return;
-      }
+    if (platform === 'win32') {
+      // Windows: Use PowerShell Get-Printer
+      const script = '$printers = Get-Printer | Select-Object Name, Default | ConvertTo-Json; $printers';
       
-      try {
-        var printers = JSON.parse(stdout || '[]');
-        if (!Array.isArray(printers)) printers = [printers];
-        resolve(printers.map(function(p) {
-          return {
-            name: p.Name,
-            isDefault: p.Default || false
-          };
-        }));
-      } catch (e) {
-        console.error('Parse printers error:', e);
-        resolve([]);
-      }
-    });
+      exec('powershell -Command "' + script + '"', { encoding: 'utf8' }, function(error, stdout) {
+        if (error) {
+          console.error('Get printers error:', error);
+          resolve([]);
+          return;
+        }
+        
+        try {
+          var printers = JSON.parse(stdout || '[]');
+          if (!Array.isArray(printers)) printers = [printers];
+          resolve(printers.map(function(p) {
+            return {
+              name: p.Name,
+              isDefault: p.Default || false
+            };
+          }));
+        } catch (e) {
+          console.error('Parse printers error:', e);
+          resolve([]);
+        }
+      });
+    } else if (platform === 'darwin') {
+      // macOS: Use lpstat to list printers
+      exec('lpstat -p -d', { encoding: 'utf8' }, function(error, stdout) {
+        if (error) {
+          console.error('Get printers error:', error);
+          resolve([]);
+          return;
+        }
+        
+        try {
+          var printers = [];
+          var defaultPrinter = '';
+          var lines = stdout.split('\n');
+          
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i];
+            // Parse printer lines: "printer PrinterName is idle..."
+            var printerMatch = line.match(/^printer\s+(\S+)\s+/);
+            if (printerMatch) {
+              printers.push({
+                name: printerMatch[1],
+                isDefault: false
+              });
+            }
+            // Parse default: "system default destination: PrinterName"
+            var defaultMatch = line.match(/system default destination:\s*(\S+)/);
+            if (defaultMatch) {
+              defaultPrinter = defaultMatch[1];
+            }
+          }
+          
+          // Mark default printer
+          for (var j = 0; j < printers.length; j++) {
+            if (printers[j].name === defaultPrinter) {
+              printers[j].isDefault = true;
+            }
+          }
+          
+          resolve(printers);
+        } catch (e) {
+          console.error('Parse printers error:', e);
+          resolve([]);
+        }
+      });
+    } else {
+      // Linux: Also uses CUPS/lpstat
+      exec('lpstat -p -d 2>/dev/null', { encoding: 'utf8' }, function(error, stdout) {
+        if (error) {
+          resolve([]);
+          return;
+        }
+        
+        var printers = [];
+        var defaultPrinter = '';
+        var lines = (stdout || '').split('\n');
+        
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i];
+          var printerMatch = line.match(/^printer\s+(\S+)\s+/);
+          if (printerMatch) {
+            printers.push({ name: printerMatch[1], isDefault: false });
+          }
+          var defaultMatch = line.match(/system default destination:\s*(\S+)/);
+          if (defaultMatch) {
+            defaultPrinter = defaultMatch[1];
+          }
+        }
+        
+        for (var j = 0; j < printers.length; j++) {
+          if (printers[j].name === defaultPrinter) {
+            printers[j].isDefault = true;
+          }
+        }
+        
+        resolve(printers);
+      });
+    }
   });
 }
 
-// Print raw data to printer using Windows RAW printing
+// Print raw data to printer (cross-platform)
 function printRaw(printerName, data) {
   return new Promise(function(resolve, reject) {
     var tempFile = path.join(os.tmpdir(), 'flowp-print-' + Date.now() + '.bin');
-    var safePrinter = printerName.replace(/"/g, '\\"').replace(/'/g, "''");
     
     fs.writeFile(tempFile, data, function(err) {
       if (err) {
@@ -51,8 +131,25 @@ function printRaw(printerName, data) {
         return;
       }
       
-      // Use PowerShell RawPrinterHelper for direct RAW printing to local printers
-      var psScript = `
+      if (platform === 'win32') {
+        // Windows: Use PowerShell RawPrinterHelper
+        printRawWindows(printerName, tempFile, resolve, reject);
+      } else if (platform === 'darwin' || platform === 'linux') {
+        // macOS/Linux: Use CUPS lp command
+        printRawCups(printerName, tempFile, resolve, reject);
+      } else {
+        fs.unlink(tempFile, function() {});
+        reject(new Error('Unsupported platform: ' + platform));
+      }
+    });
+  });
+}
+
+// Windows RAW printing using Print Spooler API
+function printRawWindows(printerName, tempFile, resolve, reject) {
+  var safePrinter = printerName.replace(/"/g, '\\"').replace(/'/g, "''");
+  
+  var psScript = `
 $printerName = '${safePrinter}'
 $filePath = '${tempFile.replace(/\\/g, '\\\\')}'
 
@@ -132,17 +229,32 @@ $result = [RawPrinterHelper]::SendFileToPrinter($printerName, $filePath)
 if (-not $result) { throw "Failed to send data to printer" }
 Write-Output "OK"
 `;
-      
-      exec('powershell -Command "' + psScript.replace(/"/g, '\\"').replace(/\n/g, ' ') + '"', { maxBuffer: 1024 * 1024 }, function(error, stdout, stderr) {
-        fs.unlink(tempFile, function() {});
-        
-        if (error) {
-          reject(new Error('Print failed: ' + (stderr || error.message)));
-        } else {
-          resolve({ success: true });
-        }
-      });
-    });
+  
+  exec('powershell -Command "' + psScript.replace(/"/g, '\\"').replace(/\n/g, ' ') + '"', { maxBuffer: 1024 * 1024 }, function(error, stdout, stderr) {
+    fs.unlink(tempFile, function() {});
+    
+    if (error) {
+      reject(new Error('Print failed: ' + (stderr || error.message)));
+    } else {
+      resolve({ success: true });
+    }
+  });
+}
+
+// macOS/Linux RAW printing using CUPS lp command
+function printRawCups(printerName, tempFile, resolve, reject) {
+  // Use lp with raw option for ESC/POS data
+  var safePrinter = printerName.replace(/'/g, "'\\''");
+  var cmd = "lp -d '" + safePrinter + "' -o raw '" + tempFile.replace(/'/g, "'\\''") + "'";
+  
+  exec(cmd, { encoding: 'utf8' }, function(error, stdout, stderr) {
+    fs.unlink(tempFile, function() {});
+    
+    if (error) {
+      reject(new Error('Print failed: ' + (stderr || error.message)));
+    } else {
+      resolve({ success: true });
+    }
   });
 }
 
@@ -334,10 +446,21 @@ function openCashDrawer(printerName) {
   return printRaw(printerName, drawerCommand);
 }
 
+// Get platform info
+function getPlatform() {
+  return {
+    platform: platform,
+    isWindows: platform === 'win32',
+    isMac: platform === 'darwin',
+    isLinux: platform === 'linux'
+  };
+}
+
 module.exports = {
   getPrinters: getPrinters,
   printRaw: printRaw,
   printReceipt: printReceipt,
   openCashDrawer: openCashDrawer,
-  imageToEscPos: imageToEscPos
+  imageToEscPos: imageToEscPos,
+  getPlatform: getPlatform
 };
