@@ -145,15 +145,18 @@ function printRaw(printerName, data) {
   });
 }
 
-// Windows RAW printing using Print Spooler API
+// Windows RAW printing using Print Spooler API via .ps1 script file
 function printRawWindows(printerName, tempFile, resolve, reject) {
-  var safePrinter = printerName.replace(/"/g, '\\"').replace(/'/g, "''");
+  var safePrinter = printerName.replace(/'/g, "''");
+  var safeFilePath = tempFile.replace(/\\/g, '\\\\');
+  
+  // Create a .ps1 script file to avoid PowerShell escaping issues
+  var psScriptPath = path.join(os.tmpdir(), 'flowp-print-' + Date.now() + '.ps1');
   
   var psScript = `
-$printerName = '${safePrinter}'
-$filePath = '${tempFile.replace(/\\/g, '\\\\')}'
+param([string]$PrinterName, [string]$FilePath)
 
-Add-Type -TypeDefinition @'
+Add-Type -TypeDefinition @"
 using System;
 using System.Runtime.InteropServices;
 
@@ -223,21 +226,35 @@ public class RawPrinterHelper
         return result;
     }
 }
-'@
+"@
 
-$result = [RawPrinterHelper]::SendFileToPrinter($printerName, $filePath)
+$result = [RawPrinterHelper]::SendFileToPrinter($PrinterName, $FilePath)
 if (-not $result) { throw "Failed to send data to printer" }
 Write-Output "OK"
 `;
   
-  exec('powershell -Command "' + psScript.replace(/"/g, '\\"').replace(/\n/g, ' ') + '"', { maxBuffer: 1024 * 1024 }, function(error, stdout, stderr) {
-    fs.unlink(tempFile, function() {});
-    
-    if (error) {
-      reject(new Error('Print failed: ' + (stderr || error.message)));
-    } else {
-      resolve({ success: true });
+  // Write the script to a file
+  fs.writeFile(psScriptPath, psScript, 'utf8', function(writeErr) {
+    if (writeErr) {
+      fs.unlink(tempFile, function() {});
+      reject(new Error('Failed to create print script: ' + writeErr.message));
+      return;
     }
+    
+    // Execute the script with parameters
+    var cmd = 'powershell -ExecutionPolicy Bypass -File "' + psScriptPath + '" -PrinterName "' + safePrinter + '" -FilePath "' + tempFile + '"';
+    
+    exec(cmd, { maxBuffer: 1024 * 1024 }, function(error, stdout, stderr) {
+      // Cleanup both files
+      fs.unlink(tempFile, function() {});
+      fs.unlink(psScriptPath, function() {});
+      
+      if (error) {
+        reject(new Error('Print failed: ' + (stderr || error.message)));
+      } else {
+        resolve({ success: true });
+      }
+    });
   });
 }
 

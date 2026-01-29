@@ -618,7 +618,7 @@ function PrintBridgeSettings() {
           ) : (
             <RefreshCw className="w-4 h-4 mr-2" />
           )}
-          {t("printing.bridge_status")}
+          {t("printing.refresh_printers")}
         </Button>
       </div>
     );
