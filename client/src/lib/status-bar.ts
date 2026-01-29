@@ -1,10 +1,15 @@
-import { Capacitor } from '@capacitor/core';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-let StatusBarPlugin: typeof import('@capacitor/status-bar').StatusBar | null = null;
-let StyleEnum: typeof import('@capacitor/status-bar').Style | null = null;
+function isNativePlatform(): boolean {
+  const win = window as any;
+  return !!(win.Capacitor && win.Capacitor.isNativePlatform && win.Capacitor.isNativePlatform());
+}
+
+let StatusBarPlugin: any = null;
+let StyleEnum: any = null;
 
 async function getStatusBar() {
-  if (!Capacitor.isNativePlatform()) {
+  if (!isNativePlatform()) {
     return null;
   }
   
