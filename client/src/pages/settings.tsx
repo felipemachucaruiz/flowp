@@ -42,7 +42,7 @@ import {
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
-import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw } from "lucide-react";
+import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw, Smartphone } from "lucide-react";
 import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 
 const businessSettingsSchema = z.object({
@@ -2725,6 +2725,53 @@ export default function SettingsPage() {
                           <Button variant="outline" data-testid="button-download-source">
                             <Download className="w-4 h-4 mr-2" />
                             {t("downloads.download_source")}
+                          </Button>
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-green-500/10 rounded-lg">
+                      <Smartphone className="w-6 h-6 text-green-500" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{t("downloads.mobile_app")}</h3>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        {t("downloads.mobile_app_desc")}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <a 
+                          href="/mobile/android.apk" 
+                          download="Flowp-POS.apk"
+                          className="inline-flex"
+                        >
+                          <Button variant="default" data-testid="button-download-android">
+                            <Download className="w-4 h-4 mr-2" />
+                            {t("downloads.download_android")}
+                          </Button>
+                        </a>
+                        <a 
+                          href="https://apps.apple.com/app/flowp-pos" 
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex"
+                        >
+                          <Button variant="default" data-testid="button-download-ios">
+                            <Download className="w-4 h-4 mr-2" />
+                            {t("downloads.download_ios")}
+                          </Button>
+                        </a>
+                        <a 
+                          href="/mobile/source.zip" 
+                          download="Flowp-Mobile-Source.zip"
+                          className="inline-flex"
+                        >
+                          <Button variant="outline" data-testid="button-download-mobile-source">
+                            <Download className="w-4 h-4 mr-2" />
+                            {t("downloads.download_mobile_source")}
                           </Button>
                         </a>
                       </div>

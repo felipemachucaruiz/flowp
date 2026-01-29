@@ -185,7 +185,6 @@ export async function registerRoutes(
       const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage");
       const storageService = new ObjectStorageService();
       
-      // Search for DMG file in public folder
       const fileName = "Flowp POS-1.0.0.dmg";
       const file = await storageService.searchPublicObject(fileName);
       
@@ -201,6 +200,44 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error downloading Mac installer:", error);
       res.status(500).json({ error: "Failed to download installer" });
+    }
+  });
+
+  // Flowp Mobile App source code download
+  app.get("/mobile/source.zip", (req: Request, res: Response) => {
+    const zipPath = path.join(process.cwd(), "flowp-mobile-source.zip");
+    
+    if (!fs.existsSync(zipPath)) {
+      return res.status(404).json({ error: "Mobile source not found" });
+    }
+    
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", "attachment; filename=Flowp-Mobile-Source.zip");
+    res.setHeader("Cache-Control", "public, max-age=3600");
+    fs.createReadStream(zipPath).pipe(res);
+  });
+
+  // Flowp Mobile Android APK download from Object Storage
+  app.get("/mobile/android.apk", async (req: Request, res: Response) => {
+    try {
+      const { ObjectStorageService } = await import("./replit_integrations/object_storage/objectStorage");
+      const storageService = new ObjectStorageService();
+      
+      const fileName = "Flowp-POS.apk";
+      const file = await storageService.searchPublicObject(fileName);
+      
+      if (!file) {
+        return res.status(404).json({ error: "Android APK not found. Please upload the APK to Object Storage public folder." });
+      }
+      
+      res.setHeader("Content-Type", "application/vnd.android.package-archive");
+      res.setHeader("Content-Disposition", `attachment; filename="Flowp-POS.apk"`);
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      
+      file.createReadStream().pipe(res);
+    } catch (error) {
+      console.error("Error downloading Android APK:", error);
+      res.status(500).json({ error: "Failed to download APK" });
     }
   });
 
