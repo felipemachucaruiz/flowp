@@ -63,6 +63,27 @@ export function registerObjectStorageRoutes(app: Express): void {
   });
 
   /**
+   * Serve public objects from PUBLIC_OBJECT_SEARCH_PATHS.
+   *
+   * GET /public/:filePath(*)
+   *
+   * This searches the public directories for the file and serves it.
+   */
+  app.get(/^\/public\/(.+)$/, async (req, res) => {
+    try {
+      const filePath = req.params[0];
+      const objectFile = await objectStorageService.searchPublicObject(filePath);
+      if (!objectFile) {
+        return res.status(404).json({ error: "Object not found" });
+      }
+      await objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error serving public object:", error);
+      return res.status(500).json({ error: "Failed to serve object" });
+    }
+  });
+
+  /**
    * Serve uploaded objects.
    *
    * GET /objects/:objectPath(*)

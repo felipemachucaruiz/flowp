@@ -2698,7 +2698,7 @@ export default function SettingsPage() {
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <a 
-                          href="/objects/public/installer.exe" 
+                          href="/public/installer.exe" 
                           download="Flowp POS Setup 1.0.0.exe"
                           className="inline-flex"
                         >
@@ -2708,7 +2708,7 @@ export default function SettingsPage() {
                           </Button>
                         </a>
                         <a 
-                          href="/objects/public/installer.dmg" 
+                          href="/public/installer.dmg" 
                           download="Flowp POS.dmg"
                           className="inline-flex"
                         >
@@ -2718,7 +2718,7 @@ export default function SettingsPage() {
                           </Button>
                         </a>
                         <a 
-                          href="/objects/public/installer-arm64.dmg" 
+                          href="/public/installer-arm64.dmg" 
                           download="Flowp POS Apple Silicon.dmg"
                           className="inline-flex"
                         >
