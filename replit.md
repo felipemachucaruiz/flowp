@@ -18,15 +18,30 @@ A production-ready, multi-tenant POS + Inventory system delivered as a Progressi
 
 ## Mobile App Features (iPhone 16/17 Pro Max Optimized)
 - **Full Screen Support**: Uses min-h-dvh and viewport-fit=cover for edge-to-edge display on notched iPhones
-- **Bottom Navigation**: Fixed nav bar with POS, Tables, Inventory, Reports + More menu
+- **Sidebar Navigation**: Uses same sidebar as desktop (collapsible)
 - **Safe Area Insets**: CSS utilities for iPhone notch and home indicator (safe-area-pt, safe-area-pb, safe-area-inset)
-- **Camera Barcode Scanner**: Uses @zxing/library for camera-based barcode scanning on mobile
-- **Touch Targets**: Min 120px height for product cards, 64px for cart button
-- **Mobile Cart**: Floating button (bottom-24 right-4) opens sheet with full cart functionality
+- **Camera Barcode Scanner**: Uses @capacitor-mlkit/barcode-scanning for native iOS/Android, @zxing/library for web fallback
+- **Touch Targets**: Min 100px height for product cards
 - **Portrait Lock**: PWA manifest locks to portrait-only orientation
-- **Sidebar Auto-Close**: Sidebar collapses after clicking navigation links on mobile
-- **Scroll Padding**: All pages have pb-24 on mobile to prevent bottom nav from obscuring content
-- **Horizontal Tab Scrolling**: Settings and other tab interfaces scroll horizontally on mobile
+- **Scroll Padding**: All pages have proper padding to prevent content overlap
+
+### Native Capacitor Plugins (Required for iOS/Android)
+Install these in the flowp-mobile project:
+```bash
+cd ~/flowp-mobile
+npm install @capacitor-mlkit/barcode-scanning @capacitor-community/bluetooth-le
+npx cap sync ios
+```
+
+**iOS Info.plist Permissions** (add to ios/App/App/Info.plist):
+```xml
+<key>NSCameraUsageDescription</key>
+<string>Camera is used to scan product barcodes</string>
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>Bluetooth is used to connect to thermal printers</string>
+<key>NSBluetoothPeripheralUsageDescription</key>
+<string>Bluetooth is used to connect to thermal printers</string>
+```
 
 ## User Preferences
 - **Onboarding**: All fields are mandatory except for logo uploads (company logo and receipt logo are optional)
