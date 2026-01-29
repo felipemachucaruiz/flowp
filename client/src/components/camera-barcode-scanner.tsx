@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import { Button } from "@/components/ui/button";
-import { X, SwitchCamera, Flashlight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { X, SwitchCamera } from "lucide-react";
 
 interface CameraBarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -13,6 +12,7 @@ interface CameraBarcodeScannerProps {
 export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
@@ -21,6 +21,17 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
   const lastScannedRef = useRef<string>("");
   const lastScanTimeRef = useRef<number>(0);
 
+  const stopScanning = useCallback(() => {
+    if (readerRef.current) {
+      readerRef.current.reset();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsScanning(false);
+  }, []);
+
   const startScanning = useCallback(async () => {
     if (!videoRef.current || !isOpen) return;
 
@@ -28,36 +39,55 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
       setError(null);
       setIsScanning(true);
 
+      // First request camera permission via getUserMedia
+      // This is required on mobile before enumerateDevices returns cameras
+      try {
+        const initialStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" }
+        });
+        // Stop the initial stream immediately, we'll start the real one below
+        initialStream.getTracks().forEach(track => track.stop());
+        setHasPermission(true);
+      } catch (permErr) {
+        if (permErr instanceof Error) {
+          if (permErr.name === "NotAllowedError") {
+            setError("Camera permission denied. Please allow camera access in your browser settings and try again.");
+            setHasPermission(false);
+            setIsScanning(false);
+            return;
+          }
+        }
+        throw permErr;
+      }
+
       if (!readerRef.current) {
         readerRef.current = new BrowserMultiFormatReader();
       }
 
-      const videoInputDevices = await readerRef.current.listVideoInputDevices();
+      // Now enumerate devices after permission is granted
+      const videoInputDevices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = videoInputDevices.filter(device => device.kind === "videoinput");
       
-      if (videoInputDevices.length === 0) {
-        setError("No camera found on this device");
+      if (cameras.length === 0) {
+        setError("No camera found on this device.");
         setHasPermission(false);
+        setIsScanning(false);
         return;
       }
 
-      const backCameras = videoInputDevices.filter(
+      // Prefer back camera
+      const backCameras = cameras.filter(
         (device) => device.label.toLowerCase().includes("back") || 
                     device.label.toLowerCase().includes("rear") ||
                     device.label.toLowerCase().includes("environment")
       );
       
-      const orderedDevices = [...backCameras, ...videoInputDevices.filter(d => !backCameras.includes(d))];
+      const orderedDevices = [...backCameras, ...cameras.filter(d => !backCameras.includes(d))];
       setDevices(orderedDevices);
       
       const deviceId = orderedDevices[selectedDeviceIndex]?.deviceId || orderedDevices[0]?.deviceId;
 
-      if (!deviceId) {
-        setError("No camera available");
-        return;
-      }
-
-      setHasPermission(true);
-
+      // Start decoding from video device
       await readerRef.current.decodeFromVideoDevice(
         deviceId,
         videoRef.current,
@@ -66,6 +96,7 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
             const scannedText = result.getText();
             const now = Date.now();
             
+            // Debounce: don't trigger same barcode within 2 seconds
             if (scannedText !== lastScannedRef.current || now - lastScanTimeRef.current > 2000) {
               lastScannedRef.current = scannedText;
               lastScanTimeRef.current = now;
@@ -86,6 +117,9 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
         } else if (err.name === "NotFoundError") {
           setError("No camera found on this device.");
           setHasPermission(false);
+        } else if (err.name === "NotReadableError") {
+          setError("Camera is in use by another app. Please close other apps using the camera.");
+          setHasPermission(false);
         } else {
           setError(`Camera error: ${err.message}`);
         }
@@ -94,13 +128,6 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
     }
   }, [isOpen, selectedDeviceIndex, onScan]);
 
-  const stopScanning = useCallback(() => {
-    if (readerRef.current) {
-      readerRef.current.reset();
-    }
-    setIsScanning(false);
-  }, []);
-
   const switchCamera = useCallback(() => {
     if (devices.length > 1) {
       stopScanning();
@@ -108,6 +135,7 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
     }
   }, [devices.length, stopScanning]);
 
+  // Start scanning when opened
   useEffect(() => {
     if (isOpen) {
       const timer = setTimeout(() => {
@@ -119,8 +147,9 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
     }
   }, [isOpen, startScanning, stopScanning]);
 
+  // Restart scanning when device changes
   useEffect(() => {
-    if (isOpen && devices.length > 0) {
+    if (isOpen && devices.length > 0 && selectedDeviceIndex > 0) {
       stopScanning();
       const timer = setTimeout(() => {
         startScanning();
@@ -129,6 +158,7 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
     }
   }, [selectedDeviceIndex]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopScanning();
@@ -139,6 +169,7 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
 
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
+      {/* Header */}
       <div className="flex items-center justify-between p-4 bg-black/80 safe-area-pt">
         <h2 className="text-white font-semibold text-lg">Scan Barcode</h2>
         <div className="flex items-center gap-2">
@@ -165,6 +196,7 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
         </div>
       </div>
 
+      {/* Camera View */}
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
         {error ? (
           <div className="text-center p-6">
@@ -183,17 +215,21 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
               muted
             />
             
+            {/* Scan area overlay */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-72 h-48 relative">
+                {/* Corner brackets */}
                 <div className="absolute top-0 left-0 w-8 h-8 border-l-4 border-t-4 border-primary rounded-tl-lg" />
                 <div className="absolute top-0 right-0 w-8 h-8 border-r-4 border-t-4 border-primary rounded-tr-lg" />
                 <div className="absolute bottom-0 left-0 w-8 h-8 border-l-4 border-b-4 border-primary rounded-bl-lg" />
                 <div className="absolute bottom-0 right-0 w-8 h-8 border-r-4 border-b-4 border-primary rounded-br-lg" />
                 
+                {/* Scan line animation */}
                 <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-primary/50 animate-pulse" />
               </div>
             </div>
             
+            {/* Loading state */}
             {!isScanning && hasPermission === null && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                 <div className="text-white text-center">
@@ -206,6 +242,7 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
         )}
       </div>
 
+      {/* Footer */}
       <div className="p-4 bg-black/80 text-center safe-area-pb">
         <p className="text-white/70 text-sm">
           Point the camera at a barcode to scan

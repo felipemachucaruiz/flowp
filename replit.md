@@ -12,9 +12,16 @@ A production-ready, multi-tenant POS + Inventory system delivered as a Progressi
 ## Responsive Design (1024x768 Optimized)
 - **Sidebar**: 12rem width (collapsed by default on screens < 1280px)
 - **Cart Panel**: Responsive width (w-64 / xl:w-80 / 2xl:w-[420px])
-- **Product Grid**: Optimized for small screens (grid-cols-3 sm:3 md:4 lg:4 xl:5 2xl:6)
+- **Product Grid**: 2 columns on mobile, 3+ on tablet/desktop (grid-cols-2 sm:3 md:4 lg:4 xl:5 2xl:6)
 - **Tables/Kitchen**: Compact stats cards and grids with responsive spacing
 - **Header**: Compact 10px height with smaller padding
+
+## Mobile App Features (iPhone 16 Optimized)
+- **Bottom Navigation**: Fixed nav bar with POS, Tables, Inventory, Reports + More menu
+- **Safe Area Insets**: CSS utilities for iPhone notch and home indicator (safe-area-pt, safe-area-pb)
+- **Camera Barcode Scanner**: Uses @zxing/library for camera-based barcode scanning on mobile
+- **Touch Targets**: Min 120px height for product cards, 64px for cart button
+- **Mobile Cart**: Floating button (bottom-24) opens sheet with full cart functionality
 
 ## User Preferences
 - **Onboarding**: All fields are mandatory except for logo uploads (company logo and receipt logo are optional)
