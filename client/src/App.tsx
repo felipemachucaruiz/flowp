@@ -13,6 +13,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { LogOut } from "lucide-react";
 
 import NotFound from "@/pages/not-found";
@@ -115,10 +116,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-2">
               <div className="hidden sm:block"><TourButton /></div>
               <div className="hidden sm:block">
-                <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  {t("nav.logout")}
-                </Button>
+                <ThemeToggle />
               </div>
             </div>
           </header>

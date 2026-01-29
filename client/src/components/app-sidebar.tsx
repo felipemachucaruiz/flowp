@@ -220,7 +220,7 @@ export function AppSidebar() {
             <Button
               variant="outline"
               size="sm"
-              className="flex-1"
+              className="flex-1 sm:hidden"
               onClick={toggleTheme}
               data-testid="button-toggle-theme"
             >
@@ -230,7 +230,7 @@ export function AppSidebar() {
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1"
+                className="flex-1 sm:hidden"
                 onClick={handleInstallClick}
                 data-testid="button-install-app"
               >
