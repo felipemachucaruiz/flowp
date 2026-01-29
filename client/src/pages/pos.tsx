@@ -1039,8 +1039,8 @@ export default function POSPage() {
         </div>
       )}
 
-      {/* Mobile Cart FAB - Fixed at bottom right */}
-      {isMobile && (
+      {/* Mobile Cart FAB - Fixed at bottom right, hidden when cart is open */}
+      {isMobile && !showMobileCart && (
         <div 
           className="fixed right-4 z-[9999]"
           style={{ 
