@@ -11,7 +11,7 @@ import {
   SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
-import flowpLogo from "@assets/Sin_título-1_1769033877071.webp";
+import { FlowpLogo } from "@/components/flowp-logo";
 import {
   LayoutDashboard,
   Building2,
@@ -71,7 +71,7 @@ export function AdminSidebar() {
     <Sidebar data-testid="admin-sidebar">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
-          <img src={flowpLogo} alt="Flowp" className="h-8" />
+          <FlowpLogo className="h-8" />
         </div>
       </SidebarHeader>
       <SidebarContent>

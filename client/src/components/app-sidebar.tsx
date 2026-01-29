@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import flowpLogo from "@assets/Sin_título-1_1769033877071.webp";
+import { FlowpLogo } from "@/components/flowp-logo";
 import {
   ShoppingCart,
   LayoutGrid,
@@ -164,7 +164,7 @@ export function AppSidebar() {
     <Sidebar data-tour="sidebar">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-3">
-          <img src={flowpLogo} alt="Flowp" className="h-10 sm:h-8" />
+          <FlowpLogo className="h-10 sm:h-8" />
         </div>
       </SidebarHeader>
 

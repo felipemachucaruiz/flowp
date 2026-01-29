@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Lock, User, ArrowRight, Loader2, Globe, Fingerprint } from "lucide-react";
-import flowpLogo from "@assets/Sin_título-1_1769033877071.webp";
+import { FlowpLogo } from "@/components/flowp-logo";
 import {
   isBiometricAvailable,
   getBiometryType,
@@ -200,7 +200,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Logo and branding */}
         <div className="text-center space-y-2">
-          <img src={flowpLogo} alt="Flowp" className="h-12 mx-auto mb-4" />
+          <FlowpLogo className="h-12 mx-auto mb-4" />
           <p className="text-muted-foreground">
             {t("login.subtitle")}
           </p>

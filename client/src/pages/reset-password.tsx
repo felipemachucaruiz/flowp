@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { Lock, ArrowLeft, Loader2, CheckCircle, XCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
-import flowpLogo from "@assets/Sin_título-1_1769033877071.webp";
+import { FlowpLogo } from "@/components/flowp-logo";
 
 const resetPasswordSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen min-h-dvh flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4 safe-area-inset">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center">
-            <img src={flowpLogo} alt="Flowp" className="h-12 mx-auto mb-4" />
+            <FlowpLogo className="h-12 mx-auto mb-4" />
           </div>
           
           <Card className="border-0 shadow-lg">
@@ -138,7 +138,7 @@ export default function ResetPasswordPage() {
       <div className="min-h-screen min-h-dvh flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4 safe-area-inset">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center">
-            <img src={flowpLogo} alt="Flowp" className="h-12 mx-auto mb-4" />
+            <FlowpLogo className="h-12 mx-auto mb-4" />
           </div>
           
           <Card className="border-0 shadow-lg">
@@ -168,7 +168,7 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen min-h-dvh flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4 safe-area-inset">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <img src={flowpLogo} alt="Flowp" className="h-12 mx-auto mb-4" />
+          <FlowpLogo className="h-12 mx-auto mb-4" />
         </div>
 
         <Card className="border-0 shadow-lg">
