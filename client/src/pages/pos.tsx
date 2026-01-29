@@ -996,7 +996,7 @@ export default function POSPage() {
 
       {/* Desktop Cart Section - Hidden on mobile, responsive width */}
       {!isMobile && (
-        <div data-tour="pos-cart" className="w-64 xl:w-80 2xl:w-[420px] border-l bg-card flex flex-col">
+        <div data-tour="pos-cart" className="w-72 lg:w-80 2xl:w-[420px] border-l bg-card flex flex-col">
           <CartContent />
         </div>
       )}
