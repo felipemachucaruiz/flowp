@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
 import { Button } from "@/components/ui/button";
 import { X, SwitchCamera } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 interface CameraBarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -10,6 +11,7 @@ interface CameraBarcodeScannerProps {
 }
 
 export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeScannerProps) {
+  const { t } = useI18n();
   const videoRef = useRef<HTMLVideoElement>(null);
   const readerRef = useRef<BrowserMultiFormatReader | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -171,7 +173,7 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
     <div className="fixed inset-0 z-50 bg-black flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-black/80 safe-area-pt">
-        <h2 className="text-white font-semibold text-lg">Scan Barcode</h2>
+        <h2 className="text-white font-semibold text-lg">{t("pos.scan_barcode")}</h2>
         <div className="flex items-center gap-2">
           {devices.length > 1 && (
             <Button
@@ -201,8 +203,8 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
         {error ? (
           <div className="text-center p-6">
             <p className="text-white text-lg mb-4">{error}</p>
-            <Button onClick={startScanning} variant="secondary">
-              Try Again
+            <Button onClick={startScanning} variant="secondary" data-testid="button-try-again-camera">
+              {t("common.try_again")}
             </Button>
           </div>
         ) : (
@@ -213,6 +215,8 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
               playsInline
               autoPlay
               muted
+              webkit-playsinline="true"
+              x5-playsinline="true"
             />
             
             {/* Scan area overlay */}
@@ -234,7 +238,7 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
               <div className="absolute inset-0 flex items-center justify-center bg-black/50">
                 <div className="text-white text-center">
                   <div className="animate-spin w-8 h-8 border-2 border-white border-t-transparent rounded-full mx-auto mb-2" />
-                  <p>Starting camera...</p>
+                  <p>{t("pos.starting_camera")}</p>
                 </div>
               </div>
             )}
@@ -245,7 +249,7 @@ export function CameraBarcodeScanner({ onScan, onClose, isOpen }: CameraBarcodeS
       {/* Footer */}
       <div className="p-4 bg-black/80 text-center safe-area-pb">
         <p className="text-white/70 text-sm">
-          Point the camera at a barcode to scan
+          {t("pos.point_camera_at_barcode")}
         </p>
       </div>
     </div>

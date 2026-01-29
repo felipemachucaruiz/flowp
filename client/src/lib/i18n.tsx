@@ -95,6 +95,9 @@ const translations = {
     "pos.applied": "applied!",
     "pos.click_to_redeem": "Click to redeem",
     "pos.reward_applied": "Reward Applied",
+    "pos.scan_barcode": "Scan Barcode",
+    "pos.starting_camera": "Starting camera...",
+    "pos.point_camera_at_barcode": "Point the camera at a barcode to scan",
     
     // Network Status
     "network.online": "Online",
@@ -983,6 +986,7 @@ const translations = {
     "common.back": "Back",
     "common.next": "Next",
     "common.continue": "Continue",
+    "common.try_again": "Try Again",
     "common.save_error": "Failed to save changes",
     "common.search": "Search",
     "common.no_results": "No results found",
@@ -1244,6 +1248,9 @@ const translations = {
     "pos.applied": "aplicado!",
     "pos.click_to_redeem": "Clic para canjear",
     "pos.reward_applied": "Recompensa Aplicada",
+    "pos.scan_barcode": "Escanear Código",
+    "pos.starting_camera": "Iniciando cámara...",
+    "pos.point_camera_at_barcode": "Apunta la cámara al código de barras",
     
     // Network Status
     "network.online": "En línea",
@@ -2129,6 +2136,7 @@ const translations = {
     "common.back": "Atrás",
     "common.next": "Siguiente",
     "common.continue": "Continuar",
+    "common.try_again": "Intentar de nuevo",
     "common.save_error": "Error al guardar los cambios",
     "common.search": "Buscar",
     "common.no_results": "No se encontraron resultados",
@@ -2390,6 +2398,9 @@ const translations = {
     "pos.applied": "aplicado!",
     "pos.click_to_redeem": "Clique para resgatar",
     "pos.reward_applied": "Recompensa Aplicada",
+    "pos.scan_barcode": "Escanear Código",
+    "pos.starting_camera": "Iniciando câmera...",
+    "pos.point_camera_at_barcode": "Aponte a câmera para o código de barras",
     
     // Network Status
     "network.online": "Online",
@@ -3275,6 +3286,7 @@ const translations = {
     "common.back": "Voltar",
     "common.next": "Próximo",
     "common.continue": "Continuar",
+    "common.try_again": "Tentar novamente",
     "common.save_error": "Falha ao salvar alterações",
     "common.search": "Buscar",
     "common.no_results": "Nenhum resultado encontrado",
