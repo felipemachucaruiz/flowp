@@ -163,8 +163,8 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        <Card className="lg:col-span-1">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
+        <Card className="xl:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -229,7 +229,7 @@ export default function ProductsPage() {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="xl:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
