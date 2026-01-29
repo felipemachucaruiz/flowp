@@ -962,12 +962,12 @@ export default function POSPage() {
         {/* Products Grid */}
         <div 
           data-tour="pos-products"
-          className="flex-1 overflow-y-auto px-1 sm:p-4 py-1 pb-24 sm:pb-4 overscroll-contain touch-scroll"
+          className="flex-1 overflow-y-auto p-0 sm:p-4 pb-28 sm:pb-4 overscroll-contain touch-scroll"
         >
           {productsLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-1 sm:gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-px sm:gap-2 bg-border">
               {[...Array(8)].map((_, i) => (
-                <Skeleton key={i} className="h-28 sm:h-28 rounded-md" />
+                <Skeleton key={i} className="h-32 sm:h-28 bg-card" />
               ))}
             </div>
           ) : filteredProducts?.length === 0 ? (
@@ -977,22 +977,22 @@ export default function POSPage() {
               <p className="text-sm">{t("pos.adjust_search")}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-1 sm:gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-px sm:gap-2 bg-border sm:bg-transparent">
               {filteredProducts?.map((product) => (
                 <button
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  className="flex flex-col items-center justify-center p-2 rounded-md border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[110px] sm:min-h-[100px]"
+                  className="flex flex-col items-center justify-center p-3 sm:p-2 sm:rounded-md sm:border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[120px] sm:min-h-[100px]"
                   data-testid={`button-product-${product.id}`}
                 >
                   {product.image ? (
                     <img 
                       src={product.image} 
                       alt={product.name}
-                      className="w-12 h-12 sm:w-12 sm:h-12 object-cover rounded-md mb-1"
+                      className="w-14 h-14 sm:w-12 sm:h-12 object-cover rounded-lg mb-2"
                     />
                   ) : (
-                    <div className="w-12 h-12 sm:w-12 sm:h-12 bg-muted rounded-md mb-1 flex items-center justify-center">
+                    <div className="w-14 h-14 sm:w-12 sm:h-12 bg-muted rounded-lg mb-2 flex items-center justify-center">
                       <Package className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground" />
                     </div>
                   )}
@@ -1039,21 +1039,27 @@ export default function POSPage() {
         </div>
       )}
 
-      {/* Mobile Cart Button */}
+      {/* Mobile Cart FAB - Fixed at bottom right */}
       {isMobile && (
-        <button
-          className="fixed bottom-6 right-4 h-16 w-16 rounded-full shadow-xl z-40 bg-primary text-primary-foreground flex items-center justify-center hover-elevate active-elevate-2"
-          style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
-          onClick={() => setShowMobileCart(true)}
-          data-testid="button-mobile-cart"
+        <div 
+          className="fixed right-4 z-[9999]"
+          style={{ 
+            bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+          }}
         >
-          <ShoppingCart className="w-7 h-7" />
-          {cart.length > 0 && (
-            <span className="absolute -top-1 -right-1 h-7 w-7 rounded-full bg-destructive text-destructive-foreground text-sm font-bold flex items-center justify-center">
-              {cart.length}
-            </span>
-          )}
-        </button>
+          <button
+            className="h-16 w-16 rounded-full shadow-2xl bg-primary text-primary-foreground flex items-center justify-center active:scale-95 transition-transform"
+            onClick={() => setShowMobileCart(true)}
+            data-testid="button-mobile-cart"
+          >
+            <ShoppingCart className="w-7 h-7" />
+            {cart.length > 0 && (
+              <span className="absolute -top-1 -right-1 h-7 w-7 rounded-full bg-destructive text-destructive-foreground text-sm font-bold flex items-center justify-center">
+                {cart.length}
+              </span>
+            )}
+          </button>
+        </div>
       )}
 
       {/* Mobile Cart Sheet */}
