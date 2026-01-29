@@ -110,7 +110,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (isMobile) {
     return (
-      <div className="flex flex-col h-screen w-full">
+      <div className="flex flex-col min-h-screen min-h-dvh w-full bg-background">
         <header className="flex h-12 items-center justify-between gap-2 border-b px-3 bg-card shrink-0 safe-area-pt">
           <span className="text-sm font-semibold truncate">Flowp POS</span>
           <div className="flex items-center gap-2">

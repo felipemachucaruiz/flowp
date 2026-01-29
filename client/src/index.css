@@ -226,20 +226,32 @@
     @apply border-border;
   }
 
-  html, body {
+  html {
     height: 100%;
     width: 100%;
     overflow: hidden;
+    /* Extend background to safe areas on notched iPhones */
+    background-color: hsl(var(--background));
   }
 
   body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
     @apply font-sans antialiased bg-background text-foreground;
+    /* Extend to fill safe area on iOS */
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
   }
 
   #root {
     height: 100%;
     width: 100%;
     overflow: hidden;
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
   }
 
   /* Mobile touch scrolling improvements */
@@ -424,5 +436,18 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Dynamic viewport height for iOS */
+  .min-h-dvh {
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+
+  .h-dvh {
+    height: 100vh;
+    height: 100dvh;
+    height: -webkit-fill-available;
   }
 }

@@ -16,9 +16,10 @@ A production-ready, multi-tenant POS + Inventory system delivered as a Progressi
 - **Tables/Kitchen**: Compact stats cards and grids with responsive spacing
 - **Header**: Compact 10px height with smaller padding
 
-## Mobile App Features (iPhone 16 Optimized)
+## Mobile App Features (iPhone 16/17 Pro Max Optimized)
+- **Full Screen Support**: Uses min-h-dvh and viewport-fit=cover for edge-to-edge display on notched iPhones
 - **Bottom Navigation**: Fixed nav bar with POS, Tables, Inventory, Reports + More menu
-- **Safe Area Insets**: CSS utilities for iPhone notch and home indicator (safe-area-pt, safe-area-pb)
+- **Safe Area Insets**: CSS utilities for iPhone notch and home indicator (safe-area-pt, safe-area-pb, safe-area-inset)
 - **Camera Barcode Scanner**: Uses @zxing/library for camera-based barcode scanning on mobile
 - **Touch Targets**: Min 120px height for product cards, 64px for cart button
 - **Mobile Cart**: Floating button (bottom-24 right-4) opens sheet with full cart functionality
