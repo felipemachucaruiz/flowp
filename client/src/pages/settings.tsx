@@ -6,6 +6,7 @@ import { z } from "zod";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { usePermissions } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,7 +64,7 @@ const userSchema = z.object({
   phone: z.string().min(1, "Phone is required"),
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
-  role: z.enum(["admin", "manager", "cashier", "kitchen", "sales_rep"]),
+  role: z.enum(["owner", "admin", "manager", "cashier", "kitchen", "inventory"]),
   pin: z.string().optional(),
 });
 
@@ -892,6 +893,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { tenant, refreshTenant } = useAuth();
   const { t, formatDate } = useI18n();
+  const { can, isOwner, isAdmin } = usePermissions();
   const [activeTab, setActiveTab] = useState("business");
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [showProductDialog, setShowProductDialog] = useState(false);
@@ -1395,38 +1397,48 @@ export default function SettingsPage() {
               <span className="hidden sm:inline">{t("settings.business")}</span>
               <span className="sm:hidden">{t("settings.business").split(' ')[0]}</span>
             </TabsTrigger>
-            <TabsTrigger value="taxes" data-testid="tab-taxes" className="text-xs sm:text-sm">
-              <Receipt className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">{t("taxes.title")}</span>
-              <span className="sm:hidden">{t("taxes.title").split(' ')[0]}</span>
-            </TabsTrigger>
-            {isRestaurant && (
+            {isOwner && (
+              <TabsTrigger value="taxes" data-testid="tab-taxes" className="text-xs sm:text-sm">
+                <Receipt className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("taxes.title")}</span>
+                <span className="sm:hidden">{t("taxes.title").split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
+            {isRestaurant && isAdmin && (
               <TabsTrigger value="tables" data-testid="tab-tables" className="text-xs sm:text-sm">
                 <LayoutGrid className="w-4 h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">{t("settings.tables")}</span>
                 <span className="sm:hidden">{t("settings.tables").split(' ')[0]}</span>
               </TabsTrigger>
             )}
-            <TabsTrigger value="printing" data-testid="tab-printing" className="text-xs sm:text-sm">
-              <Printer className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">{t("settings.printing")}</span>
-              <span className="sm:hidden">{t("settings.printing").split(' ')[0]}</span>
-            </TabsTrigger>
-            <TabsTrigger value="users" data-testid="tab-users" className="text-xs sm:text-sm">
-              <Users className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">{t("settings.users")}</span>
-              <span className="sm:hidden">{t("settings.users").split(' ')[0]}</span>
-            </TabsTrigger>
-            <TabsTrigger value="import" data-testid="tab-import" className="text-xs sm:text-sm">
-              <Upload className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">{t("settings.import")}</span>
-              <span className="sm:hidden">{t("settings.import").split(' ')[0]}</span>
-            </TabsTrigger>
-            <TabsTrigger value="downloads" data-testid="tab-downloads" className="hidden sm:flex text-xs sm:text-sm">
-              <Download className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">{t("settings.downloads")}</span>
-              <span className="sm:hidden">{t("settings.downloads").split(' ')[0]}</span>
-            </TabsTrigger>
+            {isOwner && (
+              <TabsTrigger value="printing" data-testid="tab-printing" className="text-xs sm:text-sm">
+                <Printer className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.printing")}</span>
+                <span className="sm:hidden">{t("settings.printing").split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
+            {isOwner && (
+              <TabsTrigger value="users" data-testid="tab-users" className="text-xs sm:text-sm">
+                <Users className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.users")}</span>
+                <span className="sm:hidden">{t("settings.users").split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="import" data-testid="tab-import" className="text-xs sm:text-sm">
+                <Upload className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.import")}</span>
+                <span className="sm:hidden">{t("settings.import").split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="downloads" data-testid="tab-downloads" className="hidden sm:flex text-xs sm:text-sm">
+                <Download className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.downloads")}</span>
+                <span className="sm:hidden">{t("settings.downloads").split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -3284,7 +3296,7 @@ export default function SettingsPage() {
                           <SelectItem value="manager">{t("form.role_manager")}</SelectItem>
                           <SelectItem value="cashier">{t("form.role_cashier")}</SelectItem>
                           <SelectItem value="kitchen">{t("form.role_kitchen")}</SelectItem>
-                          <SelectItem value="sales_rep">{t("form.role_sales_rep")}</SelectItem>
+                          <SelectItem value="inventory">{t("form.role_inventory")}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { usePermissions } from "@/lib/permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Category, Product } from "@shared/schema";
@@ -21,6 +22,7 @@ export default function ProductsPage() {
   const { tenant } = useAuth();
   const { t } = useI18n();
   const { toast } = useToast();
+  const { can } = usePermissions();
 
   const formatCurrency = (amount: number) => {
     const currency = tenant?.currency || "USD";
@@ -173,10 +175,12 @@ export default function ProductsPage() {
               </CardTitle>
               <CardDescription>{t("categories.subtitle")}</CardDescription>
             </div>
-            <Button onClick={() => openCategoryDialog()} data-testid="button-add-category">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("categories.add")}
-            </Button>
+            {can('products.create') && (
+              <Button onClick={() => openCategoryDialog()} data-testid="button-add-category">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("categories.add")}
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {categoriesLoading ? (
@@ -201,25 +205,31 @@ export default function ProductsPage() {
                         />
                         <span className="font-medium">{category.name}</span>
                       </div>
-                      <div className="flex gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => openCategoryDialog(category)}
-                          data-testid={`button-edit-category-${category.id}`}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => deleteMutation.mutate({ type: "categories", id: category.id })}
-                          data-testid={`button-delete-category-${category.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      {(can('products.edit') || can('products.delete')) && (
+                        <div className="flex gap-1">
+                          {can('products.edit') && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => openCategoryDialog(category)}
+                              data-testid={`button-edit-category-${category.id}`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {can('products.delete') && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive"
+                              onClick={() => deleteMutation.mutate({ type: "categories", id: category.id })}
+                              data-testid={`button-delete-category-${category.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -236,10 +246,12 @@ export default function ProductsPage() {
               </CardTitle>
               <CardDescription>{t("products.subtitle")}</CardDescription>
             </div>
-            <Button onClick={() => openProductDialog()} data-testid="button-add-product">
-              <Plus className="w-4 h-4 mr-2" />
-              {t("products.add")}
-            </Button>
+            {can('products.create') && (
+              <Button onClick={() => openProductDialog()} data-testid="button-add-product">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("products.add")}
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             {productsLoading ? (
@@ -281,25 +293,31 @@ export default function ProductsPage() {
                           </span>
                         </div>
                       </div>
-                      <div className="flex gap-1 ml-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => openProductDialog(product)}
-                          data-testid={`button-edit-product-${product.id}`}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => deleteMutation.mutate({ type: "products", id: product.id })}
-                          data-testid={`button-delete-product-${product.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      {(can('products.edit') || can('products.delete')) && (
+                        <div className="flex gap-1 ml-2">
+                          {can('products.edit') && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => openProductDialog(product)}
+                              data-testid={`button-edit-product-${product.id}`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {can('products.delete') && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="text-destructive"
+                              onClick={() => deleteMutation.mutate({ type: "products", id: product.id })}
+                              data-testid={`button-delete-product-${product.id}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
               </div>

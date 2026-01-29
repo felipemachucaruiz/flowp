@@ -5,7 +5,7 @@ import { z } from "zod";
 
 // Enums
 export const tenantTypeEnum = pgEnum("tenant_type", ["retail", "restaurant"]);
-export const userRoleEnum = pgEnum("user_role", ["admin", "manager", "cashier", "kitchen", "sales_rep"]);
+export const userRoleEnum = pgEnum("user_role", ["owner", "admin", "manager", "cashier", "kitchen", "inventory"]);
 export const tableStatusEnum = pgEnum("table_status", ["free", "occupied", "dirty", "reserved"]);
 export const orderStatusEnum = pgEnum("order_status", ["pending", "in_progress", "completed", "cancelled", "held"]);
 export const kitchenTicketStatusEnum = pgEnum("kitchen_ticket_status", ["new", "preparing", "ready", "served"]);

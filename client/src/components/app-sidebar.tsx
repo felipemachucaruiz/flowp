@@ -2,6 +2,7 @@ import { useLocation, Link } from "wouter";
 import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-provider";
 import { useI18n } from "@/lib/i18n";
+import { canAccessPage, getRoleLabel, type Permission, hasAnyPermission } from "@/lib/permissions";
 import {
   Sidebar,
   SidebarContent,
@@ -88,12 +89,14 @@ export function AppSidebar() {
   };
 
   const isRestaurant = tenant?.type === "restaurant";
+  const userRole = user?.role;
 
-  const mainMenuItems = [
+  const allMenuItems = [
     {
       title: t("nav.pos"),
       url: "/pos",
       icon: ShoppingCart,
+      page: "pos",
     },
     ...(isRestaurant
       ? [
@@ -101,11 +104,13 @@ export function AppSidebar() {
             title: t("nav.tables"),
             url: "/tables",
             icon: LayoutGrid,
+            page: "tables",
           },
           {
             title: t("nav.kitchen"),
             url: "/kitchen",
             icon: ChefHat,
+            page: "kitchen",
           },
         ]
       : []),
@@ -113,43 +118,53 @@ export function AppSidebar() {
       title: t("nav.products"),
       url: "/products",
       icon: Tag,
+      page: "products",
     },
     {
       title: t("nav.inventory"),
       url: "/inventory",
       icon: Package,
+      page: "inventory",
     },
     {
       title: t("nav.purchasing"),
       url: "/purchasing",
       icon: Truck,
+      page: "purchasing",
     },
     {
       title: t("nav.customers") || "Customers",
       url: "/customers",
       icon: Users,
+      page: "customers",
     },
     {
       title: t("nav.loyalty") || "Loyalty",
       url: "/loyalty",
       icon: Gift,
+      page: "loyalty-rewards",
     },
     {
       title: t("nav.reports"),
       url: "/reports",
       icon: BarChart3,
+      page: "reports",
     },
     {
       title: t("nav.sales_history") || "Sales History",
       url: "/sales-history",
       icon: Receipt,
+      page: "sales-history",
     },
     {
       title: t("nav.settings"),
       url: "/settings",
       icon: Settings,
+      page: "settings",
     },
   ];
+
+  const mainMenuItems = allMenuItems.filter(item => canAccessPage(userRole, item.page));
 
   const getInitials = (name: string) => {
     return name
@@ -211,8 +226,8 @@ export function AppSidebar() {
               <span className="text-sm font-medium truncate">
                 {user?.name || "User"}
               </span>
-              <span className="text-xs text-muted-foreground capitalize truncate">
-                {user?.role || "Staff"}
+              <span className="text-xs text-muted-foreground truncate">
+                {userRole ? getRoleLabel(userRole) : "Staff"}
               </span>
             </div>
           </div>

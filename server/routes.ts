@@ -299,7 +299,7 @@ export async function registerRoutes(
         featureFlags: businessType === "restaurant" ? RESTAURANT_FEATURES : RETAIL_FEATURES,
       });
 
-      // Create admin user
+      // Create owner user (first user is always owner)
       const user = await storage.createUser({
         tenantId: tenant.id,
         username: adminUsername,
@@ -307,7 +307,7 @@ export async function registerRoutes(
         name: adminName,
         email: adminEmail,
         phone: adminPhone,
-        role: "admin",
+        role: "owner",
         pin: null,
         isActive: true,
       });
