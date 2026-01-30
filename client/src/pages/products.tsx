@@ -15,7 +15,7 @@ import { usePermissions } from "@/lib/permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Category, Product } from "@shared/schema";
-import { Plus, Pencil, Trash2, Package, Tag, X, ImageIcon, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Tag, X, ImageIcon, Search, Filter } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 
 export default function ProductsPage() {
@@ -167,15 +167,36 @@ export default function ProductsPage() {
   };
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [priceFilter, setPriceFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
   
-  const filteredProducts = products?.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredProducts = products?.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesCategory = categoryFilter === "all" || p.categoryId === categoryFilter;
+    
+    const price = parseFloat(p.price);
+    let matchesPrice = true;
+    if (priceFilter === "0-50") matchesPrice = price >= 0 && price <= 50;
+    else if (priceFilter === "50-100") matchesPrice = price > 50 && price <= 100;
+    else if (priceFilter === "100-500") matchesPrice = price > 100 && price <= 500;
+    else if (priceFilter === "500+") matchesPrice = price > 500;
+    
+    return matchesSearch && matchesCategory && matchesPrice;
+  });
   
   const filteredCategories = categories?.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
+  const activeFiltersCount = (categoryFilter !== "all" ? 1 : 0) + (priceFilter !== "all" ? 1 : 0);
+  
+  const clearFilters = () => {
+    setCategoryFilter("all");
+    setPriceFilter("all");
+  };
 
   return (
     <div className="h-full overflow-y-auto touch-scroll overscroll-contain">
@@ -209,6 +230,19 @@ export default function ProductsPage() {
                   data-testid="input-product-search"
                 />
               </div>
+              <Button
+                variant={showFilters ? "secondary" : "outline"}
+                onClick={() => setShowFilters(!showFilters)}
+                data-testid="button-toggle-filters"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                {t("products.filters")}
+                {activeFiltersCount > 0 && (
+                  <Badge variant="default" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                    {activeFiltersCount}
+                  </Badge>
+                )}
+              </Button>
               {can('products.create') && (
                 <Button onClick={() => openProductDialog()} data-testid="button-add-product">
                   <Plus className="h-4 w-4 mr-2" />
@@ -216,6 +250,54 @@ export default function ProductsPage() {
                 </Button>
               )}
             </div>
+
+            {showFilters && (
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Label>{t("products.filter_by_category")}</Label>
+                      <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                        <SelectTrigger data-testid="select-category-filter">
+                          <SelectValue placeholder={t("products.all_categories")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t("products.all_categories")}</SelectItem>
+                          {categories?.map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <Label>{t("products.filter_by_price")}</Label>
+                      <Select value={priceFilter} onValueChange={setPriceFilter}>
+                        <SelectTrigger data-testid="select-price-filter">
+                          <SelectValue placeholder={t("products.all_prices")} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">{t("products.all_prices")}</SelectItem>
+                          <SelectItem value="0-50">$0 - $50</SelectItem>
+                          <SelectItem value="50-100">$50 - $100</SelectItem>
+                          <SelectItem value="100-500">$100 - $500</SelectItem>
+                          <SelectItem value="500+">$500+</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {activeFiltersCount > 0 && (
+                      <div className="flex items-end">
+                        <Button variant="ghost" onClick={clearFilters} data-testid="button-clear-filters">
+                          <X className="h-4 w-4 mr-2" />
+                          {t("products.clear_filters")}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {productsLoading ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
