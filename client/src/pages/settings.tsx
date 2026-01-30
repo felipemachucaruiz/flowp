@@ -1162,6 +1162,19 @@ export default function SettingsPage() {
     },
   });
 
+  const inventorySettingsMutation = useMutation({
+    mutationFn: async (data: { allowZeroStockSales: boolean }) => {
+      return apiRequest("PATCH", "/api/settings", data);
+    },
+    onSuccess: () => {
+      toast({ title: t("settings.updated") });
+      if (refreshTenant) refreshTenant();
+    },
+    onError: () => {
+      toast({ title: t("settings.update_error"), variant: "destructive" });
+    },
+  });
+
   const receiptSettingsMutation = useMutation({
     mutationFn: async (data: z.infer<typeof receiptSettingsSchema>) => {
       return apiRequest("PATCH", "/api/settings", data);
@@ -1402,6 +1415,13 @@ export default function SettingsPage() {
                 <Receipt className="w-4 h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">{t("taxes.title")}</span>
                 <span className="sm:hidden">{t("taxes.title").split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
+            {isOwner && (
+              <TabsTrigger value="inventory" data-testid="tab-inventory" className="text-xs sm:text-sm">
+                <Package className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.inventory")}</span>
+                <span className="sm:hidden">{t("settings.inventory").split(' ')[0]}</span>
               </TabsTrigger>
             )}
             {isRestaurant && isAdmin && (
@@ -1875,6 +1895,34 @@ export default function SettingsPage() {
                   />
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Inventory Settings */}
+        <TabsContent value="inventory" className="mt-6 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("settings.inventory")}</CardTitle>
+              <CardDescription>{t("settings.inventory_description")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">{t("settings.allow_zero_stock_sales")}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t("settings.allow_zero_stock_sales_description")}
+                  </p>
+                </div>
+                <Switch
+                  checked={tenant?.allowZeroStockSales ?? true}
+                  onCheckedChange={(checked) => {
+                    inventorySettingsMutation.mutate({ allowZeroStockSales: checked });
+                  }}
+                  disabled={inventorySettingsMutation.isPending}
+                  data-testid="switch-allow-zero-stock-sales"
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

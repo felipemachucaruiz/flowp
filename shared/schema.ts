@@ -57,6 +57,8 @@ export const tenants = pgTable("tenants", {
   // Coupon settings
   couponEnabled: boolean("coupon_enabled").default(false),
   couponText: text("coupon_text"),
+  // Inventory settings
+  allowZeroStockSales: boolean("allow_zero_stock_sales").default(true),
   onboardingComplete: boolean("onboarding_complete").default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   suspendedAt: timestamp("suspended_at"),

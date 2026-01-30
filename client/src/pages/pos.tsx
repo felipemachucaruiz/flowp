@@ -213,6 +213,26 @@ export default function POSPage() {
     enabled: !!tenant?.id,
   });
 
+  const { data: stockLevels } = useQuery<Record<string, number>>({
+    queryKey: ["/api/inventory/levels"],
+    enabled: !!tenant?.id,
+  });
+
+  // Check if a product can be added to cart based on stock settings
+  const canAddToCart = (product: Product): boolean => {
+    // If zero stock sales are allowed, always allow
+    if (tenant?.allowZeroStockSales !== false) return true;
+    // If product doesn't track inventory, allow
+    if (product.trackInventory === false) return true;
+    // Check stock level
+    const stock = stockLevels?.[product.id] ?? 0;
+    return stock > 0;
+  };
+
+  const getProductStock = (productId: string): number => {
+    return stockLevels?.[productId] ?? 0;
+  };
+
   // Get individual active tax rates for display
   const activeTaxRates = taxRates?.filter(t => t.isActive) || [];
 
@@ -979,32 +999,52 @@ export default function POSPage() {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-px sm:gap-2 bg-border sm:bg-transparent">
-              {filteredProducts?.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() => addToCart(product)}
-                  className="flex flex-col items-center justify-center p-3 sm:p-2 sm:rounded-md sm:border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[120px] sm:min-h-[100px]"
-                  data-testid={`button-product-${product.id}`}
-                >
-                  {product.image ? (
-                    <img 
-                      src={product.image} 
-                      alt={product.name}
-                      className="w-14 h-14 sm:w-12 sm:h-12 object-cover rounded-lg mb-2"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 sm:w-12 sm:h-12 bg-muted rounded-lg mb-2 flex items-center justify-center">
-                      <Package className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground" />
-                    </div>
-                  )}
-                  <span className="font-medium text-sm sm:text-sm text-center line-clamp-2 mb-1">
-                    {product.name}
-                  </span>
-                  <span className="text-primary font-semibold text-sm sm:text-sm">
-                    {formatCurrency(parseFloat(product.price))}
-                  </span>
-                </button>
-              ))}
+              {filteredProducts?.map((product) => {
+                const inStock = canAddToCart(product);
+                const stock = getProductStock(product.id);
+                const showOutOfStock = !inStock && product.trackInventory !== false;
+                return (
+                  <button
+                    key={product.id}
+                    onClick={() => {
+                      if (!canAddToCart(product)) {
+                        toast({
+                          title: t("pos.out_of_stock"),
+                          description: t("pos.out_of_stock_description"),
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      addToCart(product);
+                    }}
+                    className={`flex flex-col items-center justify-center p-3 sm:p-2 sm:rounded-md sm:border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[120px] sm:min-h-[100px] ${showOutOfStock ? 'opacity-50' : ''}`}
+                    data-testid={`button-product-${product.id}`}
+                  >
+                    {product.image ? (
+                      <img 
+                        src={product.image} 
+                        alt={product.name}
+                        className="w-14 h-14 sm:w-12 sm:h-12 object-cover rounded-lg mb-2"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 sm:w-12 sm:h-12 bg-muted rounded-lg mb-2 flex items-center justify-center">
+                        <Package className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <span className="font-medium text-sm sm:text-sm text-center line-clamp-2 mb-1">
+                      {product.name}
+                    </span>
+                    <span className="text-primary font-semibold text-sm sm:text-sm">
+                      {formatCurrency(parseFloat(product.price))}
+                    </span>
+                    {showOutOfStock && (
+                      <span className="text-xs text-destructive font-medium">
+                        {t("pos.no_stock")}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
