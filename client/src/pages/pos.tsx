@@ -467,6 +467,11 @@ export default function POSPage() {
           subtotal: receiptData.subtotal,
           taxAmount: receiptData.taxAmount,
           taxRate: taxRate,
+          taxes: activeTaxRates.map(tax => ({
+            name: tax.name,
+            rate: parseFloat(tax.rate || "0"),
+            amount: (receiptData.subtotal - (receiptData.discountAmount || 0)) * parseFloat(tax.rate || "0") / 100,
+          })),
           total: receiptData.total,
           paymentMethod: receiptData.paymentMethod,
           cashReceived: receiptData.cashReceived,

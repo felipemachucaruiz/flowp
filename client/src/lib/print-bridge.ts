@@ -68,6 +68,11 @@ interface ReceiptData {
   discountPercent?: number;
   tax?: number;
   taxRate?: number;
+  taxes?: Array<{
+    name: string;
+    rate: number;
+    amount: number;
+  }>;
   total: number;
   payments?: Array<{
     type: string;

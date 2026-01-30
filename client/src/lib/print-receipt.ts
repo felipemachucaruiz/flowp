@@ -37,6 +37,12 @@ interface PaymentEntry {
   transactionId?: string;
 }
 
+interface TaxEntry {
+  name: string;
+  rate: number;
+  amount: number;
+}
+
 interface ReceiptData {
   orderNumber: string;
   date: Date;
@@ -44,6 +50,7 @@ interface ReceiptData {
   subtotal: number;
   taxAmount: number;
   taxRate: number;
+  taxes?: TaxEntry[];
   total: number;
   paymentMethod: string;
   cashReceived?: number;
@@ -109,6 +116,7 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
       discountPercent: data.discountPercent,
       tax: data.taxAmount,
       taxRate: data.taxRate,
+      taxes: data.taxes?.map(t => ({ name: t.name, rate: t.rate, amount: t.amount })),
       total: data.total,
       payments: data.payments?.map(p => ({
         type: p.type,
@@ -417,7 +425,10 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
     
     <div class="totals">
       <div><span>${t.subtotal}:</span><span>${formatCurrency(data.subtotal)}</span></div>
-      <div><span>${t.tax} (${data.taxRate}%):</span><span>${formatCurrency(data.taxAmount)}</span></div>
+      ${data.taxes && data.taxes.length > 0 
+        ? data.taxes.map(tax => `<div><span>${tax.name} (${tax.rate}%):</span><span>${formatCurrency(tax.amount)}</span></div>`).join("")
+        : `<div><span>${t.tax} (${data.taxRate}%):</span><span>${formatCurrency(data.taxAmount)}</span></div>`
+      }
       <div class="total"><span>${t.total}:</span><span>${formatCurrency(data.total)}</span></div>
     </div>
     
