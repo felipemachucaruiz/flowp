@@ -2084,7 +2084,22 @@ export async function registerRoutes(
     }
   });
 
-  // Get ingredient lots
+  // Get all tenant ingredient lots (for alerts)
+  app.get("/api/ingredient-lots", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const lots = await storage.getIngredientLots(tenantId);
+      res.json(lots);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch ingredient lots" });
+    }
+  });
+
+  // Get ingredient lots by ingredient
   app.get("/api/ingredients/:id/lots", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;

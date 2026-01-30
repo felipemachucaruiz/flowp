@@ -79,8 +79,8 @@ export default function RecipesPage() {
         yieldQty: parseFloat(data.yieldQty),
         items: data.items.map(item => ({
           ingredientId: item.ingredientId,
-          qtyPerProduct: item.qtyPerProduct,
-          wastePercent: item.wastePercent || "0",
+          qtyRequiredBase: item.qtyPerProduct,
+          wastePct: item.wastePercent || "0",
         })),
       });
       return response;
