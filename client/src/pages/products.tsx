@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { usePermissions } from "@/lib/permissions";
@@ -50,6 +51,8 @@ export default function ProductsPage() {
     barcode: "",
     cost: "",
     image: "",
+    trackInventory: true,
+    lowStockThreshold: "10",
   });
   const [productFormTouched, setProductFormTouched] = useState(false);
   
@@ -95,9 +98,9 @@ export default function ProductsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setProductDialogOpen(false);
       setEditingProduct(null);
-      setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "", image: "" });
+      setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "", image: "", trackInventory: true, lowStockThreshold: "10" });
       setProductFormTouched(false);
-      toast({ title: editingProduct ? t("products.title") : t("products.title") });
+      toast({ title: editingProduct ? t("products.updated") : t("products.created") });
     },
     onError: (error: Error) => {
       toast({ title: t("common.error"), description: error.message, variant: "destructive" });
@@ -136,10 +139,12 @@ export default function ProductsPage() {
         barcode: product.barcode || "",
         cost: product.cost || "",
         image: product.image || "",
+        trackInventory: product.trackInventory ?? true,
+        lowStockThreshold: String(product.lowStockThreshold ?? 10),
       });
     } else {
       setEditingProduct(null);
-      setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "", image: "" });
+      setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "", image: "", trackInventory: true, lowStockThreshold: "10" });
     }
     setProductDialogOpen(true);
   };
@@ -633,6 +638,34 @@ export default function ProductsPage() {
                       data-testid="input-product-image"
                     />
                   </label>
+                </div>
+              )}
+            </div>
+            <div className="space-y-4 pt-4 border-t">
+              <h4 className="font-medium text-sm">{t("products.stock_configuration")}</h4>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t("products.track_inventory")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("products.track_inventory_description")}</p>
+                </div>
+                <Switch
+                  checked={productForm.trackInventory}
+                  onCheckedChange={(checked) => setProductForm({ ...productForm, trackInventory: checked })}
+                  data-testid="switch-track-inventory"
+                />
+              </div>
+              {productForm.trackInventory && (
+                <div className="space-y-2">
+                  <Label>{t("products.low_stock_threshold")}</Label>
+                  <Input
+                    type="number"
+                    value={productForm.lowStockThreshold}
+                    onChange={(e) => setProductForm({ ...productForm, lowStockThreshold: e.target.value })}
+                    placeholder="10"
+                    min="0"
+                    data-testid="input-low-stock-threshold"
+                  />
+                  <p className="text-xs text-muted-foreground">{t("products.low_stock_threshold_description")}</p>
                 </div>
               )}
             </div>

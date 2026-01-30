@@ -131,6 +131,7 @@ export const products = pgTable("products", {
   description: text("description"),
   isActive: boolean("is_active").default(true),
   trackInventory: boolean("track_inventory").default(true),
+  lowStockThreshold: integer("low_stock_threshold").default(10),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
