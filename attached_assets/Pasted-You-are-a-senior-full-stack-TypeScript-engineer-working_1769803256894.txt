@@ -1,0 +1,142 @@
+You are a senior full-stack TypeScript engineer working on Flowp, a multi-tenant SaaS POS platform.
+
+Your task is to implement a COMPLETE internationalization (i18n) system that supports all display languages in the software. The solution must be scalable, type-safe, and applied consistently across frontend, backend, validation, and UI components.
+
+=====================================================
+1) SUPPORTED LANGUAGES (INITIAL)
+=====================================================
+Implement support for the following locales:
+
+- en-US (English – default)
+- es-CO (Spanish – Latin America)
+- pt-BR (Portuguese – Brazil)
+
+The system must be easily extendable to add more locales later.
+
+=====================================================
+2) CORE PRINCIPLES (MANDATORY)
+=====================================================
+- NO hardcoded user-facing strings anywhere in the app.
+- All UI text, labels, buttons, errors, tooltips, notifications, and empty states must be translated.
+- Frontend and backend must share translation keys.
+- Validation errors (Zod) must be translated.
+- Fallback strategy must exist (default to en-US).
+- Language selection must be per user and per tenant.
+
+=====================================================
+3) FILE STRUCTURE (MONOREPO)
+=====================================================
+Create the following structure:
+
+/shared/i18n
+  ├── index.ts
+  ├── locales.ts
+  ├── types.ts
+  ├── en-US.json
+  ├── es-CO.json
+  └── pt-BR.json
+
+/client/i18n
+  ├── I18nProvider.tsx
+  ├── useI18n.ts
+  └── formatters.ts
+
+/server/i18n
+  ├── i18n.ts
+  └── middleware.ts
+
+=====================================================
+4) TRANSLATION KEYS STRUCTURE
+=====================================================
+Use a nested, semantic key structure. Example:
+
+common:
+  save
+  cancel
+  delete
+  confirm
+  loading
+  yes
+  no
+
+auth:
+  login
+  logout
+  email
+  password
+  forgot_password
+
+pos:
+  checkout
+  add_to_cart
+  hold_order
+  resume_order
+  split_payment
+  print_receipt
+
+inventory:
+  ingredient
+  ingredients
+  stock
+  low_stock
+  expiring_soon
+
+restaurant:
+  table
+  tables
+  kitchen
+  send_to_kitchen
+  order_ready
+
+errors:
+  required
+  invalid_email
+  insufficient_stock
+  unauthorized
+  unexpected
+
+alerts:
+  low_stock_title
+  expiring_title
+  expired_title
+
+=====================================================
+5) SHARED TRANSLATION ENGINE
+=====================================================
+In /shared/i18n/index.ts:
+
+- Load all locale JSON files
+- Export a function:
+  t(key: TranslationKey, params?, locale?)
+
+Features:
+- Dot-notation access (e.g., "pos.checkout")
+- Parameter interpolation:
+  "low_stock": "Only {{count}} units left"
+- Fallback to default language if key is missing
+- Type-safe keys using a generated union type
+
+=====================================================
+6) FRONTEND IMPLEMENTATION (REACT)
+=====================================================
+A) I18n Provider
+- Create <I18nProvider> wrapping the app
+- Resolve language priority:
+  1) User preference
+  2) Tenant default language
+  3) Browser language
+  4) en-US fallback
+
+B) Hook
+Implement useI18n():
+- const { t, locale, setLocale } = useI18n()
+- Re-render UI on language change
+- Persist selection (localStorage + backend user profile)
+
+C) Usage Example
+Replace all strings:
+
+❌ <Button>Save</Button>
+✅ <Button>{t("common.save")}</Button>
+
+❌ toast.error("Ins
