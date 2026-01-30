@@ -90,7 +90,10 @@ export default function ProductsPage() {
       setProductDialogOpen(false);
       setEditingProduct(null);
       setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "", image: "" });
-      toast({ title: editingProduct ? t("products.updated") : t("products.created") });
+      toast({ title: editingProduct ? t("products.title") : t("products.title") });
+    },
+    onError: (error: Error) => {
+      toast({ title: t("common.error"), description: error.message, variant: "destructive" });
     },
   });
 
