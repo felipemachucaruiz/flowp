@@ -89,10 +89,14 @@ export default function ProductsPage() {
 
   const productMutation = useMutation({
     mutationFn: async (data: typeof productForm) => {
+      const payload = {
+        ...data,
+        lowStockThreshold: parseInt(data.lowStockThreshold, 10) || 10,
+      };
       if (editingProduct) {
-        return apiRequest("PATCH", `/api/products/${editingProduct.id}`, data);
+        return apiRequest("PATCH", `/api/products/${editingProduct.id}`, payload);
       }
-      return apiRequest("POST", "/api/products", data);
+      return apiRequest("POST", "/api/products", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });

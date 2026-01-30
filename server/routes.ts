@@ -687,9 +687,12 @@ export async function registerRoutes(
       const data = insertProductSchema.parse({ ...req.body, tenantId });
       const product = await storage.createProduct(data);
       res.json(product);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Product creation error:", error);
-      res.status(400).json({ message: "Failed to create product" });
+      if (error?.issues) {
+        console.error("Zod validation errors:", JSON.stringify(error.issues, null, 2));
+      }
+      res.status(400).json({ message: "Failed to create product", details: error?.issues || error?.message });
     }
   });
 
