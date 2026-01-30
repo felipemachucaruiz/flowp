@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { useTranslation } from "@/lib/i18n";
+import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { Plus, Search, Package, Crown, AlertTriangle, Edit, Trash2, Archive, Box
 import type { Ingredient } from "@shared/schema";
 
 export default function IngredientsPage() {
-  const { t } = useTranslation();
+  const { t } = useI18n();
   const { tenant } = useAuth();
   const { toast } = useToast();
   const [search, setSearch] = useState("");
