@@ -52,7 +52,7 @@ export default function ProductsPage() {
     image: "",
   });
 
-  const { upload, isUploading } = useUpload();
+  const { uploadFile, isUploading } = useUpload();
 
   const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
@@ -137,9 +137,9 @@ export default function ProductsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    const result = await upload(file);
+    const result = await uploadFile(file);
     if (result) {
-      setProductForm({ ...productForm, image: result.url });
+      setProductForm({ ...productForm, image: result.objectPath });
     }
   };
 
@@ -289,7 +289,7 @@ export default function ProductsPage() {
                             </Badge>
                           )}
                           <span className="text-sm text-muted-foreground">
-                            {formatCurrency(parseFloat(product.price), tenant?.currency || "USD")}
+                            {formatCurrency(parseFloat(product.price))}
                           </span>
                         </div>
                       </div>

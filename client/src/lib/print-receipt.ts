@@ -62,25 +62,40 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
       return false;
     }
 
+    // Get translated tax ID label based on language
+    const lang = tenant?.language || "en";
+    const taxIdLabels: Record<string, string> = {
+      en: "Tax ID",
+      es: "NIT",
+      pt: "CNPJ/CPF",
+    };
+    const taxIdLabel = taxIdLabels[lang] || taxIdLabels.en;
+
+    // Format date with proper locale - use 24h format to avoid AM/PM issues
+    const dateLocale = lang === "es" ? "es-CO" : lang === "pt" ? "pt-BR" : "en-US";
+    const formattedDate = new Intl.DateTimeFormat(dateLocale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(data.date);
+
     const result = await printBridge.printReceipt({
-      language: tenant?.language || "en",
+      language: lang,
       businessName: tenant?.name,
       headerText: tenant?.receiptHeaderText || undefined,
       address: tenant?.receiptShowAddress ? tenant.address || undefined : undefined,
       phone: tenant?.receiptShowPhone ? tenant.phone || undefined : undefined,
       taxId: tenant?.receiptTaxId || undefined,
+      taxIdLabel: taxIdLabel,
       fontSize: tenant?.receiptFontSize || 12,
       fontFamily: tenant?.receiptFontFamily || "monospace",
       logoSize: tenant?.receiptLogoSize || 200,
       logoUrl: tenant?.receiptShowLogo ? (tenant?.receiptLogo || tenant?.logo || undefined) : undefined,
       orderNumber: data.orderNumber,
-      date: new Intl.DateTimeFormat(tenant?.language === "es" ? "es-CO" : tenant?.language === "pt" ? "pt-BR" : "en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }).format(data.date),
+      date: formattedDate,
       cashier: data.cashier,
       customer: data.customer,
       items: data.items.map(item => ({
@@ -235,6 +250,7 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
     }).format(date);
   };
 

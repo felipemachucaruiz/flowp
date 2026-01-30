@@ -47,6 +47,7 @@ interface ReceiptData {
   address?: string;
   phone?: string;
   taxId?: string;
+  taxIdLabel?: string;
   orderNumber?: string;
   date?: string;
   cashier?: string;
