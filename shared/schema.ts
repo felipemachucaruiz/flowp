@@ -16,9 +16,6 @@ export const customerIdTypeEnum = pgEnum("customer_id_type", ["pasaporte", "cedu
 // Purchase order enums
 export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft", "ordered", "partial", "received", "cancelled"]);
 
-// Subscription tier enum
-export const subscriptionTierEnum = pgEnum("subscription_tier", ["basic", "pro", "enterprise"]);
-
 // Portal enums
 export const tenantStatusEnum = pgEnum("tenant_status", ["trial", "active", "past_due", "suspended", "cancelled"]);
 export const portalRoleTypeEnum = pgEnum("portal_role_type", ["internal", "tenant"]);
@@ -62,8 +59,6 @@ export const tenants = pgTable("tenants", {
   couponText: text("coupon_text"),
   // Inventory settings
   allowZeroStockSales: boolean("allow_zero_stock_sales").default(true),
-  // Subscription tier
-  subscriptionTier: subscriptionTierEnum("subscription_tier").default("basic"),
   onboardingComplete: boolean("onboarding_complete").default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   suspendedAt: timestamp("suspended_at"),

@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
-import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw, Smartphone, Crown } from "lucide-react";
+import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw, Smartphone } from "lucide-react";
 import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 
 const businessSettingsSchema = z.object({
@@ -1907,53 +1907,22 @@ export default function SettingsPage() {
               <CardDescription>{t("settings.inventory_description")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Pro Feature: Allow Zero Stock Sales - Restaurant Only */}
-              {isRestaurant ? (
-                <div className={`flex items-center justify-between p-4 rounded-lg border ${tenant?.subscriptionTier === 'basic' ? 'bg-muted/50' : ''}`}>
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <Label className="text-base">{t("settings.allow_zero_stock_sales")}</Label>
-                      <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                        <Crown className="w-3 h-3 mr-1" />
-                        Pro
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {t("settings.allow_zero_stock_sales_description")}
-                    </p>
-                    {tenant?.subscriptionTier === 'basic' && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                        {t("settings.pro_feature_upgrade")}
-                      </p>
-                    )}
-                  </div>
-                  <Switch
-                    checked={tenant?.allowZeroStockSales ?? true}
-                    onCheckedChange={(checked) => {
-                      inventorySettingsMutation.mutate({ allowZeroStockSales: checked });
-                    }}
-                    disabled={inventorySettingsMutation.isPending || tenant?.subscriptionTier === 'basic'}
-                    data-testid="switch-allow-zero-stock-sales"
-                  />
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">{t("settings.allow_zero_stock_sales")}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t("settings.allow_zero_stock_sales_description")}
+                  </p>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">{t("settings.allow_zero_stock_sales")}</Label>
-                    <p className="text-sm text-muted-foreground">
-                      {t("settings.allow_zero_stock_sales_description")}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={tenant?.allowZeroStockSales ?? true}
-                    onCheckedChange={(checked) => {
-                      inventorySettingsMutation.mutate({ allowZeroStockSales: checked });
-                    }}
-                    disabled={inventorySettingsMutation.isPending}
-                    data-testid="switch-allow-zero-stock-sales"
-                  />
-                </div>
-              )}
+                <Switch
+                  checked={tenant?.allowZeroStockSales ?? true}
+                  onCheckedChange={(checked) => {
+                    inventorySettingsMutation.mutate({ allowZeroStockSales: checked });
+                  }}
+                  disabled={inventorySettingsMutation.isPending}
+                  data-testid="switch-allow-zero-stock-sales"
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
