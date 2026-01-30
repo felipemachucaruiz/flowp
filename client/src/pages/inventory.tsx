@@ -328,9 +328,17 @@ export default function InventoryPage() {
                   return (
                     <Card key={movement.id} className="p-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                          {getMovementIcon(movement.type)}
-                        </div>
+                        {product?.image ? (
+                          <img 
+                            src={product.image} 
+                            alt={product.name}
+                            className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                            {getMovementIcon(movement.type)}
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium truncate">

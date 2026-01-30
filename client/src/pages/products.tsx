@@ -320,7 +320,18 @@ export default function ProductsPage() {
                 {filteredProducts.map(product => (
                   <Card key={product.id} className="hover-elevate" data-testid={`card-product-${product.id}`}>
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        {product.image ? (
+                          <img 
+                            src={product.image} 
+                            alt={product.name}
+                            className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                            <Package className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0 space-y-1">
                           <h3 className="font-semibold truncate">{product.name}</h3>
                           <p className="text-lg font-bold text-primary">
@@ -344,7 +355,7 @@ export default function ProductsPage() {
                           </div>
                         </div>
                         {(can('products.edit') || can('products.delete')) && (
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 flex-shrink-0">
                             {can('products.edit') && (
                               <Button
                                 variant="ghost"
