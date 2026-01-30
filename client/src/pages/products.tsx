@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth-context";
@@ -15,7 +15,7 @@ import { usePermissions } from "@/lib/permissions";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Category, Product } from "@shared/schema";
-import { Plus, Pencil, Trash2, Package, Tag, Upload, X, ImageIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Tag, X, ImageIcon, Search } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 
 export default function ProductsPage() {
@@ -166,176 +166,220 @@ export default function ProductsPage() {
     return category?.color || "#6B7280";
   };
 
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const filteredProducts = products?.filter(p => 
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+  
+  const filteredCategories = categories?.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div className="h-full overflow-y-auto touch-scroll overscroll-contain">
-    <div className="p-3 sm:p-6 pb-24 sm:pb-6 space-y-4 sm:space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="p-4 md:p-6 pb-24 md:pb-6 space-y-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold">{t("nav.products")}</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">{t("products.subtitle")}</p>
+          <h1 className="text-2xl font-bold" data-testid="text-products-title">{t("nav.products")}</h1>
+          <p className="text-muted-foreground">{t("products.subtitle")}</p>
         </div>
-      </div>
 
-      <div className="flex flex-col gap-4 sm:gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Tag className="w-5 h-5" />
-                {t("categories.title")}
-              </CardTitle>
-              <CardDescription>{t("categories.subtitle")}</CardDescription>
-            </div>
-            {can('products.create') && (
-              <Button onClick={() => openCategoryDialog()} data-testid="button-add-category">
-                <Plus className="w-4 h-4 mr-2" />
-                {t("categories.add")}
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            {categoriesLoading ? (
-              <div className="space-y-2">
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-12" />
-                ))}
+        <Tabs defaultValue="products" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="products" data-testid="tab-products">
+              <Package className="h-4 w-4 mr-2" />
+              {t("products.title")}
+            </TabsTrigger>
+            <TabsTrigger value="categories" data-testid="tab-categories">
+              <Tag className="h-4 w-4 mr-2" />
+              {t("categories.title")}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="products" className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t("products.search_placeholder")}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-product-search"
+                />
               </div>
-            ) : categories?.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">{t("categories.empty")}</p>
-            ) : (
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                  {categories?.map((category) => (
-                    <div
-                      key={category.id}
-                      className="flex items-center justify-between p-3 rounded-lg border"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-4 h-4 rounded"
-                          style={{ backgroundColor: category.color || "#3B82F6" }}
-                        />
-                        <span className="font-medium">{category.name}</span>
-                      </div>
-                      {(can('products.edit') || can('products.delete')) && (
-                        <div className="flex gap-1">
-                          {can('products.edit') && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => openCategoryDialog(category)}
-                              data-testid={`button-edit-category-${category.id}`}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {can('products.delete') && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="text-destructive"
-                              onClick={() => deleteMutation.mutate({ type: "categories", id: category.id })}
-                              data-testid={`button-delete-category-${category.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                {t("products.title")}
-              </CardTitle>
-              <CardDescription>{t("products.subtitle")}</CardDescription>
+              {can('products.create') && (
+                <Button onClick={() => openProductDialog()} data-testid="button-add-product">
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("products.add")}
+                </Button>
+              )}
             </div>
-            {can('products.create') && (
-              <Button onClick={() => openProductDialog()} data-testid="button-add-product">
-                <Plus className="w-4 h-4 mr-2" />
-                {t("products.add")}
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
+
             {productsLoading ? (
-              <div className="space-y-2">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-14" />
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map(i => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <Skeleton className="h-6 w-32 mb-2" />
+                      <Skeleton className="h-4 w-24" />
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
-            ) : products?.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">{t("products.empty")}</p>
-            ) : (
-              <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                  {products?.map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex items-center justify-between p-3 rounded-lg border"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium truncate">{product.name}</span>
-                          {product.barcode && (
-                            <Badge variant="outline" className="text-xs">
-                              {product.barcode}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          {getCategoryName(product.categoryId) && (
-                            <Badge
-                              variant="secondary"
-                              className="text-xs"
-                              style={{ backgroundColor: getCategoryColor(product.categoryId) + "20", color: getCategoryColor(product.categoryId) }}
-                            >
-                              {getCategoryName(product.categoryId)}
-                            </Badge>
-                          )}
-                          <span className="text-sm text-muted-foreground">
+            ) : filteredProducts && filteredProducts.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredProducts.map(product => (
+                  <Card key={product.id} className="hover-elevate" data-testid={`card-product-${product.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <h3 className="font-semibold truncate">{product.name}</h3>
+                          <p className="text-lg font-bold text-primary">
                             {formatCurrency(parseFloat(product.price))}
-                          </span>
+                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {getCategoryName(product.categoryId) && (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs"
+                                style={{ backgroundColor: getCategoryColor(product.categoryId) + "20", color: getCategoryColor(product.categoryId) }}
+                              >
+                                {getCategoryName(product.categoryId)}
+                              </Badge>
+                            )}
+                            {product.barcode && (
+                              <Badge variant="outline" className="text-xs">
+                                {product.barcode}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
+                        {(can('products.edit') || can('products.delete')) && (
+                          <div className="flex gap-1">
+                            {can('products.edit') && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openProductDialog(product)}
+                                data-testid={`button-edit-product-${product.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {can('products.delete') && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteMutation.mutate({ type: "products", id: product.id })}
+                                data-testid={`button-delete-product-${product.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      {(can('products.edit') || can('products.delete')) && (
-                        <div className="flex gap-1 ml-2">
-                          {can('products.edit') && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => openProductDialog(product)}
-                              data-testid={`button-edit-product-${product.id}`}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {can('products.delete') && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="text-destructive"
-                              onClick={() => deleteMutation.mutate({ type: "products", id: product.id })}
-                              data-testid={`button-delete-product-${product.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Package className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">{t("products.empty")}</p>
+                  <p className="text-muted-foreground">{t("products.add_first")}</p>
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </TabsContent>
+
+          <TabsContent value="categories" className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t("categories.search_placeholder")}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-category-search"
+                />
+              </div>
+              {can('products.create') && (
+                <Button onClick={() => openCategoryDialog()} data-testid="button-add-category">
+                  <Plus className="h-4 w-4 mr-2" />
+                  {t("categories.add")}
+                </Button>
+              )}
+            </div>
+
+            {categoriesLoading ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {[1, 2, 3].map(i => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <Skeleton className="h-6 w-32 mb-2" />
+                      <Skeleton className="h-4 w-24" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredCategories && filteredCategories.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredCategories.map(category => (
+                  <Card key={category.id} className="hover-elevate" data-testid={`card-category-${category.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-6 h-6 rounded"
+                            style={{ backgroundColor: category.color || "#3B82F6" }}
+                          />
+                          <h3 className="font-semibold">{category.name}</h3>
+                        </div>
+                        {(can('products.edit') || can('products.delete')) && (
+                          <div className="flex gap-1">
+                            {can('products.edit') && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openCategoryDialog(category)}
+                                data-testid={`button-edit-category-${category.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {can('products.delete') && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteMutation.mutate({ type: "categories", id: category.id })}
+                                data-testid={`button-delete-category-${category.id}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Tag className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">{t("categories.no_categories")}</p>
+                  <p className="text-muted-foreground">{t("categories.add_first")}</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
 
       <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
         <DialogContent>
