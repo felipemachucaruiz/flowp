@@ -336,8 +336,8 @@ export default function InventoryPage() {
                             <span className="font-medium truncate">
                               {product?.name || t("inventory.unknown_product")}
                             </span>
-                            <Badge variant="secondary" className="text-xs capitalize">
-                              {movement.type}
+                            <Badge variant="secondary" className="text-xs">
+                              {t(`inventory.movement_${movement.type}`)}
                             </Badge>
                           </div>
                           {movement.notes && (
