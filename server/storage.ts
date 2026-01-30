@@ -303,7 +303,12 @@ export class DatabaseStorage implements IStorage {
 
   // Products
   async getProductsByTenant(tenantId: string): Promise<Product[]> {
-    return db.select().from(products).where(eq(products.tenantId, tenantId)).orderBy(products.sortOrder);
+    return db.select().from(products).where(
+      and(
+        eq(products.tenantId, tenantId),
+        eq(products.isActive, true)
+      )
+    ).orderBy(products.sortOrder);
   }
 
   async getProduct(id: string): Promise<Product | undefined> {

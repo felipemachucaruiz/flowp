@@ -737,12 +737,14 @@ export async function registerRoutes(
       }
       const { id } = req.params;
       // Verify product belongs to tenant
-      const products = await storage.getProductsByTenant(tenantId);
-      const exists = products.find(p => p.id === id);
+      const productsList = await storage.getProductsByTenant(tenantId);
+      const exists = productsList.find(p => p.id === id);
       if (!exists) {
         return res.status(404).json({ message: "Product not found" });
       }
-      await storage.deleteProduct(id);
+      // Soft delete - set isActive to false instead of hard delete
+      // This preserves data integrity for historical orders/stock movements
+      await storage.updateProduct(id, { isActive: false });
       res.json({ success: true });
     } catch (error) {
       res.status(400).json({ message: "Failed to delete product" });
