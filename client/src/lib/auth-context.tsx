@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import type { User, Tenant } from "@shared/schema";
+import { queryClient } from "@/lib/queryClient";
 
 interface AuthContextType {
   user: User | null;
@@ -85,6 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("pos_user");
     localStorage.removeItem("pos_tenant");
     localStorage.removeItem("pos_is_internal");
+    // Clear all cached data to prevent showing data from previous company
+    queryClient.clear();
   };
 
   const refreshTenant = async () => {
