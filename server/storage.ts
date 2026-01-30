@@ -215,6 +215,9 @@ export interface IStorage {
   // Ingredient Stock Levels (computed)
   getIngredientStockLevels(tenantId: string): Promise<Record<string, number>>;
   
+  // FIFO Ingredient Consumption
+  consumeIngredientFifo(tenantId: string, ingredientId: string, qtyNeeded: number, orderId: string, userId?: string): Promise<void>;
+  
   // Pro Feature Check
   hasTenantProFeature(tenantId: string, feature: string): Promise<boolean>;
 }
@@ -1385,6 +1388,62 @@ export class DatabaseStorage implements IStorage {
       levels[row.ingredientId] = parseFloat(row.totalStock) || 0;
     }
     return levels;
+  }
+
+  // FIFO Ingredient Consumption - consumes from oldest lots first
+  async consumeIngredientFifo(tenantId: string, ingredientId: string, qtyNeeded: number, orderId: string, userId?: string): Promise<void> {
+    // Get open lots for this ingredient, ordered by expiration date (FIFO), then by creation date
+    const lots = await db.select()
+      .from(ingredientLots)
+      .where(and(
+        eq(ingredientLots.tenantId, tenantId),
+        eq(ingredientLots.ingredientId, ingredientId),
+        eq(ingredientLots.status, "open")
+      ))
+      .orderBy(
+        sql`COALESCE(${ingredientLots.expiresAt}, '9999-12-31'::timestamp) ASC`,
+        asc(ingredientLots.receivedAt)
+      );
+
+    let remaining = qtyNeeded;
+
+    for (const lot of lots) {
+      if (remaining <= 0) break;
+
+      const lotQty = parseFloat(lot.qtyRemainingBase);
+      const consumed = Math.min(lotQty, remaining);
+      remaining -= consumed;
+
+      const newQty = lotQty - consumed;
+      const newStatus = newQty <= 0 ? "depleted" : "open";
+
+      await db.update(ingredientLots)
+        .set({
+          qtyRemainingBase: newQty.toString(),
+          status: newStatus,
+        })
+        .where(eq(ingredientLots.id, lot.id));
+
+      // Record the movement
+      await this.createIngredientMovement({
+        tenantId,
+        ingredientId,
+        lotId: lot.id,
+        locationId: lot.locationId,
+        movementType: "sale_consumption",
+        qtyDeltaBase: (-consumed).toString(),
+        sourceType: "order",
+        sourceId: orderId,
+        notes: `Auto-consumed for order ${orderId}`,
+        createdBy: userId || null,
+      });
+    }
+
+    // If we couldn't fulfill the entire consumption, log a warning (stock shortage)
+    if (remaining > 0) {
+      console.warn(`Ingredient ${ingredientId}: Could not fulfill ${remaining} units - insufficient stock`);
+      // Could also create an alert here for stock shortage
+    }
   }
 
   // Pro Feature Check

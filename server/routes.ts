@@ -1450,6 +1450,22 @@ export async function registerRoutes(
             userId,
           });
         }
+
+        // FIFO ingredient consumption for restaurant Pro tenants
+        const tenant = await storage.getTenant(tenantId);
+        if (tenant?.type === "restaurant") {
+          const hasIngredientFeature = await storage.hasTenantProFeature(tenantId, "restaurant_bom");
+          if (hasIngredientFeature) {
+            const recipe = await storage.getRecipeByProduct(item.product.id);
+            if (recipe && recipe.tenantId === tenantId) {
+              const recipeItems = await storage.getRecipeItems(recipe.id);
+              for (const recipeItem of recipeItems) {
+                const qtyNeeded = parseFloat(recipeItem.qtyPerProduct) * item.quantity;
+                await storage.consumeIngredientFifo(tenantId, recipeItem.ingredientId, qtyNeeded, order.id, userId);
+              }
+            }
+          }
+        }
       }
 
       // Create payment
@@ -2414,6 +2430,90 @@ export async function registerRoutes(
       res.json(updated);
     } catch (error) {
       res.status(400).json({ message: "Failed to acknowledge alert" });
+    }
+  });
+
+  // Generate alerts for low stock and expiring lots
+  app.post("/api/ingredient-alerts/generate", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+
+      const ingredients = await storage.getIngredients(tenantId);
+      const lots = await storage.getIngredientLots(tenantId);
+      const stockLevels = await storage.getIngredientStockLevels(tenantId);
+      const existingAlerts = await storage.getIngredientAlerts(tenantId, false);
+      const today = new Date();
+      const alertsCreated = [];
+
+      // Check for low stock ingredients
+      for (const ingredient of ingredients) {
+        const currentStock = stockLevels[ingredient.id] || 0;
+        const minStock = parseFloat(ingredient.minQtyBase || "0");
+        
+        if (minStock > 0 && currentStock <= minStock) {
+          // Check if alert already exists
+          const existingAlert = existingAlerts.find(
+            a => a.entityType === "ingredient" && a.entityId === ingredient.id && a.alertType === "low_stock"
+          );
+          
+          if (!existingAlert) {
+            const alert = await storage.createIngredientAlert({
+              tenantId,
+              alertType: "low_stock",
+              severity: currentStock === 0 ? "critical" : "warning",
+              entityType: "ingredient",
+              entityId: ingredient.id,
+              message: `${ingredient.name}: ${currentStock.toFixed(2)} ${ingredient.uomBase} remaining (min: ${minStock} ${ingredient.uomBase})`,
+            });
+            alertsCreated.push(alert);
+          }
+        }
+      }
+
+      // Check for expiring lots (within 7 days)
+      for (const lot of lots) {
+        if (lot.expiresAt && lot.status === "open" && parseFloat(lot.qtyRemainingBase) > 0) {
+          const expiresAt = new Date(lot.expiresAt);
+          const daysToExpiry = Math.ceil((expiresAt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysToExpiry <= 7) {
+            let alertType: "expired" | "expiring_soon" = daysToExpiry <= 0 ? "expired" : "expiring_soon";
+            let severity: "critical" | "warning" = daysToExpiry <= 1 ? "critical" : "warning";
+            
+            // Check if alert already exists
+            const existingAlert = existingAlerts.find(
+              a => a.entityType === "lot" && a.entityId === lot.id && (a.alertType === "expired" || a.alertType === "expiring_soon")
+            );
+            
+            if (!existingAlert) {
+              const ingredient = ingredients.find(i => i.id === lot.ingredientId);
+              const alert = await storage.createIngredientAlert({
+                tenantId,
+                alertType,
+                severity,
+                entityType: "lot",
+                entityId: lot.id,
+                message: daysToExpiry <= 0 
+                  ? `${ingredient?.name || "Lot"} (${lot.lotCode || lot.id}): Expired` 
+                  : `${ingredient?.name || "Lot"} (${lot.lotCode || lot.id}): Expires in ${daysToExpiry} days`,
+              });
+              alertsCreated.push(alert);
+            }
+          }
+        }
+      }
+
+      res.json({ 
+        message: `Generated ${alertsCreated.length} new alerts`,
+        alerts: alertsCreated 
+      });
+    } catch (error) {
+      console.error("Generate alerts error:", error);
+      res.status(500).json({ message: "Failed to generate alerts" });
     }
   });
 

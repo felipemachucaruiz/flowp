@@ -24,6 +24,9 @@ import TablesPage from "@/pages/tables";
 import KitchenPage from "@/pages/kitchen";
 import InventoryPage from "@/pages/inventory";
 import IngredientsPage from "@/pages/ingredients";
+import LotsPage from "@/pages/lots";
+import RecipesPage from "@/pages/recipes";
+import AlertsPage from "@/pages/alerts";
 import PurchasingPage from "@/pages/purchasing";
 import ProductsPage from "@/pages/products";
 import ReportsPage from "@/pages/reports";
@@ -209,6 +212,15 @@ function TenantRouter() {
         </Route>
         <Route path="/ingredients">
           <ProtectedRoute component={IngredientsPage} />
+        </Route>
+        <Route path="/ingredients/:ingredientId/lots">
+          <ProtectedRoute component={LotsPage} />
+        </Route>
+        <Route path="/recipes">
+          <ProtectedRoute component={RecipesPage} />
+        </Route>
+        <Route path="/alerts">
+          <ProtectedRoute component={AlertsPage} />
         </Route>
         <Route path="/purchasing">
           <ProtectedRoute component={PurchasingPage} />

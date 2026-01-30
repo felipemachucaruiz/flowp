@@ -36,6 +36,7 @@ import {
   Tag,
   Truck,
   Gift,
+  AlertTriangle,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -133,6 +134,18 @@ export function AppSidebar() {
             url: "/ingredients",
             icon: Package,
             page: "ingredients",
+          },
+          {
+            title: t("recipes.title"),
+            url: "/recipes",
+            icon: ChefHat,
+            page: "recipes",
+          },
+          {
+            title: t("alerts.title"),
+            url: "/alerts",
+            icon: AlertTriangle,
+            page: "alerts",
           },
         ]
       : []),

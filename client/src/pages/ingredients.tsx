@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { useTranslation } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -12,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Package, Crown, AlertTriangle, Edit, Trash2, Archive } from "lucide-react";
+import { Plus, Search, Package, Crown, AlertTriangle, Edit, Trash2, Archive, Boxes } from "lucide-react";
 import type { Ingredient } from "@shared/schema";
 
 export default function IngredientsPage() {
@@ -365,6 +366,12 @@ export default function IngredientsPage() {
                       <span className="ml-1 font-medium">{reorderPoint}</span>
                     </div>
                   </div>
+                  <Link href={`/ingredients/${ingredient.id}/lots`}>
+                    <Button variant="outline" size="sm" className="w-full mt-3" data-testid={`button-manage-lots-${ingredient.id}`}>
+                      <Boxes className="w-4 h-4 mr-2" />
+                      {t("ingredients.manage_lots")}
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             );
