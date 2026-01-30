@@ -51,6 +51,12 @@ export default function ProductsPage() {
     cost: "",
     image: "",
   });
+  const [productFormTouched, setProductFormTouched] = useState(false);
+  
+  const productFormErrors = {
+    name: productFormTouched && !productForm.name.trim(),
+    price: productFormTouched && (!productForm.price || parseFloat(productForm.price) <= 0),
+  };
 
   const { uploadFile, isUploading } = useUpload();
 
@@ -90,6 +96,7 @@ export default function ProductsPage() {
       setProductDialogOpen(false);
       setEditingProduct(null);
       setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "", image: "" });
+      setProductFormTouched(false);
       toast({ title: editingProduct ? t("products.title") : t("products.title") });
     },
     onError: (error: Error) => {
@@ -119,6 +126,7 @@ export default function ProductsPage() {
   };
 
   const openProductDialog = (product?: Product) => {
+    setProductFormTouched(false);
     if (product) {
       setEditingProduct(product);
       setProductForm({
@@ -388,25 +396,37 @@ export default function ProductsPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>{t("products.name")}</Label>
+              <Label className={productFormErrors.name ? "text-destructive" : ""}>
+                {t("products.name")} *
+              </Label>
               <Input
                 value={productForm.name}
                 onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                 placeholder={t("products.name_placeholder")}
+                className={productFormErrors.name ? "border-destructive" : ""}
                 data-testid="input-product-name"
               />
+              {productFormErrors.name && (
+                <p className="text-xs text-destructive">{t("common.required_field")}</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>{t("products.price")}</Label>
+                <Label className={productFormErrors.price ? "text-destructive" : ""}>
+                  {t("products.price")} *
+                </Label>
                 <Input
                   type="number"
                   value={productForm.price}
                   onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
                   placeholder="0.00"
                   step="0.01"
+                  className={productFormErrors.price ? "border-destructive" : ""}
                   data-testid="input-product-price"
                 />
+                {productFormErrors.price && (
+                  <p className="text-xs text-destructive">{t("common.required_field")}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>{t("products.cost")}</Label>
@@ -496,11 +516,16 @@ export default function ProductsPage() {
               {t("common.cancel")}
             </Button>
             <Button
-              onClick={() => productMutation.mutate(productForm)}
-              disabled={!productForm.name || !productForm.price || productMutation.isPending}
+              onClick={() => {
+                setProductFormTouched(true);
+                if (productForm.name.trim() && productForm.price && parseFloat(productForm.price) > 0) {
+                  productMutation.mutate(productForm);
+                }
+              }}
+              disabled={productMutation.isPending}
               data-testid="button-save-product"
             >
-              {t("common.save")}
+              {productMutation.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
