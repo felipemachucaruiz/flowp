@@ -709,10 +709,17 @@ export async function registerRoutes(
       if (!exists) {
         return res.status(404).json({ message: "Product not found" });
       }
-      // Convert lowStockThreshold to number if it's a string
+      // Convert/sanitize numeric fields
       const updateData = { ...req.body };
       if (typeof updateData.lowStockThreshold === 'string') {
         updateData.lowStockThreshold = parseInt(updateData.lowStockThreshold, 10) || 10;
+      }
+      // Handle empty strings for numeric fields - convert to null
+      if (updateData.cost === '' || updateData.cost === undefined) {
+        updateData.cost = null;
+      }
+      if (updateData.price === '') {
+        delete updateData.price; // Don't update price if empty
       }
       const product = await storage.updateProduct(id, updateData);
       res.json(product);
