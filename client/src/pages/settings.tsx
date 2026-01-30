@@ -1220,9 +1220,16 @@ export default function SettingsPage() {
       }
       return apiRequest("POST", "/api/users", data);
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast({ title: editingUser ? t("settings.user_updated") : t("settings.user_created") });
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      // If the current logged-in user was edited, update localStorage
+      if (editingUser && user && editingUser.id === user.id) {
+        const updatedUser = { ...user, name: variables.name, email: variables.email, phone: variables.phone };
+        localStorage.setItem("pos_user", JSON.stringify(updatedUser));
+        // Force page reload to refresh auth context
+        window.location.reload();
+      }
       setShowUserDialog(false);
       setEditingUser(null);
       userForm.reset();
