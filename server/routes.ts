@@ -1939,6 +1939,543 @@ export async function registerRoutes(
     }
   });
 
+  // ===== INGREDIENT INVENTORY ROUTES (Pro feature for restaurants) =====
+
+  // Middleware to check Pro feature access
+  const requireProFeature = (feature: string) => async (req: Request, res: Response, next: Function) => {
+    const tenantId = req.headers["x-tenant-id"] as string;
+    if (!tenantId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const tenant = await storage.getTenant(tenantId);
+    if (!tenant || tenant.type !== "restaurant") {
+      return res.status(403).json({ message: "Feature only available for restaurant tenants" });
+    }
+    // Check if tenant has Pro subscription with the feature
+    const hasFeature = await storage.hasTenantProFeature(tenantId, feature);
+    if (!hasFeature) {
+      return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true });
+    }
+    next();
+  };
+
+  // Get all ingredients
+  app.get("/api/ingredients", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant || tenant.type !== "restaurant") {
+        return res.status(403).json({ message: "Feature only available for restaurant tenants" });
+      }
+      const hasFeature = await storage.hasTenantProFeature(tenantId, "restaurant_bom");
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true });
+      }
+      const ingredientList = await storage.getIngredientsByTenant(tenantId);
+      res.json(ingredientList);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch ingredients" });
+    }
+  });
+
+  // Create ingredient
+  app.post("/api/ingredients", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant || tenant.type !== "restaurant") {
+        return res.status(403).json({ message: "Feature only available for restaurant tenants" });
+      }
+      const hasFeature = await storage.hasTenantProFeature(tenantId, "restaurant_bom");
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true });
+      }
+      const ingredient = await storage.createIngredient({
+        ...req.body,
+        tenantId,
+        createdBy: userId || null,
+        updatedBy: userId || null,
+      });
+      res.json(ingredient);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to create ingredient" });
+    }
+  });
+
+  // Helper function to check Pro feature access for ingredient routes
+  const checkProFeatureAccess = async (tenantId: string, res: Response): Promise<boolean> => {
+    const tenant = await storage.getTenant(tenantId);
+    if (!tenant || tenant.type !== "restaurant") {
+      res.status(403).json({ message: "Feature only available for restaurant tenants" });
+      return false;
+    }
+    const hasFeature = await storage.hasTenantProFeature(tenantId, "restaurant_bom");
+    if (!hasFeature) {
+      res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true });
+      return false;
+    }
+    return true;
+  };
+
+  // Update ingredient
+  app.patch("/api/ingredients/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { id } = req.params;
+      const existing = await storage.getIngredient(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Ingredient not found" });
+      }
+      const updated = await storage.updateIngredient(id, {
+        ...req.body,
+        updatedBy: userId || null,
+      });
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update ingredient" });
+    }
+  });
+
+  // Delete ingredient
+  app.delete("/api/ingredients/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { id } = req.params;
+      const existing = await storage.getIngredient(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Ingredient not found" });
+      }
+      await storage.deleteIngredient(id);
+      res.json({ message: "Ingredient deleted" });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete ingredient" });
+    }
+  });
+
+  // Get ingredient lots
+  app.get("/api/ingredients/:id/lots", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { id } = req.params;
+      const lots = await storage.getIngredientLots(tenantId, id);
+      res.json(lots);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch ingredient lots" });
+    }
+  });
+
+  // Receive stock (create lot)
+  app.post("/api/ingredients/:id/lots/receive", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { id } = req.params;
+      const { qty, expiresAt, costPerBase, supplierId, lotCode, locationId } = req.body;
+
+      const ingredient = await storage.getIngredient(id);
+      if (!ingredient || ingredient.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Ingredient not found" });
+      }
+
+      // Create lot
+      const lot = await storage.createIngredientLot({
+        tenantId,
+        ingredientId: id,
+        qtyReceivedBase: qty.toString(),
+        qtyRemainingBase: qty.toString(),
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        costPerBase: costPerBase?.toString() || null,
+        supplierId: supplierId || null,
+        lotCode: lotCode || null,
+        locationId: locationId || null,
+        status: "open",
+      });
+
+      // Create movement record
+      await storage.createIngredientMovement({
+        tenantId,
+        ingredientId: id,
+        lotId: lot.id,
+        locationId: locationId || null,
+        movementType: "purchase_receive",
+        qtyDeltaBase: qty.toString(),
+        sourceType: "purchase_receipt",
+        notes: `Received lot ${lotCode || lot.id}`,
+      });
+
+      res.json(lot);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to receive stock" });
+    }
+  });
+
+  // Adjust lot quantity
+  app.post("/api/lots/:lotId/adjust", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { lotId } = req.params;
+      const { qtyDelta, reason, notes } = req.body;
+
+      const lot = await storage.getIngredientLot(lotId);
+      if (!lot || lot.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Lot not found" });
+      }
+
+      const newQty = parseFloat(lot.qtyRemainingBase) + parseFloat(qtyDelta);
+      const status = newQty <= 0 ? "depleted" : "open";
+
+      await storage.updateIngredientLot(lotId, {
+        qtyRemainingBase: Math.max(0, newQty).toString(),
+        status,
+      });
+
+      // Create movement record
+      await storage.createIngredientMovement({
+        tenantId,
+        ingredientId: lot.ingredientId,
+        lotId,
+        locationId: lot.locationId,
+        movementType: reason === "waste" ? "waste" : "adjustment",
+        qtyDeltaBase: qtyDelta.toString(),
+        sourceType: "manual_adjustment",
+        notes,
+        createdBy: userId || null,
+      });
+
+      const updatedLot = await storage.getIngredientLot(lotId);
+      res.json(updatedLot);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to adjust lot" });
+    }
+  });
+
+  // Get ingredient stock levels
+  app.get("/api/ingredient-stock-levels", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const levels = await storage.getIngredientStockLevels(tenantId);
+      res.json(levels);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch stock levels" });
+    }
+  });
+
+  // Get all recipes
+  app.get("/api/recipes", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { productId } = req.query;
+      if (productId) {
+        const recipe = await storage.getRecipeByProduct(productId as string);
+        if (recipe && recipe.tenantId === tenantId) {
+          const items = await storage.getRecipeItems(recipe.id);
+          return res.json([{ ...recipe, items }]);
+        }
+        return res.json([]);
+      }
+      const recipeList = await storage.getRecipesByTenant(tenantId);
+      res.json(recipeList);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch recipes" });
+    }
+  });
+
+  // Get recipe by ID
+  app.get("/api/recipes/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { id } = req.params;
+      const recipe = await storage.getRecipe(id);
+      if (!recipe || recipe.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Recipe not found" });
+      }
+      const items = await storage.getRecipeItems(id);
+      res.json({ ...recipe, items });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch recipe" });
+    }
+  });
+
+  // Create recipe
+  app.post("/api/recipes", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { items, ...recipeData } = req.body;
+      const recipe = await storage.createRecipe({
+        ...recipeData,
+        tenantId,
+        createdBy: userId || null,
+        updatedBy: userId || null,
+      });
+
+      // Create recipe items
+      if (items && Array.isArray(items)) {
+        for (const item of items) {
+          await storage.createRecipeItem({
+            ...item,
+            recipeId: recipe.id,
+            tenantId,
+          });
+        }
+      }
+
+      const recipeItems = await storage.getRecipeItems(recipe.id);
+      res.json({ ...recipe, items: recipeItems });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to create recipe" });
+    }
+  });
+
+  // Update recipe
+  app.patch("/api/recipes/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { id } = req.params;
+      const { items, ...recipeData } = req.body;
+
+      const existing = await storage.getRecipe(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Recipe not found" });
+      }
+
+      const updated = await storage.updateRecipe(id, {
+        ...recipeData,
+        updatedBy: userId || null,
+      });
+
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update recipe" });
+    }
+  });
+
+  // Delete recipe
+  app.delete("/api/recipes/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { id } = req.params;
+      const existing = await storage.getRecipe(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Recipe not found" });
+      }
+      await storage.deleteRecipe(id);
+      res.json({ message: "Recipe deleted" });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete recipe" });
+    }
+  });
+
+  // Recipe items CRUD
+  app.post("/api/recipes/:id/items", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { id } = req.params;
+      const recipe = await storage.getRecipe(id);
+      if (!recipe || recipe.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Recipe not found" });
+      }
+      const item = await storage.createRecipeItem({
+        ...req.body,
+        recipeId: id,
+        tenantId,
+      });
+      res.json(item);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to add recipe item" });
+    }
+  });
+
+  app.patch("/api/recipe-items/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { id } = req.params;
+      const existing = await storage.getRecipeItem(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Recipe item not found" });
+      }
+      const updated = await storage.updateRecipeItem(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update recipe item" });
+    }
+  });
+
+  app.delete("/api/recipe-items/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const { id } = req.params;
+      const existing = await storage.getRecipeItem(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Recipe item not found" });
+      }
+      await storage.deleteRecipeItem(id);
+      res.json({ message: "Recipe item deleted" });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete recipe item" });
+    }
+  });
+
+  // Ingredient alerts
+  app.get("/api/ingredient-alerts", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const acknowledged = req.query.acknowledged === "true" ? true : req.query.acknowledged === "false" ? false : undefined;
+      const alerts = await storage.getIngredientAlerts(tenantId, acknowledged);
+      res.json(alerts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch alerts" });
+    }
+  });
+
+  app.post("/api/ingredient-alerts/:id/acknowledge", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+      const userId = req.headers["x-user-id"] as string;
+      const { id } = req.params;
+      const existing = await storage.getIngredientAlert(id);
+      if (!existing || existing.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Alert not found" });
+      }
+      const updated = await storage.acknowledgeAlert(id, userId);
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to acknowledge alert" });
+    }
+  });
+
+  // Promotion suggestions for near-expiry lots
+  app.get("/api/promo-suggestions", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      if (!await checkProFeatureAccess(tenantId, res)) return;
+
+      // Get lots expiring within 7 days
+      const lots = await storage.getIngredientLots(tenantId);
+      const today = new Date();
+      const suggestions = [];
+
+      for (const lot of lots) {
+        if (lot.expiresAt && lot.status === "open" && parseFloat(lot.qtyRemainingBase) > 0) {
+          const expiresAt = new Date(lot.expiresAt);
+          const daysToExpiry = Math.ceil((expiresAt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          
+          if (daysToExpiry <= 7 && daysToExpiry >= 0) {
+            const ingredient = await storage.getIngredient(lot.ingredientId);
+            let recommendedDiscount = 0;
+            let tier = "";
+            
+            if (daysToExpiry <= 1) {
+              recommendedDiscount = 35;
+              tier = "critical";
+            } else if (daysToExpiry <= 4) {
+              recommendedDiscount = 20;
+              tier = "warning";
+            } else {
+              recommendedDiscount = 10;
+              tier = "info";
+            }
+
+            suggestions.push({
+              lotId: lot.id,
+              ingredientId: lot.ingredientId,
+              ingredientName: ingredient?.name || "Unknown",
+              lotCode: lot.lotCode,
+              expiresAt: lot.expiresAt,
+              daysToExpiry,
+              qtyRemaining: parseFloat(lot.qtyRemainingBase),
+              uom: ingredient?.uomBase || "unit",
+              recommendedDiscount,
+              tier,
+            });
+          }
+        }
+      }
+
+      // Sort by days to expiry (most urgent first)
+      suggestions.sort((a, b) => a.daysToExpiry - b.daysToExpiry);
+      res.json(suggestions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch promo suggestions" });
+    }
+  });
+
   // ===== TENANT ROUTES =====
 
   app.get("/api/auth/tenant", async (req: Request, res: Response) => {

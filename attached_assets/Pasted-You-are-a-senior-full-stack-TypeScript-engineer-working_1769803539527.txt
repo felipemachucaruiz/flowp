@@ -1,0 +1,295 @@
+You are a senior full-stack TypeScript engineer working on Flowp (multi-tenant PWA POS SaaS). Implement Restaurant Ingredient Inventory with Recipes (BOM), automatic stock deduction, and expiration-date tracking with alerts and promotion suggestions.
+
+You MUST follow Flowp’s stack and architecture:
+- React 18 + TS, Vite, Tailwind, shadcn/ui, TanStack Query, Wouter
+- React Hook Form + Zod validation
+- Node.js + Express + TSX runtime
+- Drizzle ORM + PostgreSQL (Neon)
+- WebSockets available (KDS)
+- Monorepo: /client /server /shared
+- Shared Drizzle + Zod schemas for types/validation
+- Multi-tenant isolation (tenant_id everywhere)
+- Ledger-based inventory approach (immutable movements)
+
+=====================================================
+1) SCOPE & DEFINITIONS
+=====================================================
+Goal: Restaurants can define dishes and the ingredients required to prepare them (recipe). When a dish is sold, ingredient inventory is decremented automatically based on the recipe and the quantities sold. Inventory is tracked by lots/batches to manage expiration dates and generate alerts for near-expiry items and low stock.
+
+Terminology:
+- Ingredient: stockable item used in recipes (lettuce, cheese, oil, etc.)
+- Recipe/BOM: dish -> list of ingredient requirements with quantities and units
+- Lot/Batch: a received quantity of an ingredient with an expiration date
+- Consumption: deduction from inventory driven by sales (FIFO lot selection)
+- Alerts: low stock + expiring soon warnings
+- Promotion Suggestions: propose discounts for ingredients/lots close to expiration
+
+=====================================================
+2) DATA MODEL (DRIZZLE + POSTGRES) — CREATE TABLES
+=====================================================
+All tables must include:
+- id (uuid), tenant_id, created_at, updated_at, created_by, updated_by
+Use snake_case in DB.
+
+A) Ingredients
+ingredients:
+- id, tenant_id
+- name
+- sku (optional)
+- barcode (optional)
+- uom_base ENUM: "g" | "ml" | "unit"  (base stock unit)
+- reorder_point_base (numeric, in base uom)
+- reorder_qty_base (numeric, in base uom) optional
+- is_active boolean
+
+B) Ingredient Lots (expiration)
+ingredient_lots:
+- id, tenant_id
+- ingredient_id FK
+- location_id FK (warehouse/store)
+- received_at timestamp
+- expires_at date nullable
+- qty_received_base numeric
+- qty_remaining_base numeric
+- cost_per_base numeric nullable
+- supplier_id FK nullable
+- lot_code text nullable
+- status ENUM: "open" | "depleted" | "expired" | "void"
+
+C) Recipe (dish/menu item -> ingredients)
+recipes:
+- id, tenant_id
+- menu_item_id FK (existing menu_items table for restaurant)
+- yield_qty numeric default 1 (how many servings produced per recipe run)
+- yield_uom ENUM: "serving" | "unit" (for future)
+- is_active boolean
+
+recipe_items:
+- id, tenant_id
+- recipe_id FK
+- ingredient_id FK
+- qty_required_base numeric  (stored in ingredient base uom)
+- waste_pct numeric default 0  (0-100)
+- notes text nullable
+
+D) Inventory Ledger (extend existing stock_movements)
+If Flowp already has stock_movements, extend it to support ingredient lots:
+stock_movements:
+- id, tenant_id
+- movement_type ENUM includes: "sale_consume" | "purchase_receive" | "adjustment" | "waste" | "transfer"
+- location_id
+- ingredient_id nullable
+- product_id nullable (existing retail)
+- qty_delta_base numeric (negative for consumption, positive for receive)
+- lot_id nullable (link to ingredient_lots when applicable)
+- source_type ENUM: "sale" | "purchase_receipt" | "manual_adjustment" | "waste" | "transfer"
+- source_id uuid nullable
+- occurred_at timestamp
+- notes text nullable
+
+E) Sale Consumption Mapping (traceability)
+sale_ingredient_consumptions:
+- id, tenant_id
+- sale_id FK
+- sale_item_id FK
+- ingredient_id FK
+- lot_id FK nullable
+- qty_consumed_base numeric
+- occurred_at timestamp
+
+F) Alerts table (optional but recommended)
+alerts:
+- id, tenant_id
+- type ENUM: "low_stock" | "expiring_soon" | "expired"
+- severity ENUM: "info" | "warning" | "critical"
+- entity_type ENUM: "ingredient" | "lot"
+- entity_id uuid
+- message text
+- is_acknowledged boolean default false
+- created_at
+
+=====================================================
+3) UNIT CONVERSION RULES
+=====================================================
+- Store all ingredient quantities in a base unit per ingredient:
+  - grams (g), milliliters (ml), or units (unit)
+- In UI, allow entering recipe quantities in:
+  - g/kg, ml/l, unit
+- Implement conversion helpers in /shared:
+  - kg -> g
+  - l -> ml
+  - unit stays unit
+- Validate conversions using Zod.
+- Always write qty_required_base and qty_remaining_base in base units.
+
+=====================================================
+4) BUSINESS LOGIC
+=====================================================
+A) Auto consumption on sale completion
+When a restaurant sale is finalized:
+1) For each sale item referencing menu_item_id:
+2) Load active recipe for that menu item
+3) Compute required ingredient consumption:
+   required = (qty_required_base * quantity_sold / recipe.yield_qty)
+   apply waste:
+   required = required * (1 + waste_pct/100)
+4) Deduct ingredient lots using FIFO:
+   - choose lots with earliest expires_at first (null expires last)
+   - skip expired lots (expires_at < today)
+   - consume qty across multiple lots if needed
+5) For each lot consumption:
+   - decrement qty_remaining_base
+   - write stock_movements (sale_consume) with lot_id
+   - write sale_ingredient_consumptions rows
+6) If insufficient stock:
+   - enforce tenant setting:
+     - allow_negative_stock (default false for restaurants)
+   - If false: mark sale as "needs_manager_override" OR prevent finalization with clear error
+   - If true: allow lot_id null and record negative movement
+
+B) Receiving purchases -> creates lots
+Create a receiving API that:
+- Adds ingredient_lots rows with qty_received_base and expires_at
+- Writes stock_movements (purchase_receive)
+- Supports partial receipts
+
+C) Expiration alerts
+- Expiring soon thresholds: configurable per tenant (default 7 days)
+- Daily job:
+  - find lots expiring within threshold and qty_remaining_base > 0
+  - create alerts (expiring_soon)
+  - lots already expired -> alerts (expired), set lot status "expired"
+
+D) Low stock alerts
+- Low stock computed by summing qty_remaining_base for ingredient across lots (per location optional)
+- If total <= reorder_point_base:
+  - create alert low_stock
+  - include suggested reorder qty
+
+E) Promotion suggestions for near-expiry lots
+- For lots expiring soon:
+  - generate suggestion record (or compute on the fly):
+    - ingredient name
+    - lot_code
+    - expires_at
+    - remaining qty
+    - recommended discount tiers based on days_to_expiry:
+      - 5-7 days: 10% off
+      - 2-4 days: 20% off
+      - 0-1 days: 35% off or "bundle/giveaway"
+- This is a suggestion system, not auto-apply.
+
+=====================================================
+5) API ENDPOINTS (EXPRESS)
+=====================================================
+All endpoints must enforce tenant_id from auth context.
+
+Ingredients:
+- GET /api/ingredients?search=&location_id=
+- POST /api/ingredients
+- PATCH /api/ingredients/:id
+- GET /api/ingredients/:id/lots
+
+Lots/Receiving:
+- POST /api/ingredients/:id/lots/receive
+  body: location_id, qty, uom, expires_at?, cost_per_unit?, supplier_id?, lot_code?
+- POST /api/lots/:lotId/adjust
+  body: qty_delta, reason (waste/adjust), notes
+
+Recipes:
+- GET /api/recipes?menu_item_id=
+- POST /api/recipes
+- PATCH /api/recipes/:id
+- POST /api/recipes/:id/items
+- PATCH /api/recipe-items/:id
+- DELETE /api/recipe-items/:id
+
+Consumption & Reports:
+- GET /api/consumption?sale_id=&from=&to=
+- GET /api/alerts?type=&severity=&ack=
+- POST /api/alerts/:id/ack
+- GET /api/promo-suggestions?location_id=
+
+Sales integration:
+- Hook into existing sale finalization:
+  afterSaleFinalize(sale_id) => runRecipeConsumption(sale_id)
+
+=====================================================
+6) FRONTEND UI (WOUTER ROUTES + SHADCN)
+=====================================================
+Add navigation (restaurant tenants only):
+- /ingredients
+- /recipes
+- /lots
+- /alerts
+- /promo-suggestions
+
+Screens:
+
+A) Ingredients List
+- search, filter by location
+- columns: name, stock (computed), reorder point, status
+- CTA: "Receive Stock", "View Lots", "Edit"
+
+B) Ingredient Detail + Lots
+- list lots: received_at, expires_at, remaining qty, status
+- actions: adjust, mark waste, view movement history
+
+C) Receive Stock Modal
+- ingredient, location, qty + uom, expires_at, cost, lot_code
+
+D) Recipes Builder
+- select menu item
+- add ingredient rows (qty + uom, waste %)
+- validations: quantity > 0, waste 0-100
+- show computed base qty preview
+- show estimated cost (optional)
+
+E) Alerts Dashboard
+- tabs: low stock, expiring soon, expired
+- acknowledge action
+- quick links to ingredient/lot
+
+F) Promotion Suggestions
+- list near-expiry lots with recommended discount tiers
+- export suggestions (CSV)
+- optional "create promotion" stub (future)
+
+Use TanStack Query for data and React Hook Form + Zod for create/edit flows.
+
+=====================================================
+7) BACKGROUND JOBS
+=====================================================
+Implement a lightweight scheduler in server:
+- daily at 6am tenant-local (or UTC):
+  - compute expiration alerts
+  - compute low stock alerts
+Also trigger alerts after:
+- receiving stock
+- consumption run
+
+=====================================================
+8) TESTING REQUIREMENTS
+=====================================================
+Add server tests (minimal):
+- unit conversion correctness
+- FIFO lot selection correctness
+- consumption with multiple lots
+- alert creation for expiring soon
+- low stock computation
+
+=====================================================
+9) OUTPUT REQUIRED
+=====================================================
+Provide:
+1) Drizzle schema definitions + migrations plan
+2) Shared Zod schemas + conversion utils
+3) Express route handlers + service layer functions:
+   - RecipeService
+   - InventoryLotService
+   - ConsumptionService
+   - AlertsService
+4) Frontend route pages + key components
+5) Notes on performance and indexing (ingredient_id, expires_at, tenant_id)
+
+Do NOT simplify multi-tenancy or skip FIFO. This must be production-quality.

@@ -126,6 +126,16 @@ export function AppSidebar() {
       icon: Package,
       page: "inventory",
     },
+    ...(tenant?.type === "restaurant"
+      ? [
+          {
+            title: t("ingredients.title"),
+            url: "/ingredients",
+            icon: Package,
+            page: "ingredients",
+          },
+        ]
+      : []),
     {
       title: t("nav.purchasing"),
       url: "/purchasing",

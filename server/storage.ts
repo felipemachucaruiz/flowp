@@ -5,6 +5,8 @@ import {
   loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions,
   systemSettings, passwordResetTokens, emailTemplates, emailLogs,
   suppliers, purchaseOrders, purchaseOrderItems,
+  ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
+  saleIngredientConsumptions, ingredientAlerts,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
   type Category, type InsertCategory, type Product, type InsertProduct,
@@ -25,10 +27,16 @@ import {
   type PasswordResetToken, type InsertPasswordResetToken,
   type EmailTemplate, type InsertEmailTemplate,
   type EmailLog, type InsertEmailLog,
-  RETAIL_FEATURES, RESTAURANT_FEATURES,
+  type Ingredient, type InsertIngredient,
+  type IngredientLot, type InsertIngredientLot,
+  type Recipe, type InsertRecipe,
+  type RecipeItem, type InsertRecipeItem,
+  type IngredientMovement, type InsertIngredientMovement,
+  type IngredientAlert, type InsertIngredientAlert,
+  RETAIL_FEATURES, RESTAURANT_FEATURES, PRO_FEATURES,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, sql, gte, or, ilike, inArray } from "drizzle-orm";
+import { eq, and, desc, asc, sql, gte, lte, or, ilike, inArray, isNull, isNotNull } from "drizzle-orm";
 import bcrypt from "bcrypt";
 
 export interface IStorage {
@@ -164,6 +172,51 @@ export interface IStorage {
   getActiveSubscriptionPlans(): Promise<SubscriptionPlan[]>;
   getTenantSubscription(tenantId: string): Promise<Subscription | null>;
   createSubscription(data: { tenantId: string; planId: string; billingPeriod: string; paypalOrderId: string }): Promise<Subscription>;
+  
+  // Ingredients (Pro feature)
+  getIngredientsByTenant(tenantId: string): Promise<Ingredient[]>;
+  getIngredient(id: string): Promise<Ingredient | undefined>;
+  createIngredient(ingredient: InsertIngredient): Promise<Ingredient>;
+  updateIngredient(id: string, data: Partial<InsertIngredient>): Promise<Ingredient | undefined>;
+  deleteIngredient(id: string): Promise<void>;
+  
+  // Ingredient Lots
+  getIngredientLots(tenantId: string, ingredientId?: string): Promise<IngredientLot[]>;
+  getIngredientLot(id: string): Promise<IngredientLot | undefined>;
+  createIngredientLot(lot: InsertIngredientLot): Promise<IngredientLot>;
+  updateIngredientLot(id: string, data: Partial<InsertIngredientLot>): Promise<IngredientLot | undefined>;
+  getAvailableLotsForIngredient(ingredientId: string): Promise<IngredientLot[]>;
+  
+  // Recipes
+  getRecipesByTenant(tenantId: string): Promise<Recipe[]>;
+  getRecipeByProduct(productId: string): Promise<Recipe | undefined>;
+  getRecipe(id: string): Promise<Recipe | undefined>;
+  createRecipe(recipe: InsertRecipe): Promise<Recipe>;
+  updateRecipe(id: string, data: Partial<InsertRecipe>): Promise<Recipe | undefined>;
+  deleteRecipe(id: string): Promise<void>;
+  
+  // Recipe Items
+  getRecipeItems(recipeId: string): Promise<RecipeItem[]>;
+  getRecipeItem(id: string): Promise<RecipeItem | undefined>;
+  createRecipeItem(item: InsertRecipeItem): Promise<RecipeItem>;
+  updateRecipeItem(id: string, data: Partial<InsertRecipeItem>): Promise<RecipeItem | undefined>;
+  deleteRecipeItem(id: string): Promise<void>;
+  
+  // Ingredient Movements
+  createIngredientMovement(movement: InsertIngredientMovement): Promise<IngredientMovement>;
+  getIngredientMovements(tenantId: string, ingredientId?: string): Promise<IngredientMovement[]>;
+  
+  // Ingredient Alerts
+  getIngredientAlerts(tenantId: string, acknowledged?: boolean): Promise<IngredientAlert[]>;
+  getIngredientAlert(id: string): Promise<IngredientAlert | undefined>;
+  createIngredientAlert(alert: InsertIngredientAlert): Promise<IngredientAlert>;
+  acknowledgeAlert(id: string, userId: string): Promise<IngredientAlert | undefined>;
+  
+  // Ingredient Stock Levels (computed)
+  getIngredientStockLevels(tenantId: string): Promise<Record<string, number>>;
+  
+  // Pro Feature Check
+  hasTenantProFeature(tenantId: string, feature: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1113,6 +1166,237 @@ export class DatabaseStorage implements IStorage {
       .from(emailLogs)
       .orderBy(desc(emailLogs.sentAt))
       .limit(limit);
+  }
+
+  // Subscription Plans
+  async getActiveSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    return db.select().from(subscriptionPlans).where(eq(subscriptionPlans.isActive, true)).orderBy(subscriptionPlans.sortOrder);
+  }
+
+  async getTenantSubscription(tenantId: string): Promise<Subscription | null> {
+    const [subscription] = await db.select().from(subscriptions).where(eq(subscriptions.tenantId, tenantId)).orderBy(desc(subscriptions.createdAt)).limit(1);
+    return subscription || null;
+  }
+
+  async createSubscription(data: { tenantId: string; planId: string; billingPeriod: string; paypalOrderId: string }): Promise<Subscription> {
+    const now = new Date();
+    const periodEnd = new Date(now);
+    periodEnd.setMonth(periodEnd.getMonth() + (data.billingPeriod === "yearly" ? 12 : 1));
+    
+    const [created] = await db.insert(subscriptions).values({
+      tenantId: data.tenantId,
+      planId: data.planId,
+      billingPeriod: data.billingPeriod,
+      status: "active",
+      currentPeriodStart: now,
+      currentPeriodEnd: periodEnd,
+    }).returning();
+    return created;
+  }
+
+  // ============================================================
+  // INGREDIENT INVENTORY (Pro feature for restaurants)
+  // ============================================================
+
+  // Ingredients
+  async getIngredientsByTenant(tenantId: string): Promise<Ingredient[]> {
+    return db.select().from(ingredients).where(eq(ingredients.tenantId, tenantId)).orderBy(ingredients.name);
+  }
+
+  async getIngredient(id: string): Promise<Ingredient | undefined> {
+    const [ingredient] = await db.select().from(ingredients).where(eq(ingredients.id, id));
+    return ingredient;
+  }
+
+  async createIngredient(ingredient: InsertIngredient): Promise<Ingredient> {
+    const [created] = await db.insert(ingredients).values(ingredient).returning();
+    return created;
+  }
+
+  async updateIngredient(id: string, data: Partial<InsertIngredient>): Promise<Ingredient | undefined> {
+    const [updated] = await db.update(ingredients).set({ ...data, updatedAt: new Date() }).where(eq(ingredients.id, id)).returning();
+    return updated;
+  }
+
+  async deleteIngredient(id: string): Promise<void> {
+    await db.delete(ingredients).where(eq(ingredients.id, id));
+  }
+
+  // Ingredient Lots
+  async getIngredientLots(tenantId: string, ingredientId?: string): Promise<IngredientLot[]> {
+    if (ingredientId) {
+      return db.select().from(ingredientLots)
+        .where(and(eq(ingredientLots.tenantId, tenantId), eq(ingredientLots.ingredientId, ingredientId)))
+        .orderBy(desc(ingredientLots.receivedAt));
+    }
+    return db.select().from(ingredientLots)
+      .where(eq(ingredientLots.tenantId, tenantId))
+      .orderBy(desc(ingredientLots.receivedAt));
+  }
+
+  async getIngredientLot(id: string): Promise<IngredientLot | undefined> {
+    const [lot] = await db.select().from(ingredientLots).where(eq(ingredientLots.id, id));
+    return lot;
+  }
+
+  async createIngredientLot(lot: InsertIngredientLot): Promise<IngredientLot> {
+    const [created] = await db.insert(ingredientLots).values(lot).returning();
+    return created;
+  }
+
+  async updateIngredientLot(id: string, data: Partial<InsertIngredientLot>): Promise<IngredientLot | undefined> {
+    const [updated] = await db.update(ingredientLots).set({ ...data, updatedAt: new Date() }).where(eq(ingredientLots.id, id)).returning();
+    return updated;
+  }
+
+  async getAvailableLotsForIngredient(ingredientId: string): Promise<IngredientLot[]> {
+    const today = new Date();
+    return db.select().from(ingredientLots)
+      .where(and(
+        eq(ingredientLots.ingredientId, ingredientId),
+        eq(ingredientLots.status, "open"),
+        sql`CAST(${ingredientLots.qtyRemainingBase} AS DECIMAL) > 0`,
+        or(
+          isNull(ingredientLots.expiresAt),
+          gte(ingredientLots.expiresAt, today)
+        )
+      ))
+      .orderBy(asc(ingredientLots.expiresAt), asc(ingredientLots.receivedAt));
+  }
+
+  // Recipes
+  async getRecipesByTenant(tenantId: string): Promise<Recipe[]> {
+    return db.select().from(recipes).where(eq(recipes.tenantId, tenantId));
+  }
+
+  async getRecipeByProduct(productId: string): Promise<Recipe | undefined> {
+    const [recipe] = await db.select().from(recipes)
+      .where(and(eq(recipes.productId, productId), eq(recipes.isActive, true)));
+    return recipe;
+  }
+
+  async getRecipe(id: string): Promise<Recipe | undefined> {
+    const [recipe] = await db.select().from(recipes).where(eq(recipes.id, id));
+    return recipe;
+  }
+
+  async createRecipe(recipe: InsertRecipe): Promise<Recipe> {
+    const [created] = await db.insert(recipes).values(recipe).returning();
+    return created;
+  }
+
+  async updateRecipe(id: string, data: Partial<InsertRecipe>): Promise<Recipe | undefined> {
+    const [updated] = await db.update(recipes).set({ ...data, updatedAt: new Date() }).where(eq(recipes.id, id)).returning();
+    return updated;
+  }
+
+  async deleteRecipe(id: string): Promise<void> {
+    await db.delete(recipeItems).where(eq(recipeItems.recipeId, id));
+    await db.delete(recipes).where(eq(recipes.id, id));
+  }
+
+  // Recipe Items
+  async getRecipeItems(recipeId: string): Promise<RecipeItem[]> {
+    return db.select().from(recipeItems).where(eq(recipeItems.recipeId, recipeId));
+  }
+
+  async getRecipeItem(id: string): Promise<RecipeItem | undefined> {
+    const [item] = await db.select().from(recipeItems).where(eq(recipeItems.id, id));
+    return item;
+  }
+
+  async createRecipeItem(item: InsertRecipeItem): Promise<RecipeItem> {
+    const [created] = await db.insert(recipeItems).values(item).returning();
+    return created;
+  }
+
+  async updateRecipeItem(id: string, data: Partial<InsertRecipeItem>): Promise<RecipeItem | undefined> {
+    const [updated] = await db.update(recipeItems).set(data).where(eq(recipeItems.id, id)).returning();
+    return updated;
+  }
+
+  async deleteRecipeItem(id: string): Promise<void> {
+    await db.delete(recipeItems).where(eq(recipeItems.id, id));
+  }
+
+  // Ingredient Movements
+  async createIngredientMovement(movement: InsertIngredientMovement): Promise<IngredientMovement> {
+    const [created] = await db.insert(ingredientMovements).values(movement).returning();
+    return created;
+  }
+
+  async getIngredientMovements(tenantId: string, ingredientId?: string): Promise<IngredientMovement[]> {
+    if (ingredientId) {
+      return db.select().from(ingredientMovements)
+        .where(and(eq(ingredientMovements.tenantId, tenantId), eq(ingredientMovements.ingredientId, ingredientId)))
+        .orderBy(desc(ingredientMovements.occurredAt));
+    }
+    return db.select().from(ingredientMovements)
+      .where(eq(ingredientMovements.tenantId, tenantId))
+      .orderBy(desc(ingredientMovements.occurredAt));
+  }
+
+  // Ingredient Alerts
+  async getIngredientAlerts(tenantId: string, acknowledged?: boolean): Promise<IngredientAlert[]> {
+    if (acknowledged !== undefined) {
+      return db.select().from(ingredientAlerts)
+        .where(and(eq(ingredientAlerts.tenantId, tenantId), eq(ingredientAlerts.isAcknowledged, acknowledged)))
+        .orderBy(desc(ingredientAlerts.createdAt));
+    }
+    return db.select().from(ingredientAlerts)
+      .where(eq(ingredientAlerts.tenantId, tenantId))
+      .orderBy(desc(ingredientAlerts.createdAt));
+  }
+
+  async getIngredientAlert(id: string): Promise<IngredientAlert | undefined> {
+    const [alert] = await db.select().from(ingredientAlerts).where(eq(ingredientAlerts.id, id));
+    return alert;
+  }
+
+  async createIngredientAlert(alert: InsertIngredientAlert): Promise<IngredientAlert> {
+    const [created] = await db.insert(ingredientAlerts).values(alert).returning();
+    return created;
+  }
+
+  async acknowledgeAlert(id: string, userId: string): Promise<IngredientAlert | undefined> {
+    const [updated] = await db.update(ingredientAlerts)
+      .set({ isAcknowledged: true, acknowledgedBy: userId, acknowledgedAt: new Date() })
+      .where(eq(ingredientAlerts.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Ingredient Stock Levels (computed from lots)
+  async getIngredientStockLevels(tenantId: string): Promise<Record<string, number>> {
+    const result = await db
+      .select({
+        ingredientId: ingredientLots.ingredientId,
+        totalStock: sql<string>`SUM(CAST(${ingredientLots.qtyRemainingBase} AS DECIMAL))`.as("total_stock"),
+      })
+      .from(ingredientLots)
+      .where(and(
+        eq(ingredientLots.tenantId, tenantId),
+        eq(ingredientLots.status, "open")
+      ))
+      .groupBy(ingredientLots.ingredientId);
+
+    const levels: Record<string, number> = {};
+    for (const row of result) {
+      levels[row.ingredientId] = parseFloat(row.totalStock) || 0;
+    }
+    return levels;
+  }
+
+  // Pro Feature Check
+  async hasTenantProFeature(tenantId: string, feature: string): Promise<boolean> {
+    const subscription = await this.getTenantSubscription(tenantId);
+    if (!subscription) return false;
+    
+    const [plan] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, subscription.planId));
+    if (!plan) return false;
+    
+    const features = plan.features as string[] || [];
+    return features.includes(feature);
   }
 }
 

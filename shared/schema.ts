@@ -25,6 +25,13 @@ export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "h
 export const documentStatusEnum = pgEnum("document_status", ["pending", "sent", "accepted", "rejected", "error"]);
 export const impersonationModeEnum = pgEnum("impersonation_mode", ["read_only", "write"]);
 
+// Ingredient inventory enums (Pro feature for restaurants)
+export const ingredientUomEnum = pgEnum("ingredient_uom", ["g", "ml", "unit"]);
+export const lotStatusEnum = pgEnum("lot_status", ["open", "depleted", "expired", "void"]);
+export const ingredientMovementTypeEnum = pgEnum("ingredient_movement_type", ["sale_consume", "purchase_receive", "adjustment", "waste", "transfer"]);
+export const alertTypeEnum = pgEnum("alert_type", ["low_stock", "expiring_soon", "expired"]);
+export const alertSeverityEnum = pgEnum("alert_severity", ["info", "warning", "critical"]);
+
 // Tenants
 export const tenants = pgTable("tenants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -612,6 +619,114 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// ============================================================
+// INGREDIENT INVENTORY (Pro feature for restaurants)
+// ============================================================
+
+// Ingredients - stockable items used in recipes
+export const ingredients = pgTable("ingredients", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  name: text("name").notNull(),
+  sku: text("sku"),
+  barcode: text("barcode"),
+  uomBase: ingredientUomEnum("uom_base").notNull().default("g"),
+  reorderPointBase: decimal("reorder_point_base", { precision: 10, scale: 3 }).default("0"),
+  reorderQtyBase: decimal("reorder_qty_base", { precision: 10, scale: 3 }),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
+});
+
+// Ingredient Lots - batches with expiration tracking
+export const ingredientLots = pgTable("ingredient_lots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  ingredientId: varchar("ingredient_id").references(() => ingredients.id).notNull(),
+  locationId: varchar("location_id").references(() => registers.id),
+  receivedAt: timestamp("received_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+  qtyReceivedBase: decimal("qty_received_base", { precision: 10, scale: 3 }).notNull(),
+  qtyRemainingBase: decimal("qty_remaining_base", { precision: 10, scale: 3 }).notNull(),
+  costPerBase: decimal("cost_per_base", { precision: 10, scale: 4 }),
+  supplierId: varchar("supplier_id").references(() => suppliers.id),
+  lotCode: text("lot_code"),
+  status: lotStatusEnum("status").default("open"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Recipes - links menu items to ingredients (BOM)
+export const recipes = pgTable("recipes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  yieldQty: decimal("yield_qty", { precision: 10, scale: 2 }).default("1"),
+  yieldUom: text("yield_uom").default("serving"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+  updatedBy: varchar("updated_by").references(() => users.id),
+});
+
+// Recipe Items - ingredient requirements per recipe
+export const recipeItems = pgTable("recipe_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  recipeId: varchar("recipe_id").references(() => recipes.id).notNull(),
+  ingredientId: varchar("ingredient_id").references(() => ingredients.id).notNull(),
+  qtyRequiredBase: decimal("qty_required_base", { precision: 10, scale: 3 }).notNull(),
+  wastePct: decimal("waste_pct", { precision: 5, scale: 2 }).default("0"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Ingredient Stock Movements - ledger for lot-level tracking
+export const ingredientMovements = pgTable("ingredient_movements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  ingredientId: varchar("ingredient_id").references(() => ingredients.id).notNull(),
+  lotId: varchar("lot_id").references(() => ingredientLots.id),
+  locationId: varchar("location_id").references(() => registers.id),
+  movementType: ingredientMovementTypeEnum("movement_type").notNull(),
+  qtyDeltaBase: decimal("qty_delta_base", { precision: 10, scale: 3 }).notNull(),
+  sourceType: text("source_type"),
+  sourceId: varchar("source_id"),
+  notes: text("notes"),
+  occurredAt: timestamp("occurred_at").defaultNow(),
+  createdBy: varchar("created_by").references(() => users.id),
+});
+
+// Sale Ingredient Consumptions - traceability for sales
+export const saleIngredientConsumptions = pgTable("sale_ingredient_consumptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  orderId: varchar("order_id").references(() => orders.id).notNull(),
+  orderItemId: varchar("order_item_id").references(() => orderItems.id).notNull(),
+  ingredientId: varchar("ingredient_id").references(() => ingredients.id).notNull(),
+  lotId: varchar("lot_id").references(() => ingredientLots.id),
+  qtyConsumedBase: decimal("qty_consumed_base", { precision: 10, scale: 3 }).notNull(),
+  occurredAt: timestamp("occurred_at").defaultNow(),
+});
+
+// Ingredient Alerts - low stock, expiring soon, expired
+export const ingredientAlerts = pgTable("ingredient_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  alertType: alertTypeEnum("alert_type").notNull(),
+  severity: alertSeverityEnum("severity").default("warning"),
+  entityType: text("entity_type").notNull(),
+  entityId: varchar("entity_id").notNull(),
+  message: text("message"),
+  isAcknowledged: boolean("is_acknowledged").default(false),
+  acknowledgedBy: varchar("acknowledged_by").references(() => users.id),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const tenantsRelations = relations(tenants, ({ many }) => ({
   users: many(users),
@@ -702,6 +817,15 @@ export const insertDocumentStatusHistorySchema = createInsertSchema(documentStat
 export const insertBillingProviderConfigSchema = createInsertSchema(billingProviderConfig).omit({ id: true, createdAt: true });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ id: true, createdAt: true });
 
+// Ingredient Inventory Schemas (Pro feature)
+export const insertIngredientSchema = createInsertSchema(ingredients).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertIngredientLotSchema = createInsertSchema(ingredientLots).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertRecipeSchema = createInsertSchema(recipes).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertRecipeItemSchema = createInsertSchema(recipeItems).omit({ id: true, createdAt: true });
+export const insertIngredientMovementSchema = createInsertSchema(ingredientMovements).omit({ id: true, occurredAt: true });
+export const insertSaleIngredientConsumptionSchema = createInsertSchema(saleIngredientConsumptions).omit({ id: true, occurredAt: true });
+export const insertIngredientAlertSchema = createInsertSchema(ingredientAlerts).omit({ id: true, createdAt: true });
+
 // Types
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = z.infer<typeof insertTenantSchema>;
@@ -785,6 +909,27 @@ export type BillingProviderConfig = typeof billingProviderConfig.$inferSelect;
 export type InsertBillingProviderConfig = z.infer<typeof insertBillingProviderConfigSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+// Ingredient Inventory Types (Pro feature)
+export type Ingredient = typeof ingredients.$inferSelect;
+export type InsertIngredient = z.infer<typeof insertIngredientSchema>;
+export type IngredientLot = typeof ingredientLots.$inferSelect;
+export type InsertIngredientLot = z.infer<typeof insertIngredientLotSchema>;
+export type Recipe = typeof recipes.$inferSelect;
+export type InsertRecipe = z.infer<typeof insertRecipeSchema>;
+export type RecipeItem = typeof recipeItems.$inferSelect;
+export type InsertRecipeItem = z.infer<typeof insertRecipeItemSchema>;
+export type IngredientMovement = typeof ingredientMovements.$inferSelect;
+export type InsertIngredientMovement = z.infer<typeof insertIngredientMovementSchema>;
+export type SaleIngredientConsumption = typeof saleIngredientConsumptions.$inferSelect;
+export type InsertSaleIngredientConsumption = z.infer<typeof insertSaleIngredientConsumptionSchema>;
+export type IngredientAlert = typeof ingredientAlerts.$inferSelect;
+export type InsertIngredientAlert = z.infer<typeof insertIngredientAlertSchema>;
+
+// Pro feature flag constant
+export const PRO_FEATURES = {
+  RESTAURANT_BOM: "restaurant_bom",
+} as const;
 
 // System Settings (SMTP, etc.) - Global settings for the entire system
 export const systemSettings = pgTable("system_settings", {
