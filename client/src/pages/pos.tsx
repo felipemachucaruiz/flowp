@@ -705,7 +705,7 @@ export default function POSPage() {
   
   const CartContent = () => (
     <>
-      <div className="p-3 pr-12 border-b">
+      <div className="p-2 lg:p-3 border-b">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <ShoppingCart className="w-4 h-4 text-primary shrink-0" />
@@ -731,26 +731,26 @@ export default function POSPage() {
       ) : (
         <>
           <ScrollArea className="flex-1">
-            <div className="p-4 pr-8 space-y-3">
+            <div className="p-2 lg:p-3 space-y-2">
               {cart.map((item) => (
-                <Card key={item.id} className="p-3">
-                  <div className="flex items-start gap-3">
+                <Card key={item.id} className="p-2">
+                  <div className="flex items-start gap-2">
                     {item.product.image ? (
                       <img
                         src={item.product.image}
                         alt={item.product.name}
-                        className="w-12 h-12 rounded-md object-cover flex-shrink-0"
+                        className="w-10 h-10 rounded object-cover flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                        <Package className="w-5 h-5 text-muted-foreground" />
+                      <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                        <Package className="w-4 h-4 text-muted-foreground" />
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
+                      <p className="font-medium text-sm leading-tight line-clamp-2">
                         {item.product.name}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {formatCurrency(parseFloat(item.product.price))} {t("pos.each")}
                       </p>
                       {item.modifiers.length > 0 && (
@@ -763,41 +763,41 @@ export default function POSPage() {
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-1">
+                  </div>
+                  <div className="flex items-center justify-between mt-2 pt-1 border-t border-border/50">
+                    <div className="flex items-center gap-0.5">
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8"
+                        className="h-7 w-7"
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
                         data-testid={`button-decrease-${item.id}`}
                       >
-                        <Minus className="w-4 h-4" />
+                        <Minus className="w-3.5 h-3.5" />
                       </Button>
-                      <span className="w-8 text-center font-medium text-sm">
+                      <span className="w-6 text-center font-medium text-sm">
                         {item.quantity}
                       </span>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8"
+                        className="h-7 w-7"
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         data-testid={`button-increase-${item.id}`}
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3.5 h-3.5" />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-destructive"
+                        className="h-7 w-7 text-destructive"
                         onClick={() => removeFromCart(item.id)}
                         data-testid={`button-remove-${item.id}`}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
-                  </div>
-                  <div className="text-right mt-2">
-                    <span className="font-semibold">
+                    <span className="font-semibold text-sm">
                       {formatCurrency(parseFloat(item.product.price) * item.quantity)}
                     </span>
                   </div>
@@ -806,14 +806,14 @@ export default function POSPage() {
             </div>
           </ScrollArea>
 
-          <div className="border-t p-4 pr-8 space-y-3 bg-muted/30">
-            <div className="space-y-2 text-sm">
+          <div className="border-t p-2 lg:p-3 space-y-2 bg-muted/30">
+            <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("pos.subtotal")}</span>
                 <span>{formatCurrency(getSubtotal())}</span>
               </div>
-              <div className="flex justify-between items-center gap-2">
-                <span className="text-muted-foreground">{t("pos.discount")}</span>
+              <div className="flex justify-between items-center gap-1">
+                <span className="text-muted-foreground shrink-0">{t("pos.discount")}</span>
                 <div className="flex items-center gap-1">
                   <Input
                     type="number"
@@ -821,15 +821,10 @@ export default function POSPage() {
                     max="100"
                     value={discountPercent}
                     onChange={(e) => setDiscountPercent(e.target.value)}
-                    className="w-16 h-7 text-right text-sm"
+                    className="w-12 h-6 text-right text-xs px-1"
                     data-testid="input-discount-percent"
                   />
-                  <span className="text-muted-foreground">%</span>
-                  {discountRate > 0 && (
-                    <span className="text-destructive ml-2">
-                      -{formatCurrency(getDiscountAmount())}
-                    </span>
-                  )}
+                  <span className="text-muted-foreground text-xs">%</span>
                 </div>
               </div>
               {taxRate > 0 && (
@@ -853,40 +848,41 @@ export default function POSPage() {
                 </div>
               )}
               <Separator />
-              <div className="flex justify-between text-lg font-bold">
+              <div className="flex justify-between text-base font-bold">
                 <span>{t("pos.total")}</span>
                 <span className="text-primary">{formatCurrency(getTotalWithDiscount(taxRate))}</span>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-1.5">
               <Button
                 variant="outline"
+                size="sm"
                 className="flex-1"
                 onClick={() => { holdOrder(); if (isMobile) setShowMobileCart(false); }}
                 data-testid="button-hold-order"
               >
-                <Pause className="w-4 h-4 mr-2" />
+                <Pause className="w-3.5 h-3.5 mr-1" />
                 {t("pos.hold")}
               </Button>
               <Button
                 variant="outline"
+                size="sm"
                 className="flex-1"
                 onClick={() => { clearCart(); if (isMobile) setShowMobileCart(false); }}
                 data-testid="button-clear-cart"
               >
-                <X className="w-4 h-4 mr-2" />
+                <X className="w-3.5 h-3.5 mr-1" />
                 {t("pos.clear")}
               </Button>
             </div>
 
             <Button
               className="w-full"
-              size="lg"
               onClick={() => { setShowPaymentDialog(true); if (isMobile) setShowMobileCart(false); }}
               data-testid="button-checkout"
             >
-              <CreditCard className="w-4 h-4 mr-2" />
+              <CreditCard className="w-4 h-4 mr-1.5" />
               {t("pos.checkout")}
             </Button>
           </div>
@@ -1037,7 +1033,7 @@ export default function POSPage() {
 
       {/* Desktop Cart Section - Hidden on mobile, responsive width */}
       {!isMobile && (
-        <div data-tour="pos-cart" className="w-80 lg:w-96 2xl:w-[420px] border-l bg-card flex flex-col">
+        <div data-tour="pos-cart" className="w-64 lg:w-80 xl:w-96 2xl:w-[420px] border-l bg-card flex flex-col">
           <CartContent />
         </div>
       )}
