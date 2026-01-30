@@ -705,7 +705,7 @@ export default function POSPage() {
   
   const CartContent = () => (
     <>
-      <div className="p-2 lg:p-3 border-b">
+      <div className="p-3 border-b">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <ShoppingCart className="w-4 h-4 text-primary shrink-0" />
@@ -731,7 +731,7 @@ export default function POSPage() {
       ) : (
         <>
           <ScrollArea className="flex-1">
-            <div className="p-2 lg:p-3 space-y-2">
+            <div className="p-3 space-y-2">
               {cart.map((item) => (
                 <Card key={item.id} className="p-2">
                   <div className="flex items-start gap-2">
@@ -806,7 +806,7 @@ export default function POSPage() {
             </div>
           </ScrollArea>
 
-          <div className="border-t p-2 lg:p-3 space-y-2 bg-muted/30">
+          <div className="border-t p-3 space-y-2 bg-muted/30">
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("pos.subtotal")}</span>
@@ -1033,7 +1033,7 @@ export default function POSPage() {
 
       {/* Desktop Cart Section - Hidden on mobile, responsive width */}
       {!isMobile && (
-        <div data-tour="pos-cart" className="w-64 lg:w-80 xl:w-96 2xl:w-[420px] border-l bg-card flex flex-col">
+        <div data-tour="pos-cart" className="w-72 lg:w-80 xl:w-96 2xl:w-[420px] border-l bg-card flex flex-col">
           <CartContent />
         </div>
       )}
