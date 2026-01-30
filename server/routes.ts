@@ -704,15 +704,21 @@ export async function registerRoutes(
       }
       const { id } = req.params;
       // Verify product belongs to tenant
-      const products = await storage.getProductsByTenant(tenantId);
-      const exists = products.find(p => p.id === id);
+      const existingProducts = await storage.getProductsByTenant(tenantId);
+      const exists = existingProducts.find(p => p.id === id);
       if (!exists) {
         return res.status(404).json({ message: "Product not found" });
       }
-      const product = await storage.updateProduct(id, req.body);
+      // Convert lowStockThreshold to number if it's a string
+      const updateData = { ...req.body };
+      if (typeof updateData.lowStockThreshold === 'string') {
+        updateData.lowStockThreshold = parseInt(updateData.lowStockThreshold, 10) || 10;
+      }
+      const product = await storage.updateProduct(id, updateData);
       res.json(product);
-    } catch (error) {
-      res.status(400).json({ message: "Failed to update product" });
+    } catch (error: any) {
+      console.error("Product update error:", error);
+      res.status(400).json({ message: "Failed to update product", error: error?.message || String(error) });
     }
   });
 
