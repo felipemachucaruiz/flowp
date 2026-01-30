@@ -2709,7 +2709,7 @@ export default function SettingsPage() {
                                 phone: user.phone || "",
                                 username: user.username,
                                 password: "",
-                                role: user.role as "admin" | "manager" | "cashier" | "kitchen" | "sales_rep",
+                                role: user.role as "owner" | "admin" | "manager" | "cashier" | "kitchen" | "inventory",
                                 pin: user.pin || "",
                               });
                               setShowUserDialog(true);
@@ -3347,6 +3347,7 @@ export default function SettingsPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="owner">{t("form.role_owner")}</SelectItem>
                           <SelectItem value="admin">{t("form.role_admin")}</SelectItem>
                           <SelectItem value="manager">{t("form.role_manager")}</SelectItem>
                           <SelectItem value="cashier">{t("form.role_cashier")}</SelectItem>
