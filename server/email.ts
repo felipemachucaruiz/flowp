@@ -46,8 +46,8 @@ class EmailService {
       const smtpFromName = process.env.SMTP_FROM_NAME || "Flowp";
 
       if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword || !smtpFromEmail) {
-        console.log("SMTP not fully configured - email functionality disabled");
-        return false;
+        console.log("SMTP env vars not configured - trying database config...");
+        return await this.initTransporter();
       }
 
       this.config = {
@@ -80,15 +80,72 @@ class EmailService {
     }
   }
 
+  async initTransporter(): Promise<boolean> {
+    try {
+      const smtpSetting = await storage.getSystemSetting("smtp_config");
+      
+      if (!smtpSetting?.value) {
+        console.log("SMTP not configured in database - email functionality disabled");
+        return false;
+      }
+
+      const dbConfig = smtpSetting.value as {
+        host: string;
+        port: number;
+        secure: boolean;
+        auth: { user: string; pass: string };
+        fromEmail: string;
+        fromName: string;
+      };
+
+      if (!dbConfig.host || !dbConfig.auth?.user || !dbConfig.auth?.pass || !dbConfig.fromEmail) {
+        console.log("SMTP config incomplete in database - email functionality disabled");
+        return false;
+      }
+
+      this.config = {
+        host: dbConfig.host,
+        port: dbConfig.port || 587,
+        secure: dbConfig.secure || false,
+        user: dbConfig.auth.user,
+        password: dbConfig.auth.pass,
+        fromEmail: dbConfig.fromEmail,
+        fromName: dbConfig.fromName || "Flowp",
+      };
+
+      this.transporter = nodemailer.createTransport({
+        host: this.config.host,
+        port: this.config.port,
+        secure: this.config.secure,
+        auth: {
+          user: this.config.user,
+          pass: this.config.password,
+        },
+      });
+
+      await this.transporter.verify();
+      console.log("SMTP connection verified successfully from database config");
+      return true;
+    } catch (error) {
+      console.error("Failed to initialize SMTP from database:", error);
+      this.transporter = null;
+      return false;
+    }
+  }
+
   async sendEmail(options: EmailOptions): Promise<boolean> {
     if (!this.transporter || !this.config) {
-      console.log("SMTP not configured - skipping email send");
-      return false;
+      console.log("SMTP not configured - attempting to reinitialize...");
+      const initialized = await this.initTransporter();
+      if (!initialized) {
+        console.log("Failed to initialize SMTP - skipping email send");
+        return false;
+      }
     }
 
     try {
-      await this.transporter.sendMail({
-        from: `"${this.config.fromName}" <${this.config.fromEmail}>`,
+      await this.transporter!.sendMail({
+        from: `"${this.config!.fromName}" <${this.config!.fromEmail}>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
