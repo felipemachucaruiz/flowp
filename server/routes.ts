@@ -398,8 +398,15 @@ export async function registerRoutes(
         expiresAt,
       });
 
+      // Get tenant's display language
+      let displayLanguage = "en";
+      if (user.tenantId) {
+        const tenant = await storage.getTenant(user.tenantId);
+        displayLanguage = tenant?.displayLanguage || "en";
+      }
+
       // Send email (non-blocking)
-      emailService.sendPasswordResetEmail(email, token, user.name || user.username)
+      emailService.sendPasswordResetEmail(email, token, user.name || user.username, displayLanguage)
         .catch(err => console.error("Failed to send password reset email:", err));
 
       res.json({ message: "If an account exists with that email, a reset link has been sent." });
