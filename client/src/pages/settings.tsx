@@ -2776,8 +2776,9 @@ export default function SettingsPage() {
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <a 
-                          href="/public/installer.exe" 
-                          download="Flowp POS Setup 1.0.0.exe"
+                          href="https://github.com/felipemachucaruiz/flowp/releases/latest/download/Flowp-Setup.exe" 
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex"
                         >
                           <Button variant="default" data-testid="button-download-installer-win">
@@ -2786,8 +2787,9 @@ export default function SettingsPage() {
                           </Button>
                         </a>
                         <a 
-                          href="/public/installer.dmg" 
-                          download="Flowp POS.dmg"
+                          href="https://github.com/felipemachucaruiz/flowp/releases/latest/download/Flowp-x64.dmg" 
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex"
                         >
                           <Button variant="default" data-testid="button-download-installer-mac">
@@ -2796,8 +2798,9 @@ export default function SettingsPage() {
                           </Button>
                         </a>
                         <a 
-                          href="/public/installer-arm64.dmg" 
-                          download="Flowp POS Apple Silicon.dmg"
+                          href="https://github.com/felipemachucaruiz/flowp/releases/latest/download/Flowp-arm64.dmg" 
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex"
                         >
                           <Button variant="default" data-testid="button-download-installer-mac-arm">
@@ -2806,8 +2809,9 @@ export default function SettingsPage() {
                           </Button>
                         </a>
                         <a 
-                          href="/desktop/source.zip" 
-                          download="Flowp-Desktop-Source.zip"
+                          href="https://github.com/felipemachucaruiz/flowp/archive/refs/heads/main.zip" 
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex"
                         >
                           <Button variant="outline" data-testid="button-download-source">
@@ -2832,8 +2836,9 @@ export default function SettingsPage() {
                       </p>
                       <div className="flex flex-wrap gap-2">
                         <a 
-                          href="/mobile/android.apk" 
-                          download="Flowp-POS.apk"
+                          href="https://github.com/felipemachucaruiz/flowp/releases/latest/download/Flowp.apk" 
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex"
                         >
                           <Button variant="default" data-testid="button-download-android">
@@ -2853,8 +2858,9 @@ export default function SettingsPage() {
                           </Button>
                         </a>
                         <a 
-                          href="/mobile/source.zip" 
-                          download="Flowp-Mobile-Source.zip"
+                          href="https://github.com/felipemachucaruiz/flowp-mobile/archive/refs/heads/main.zip" 
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="inline-flex"
                         >
                           <Button variant="outline" data-testid="button-download-mobile-source">
