@@ -10,14 +10,10 @@ import { requireInternal, requirePermission, enforceTenantIsolation } from "../m
 import { z } from "zod";
 
 const VALID_TENANT_STATUSES = ["trial", "active", "past_due", "suspended", "cancelled"] as const;
-const VALID_FEATURE_FLAGS = [
-  "restaurant_bom", "advanced_reporting", "multi_location", 
-  "loyalty_program", "electronic_invoicing", "api_access"
-] as const;
 
 const updateTenantSchema = z.object({
   status: z.enum(VALID_TENANT_STATUSES).optional(),
-  featureFlags: z.array(z.enum(VALID_FEATURE_FLAGS)).optional(),
+  featureFlags: z.array(z.string()).optional(),
 });
 
 const router = Router();
