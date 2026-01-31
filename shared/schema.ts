@@ -26,7 +26,7 @@ export const documentStatusEnum = pgEnum("document_status", ["pending", "sent", 
 export const impersonationModeEnum = pgEnum("impersonation_mode", ["read_only", "write"]);
 
 // Ingredient inventory enums (Pro feature for restaurants)
-export const ingredientUomEnum = pgEnum("ingredient_uom", ["g", "ml", "unit"]);
+export const ingredientUomEnum = pgEnum("ingredient_uom", ["g", "kg", "ml", "L", "unit"]);
 export const lotStatusEnum = pgEnum("lot_status", ["open", "depleted", "expired", "void"]);
 export const ingredientMovementTypeEnum = pgEnum("ingredient_movement_type", ["sale_consume", "purchase_receive", "adjustment", "waste", "transfer"]);
 export const alertTypeEnum = pgEnum("alert_type", ["low_stock", "expiring_soon", "expired"]);
