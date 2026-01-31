@@ -6,6 +6,10 @@
   "author": "Flowp",
   "license": "UNLICENSED",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/felipemachucaruiz/flowp.git"
+  },
   "scripts": {
     "start": "electron .",
     "build:win": "electron-builder --win",
@@ -22,6 +26,7 @@
   "build": {
     "appId": "com.flowp.pos",
     "productName": "Flowp POS",
+    "publish": null,
     "directories": {
       "output": "dist",
       "buildResources": "resources"
