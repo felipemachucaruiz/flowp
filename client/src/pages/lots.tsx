@@ -261,7 +261,7 @@ export default function LotsPage() {
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span>
-                        {t("lots.remaining")}: {parseFloat(lot.qtyRemainingBase).toFixed(2)} / {parseFloat(lot.qtyReceivedBase).toFixed(2)} {ingredient?.uomBase}
+                        {t("lots.remaining")}: {parseFloat(lot.qtyRemainingBase).toFixed(2)}{ingredient?.uomBase} / {parseFloat(lot.qtyReceivedBase).toFixed(2)}{ingredient?.uomBase}
                       </span>
                       {lot.expiresAt && (
                         <span className="flex items-center gap-1">
