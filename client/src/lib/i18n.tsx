@@ -4373,10 +4373,22 @@ function detectBrowserLanguage(): Language {
   return "en"; // Default to English
 }
 
-// Get initial language from localStorage, browser, or fallback
+// Get initial language from browser locale, localStorage, or fallback
 function getInitialLanguage(initialLanguage?: string): Language {
+  // First priority: detect from browser locale
   try {
-    // First check localStorage for saved preference
+    const browserLang = detectBrowserLanguage();
+    // Only use browser language if user hasn't explicitly saved a preference
+    const savedLang = localStorage.getItem("flowp_language");
+    if (!savedLang) {
+      return browserLang;
+    }
+  } catch {
+    // Browser detection might fail
+  }
+  
+  // Second priority: check localStorage for saved preference
+  try {
     const savedLang = localStorage.getItem("flowp_language");
     if (savedLang && savedLang in translations) {
       return savedLang as Language;
@@ -4385,17 +4397,13 @@ function getInitialLanguage(initialLanguage?: string): Language {
     // localStorage might not be available
   }
   
-  // Then check if initialLanguage was provided and is valid
+  // Third priority: check if initialLanguage was provided (tenant settings)
   if (initialLanguage && initialLanguage in translations) {
     return initialLanguage as Language;
   }
   
-  // Finally, detect from browser
-  try {
-    return detectBrowserLanguage();
-  } catch {
-    return "en";
-  }
+  // Final fallback
+  return "en";
 }
 
 export function I18nProvider({ children, initialLanguage }: { children: ReactNode; initialLanguage?: string }) {
