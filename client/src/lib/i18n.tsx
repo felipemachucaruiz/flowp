@@ -1265,7 +1265,6 @@ const translations = {
     "admin.template_saved_description": "The email template has been updated successfully",
     "admin.template_save_error": "Failed to save template",
     "admin.not_configured": "Not Configured",
-    "admin.active": "Active",
     "admin.inactive": "Inactive",
     
     // Notifications
@@ -2767,7 +2766,6 @@ const translations = {
     "admin.template_saved_description": "La plantilla de correo se actualizó exitosamente",
     "admin.template_save_error": "Error al guardar plantilla",
     "admin.not_configured": "No Configurada",
-    "admin.active": "Activa",
     "admin.inactive": "Inactiva",
     
     // Notifications
@@ -4269,7 +4267,6 @@ const translations = {
     "admin.template_saved_description": "O modelo de e-mail foi atualizado com sucesso",
     "admin.template_save_error": "Falha ao salvar modelo",
     "admin.not_configured": "Não Configurado",
-    "admin.active": "Ativo",
     "admin.inactive": "Inativo",
     
     // Notifications

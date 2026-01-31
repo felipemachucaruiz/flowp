@@ -73,44 +73,120 @@ const templateTypeConfig: Record<string, { icon: any; color: string; name: strin
   },
 };
 
-const defaultTemplates: Record<string, { subject: string; htmlBody: string }> = {
-  order_confirmation: {
-    subject: "Order Confirmation - #{{orderId}}",
-    htmlBody: `<h1>Thank you for your order!</h1>
+const defaultTemplatesByLanguage: Record<string, Record<string, { subject: string; htmlBody: string }>> = {
+  en: {
+    order_confirmation: {
+      subject: "Order Confirmation - #{{orderId}}",
+      htmlBody: `<h1>Thank you for your order!</h1>
 <p><strong>Order #{{orderId}}</strong></p>
 <p>{{orderItems}}</p>
 <p><strong>Total: {{orderTotal}}</strong></p>
 <p>We've received your order and it's being processed.</p>`,
-  },
-  payment_received: {
-    subject: "Payment Received",
-    htmlBody: `<h1>Payment Successful!</h1>
+    },
+    payment_received: {
+      subject: "Payment Received",
+      htmlBody: `<h1>Payment Successful!</h1>
 <p>We have received your payment.</p>
 <p><strong>Amount:</strong> {{amount}}</p>
 <p><strong>Payment Method:</strong> {{paymentMethod}}</p>
 <p>Thank you for your business!</p>`,
-  },
-  low_stock_alert: {
-    subject: "Low Stock Alert: {{productName}}",
-    htmlBody: `<h1>Low Stock Alert</h1>
+    },
+    low_stock_alert: {
+      subject: "Low Stock Alert: {{productName}}",
+      htmlBody: `<h1>Low Stock Alert</h1>
 <p>The following product is running low on stock:</p>
 <p><strong>Product:</strong> {{productName}}</p>
 <p><strong>Current Stock:</strong> {{currentStock}}</p>
 <p>Please consider restocking soon.</p>`,
-  },
-  transaction_receipt: {
-    subject: "Receipt #{{receiptNumber}}",
-    htmlBody: `<h1>Your Receipt</h1>
+    },
+    transaction_receipt: {
+      subject: "Receipt #{{receiptNumber}}",
+      htmlBody: `<h1>Your Receipt</h1>
 <p><strong>Receipt #:</strong> {{receiptNumber}}</p>
 <p><strong>Date:</strong> {{date}}</p>
 <p>{{items}}</p>
 <p><strong>Total:</strong> {{total}}</p>
 <p>Thank you for your purchase!</p>`,
+    },
+  },
+  es: {
+    order_confirmation: {
+      subject: "Confirmación de Pedido - #{{orderId}}",
+      htmlBody: `<h1>¡Gracias por tu pedido!</h1>
+<p><strong>Pedido #{{orderId}}</strong></p>
+<p>{{orderItems}}</p>
+<p><strong>Total: {{orderTotal}}</strong></p>
+<p>Hemos recibido tu pedido y está siendo procesado.</p>`,
+    },
+    payment_received: {
+      subject: "Pago Recibido",
+      htmlBody: `<h1>¡Pago Exitoso!</h1>
+<p>Hemos recibido tu pago.</p>
+<p><strong>Monto:</strong> {{amount}}</p>
+<p><strong>Método de Pago:</strong> {{paymentMethod}}</p>
+<p>¡Gracias por tu preferencia!</p>`,
+    },
+    low_stock_alert: {
+      subject: "Alerta de Stock Bajo: {{productName}}",
+      htmlBody: `<h1>Alerta de Stock Bajo</h1>
+<p>El siguiente producto tiene stock bajo:</p>
+<p><strong>Producto:</strong> {{productName}}</p>
+<p><strong>Stock Actual:</strong> {{currentStock}}</p>
+<p>Por favor considera reabastecer pronto.</p>`,
+    },
+    transaction_receipt: {
+      subject: "Recibo #{{receiptNumber}}",
+      htmlBody: `<h1>Tu Recibo</h1>
+<p><strong>Recibo #:</strong> {{receiptNumber}}</p>
+<p><strong>Fecha:</strong> {{date}}</p>
+<p>{{items}}</p>
+<p><strong>Total:</strong> {{total}}</p>
+<p>¡Gracias por tu compra!</p>`,
+    },
+  },
+  pt: {
+    order_confirmation: {
+      subject: "Confirmação de Pedido - #{{orderId}}",
+      htmlBody: `<h1>Obrigado pelo seu pedido!</h1>
+<p><strong>Pedido #{{orderId}}</strong></p>
+<p>{{orderItems}}</p>
+<p><strong>Total: {{orderTotal}}</strong></p>
+<p>Recebemos seu pedido e ele está sendo processado.</p>`,
+    },
+    payment_received: {
+      subject: "Pagamento Recebido",
+      htmlBody: `<h1>Pagamento Confirmado!</h1>
+<p>Recebemos seu pagamento.</p>
+<p><strong>Valor:</strong> {{amount}}</p>
+<p><strong>Método de Pagamento:</strong> {{paymentMethod}}</p>
+<p>Obrigado pela sua preferência!</p>`,
+    },
+    low_stock_alert: {
+      subject: "Alerta de Estoque Baixo: {{productName}}",
+      htmlBody: `<h1>Alerta de Estoque Baixo</h1>
+<p>O seguinte produto está com estoque baixo:</p>
+<p><strong>Produto:</strong> {{productName}}</p>
+<p><strong>Estoque Atual:</strong> {{currentStock}}</p>
+<p>Por favor considere reabastecer em breve.</p>`,
+    },
+    transaction_receipt: {
+      subject: "Recibo #{{receiptNumber}}",
+      htmlBody: `<h1>Seu Recibo</h1>
+<p><strong>Recibo #:</strong> {{receiptNumber}}</p>
+<p><strong>Data:</strong> {{date}}</p>
+<p>{{items}}</p>
+<p><strong>Total:</strong> {{total}}</p>
+<p>Obrigado pela sua compra!</p>`,
+    },
   },
 };
 
+function getDefaultTemplates(language: string): Record<string, { subject: string; htmlBody: string }> {
+  return defaultTemplatesByLanguage[language] || defaultTemplatesByLanguage.en;
+}
+
 export function EmailTemplateEditor() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
@@ -158,6 +234,7 @@ export function EmailTemplateEditor() {
   };
 
   const handleEditNew = (type: string) => {
+    const defaultTemplates = getDefaultTemplates(language);
     const defaultTemplate = defaultTemplates[type];
     const config = templateTypeConfig[type];
     setEditingTemplate({
