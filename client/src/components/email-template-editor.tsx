@@ -131,7 +131,7 @@ export function EmailTemplateEditor() {
       queryClient.invalidateQueries({ queryKey: ["/api/internal/email-templates"] });
       toast({
         title: t("common.success"),
-        description: "Email template updated successfully",
+        description: t("emails.template_updated"),
       });
       setEditingTemplate(null);
     },
@@ -139,7 +139,7 @@ export function EmailTemplateEditor() {
       toast({
         variant: "destructive",
         title: t("common.error"),
-        description: "Failed to update email template",
+        description: t("emails.template_update_failed"),
       });
     },
   });
@@ -186,10 +186,10 @@ export function EmailTemplateEditor() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Mail className="w-5 h-5" />
-            Email Templates
+            {t("emails.title")}
           </CardTitle>
           <CardDescription>
-            Customize the emails sent to your customers. Use variables like {"{{userName}}"} to personalize content.
+            {t("emails.subtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -218,24 +218,24 @@ export function EmailTemplateEditor() {
                       </div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium">{config.name}</span>
+                          <span className="font-medium">{t(`emails.${type}`) || config.name}</span>
                           {template ? (
                             template.isActive ? (
                               <Badge variant="default" className="bg-green-500 hover:bg-green-600">
                                 <Check className="w-3 h-3 mr-1" />
-                                Active
+                                {t("emails.active")}
                               </Badge>
                             ) : (
                               <Badge variant="secondary">
                                 <X className="w-3 h-3 mr-1" />
-                                Inactive
+                                {t("emails.inactive")}
                               </Badge>
                             )
                           ) : (
-                            <Badge variant="outline">Default</Badge>
+                            <Badge variant="outline">{t("emails.default")}</Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground">{config.description}</p>
+                        <p className="text-sm text-muted-foreground">{t(`emails.${type}_desc`) || config.description}</p>
                         {template && (
                           <p className="text-xs text-muted-foreground">
                             Subject: {template.subject}
@@ -275,17 +275,17 @@ export function EmailTemplateEditor() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertCircle className="w-5 h-5" />
-            Available Variables
+            {t("emails.variables_title")}
           </CardTitle>
           <CardDescription>
-            Use these placeholders in your email templates. They will be replaced with actual values when emails are sent.
+            {t("emails.variables_subtitle")}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
             {Object.entries(templateTypeConfig).map(([type, config]) => (
               <div key={type} className="p-3 border rounded-lg">
-                <h4 className="font-medium text-sm mb-2">{config.name}</h4>
+                <h4 className="font-medium text-sm mb-2">{t(`emails.${type}`) || config.name}</h4>
                 <div className="flex flex-wrap gap-1">
                   {config.variables.map((variable) => (
                     <Badge key={variable} variant="secondary" className="font-mono text-xs">
@@ -304,17 +304,17 @@ export function EmailTemplateEditor() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Mail className="w-5 h-5" />
-              Edit Email Template: {editingTemplate && templateTypeConfig[editingTemplate.type]?.name}
+              {t("emails.edit_template")}: {editingTemplate && (t(`emails.${editingTemplate.type}`) || templateTypeConfig[editingTemplate.type]?.name)}
             </DialogTitle>
             <DialogDescription>
-              Customize the email content. Use variables like {"{{userName}}"} for dynamic content.
+              {t("emails.edit_template_desc")}
             </DialogDescription>
           </DialogHeader>
           
           <ScrollArea className="flex-1 pr-4">
             <div className="space-y-4 py-4">
               <div className="flex items-center justify-between">
-                <Label htmlFor="template-active">Template Active</Label>
+                <Label htmlFor="template-active">{t("emails.template_active")}</Label>
                 <Switch
                   id="template-active"
                   checked={editIsActive}
@@ -326,23 +326,23 @@ export function EmailTemplateEditor() {
               <Separator />
 
               <div className="space-y-2">
-                <Label htmlFor="template-subject">Email Subject</Label>
+                <Label htmlFor="template-subject">{t("emails.email_subject")}</Label>
                 <Input
                   id="template-subject"
                   value={editSubject}
                   onChange={(e) => setEditSubject(e.target.value)}
-                  placeholder="Enter email subject..."
+                  placeholder={t("emails.email_subject")}
                   data-testid="input-template-subject"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="template-body">Email Body (HTML)</Label>
+                <Label htmlFor="template-body">{t("emails.email_body")}</Label>
                 <Textarea
                   id="template-body"
                   value={editHtmlBody}
                   onChange={(e) => setEditHtmlBody(e.target.value)}
-                  placeholder="Enter email body HTML..."
+                  placeholder={t("emails.email_body")}
                   className="font-mono text-sm min-h-[300px]"
                   data-testid="textarea-template-body"
                 />
@@ -350,7 +350,7 @@ export function EmailTemplateEditor() {
 
               {editingTemplate && (
                 <div className="p-3 bg-muted rounded-lg">
-                  <Label className="text-xs text-muted-foreground">Available Variables:</Label>
+                  <Label className="text-xs text-muted-foreground">{t("emails.available_variables")}</Label>
                   <div className="flex flex-wrap gap-1 mt-2">
                     {templateTypeConfig[editingTemplate.type]?.variables.map((variable) => (
                       <Badge
@@ -376,7 +376,7 @@ export function EmailTemplateEditor() {
               onClick={() => setEditingTemplate(null)}
               data-testid="button-cancel-template"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleSave}
@@ -384,7 +384,7 @@ export function EmailTemplateEditor() {
               data-testid="button-save-template"
             >
               {updateMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save Template
+              {t("emails.save_template")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -395,10 +395,10 @@ export function EmailTemplateEditor() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Eye className="w-5 h-5" />
-              Preview: {previewTemplate && templateTypeConfig[previewTemplate.type]?.name}
+              {t("emails.preview")}: {previewTemplate && (t(`emails.${previewTemplate.type}`) || templateTypeConfig[previewTemplate.type]?.name)}
             </DialogTitle>
             <DialogDescription>
-              Subject: {previewTemplate?.subject}
+              {t("emails.email_subject")}: {previewTemplate?.subject}
             </DialogDescription>
           </DialogHeader>
           
@@ -415,7 +415,7 @@ export function EmailTemplateEditor() {
               onClick={() => setPreviewTemplate(null)}
               data-testid="button-close-preview"
             >
-              Close
+              {t("common.close")}
             </Button>
           </DialogFooter>
         </DialogContent>
