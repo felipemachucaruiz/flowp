@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import type { Transporter } from "nodemailer";
 import { storage } from "./storage";
+import { getEmailTranslation, replaceVariables } from "./email-translations";
 
 interface SmtpConfig {
   host: string;
@@ -94,19 +95,20 @@ class EmailService {
     }
   }
 
-  async sendPasswordResetEmail(email: string, resetToken: string, userName: string): Promise<boolean> {
+  async sendPasswordResetEmail(email: string, resetToken: string, userName: string, language: string = "en"): Promise<boolean> {
     const template = await storage.getEmailTemplate("password_reset");
     const resetUrl = `${process.env.APP_URL || 'https://flowp.replit.app'}/reset-password?token=${resetToken}`;
+    const t = getEmailTranslation(language).password_reset;
     
-    let subject = "Reset Your Password";
+    let subject = replaceVariables(t.subject, { userName });
     let html = `
-      <h1>Password Reset Request</h1>
-      <p>Hello ${userName},</p>
-      <p>You requested to reset your password. Click the link below to set a new password:</p>
-      <p><a href="${resetUrl}" style="background-color: #6E51CD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Reset Password</a></p>
-      <p>This link will expire in 1 hour.</p>
-      <p>If you didn't request this, please ignore this email.</p>
-      <p>- The Flowp Team</p>
+      <h1>${t.subject}</h1>
+      <p>${replaceVariables(t.greeting, { userName })}</p>
+      <p>${t.message}</p>
+      <p><a href="${resetUrl}" style="background-color: #6E51CD; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">${t.button}</a></p>
+      <p>${t.expiry}</p>
+      <p>${t.ignore}</p>
+      <p>${t.signature}</p>
     `;
 
     if (template?.isActive) {
@@ -130,32 +132,33 @@ class EmailService {
     return sent;
   }
 
-  async sendOrderConfirmation(email: string, orderId: string, orderTotal: string, items: Array<{ name: string; quantity: number; price: string }>, tenantId?: string): Promise<boolean> {
+  async sendOrderConfirmation(email: string, orderId: string, orderTotal: string, items: Array<{ name: string; quantity: number; price: string }>, tenantId?: string, language: string = "en"): Promise<boolean> {
     const template = await storage.getEmailTemplate("order_confirmation");
+    const t = getEmailTranslation(language).order_confirmation;
     
     const itemsHtml = items.map(item => 
       `<tr><td>${item.name}</td><td>${item.quantity}</td><td>${item.price}</td></tr>`
     ).join("");
 
-    let subject = `Order Confirmation - #${orderId}`;
+    let subject = replaceVariables(t.subject, { orderId });
     let html = `
-      <h1>Order Confirmation</h1>
-      <p>Thank you for your order!</p>
-      <p><strong>Order #${orderId}</strong></p>
+      <h1>${t.title}</h1>
+      <p>${t.thank_you}</p>
+      <p><strong>${replaceVariables(t.order_number, { orderId })}</strong></p>
       <table style="width: 100%; border-collapse: collapse;">
         <thead>
           <tr style="background-color: #f5f5f5;">
-            <th style="padding: 8px; text-align: left;">Item</th>
-            <th style="padding: 8px; text-align: left;">Qty</th>
-            <th style="padding: 8px; text-align: left;">Price</th>
+            <th style="padding: 8px; text-align: left;">${t.item}</th>
+            <th style="padding: 8px; text-align: left;">${t.qty}</th>
+            <th style="padding: 8px; text-align: left;">${t.price}</th>
           </tr>
         </thead>
         <tbody>
           ${itemsHtml}
         </tbody>
       </table>
-      <p style="margin-top: 16px;"><strong>Total: ${orderTotal}</strong></p>
-      <p>- The Flowp Team</p>
+      <p style="margin-top: 16px;"><strong>${replaceVariables(t.total, { orderTotal })}</strong></p>
+      <p>${t.signature}</p>
     `;
 
     if (template?.isActive) {
@@ -180,17 +183,18 @@ class EmailService {
     return sent;
   }
 
-  async sendPaymentReceivedEmail(email: string, amount: string, paymentMethod: string, tenantId?: string): Promise<boolean> {
+  async sendPaymentReceivedEmail(email: string, amount: string, paymentMethod: string, tenantId?: string, language: string = "en"): Promise<boolean> {
     const template = await storage.getEmailTemplate("payment_received");
+    const t = getEmailTranslation(language).payment_received;
     
-    let subject = "Payment Received";
+    let subject = t.subject;
     let html = `
-      <h1>Payment Confirmation</h1>
-      <p>We have received your payment.</p>
-      <p><strong>Amount:</strong> ${amount}</p>
-      <p><strong>Payment Method:</strong> ${paymentMethod}</p>
-      <p>Thank you for your business!</p>
-      <p>- The Flowp Team</p>
+      <h1>${t.title}</h1>
+      <p>${t.message}</p>
+      <p><strong>${t.amount}:</strong> ${amount}</p>
+      <p><strong>${t.payment_method}:</strong> ${paymentMethod}</p>
+      <p>${t.thank_you}</p>
+      <p>${t.signature}</p>
     `;
 
     if (template?.isActive) {
@@ -214,17 +218,18 @@ class EmailService {
     return sent;
   }
 
-  async sendLowStockAlert(email: string, productName: string, currentStock: number, tenantId?: string): Promise<boolean> {
+  async sendLowStockAlert(email: string, productName: string, currentStock: number, tenantId?: string, language: string = "en"): Promise<boolean> {
     const template = await storage.getEmailTemplate("low_stock_alert");
+    const t = getEmailTranslation(language).low_stock_alert;
     
-    let subject = `Low Stock Alert: ${productName}`;
+    let subject = replaceVariables(t.subject, { productName });
     let html = `
-      <h1>Low Stock Alert</h1>
-      <p>The following product is running low on stock:</p>
-      <p><strong>Product:</strong> ${productName}</p>
-      <p><strong>Current Stock:</strong> ${currentStock}</p>
-      <p>Please consider restocking soon.</p>
-      <p>- The Flowp Team</p>
+      <h1>${t.title}</h1>
+      <p>${t.message}</p>
+      <p><strong>${t.product}:</strong> ${productName}</p>
+      <p><strong>${t.current_stock}:</strong> ${currentStock}</p>
+      <p>${t.action}</p>
+      <p>${t.signature}</p>
     `;
 
     if (template?.isActive) {
