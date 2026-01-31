@@ -50,7 +50,8 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "resources/icon.ico"
+      "icon": "resources/icon.ico",
+      "publish": null
     },
     "nsis": {
       "oneClick": false,
@@ -66,7 +67,8 @@
         }
       ],
       "icon": "resources/icon.icns",
-      "category": "public.app-category.business"
+      "category": "public.app-category.business",
+      "publish": null
     },
     "dmg": {
       "contents": [
