@@ -7,6 +7,18 @@ import {
 } from "@shared/schema";
 import { eq, desc, sql, and, count } from "drizzle-orm";
 import { requireInternal, requirePermission, enforceTenantIsolation } from "../middleware/rbac";
+import { z } from "zod";
+
+const VALID_TENANT_STATUSES = ["trial", "active", "past_due", "suspended", "cancelled"] as const;
+const VALID_FEATURE_FLAGS = [
+  "restaurant_bom", "advanced_reporting", "multi_location", 
+  "loyalty_program", "electronic_invoicing", "api_access"
+] as const;
+
+const updateTenantSchema = z.object({
+  status: z.enum(VALID_TENANT_STATUSES).optional(),
+  featureFlags: z.array(z.enum(VALID_FEATURE_FLAGS)).optional(),
+});
 
 const router = Router();
 
@@ -138,6 +150,78 @@ router.post("/tenants/:id/unsuspend", requirePermission("tenants:suspend"), asyn
   } catch (error) {
     console.error("Unsuspend tenant error:", error);
     res.status(500).json({ error: "Failed to unsuspend tenant" });
+  }
+});
+
+// Update tenant (status, featureFlags)
+router.patch("/tenants/:id", requirePermission("tenants:update"), async (req: Request, res: Response) => {
+  try {
+    const parseResult = updateTenantSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({ 
+        error: "Invalid request data", 
+        details: parseResult.error.format() 
+      });
+    }
+
+    const { status, featureFlags } = parseResult.data;
+    
+    const updateData: Record<string, unknown> = {};
+    if (status !== undefined) updateData.status = status;
+    if (featureFlags !== undefined) updateData.featureFlags = featureFlags;
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "No valid fields to update" });
+    }
+
+    const [updated] = await db
+      .update(tenants)
+      .set(updateData)
+      .where(eq(tenants.id, req.params.id))
+      .returning();
+
+    if (!updated) {
+      return res.status(404).json({ error: "Tenant not found" });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Update tenant error:", error);
+    res.status(500).json({ error: "Failed to update tenant" });
+  }
+});
+
+// Reset password for tenant user
+router.post("/tenants/:tenantId/users/:userId/reset-password", requirePermission("users:update"), async (req: Request, res: Response) => {
+  try {
+    const { tenantId, userId } = req.params;
+    const { newPassword } = req.body;
+    
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    // Verify user belongs to tenant
+    const [user] = await db.select().from(users).where(
+      and(eq(users.id, userId), eq(users.tenantId, tenantId))
+    );
+    
+    if (!user) {
+      return res.status(404).json({ error: "User not found in this tenant" });
+    }
+
+    const bcrypt = await import("bcrypt");
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await db
+      .update(users)
+      .set({ password: hashedPassword })
+      .where(eq(users.id, userId));
+
+    res.json({ success: true, message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Reset password error:", error);
+    res.status(500).json({ error: "Failed to reset password" });
   }
 });
 
