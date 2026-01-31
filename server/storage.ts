@@ -3,7 +3,7 @@ import {
   modifierGroups, modifiers, productModifierGroups, floors, tables,
   orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs, customers,
   loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions,
-  systemSettings, passwordResetTokens, emailTemplates, emailLogs,
+  systemSettings, passwordResetTokens, emailTemplates, emailLogs, notifications,
   suppliers, purchaseOrders, purchaseOrderItems,
   ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
   saleIngredientConsumptions, ingredientAlerts,
@@ -27,6 +27,7 @@ import {
   type PasswordResetToken, type InsertPasswordResetToken,
   type EmailTemplate, type InsertEmailTemplate,
   type EmailLog, type InsertEmailLog,
+  type Notification, type InsertNotification,
   type Ingredient, type InsertIngredient,
   type IngredientLot, type InsertIngredientLot,
   type Recipe, type InsertRecipe,
@@ -1461,6 +1462,73 @@ export class DatabaseStorage implements IStorage {
     
     const features = plan.features as string[] || [];
     return features.includes(feature);
+  }
+
+  // ============================================================
+  // IN-APP NOTIFICATIONS
+  // ============================================================
+
+  async getUserNotifications(userId: string, tenantId?: string): Promise<Notification[]> {
+    const conditions = tenantId 
+      ? and(eq(notifications.userId, userId), eq(notifications.tenantId, tenantId))
+      : eq(notifications.userId, userId);
+    
+    return db
+      .select()
+      .from(notifications)
+      .where(conditions)
+      .orderBy(desc(notifications.createdAt))
+      .limit(100);
+  }
+
+  async createNotification(data: InsertNotification): Promise<Notification> {
+    const [notification] = await db.insert(notifications).values(data).returning();
+    return notification;
+  }
+
+  async markNotificationAsRead(id: string): Promise<Notification | undefined> {
+    const [notification] = await db
+      .update(notifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(eq(notifications.id, id))
+      .returning();
+    return notification;
+  }
+
+  async markAllNotificationsAsRead(userId: string, tenantId?: string): Promise<void> {
+    const conditions = tenantId 
+      ? and(eq(notifications.userId, userId), eq(notifications.tenantId, tenantId), eq(notifications.isRead, false))
+      : and(eq(notifications.userId, userId), eq(notifications.isRead, false));
+    
+    await db
+      .update(notifications)
+      .set({ isRead: true, readAt: new Date() })
+      .where(conditions);
+  }
+
+  async getUnreadNotificationCount(userId: string, tenantId?: string): Promise<number> {
+    const conditions = tenantId 
+      ? and(eq(notifications.userId, userId), eq(notifications.tenantId, tenantId), eq(notifications.isRead, false))
+      : and(eq(notifications.userId, userId), eq(notifications.isRead, false));
+    
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(notifications)
+      .where(conditions);
+    
+    return result[0]?.count || 0;
+  }
+
+  async deleteOldNotifications(daysOld: number = 30): Promise<void> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    
+    await db
+      .delete(notifications)
+      .where(and(
+        eq(notifications.isRead, true),
+        lte(notifications.createdAt, cutoffDate)
+      ));
   }
 }
 

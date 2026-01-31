@@ -998,6 +998,37 @@ export const insertEmailLogSchema = createInsertSchema(emailLogs).omit({ id: tru
 export type EmailLog = typeof emailLogs.$inferSelect;
 export type InsertEmailLog = z.infer<typeof insertEmailLogSchema>;
 
+// In-App Notifications
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "info",
+  "warning",
+  "error",
+  "success",
+  "low_stock",
+  "order_status",
+  "payment",
+  "system",
+  "expiring_ingredient"
+]);
+
+export const notifications = pgTable("notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  userId: varchar("user_id").references(() => users.id),
+  type: notificationTypeEnum("type").notNull().default("info"),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  link: text("link"),
+  data: jsonb("data"),
+  isRead: boolean("is_read").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  readAt: timestamp("read_at"),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true, readAt: true });
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
 // Feature flags for tenant types
 export const RETAIL_FEATURES = [
   "pos.core",

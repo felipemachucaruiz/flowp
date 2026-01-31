@@ -9,9 +9,11 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
-import { Mail, Server, Check, X, Loader2, Send, Eye, Clock } from "lucide-react";
+import { Mail, Server, Check, X, Loader2, Send, Clock, FileText, TestTube } from "lucide-react";
 
 interface SmtpConfig {
   host: string;
@@ -36,6 +38,25 @@ interface EmailLog {
   sentAt: string;
 }
 
+interface EmailTemplate {
+  id: string;
+  type: string;
+  subject: string;
+  htmlBody: string;
+  textBody: string | null;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+const EMAIL_TEMPLATE_TYPES = [
+  { type: "password_reset", label: "Password Reset" },
+  { type: "order_confirmation", label: "Order Confirmation" },
+  { type: "payment_received", label: "Payment Received" },
+  { type: "low_stock_alert", label: "Low Stock Alert" },
+  { type: "welcome", label: "Welcome" },
+  { type: "account_suspended", label: "Account Suspended" },
+];
+
 const defaultSmtpConfig: SmtpConfig = {
   host: "",
   port: 587,
@@ -54,6 +75,11 @@ export default function AdminEmailSettings() {
   const [smtpConfig, setSmtpConfig] = useState<SmtpConfig>(defaultSmtpConfig);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testEmailAddress, setTestEmailAddress] = useState("");
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  const [testEmailDialogOpen, setTestEmailDialogOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<{ subject: string; htmlBody: string; isActive: boolean } | null>(null);
 
   const { data: savedConfig, isLoading: isLoadingConfig } = useQuery<SmtpConfig | null>({
     queryKey: ["/api/internal/smtp-config"],
@@ -61,6 +87,10 @@ export default function AdminEmailSettings() {
 
   const { data: emailLogs = [], isLoading: isLoadingLogs } = useQuery<EmailLog[]>({
     queryKey: ["/api/internal/email-logs"],
+  });
+
+  const { data: emailTemplates = [], isLoading: isLoadingTemplates } = useQuery<EmailTemplate[]>({
+    queryKey: ["/api/internal/email-templates"],
   });
 
   useEffect(() => {
@@ -124,6 +154,69 @@ export default function AdminEmailSettings() {
     saveMutation.mutate(smtpConfig);
   };
 
+  const handleSendTestEmail = async () => {
+    if (!testEmailAddress) return;
+    
+    setIsSendingTestEmail(true);
+    try {
+      const res = await apiRequest("POST", "/api/internal/smtp-config/send-test", {
+        toEmail: testEmailAddress,
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        toast({
+          title: t("admin.test_email_sent"),
+          description: t("admin.test_email_sent_description"),
+        });
+        setTestEmailDialogOpen(false);
+        setTestEmailAddress("");
+        queryClient.invalidateQueries({ queryKey: ["/api/internal/email-logs"] });
+      } else {
+        toast({
+          title: t("common.error"),
+          description: data.message || t("admin.test_email_failed"),
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: t("common.error"),
+        description: t("admin.test_email_failed"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingTestEmail(false);
+    }
+  };
+
+  const templateMutation = useMutation({
+    mutationFn: async ({ type, subject, htmlBody, isActive }: { type: string; subject: string; htmlBody: string; isActive: boolean }) => {
+      const res = await apiRequest("PUT", `/api/internal/email-templates/${type}`, {
+        subject,
+        htmlBody,
+        isActive,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/internal/email-templates"] });
+      toast({
+        title: t("admin.template_saved"),
+        description: t("admin.template_saved_description"),
+      });
+      setSelectedTemplate(null);
+      setEditingTemplate(null);
+    },
+    onError: () => {
+      toast({
+        title: t("common.error"),
+        description: t("admin.template_save_error"),
+        variant: "destructive",
+      });
+    },
+  });
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString();
   };
@@ -150,6 +243,10 @@ export default function AdminEmailSettings() {
           <TabsTrigger value="smtp" className="gap-2" data-testid="tab-smtp">
             <Server className="w-4 h-4" />
             {t("admin.smtp_settings")}
+          </TabsTrigger>
+          <TabsTrigger value="templates" className="gap-2" data-testid="tab-templates">
+            <FileText className="w-4 h-4" />
+            {t("admin.email_templates")}
           </TabsTrigger>
           <TabsTrigger value="logs" className="gap-2" data-testid="tab-logs">
             <Mail className="w-4 h-4" />
@@ -252,7 +349,7 @@ export default function AdminEmailSettings() {
                 </div>
               )}
 
-              <div className="flex gap-2 pt-4">
+              <div className="flex gap-2 flex-wrap pt-4">
                 <Button
                   variant="outline"
                   onClick={handleTestConnection}
@@ -285,7 +382,172 @@ export default function AdminEmailSettings() {
                     t("common.save")
                   )}
                 </Button>
+                <Dialog open={testEmailDialogOpen} onOpenChange={setTestEmailDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" disabled={!savedConfig?.host} data-testid="button-send-test-email">
+                      <TestTube className="w-4 h-4 mr-2" />
+                      {t("admin.send_test_email")}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{t("admin.send_test_email")}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="test-email">{t("admin.recipient_email")}</Label>
+                        <Input
+                          id="test-email"
+                          type="email"
+                          placeholder="test@example.com"
+                          value={testEmailAddress}
+                          onChange={(e) => setTestEmailAddress(e.target.value)}
+                          data-testid="input-test-email"
+                        />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {t("admin.send_test_email_description")}
+                      </p>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        onClick={handleSendTestEmail}
+                        disabled={isSendingTestEmail || !testEmailAddress}
+                        data-testid="button-confirm-send-test"
+                      >
+                        {isSendingTestEmail ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            {t("admin.sending")}
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4 mr-2" />
+                            {t("admin.send_email")}
+                          </>
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="templates" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("admin.email_templates")}</CardTitle>
+              <CardDescription>{t("admin.email_templates_description")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingTemplates ? (
+                <div className="space-y-2">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {EMAIL_TEMPLATE_TYPES.map((templateType) => {
+                    const existingTemplate = emailTemplates.find(t => t.type === templateType.type);
+                    const isEditing = selectedTemplate?.type === templateType.type;
+                    
+                    return (
+                      <div key={templateType.type} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{templateType.label}</span>
+                            {existingTemplate ? (
+                              <Badge variant={existingTemplate.isActive ? "default" : "secondary"}>
+                                {existingTemplate.isActive ? t("admin.active") : t("admin.inactive")}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">{t("admin.not_configured")}</Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (isEditing) {
+                                setSelectedTemplate(null);
+                                setEditingTemplate(null);
+                              } else {
+                                setSelectedTemplate(existingTemplate || { id: "", type: templateType.type, subject: "", htmlBody: "", textBody: null, isActive: true, updatedAt: "" });
+                                setEditingTemplate({
+                                  subject: existingTemplate?.subject || "",
+                                  htmlBody: existingTemplate?.htmlBody || "",
+                                  isActive: existingTemplate?.isActive ?? true,
+                                });
+                              }
+                            }}
+                            data-testid={`button-edit-template-${templateType.type}`}
+                          >
+                            {isEditing ? t("common.cancel") : t("common.edit")}
+                          </Button>
+                        </div>
+                        
+                        {isEditing && editingTemplate && (
+                          <div className="space-y-4 pt-4 border-t mt-4">
+                            <div className="space-y-2">
+                              <Label>{t("admin.subject")}</Label>
+                              <Input
+                                value={editingTemplate.subject}
+                                onChange={(e) => setEditingTemplate({ ...editingTemplate, subject: e.target.value })}
+                                placeholder={t("admin.email_subject_placeholder")}
+                                data-testid={`input-template-subject-${templateType.type}`}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>{t("admin.html_body")}</Label>
+                              <Textarea
+                                value={editingTemplate.htmlBody}
+                                onChange={(e) => setEditingTemplate({ ...editingTemplate, htmlBody: e.target.value })}
+                                placeholder={t("admin.html_body_placeholder")}
+                                rows={8}
+                                className="font-mono text-sm"
+                                data-testid={`input-template-body-${templateType.type}`}
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                {t("admin.template_variables_hint")}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={editingTemplate.isActive}
+                                onCheckedChange={(checked) => setEditingTemplate({ ...editingTemplate, isActive: checked })}
+                                data-testid={`switch-template-active-${templateType.type}`}
+                              />
+                              <Label>{t("admin.template_active")}</Label>
+                            </div>
+                            <Button
+                              onClick={() => templateMutation.mutate({
+                                type: templateType.type,
+                                subject: editingTemplate.subject,
+                                htmlBody: editingTemplate.htmlBody,
+                                isActive: editingTemplate.isActive,
+                              })}
+                              disabled={templateMutation.isPending || !editingTemplate.subject || !editingTemplate.htmlBody}
+                              data-testid={`button-save-template-${templateType.type}`}
+                            >
+                              {templateMutation.isPending ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  {t("common.saving")}
+                                </>
+                              ) : (
+                                t("common.save")
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

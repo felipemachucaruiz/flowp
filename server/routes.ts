@@ -2916,5 +2916,124 @@ export async function registerRoutes(
     }
   });
 
+  // Send test email to verify SMTP is working end-to-end
+  app.post("/api/internal/smtp-config/send-test", async (req: Request, res: Response) => {
+    try {
+      const { toEmail } = req.body;
+      
+      if (!toEmail) {
+        return res.status(400).json({ success: false, message: "Email address is required" });
+      }
+
+      // Re-initialize transporter with latest config
+      const initialized = await emailService.initTransporter();
+      if (!initialized) {
+        return res.status(400).json({ success: false, message: "SMTP not configured" });
+      }
+
+      const sent = await emailService.sendEmail({
+        to: toEmail,
+        subject: "Flowp POS - Test Email",
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h1 style="color: #6E51CD;">Test Email from Flowp POS</h1>
+            <p>This is a test email to verify that your SMTP configuration is working correctly.</p>
+            <p style="color: #666;">If you received this email, your email delivery is properly configured!</p>
+            <hr style="border: 1px solid #eee; margin: 20px 0;" />
+            <p style="font-size: 12px; color: #999;">Sent from Flowp POS Admin Console</p>
+          </div>
+        `,
+        text: "This is a test email to verify that your SMTP configuration is working correctly."
+      });
+
+      if (sent) {
+        await storage.createEmailLog({
+          templateType: "test_email",
+          recipientEmail: toEmail,
+          subject: "Flowp POS - Test Email",
+          status: "sent",
+        });
+        res.json({ success: true, message: "Test email sent successfully" });
+      } else {
+        await storage.createEmailLog({
+          templateType: "test_email",
+          recipientEmail: toEmail,
+          subject: "Flowp POS - Test Email",
+          status: "failed",
+          errorMessage: "Failed to send email",
+        });
+        res.status(400).json({ success: false, message: "Failed to send test email" });
+      }
+    } catch (error) {
+      console.error("Send test email error:", error);
+      res.status(500).json({ success: false, message: error instanceof Error ? error.message : "Failed to send test email" });
+    }
+  });
+
+  // ===== IN-APP NOTIFICATIONS =====
+
+  // Get notifications for current user
+  app.get("/api/notifications", async (req: Request, res: Response) => {
+    try {
+      const userId = req.query.userId as string;
+      const tenantId = req.query.tenantId as string;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+      
+      const notifications = await storage.getUserNotifications(userId, tenantId);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  // Mark notification as read
+  app.patch("/api/notifications/:id/read", async (req: Request, res: Response) => {
+    try {
+      const notification = await storage.markNotificationAsRead(req.params.id);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      res.json(notification);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  // Mark all notifications as read for a user
+  app.post("/api/notifications/mark-all-read", async (req: Request, res: Response) => {
+    try {
+      const { userId, tenantId } = req.body;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+      
+      await storage.markAllNotificationsAsRead(userId, tenantId);
+      res.json({ message: "All notifications marked as read" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to mark notifications as read" });
+    }
+  });
+
+  // Get unread notification count
+  app.get("/api/notifications/unread-count", async (req: Request, res: Response) => {
+    try {
+      const userId = req.query.userId as string;
+      const tenantId = req.query.tenantId as string;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "User ID is required" });
+      }
+      
+      const count = await storage.getUnreadNotificationCount(userId, tenantId);
+      res.json({ count });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get notification count" });
+    }
+  });
+
   return httpServer;
 }

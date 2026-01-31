@@ -14,6 +14,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationCenter } from "@/components/notification-center";
 import { LogOut } from "lucide-react";
 
 import NotFound from "@/pages/not-found";
@@ -118,6 +119,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           <header className="flex h-10 items-center justify-between gap-2 border-b px-3 bg-card shrink-0">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <div className="flex items-center gap-2">
+              <NotificationCenter />
               <div className="hidden sm:block"><TourButton /></div>
               <div className="hidden sm:block">
                 <ThemeToggle />
