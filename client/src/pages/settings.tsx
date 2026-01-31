@@ -899,9 +899,14 @@ function EmailNotificationPreferences() {
 
   const defaultPrefs = {
     lowStockAlerts: true,
+    expiringProductAlerts: true,
+    newSaleNotification: false,
     dailySalesReport: false,
     weeklyReport: false,
+    newCustomerNotification: false,
     orderNotifications: true,
+    refundAlerts: true,
+    highValueSaleAlerts: false,
     systemAlerts: true,
   };
 
@@ -941,11 +946,16 @@ function EmailNotificationPreferences() {
   };
 
   const notificationTypes = [
-    { key: 'lowStockAlerts' as const, label: t("email.pref_low_stock") || "Low Stock Alerts", description: t("email.pref_low_stock_desc") || "Get notified when inventory drops below threshold" },
-    { key: 'orderNotifications' as const, label: t("email.pref_orders") || "Order Notifications", description: t("email.pref_orders_desc") || "Receive notifications for new orders" },
-    { key: 'dailySalesReport' as const, label: t("email.pref_daily_report") || "Daily Sales Report", description: t("email.pref_daily_report_desc") || "Receive a daily summary of sales" },
-    { key: 'weeklyReport' as const, label: t("email.pref_weekly_report") || "Weekly Report", description: t("email.pref_weekly_report_desc") || "Receive a weekly summary report" },
-    { key: 'systemAlerts' as const, label: t("email.pref_system") || "System Alerts", description: t("email.pref_system_desc") || "Important system notifications and updates" },
+    { key: 'newSaleNotification' as const, label: t("email.pref_new_sale") || "New Sale Notifications", description: t("email.pref_new_sale_desc") || "Get notified immediately when a sale is made", category: "sales", active: true },
+    { key: 'lowStockAlerts' as const, label: t("email.pref_low_stock") || "Low Stock Alerts", description: t("email.pref_low_stock_desc") || "Get notified when inventory drops below threshold", category: "inventory", active: true },
+    { key: 'orderNotifications' as const, label: t("email.pref_orders") || "Customer Order Emails", description: t("email.pref_orders_desc") || "Send order confirmations to customers", category: "customers", active: true },
+    { key: 'systemAlerts' as const, label: t("email.pref_system") || "System Alerts", description: t("email.pref_system_desc") || "Important system notifications and updates", category: "system", active: true },
+    { key: 'dailySalesReport' as const, label: t("email.pref_daily_report") || "Daily Sales Report", description: t("email.pref_daily_report_desc") || "Receive a daily summary of sales", category: "reports", active: false },
+    { key: 'weeklyReport' as const, label: t("email.pref_weekly_report") || "Weekly Report", description: t("email.pref_weekly_report_desc") || "Receive a weekly summary report", category: "reports", active: false },
+    { key: 'highValueSaleAlerts' as const, label: t("email.pref_high_value") || "High Value Sale Alerts", description: t("email.pref_high_value_desc") || "Get notified for sales above a certain amount", category: "sales", active: false },
+    { key: 'expiringProductAlerts' as const, label: t("email.pref_expiring") || "Expiring Product Alerts", description: t("email.pref_expiring_desc") || "Get notified when products are about to expire", category: "inventory", active: false },
+    { key: 'newCustomerNotification' as const, label: t("email.pref_new_customer") || "New Customer Notifications", description: t("email.pref_new_customer_desc") || "Get notified when a new customer registers", category: "customers", active: false },
+    { key: 'refundAlerts' as const, label: t("email.pref_refund") || "Refund Alerts", description: t("email.pref_refund_desc") || "Get notified when refunds are processed", category: "financial", active: false },
   ];
 
   return (
@@ -961,15 +971,20 @@ function EmailNotificationPreferences() {
       </CardHeader>
       <CardContent className="space-y-4">
         {notificationTypes.map((item) => (
-          <div key={item.key} className="flex items-center justify-between py-2 border-b last:border-0">
+          <div key={item.key} className={`flex items-center justify-between py-2 border-b last:border-0 ${!item.active ? 'opacity-60' : ''}`}>
             <div className="space-y-0.5">
-              <Label className="text-sm font-medium">{item.label}</Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium">{item.label}</Label>
+                {!item.active && (
+                  <Badge variant="secondary" className="text-xs">{t("common.coming_soon") || "Coming Soon"}</Badge>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground">{item.description}</p>
             </div>
             <Switch
-              checked={prefs[item.key]}
+              checked={item.active ? prefs[item.key] : false}
               onCheckedChange={(value) => handleToggle(item.key, value)}
-              disabled={saving}
+              disabled={saving || !item.active}
               data-testid={`switch-email-${item.key}`}
             />
           </div>

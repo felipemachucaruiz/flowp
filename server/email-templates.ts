@@ -840,6 +840,106 @@ export function getWelcomeEmailTemplate(data: WelcomeEmailTemplateData, language
   };
 }
 
+export interface NewSaleNotificationTemplateData extends EmailTemplateData {
+  orderNumber: string;
+  total: number;
+  itemCount: number;
+  paymentMethod: string;
+  customerName?: string;
+  cashierName?: string;
+  currency?: string;
+}
+
+export function getNewSaleNotificationTemplate(data: NewSaleNotificationTemplateData, language: string = "en"): { subject: string; html: string } {
+  const translations: Record<string, any> = {
+    en: {
+      subject: `New Sale: #${data.orderNumber}`,
+      title: "New Sale Completed",
+      message: "A new sale has been completed at your store:",
+      orderNumber: "Order #",
+      total: "Total",
+      items: "Items",
+      paymentMethod: "Payment Method",
+      customer: "Customer",
+      cashier: "Cashier",
+      walkIn: "Walk-in Customer",
+      viewDetails: "View Order Details",
+    },
+    es: {
+      subject: `Nueva Venta: #${data.orderNumber}`,
+      title: "Nueva Venta Completada",
+      message: "Se ha completado una nueva venta en tu tienda:",
+      orderNumber: "Pedido #",
+      total: "Total",
+      items: "Artículos",
+      paymentMethod: "Método de Pago",
+      customer: "Cliente",
+      cashier: "Cajero",
+      walkIn: "Cliente Sin Registro",
+      viewDetails: "Ver Detalles del Pedido",
+    },
+    pt: {
+      subject: `Nova Venda: #${data.orderNumber}`,
+      title: "Nova Venda Concluída",
+      message: "Uma nova venda foi concluída em sua loja:",
+      orderNumber: "Pedido #",
+      total: "Total",
+      items: "Itens",
+      paymentMethod: "Método de Pagamento",
+      customer: "Cliente",
+      cashier: "Caixa",
+      walkIn: "Cliente Avulso",
+      viewDetails: "Ver Detalhes do Pedido",
+    },
+  };
+
+  const t = translations[language] || translations.en;
+  const currency = data.currency || 'USD';
+  const currencySymbol = currency === 'COP' ? '$' : currency === 'EUR' ? '€' : '$';
+
+  const content = `
+    <h1 style="color: #18181b; margin: 0 0 16px 0; font-size: 24px; font-weight: 600;">${t.title}</h1>
+    <p style="margin: 0 0 24px 0; color: #52525b;">${t.message}</p>
+    
+    <div style="background-color: #f4f4f5; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">${t.orderNumber}</td>
+          <td style="padding: 8px 0; text-align: right; font-weight: 600;">${data.orderNumber}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">${t.total}</td>
+          <td style="padding: 8px 0; text-align: right; font-weight: 600; color: #16a34a; font-size: 18px;">${currencySymbol}${data.total.toLocaleString()}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">${t.items}</td>
+          <td style="padding: 8px 0; text-align: right; font-weight: 500;">${data.itemCount}</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">${t.paymentMethod}</td>
+          <td style="padding: 8px 0; text-align: right; font-weight: 500; text-transform: capitalize;">${data.paymentMethod}</td>
+        </tr>
+        ${data.customerName ? `
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">${t.customer}</td>
+          <td style="padding: 8px 0; text-align: right; font-weight: 500;">${data.customerName}</td>
+        </tr>
+        ` : `
+        <tr>
+          <td style="padding: 8px 0; color: #71717a; font-size: 14px;">${t.customer}</td>
+          <td style="padding: 8px 0; text-align: right; font-weight: 500; color: #a1a1aa;">${t.walkIn}</td>
+        </tr>
+        `}
+      </table>
+    </div>
+  `;
+
+  return {
+    subject: t.subject,
+    html: getEmailWrapper(content, data),
+  };
+}
+
 export const defaultTemplates = {
   password_reset: {
     subject: "Reset Your Password",
@@ -870,5 +970,10 @@ export const defaultTemplates = {
     subject: "Welcome to Flowp POS!",
     description: "Sent when a new business registers",
     variables: ["{{userName}}", "{{businessName}}", "{{loginUrl}}"],
+  },
+  new_sale_notification: {
+    subject: "New Sale: {{orderNumber}}",
+    description: "Sent to owner when a sale is completed",
+    variables: ["{{orderNumber}}", "{{total}}", "{{itemCount}}", "{{paymentMethod}}", "{{customerName}}"],
   },
 };

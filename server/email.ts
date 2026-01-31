@@ -9,12 +9,14 @@ import {
   getLowStockAlertTemplate,
   getTransactionReceiptTemplate,
   getWelcomeEmailTemplate,
+  getNewSaleNotificationTemplate,
   type PasswordResetTemplateData,
   type OrderConfirmationTemplateData,
   type PaymentReceivedTemplateData,
   type LowStockAlertTemplateData,
   type TransactionReceiptTemplateData,
   type WelcomeEmailTemplateData,
+  type NewSaleNotificationTemplateData,
 } from "./email-templates";
 
 interface SmtpConfig {
@@ -417,6 +419,48 @@ class EmailService {
       templateType: "transaction_receipt",
       recipientEmail: email,
       subject,
+      status: sent ? "sent" : "failed",
+      errorMessage: sent ? null : "SMTP not configured or send failed",
+    });
+
+    return sent;
+  }
+
+  async sendNewSaleNotification(
+    email: string,
+    data: {
+      orderNumber: string;
+      total: number;
+      itemCount: number;
+      paymentMethod: string;
+      customerName?: string;
+      cashierName?: string;
+    },
+    tenantId: string,
+    language: string = "en",
+    tenantData?: { companyName?: string; companyLogo?: string; currency?: string }
+  ): Promise<boolean> {
+    const templateData: NewSaleNotificationTemplateData = {
+      orderNumber: data.orderNumber,
+      total: data.total,
+      itemCount: data.itemCount,
+      paymentMethod: data.paymentMethod,
+      customerName: data.customerName,
+      cashierName: data.cashierName,
+      companyName: tenantData?.companyName,
+      companyLogo: tenantData?.companyLogo,
+      currency: tenantData?.currency,
+    };
+
+    const template = getNewSaleNotificationTemplate(templateData, language);
+    
+    const sent = await this.sendEmail({ to: email, subject: template.subject, html: template.html });
+    
+    await storage.createEmailLog({
+      tenantId,
+      templateType: "new_sale_notification",
+      recipientEmail: email,
+      subject: template.subject,
       status: sent ? "sent" : "failed",
       errorMessage: sent ? null : "SMTP not configured or send failed",
     });

@@ -77,10 +77,21 @@ export const tenants = pgTable("tenants", {
 
 // Email notification preference types
 export type EmailPreferences = {
+  // Inventory alerts
   lowStockAlerts: boolean;
+  expiringProductAlerts: boolean;
+  // Sales notifications
+  newSaleNotification: boolean;
   dailySalesReport: boolean;
   weeklyReport: boolean;
+  // Customer notifications
+  newCustomerNotification: boolean;
+  // Order notifications (for customer-facing)
   orderNotifications: boolean;
+  // Financial alerts
+  refundAlerts: boolean;
+  highValueSaleAlerts: boolean;
+  // System
   systemAlerts: boolean;
 };
 
@@ -99,9 +110,14 @@ export const users = pgTable("users", {
   isInternal: boolean("is_internal").default(false),
   emailPreferences: jsonb("email_preferences").$type<EmailPreferences>().default({
     lowStockAlerts: true,
+    expiringProductAlerts: true,
+    newSaleNotification: false,
     dailySalesReport: false,
     weeklyReport: false,
+    newCustomerNotification: false,
     orderNotifications: true,
+    refundAlerts: true,
+    highValueSaleAlerts: false,
     systemAlerts: true,
   }),
   createdAt: timestamp("created_at").defaultNow(),

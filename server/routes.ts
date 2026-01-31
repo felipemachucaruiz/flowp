@@ -584,9 +584,14 @@ export async function registerRoutes(
 
   const emailPreferencesSchema = z.object({
     lowStockAlerts: z.boolean().optional(),
+    expiringProductAlerts: z.boolean().optional(),
+    newSaleNotification: z.boolean().optional(),
     dailySalesReport: z.boolean().optional(),
     weeklyReport: z.boolean().optional(),
+    newCustomerNotification: z.boolean().optional(),
     orderNotifications: z.boolean().optional(),
+    refundAlerts: z.boolean().optional(),
+    highValueSaleAlerts: z.boolean().optional(),
     systemAlerts: z.boolean().optional(),
   });
 
@@ -1666,6 +1671,32 @@ export async function registerRoutes(
             ).catch(err => console.error('Failed to send payment received email:', err));
           }
         }
+      }
+
+      // Send new sale notification to owner if enabled
+      const tenantUsers = await storage.getUsersByTenant(tenantId);
+      const owner = tenantUsers.find(u => u.role === 'owner');
+      const ownerPrefs = owner?.emailPreferences as { newSaleNotification?: boolean; highValueSaleAlerts?: boolean } | null;
+      
+      if (owner?.email && ownerPrefs?.newSaleNotification) {
+        const tenant = await storage.getTenant(tenantId);
+        emailService.sendNewSaleNotification(
+          owner.email,
+          {
+            orderNumber: order.orderNumber,
+            total: parseFloat(order.total),
+            itemCount: items.length,
+            paymentMethod: paymentMethod,
+            customerName: customerId ? (await storage.getCustomer(customerId))?.name : undefined,
+            cashierName: undefined,
+          },
+          tenantId,
+          tenant?.displayLanguage || 'en',
+          {
+            companyName: tenant?.companyName || undefined,
+            currency: tenant?.currency || 'USD',
+          }
+        ).catch(err => console.error('Failed to send new sale notification:', err));
       }
 
       res.json(order);
