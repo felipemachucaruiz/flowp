@@ -31,6 +31,7 @@ export default function IngredientsPage() {
     reorderPointBase: "10",
     reorderQtyBase: "100",
     initialStock: "",
+    initialExpirationDate: "",
     isActive: true,
   });
 
@@ -91,6 +92,7 @@ export default function IngredientsPage() {
       reorderPointBase: "10",
       reorderQtyBase: "100",
       initialStock: "",
+      initialExpirationDate: "",
       isActive: true,
     });
   };
@@ -105,6 +107,7 @@ export default function IngredientsPage() {
       reorderPointBase: ingredient.reorderPointBase || "10",
       reorderQtyBase: ingredient.reorderQtyBase || "100",
       initialStock: "",
+      initialExpirationDate: "",
       isActive: ingredient.isActive ?? true,
     });
   };
@@ -233,6 +236,18 @@ export default function IngredientsPage() {
           </div>
         )}
       </div>
+      {!editingIngredient && formData.initialStock && parseFloat(formData.initialStock) > 0 && (
+        <div className="space-y-2">
+          <Label>{t("ingredients.expiration_date")}</Label>
+          <Input
+            type="date"
+            value={formData.initialExpirationDate}
+            onChange={(e) => setFormData(prev => ({ ...prev, initialExpirationDate: e.target.value }))}
+            data-testid="input-ingredient-expiration-date"
+          />
+          <p className="text-xs text-muted-foreground">{t("ingredients.expiration_date_hint")}</p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>{t("ingredients.reorder_point")}</Label>

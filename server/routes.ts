@@ -2359,7 +2359,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true });
       }
       
-      const { initialStock, ...ingredientData } = req.body;
+      const { initialStock, initialExpirationDate, ...ingredientData } = req.body;
       
       const ingredient = await storage.createIngredient({
         ...ingredientData,
@@ -2376,7 +2376,7 @@ export async function registerRoutes(
           ingredientId: ingredient.id,
           qtyReceivedBase: qty.toString(),
           qtyRemainingBase: qty.toString(),
-          expiresAt: null,
+          expiresAt: initialExpirationDate ? new Date(initialExpirationDate) : null,
           costPerBase: null,
           supplierId: null,
           lotCode: `INIT-${Date.now()}`,
