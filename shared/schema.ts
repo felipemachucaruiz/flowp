@@ -24,6 +24,7 @@ export const ticketStatusEnum = pgEnum("ticket_status", ["open", "in_progress", 
 export const ticketPriorityEnum = pgEnum("ticket_priority", ["low", "medium", "high", "urgent"]);
 export const documentStatusEnum = pgEnum("document_status", ["pending", "sent", "accepted", "rejected", "error"]);
 export const impersonationModeEnum = pgEnum("impersonation_mode", ["read_only", "write"]);
+export const subscriptionTierEnum = pgEnum("subscription_tier", ["basic", "pro", "enterprise"]);
 
 // Ingredient inventory enums (Pro feature for restaurants)
 export const ingredientUomEnum = pgEnum("ingredient_uom", ["g", "kg", "ml", "L", "unit"]);
@@ -70,6 +71,7 @@ export const tenants = pgTable("tenants", {
   trialEndsAt: timestamp("trial_ends_at"),
   suspendedAt: timestamp("suspended_at"),
   suspendedReason: text("suspended_reason"),
+  subscriptionTier: subscriptionTierEnum("subscription_tier").default("basic"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -367,15 +369,48 @@ export const purchaseOrders = pgTable("purchase_orders", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Purchase Order Items
+// Purchase Order Items (supports both products and ingredients)
 export const purchaseOrderItems = pgTable("purchase_order_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   purchaseOrderId: varchar("purchase_order_id").references(() => purchaseOrders.id).notNull(),
-  productId: varchar("product_id").references(() => products.id).notNull(),
+  productId: varchar("product_id").references(() => products.id),
+  ingredientId: varchar("ingredient_id").references(() => ingredients.id),
   quantity: integer("quantity").notNull(),
   unitCost: decimal("unit_cost", { precision: 12, scale: 2 }).notNull(),
   receivedQuantity: integer("received_quantity").default(0),
+  expirationDate: timestamp("expiration_date"),
+  lotCode: text("lot_code"),
   notes: text("notes"),
+});
+
+// Supplier-Ingredient Linking (preferred suppliers for ingredients)
+export const supplierIngredients = pgTable("supplier_ingredients", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  supplierId: varchar("supplier_id").references(() => suppliers.id).notNull(),
+  ingredientId: varchar("ingredient_id").references(() => ingredients.id).notNull(),
+  supplierSku: text("supplier_sku"),
+  unitCost: decimal("unit_cost", { precision: 12, scale: 2 }),
+  leadTimeDays: integer("lead_time_days"),
+  minOrderQty: decimal("min_order_qty", { precision: 10, scale: 3 }),
+  isPrimary: boolean("is_primary").default(false),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Supplier-Product Linking (preferred suppliers for products)
+export const supplierProducts = pgTable("supplier_products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  supplierId: varchar("supplier_id").references(() => suppliers.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  supplierSku: text("supplier_sku"),
+  unitCost: decimal("unit_cost", { precision: 12, scale: 2 }),
+  leadTimeDays: integer("lead_time_days"),
+  minOrderQty: integer("min_order_qty"),
+  isPrimary: boolean("is_primary").default(false),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // ============================================
@@ -792,6 +827,8 @@ export const insertStockMovementSchema = createInsertSchema(stockMovements).omit
 export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: true, createdAt: true });
 export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertPurchaseOrderItemSchema = createInsertSchema(purchaseOrderItems).omit({ id: true });
+export const insertSupplierIngredientSchema = createInsertSchema(supplierIngredients).omit({ id: true, createdAt: true });
+export const insertSupplierProductSchema = createInsertSchema(supplierProducts).omit({ id: true, createdAt: true });
 export const insertModifierGroupSchema = createInsertSchema(modifierGroups).omit({ id: true });
 export const insertModifierSchema = createInsertSchema(modifiers).omit({ id: true });
 export const insertRegisterSessionSchema = createInsertSchema(registerSessions).omit({ id: true, openedAt: true, closedAt: true });
@@ -869,6 +906,10 @@ export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
 export type InsertPurchaseOrder = z.infer<typeof insertPurchaseOrderSchema>;
 export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;
 export type InsertPurchaseOrderItem = z.infer<typeof insertPurchaseOrderItemSchema>;
+export type SupplierIngredient = typeof supplierIngredients.$inferSelect;
+export type InsertSupplierIngredient = z.infer<typeof insertSupplierIngredientSchema>;
+export type SupplierProduct = typeof supplierProducts.$inferSelect;
+export type InsertSupplierProduct = z.infer<typeof insertSupplierProductSchema>;
 
 // Portal Types
 export type PortalRole = typeof portalRoles.$inferSelect;
