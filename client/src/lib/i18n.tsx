@@ -667,7 +667,6 @@ const translations = {
     "customers.total_spent": "Total Spent",
     "customers.total_orders": "Total Orders",
     "customers.member_since": "Member Since",
-    "customers.orders": "orders",
     "customers.no_notes": "No notes for this customer",
     "customers.notes_placeholder": "Enter notes about this customer...",
     "customers.add_notes": "Add Notes",
@@ -690,7 +689,6 @@ const translations = {
     "customers.id_number": "ID Number",
     "customers.id_placeholder": "ID Number",
     "customers.notes": "Notes",
-    "customers.notes_placeholder": "Additional notes",
     "customers.default_discount": "Default Discount (%)",
     "customers.default_discount_placeholder": "0",
     "customers.cancel": "Cancel",
@@ -747,11 +745,6 @@ const translations = {
     "customers.id_cedula": "Citizen ID",
     "customers.id_cedula_ext": "Foreign ID",
     "customers.id_passport": "Passport",
-    
-    // Inventory
-    "inventory.barcode": "Barcode",
-    "inventory.no_sku": "No SKU",
-    "inventory.unknown_product": "Unknown Product",
     
     // Subscription
     "subscription.most_popular": "Most Popular",
@@ -1402,7 +1395,6 @@ const translations = {
     "settings.item_deleted": "Item deleted",
     "settings.company_logo": "Company Logo",
     "settings.upload": "Upload",
-    "settings.select_country": "Select country",
 
     // Admin Console
     "admin.portal": "Admin Portal",
@@ -2171,7 +2163,6 @@ const translations = {
     "customers.total_spent": "Total Gastado",
     "customers.total_orders": "Total de Pedidos",
     "customers.member_since": "Miembro Desde",
-    "customers.orders": "pedidos",
     "customers.no_notes": "Sin notas para este cliente",
     "customers.notes_placeholder": "Ingrese notas sobre este cliente...",
     "customers.add_notes": "Agregar Notas",
@@ -2194,7 +2185,6 @@ const translations = {
     "customers.id_number": "Número de ID",
     "customers.id_placeholder": "Número de ID",
     "customers.notes": "Notas",
-    "customers.notes_placeholder": "Notas adicionales",
     "customers.default_discount": "Descuento Predeterminado (%)",
     "customers.default_discount_placeholder": "0",
     "customers.cancel": "Cancelar",
@@ -2251,11 +2241,6 @@ const translations = {
     "customers.id_cedula": "Cédula Ciudadanía",
     "customers.id_cedula_ext": "Cédula Extranjería",
     "customers.id_passport": "Pasaporte",
-    
-    // Inventory
-    "inventory.barcode": "Código de Barras",
-    "inventory.no_sku": "Sin SKU",
-    "inventory.unknown_product": "Producto Desconocido",
     
     // Subscription
     "subscription.most_popular": "Más Popular",
@@ -2903,7 +2888,6 @@ const translations = {
     "settings.item_deleted": "Elemento eliminado",
     "settings.company_logo": "Logo de la Empresa",
     "settings.upload": "Subir",
-    "settings.select_country": "Seleccionar país",
 
     // Admin Console
     "admin.portal": "Portal de Administración",
@@ -3672,7 +3656,6 @@ const translations = {
     "customers.total_spent": "Total Gasto",
     "customers.total_orders": "Total de Pedidos",
     "customers.member_since": "Membro Desde",
-    "customers.orders": "pedidos",
     "customers.no_notes": "Sem notas para este cliente",
     "customers.notes_placeholder": "Insira notas sobre este cliente...",
     "customers.add_notes": "Adicionar Notas",
@@ -3695,7 +3678,6 @@ const translations = {
     "customers.id_number": "Número do ID",
     "customers.id_placeholder": "Número do ID",
     "customers.notes": "Notas",
-    "customers.notes_placeholder": "Notas adicionais",
     "customers.default_discount": "Desconto Padrão (%)",
     "customers.default_discount_placeholder": "0",
     "customers.cancel": "Cancelar",
@@ -3752,11 +3734,6 @@ const translations = {
     "customers.id_cedula": "Cédula de Cidadania",
     "customers.id_cedula_ext": "Cédula de Estrangeiro",
     "customers.id_passport": "Passaporte",
-    
-    // Inventory
-    "inventory.barcode": "Código de Barras",
-    "inventory.no_sku": "Sem SKU",
-    "inventory.unknown_product": "Produto Desconhecido",
     
     // Subscription
     "subscription.most_popular": "Mais Popular",
@@ -4404,7 +4381,6 @@ const translations = {
     "settings.item_deleted": "Item excluído",
     "settings.company_logo": "Logo da Empresa",
     "settings.upload": "Carregar",
-    "settings.select_country": "Selecionar país",
 
     // Admin Console
     "admin.portal": "Portal de Administração",
