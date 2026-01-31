@@ -155,6 +155,20 @@ const translations = {
     "settings.downloads": "Downloads",
     "settings.emails": "Emails",
     
+    // Email Notification Preferences
+    "email.notifications": "Email Notifications",
+    "email.notifications_desc": "Control which email notifications you receive",
+    "email.pref_low_stock": "Low Stock Alerts",
+    "email.pref_low_stock_desc": "Get notified when inventory drops below threshold",
+    "email.pref_orders": "Order Notifications",
+    "email.pref_orders_desc": "Receive notifications for new orders",
+    "email.pref_daily_report": "Daily Sales Report",
+    "email.pref_daily_report_desc": "Receive a daily summary of sales",
+    "email.pref_weekly_report": "Weekly Report",
+    "email.pref_weekly_report_desc": "Receive a weekly summary report",
+    "email.pref_system": "System Alerts",
+    "email.pref_system_desc": "Important system notifications and updates",
+    
     // Email Templates Section
     "emails.title": "Email Templates",
     "emails.subtitle": "Customize the emails sent to your customers. Use variables like {{userName}} to personalize content.",
@@ -1653,6 +1667,20 @@ const translations = {
     "settings.downloads": "Descargas",
     "settings.emails": "Correos",
     
+    // Email Notification Preferences
+    "email.notifications": "Notificaciones por Correo",
+    "email.notifications_desc": "Controla qué notificaciones por correo recibes",
+    "email.pref_low_stock": "Alertas de Stock Bajo",
+    "email.pref_low_stock_desc": "Recibe notificaciones cuando el inventario cae por debajo del umbral",
+    "email.pref_orders": "Notificaciones de Pedidos",
+    "email.pref_orders_desc": "Recibe notificaciones de nuevos pedidos",
+    "email.pref_daily_report": "Reporte Diario de Ventas",
+    "email.pref_daily_report_desc": "Recibe un resumen diario de ventas",
+    "email.pref_weekly_report": "Reporte Semanal",
+    "email.pref_weekly_report_desc": "Recibe un resumen semanal",
+    "email.pref_system": "Alertas del Sistema",
+    "email.pref_system_desc": "Notificaciones y actualizaciones importantes del sistema",
+    
     // Email Templates Section
     "emails.title": "Plantillas de Correo",
     "emails.subtitle": "Personaliza los correos enviados a tus clientes. Usa variables como {{userName}} para personalizar el contenido.",
@@ -3147,6 +3175,20 @@ const translations = {
     "settings.invoicing": "Faturamento",
     "settings.downloads": "Downloads",
     "settings.emails": "E-mails",
+    
+    // Email Notification Preferences
+    "email.notifications": "Notificações por E-mail",
+    "email.notifications_desc": "Controle quais notificações por e-mail você recebe",
+    "email.pref_low_stock": "Alertas de Estoque Baixo",
+    "email.pref_low_stock_desc": "Receba notificações quando o estoque cair abaixo do limite",
+    "email.pref_orders": "Notificações de Pedidos",
+    "email.pref_orders_desc": "Receba notificações de novos pedidos",
+    "email.pref_daily_report": "Relatório Diário de Vendas",
+    "email.pref_daily_report_desc": "Receba um resumo diário de vendas",
+    "email.pref_weekly_report": "Relatório Semanal",
+    "email.pref_weekly_report_desc": "Receba um resumo semanal",
+    "email.pref_system": "Alertas do Sistema",
+    "email.pref_system_desc": "Notificações e atualizações importantes do sistema",
     
     // Email Templates Section
     "emails.title": "Modelos de E-mail",

@@ -75,6 +75,15 @@ export const tenants = pgTable("tenants", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Email notification preference types
+export type EmailPreferences = {
+  lowStockAlerts: boolean;
+  dailySalesReport: boolean;
+  weeklyReport: boolean;
+  orderNotifications: boolean;
+  systemAlerts: boolean;
+};
+
 // Users
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -88,6 +97,13 @@ export const users = pgTable("users", {
   pin: text("pin"),
   isActive: boolean("is_active").default(true),
   isInternal: boolean("is_internal").default(false),
+  emailPreferences: jsonb("email_preferences").$type<EmailPreferences>().default({
+    lowStockAlerts: true,
+    dailySalesReport: false,
+    weeklyReport: false,
+    orderNotifications: true,
+    systemAlerts: true,
+  }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

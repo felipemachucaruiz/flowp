@@ -582,6 +582,31 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/users/:id/email-preferences", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { id } = req.params;
+      const emailPreferences = req.body;
+      
+      // Verify user belongs to tenant
+      const users = await storage.getUsersByTenant(tenantId);
+      const existingUser = users.find(u => u.id === id);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const user = await storage.updateUser(id, { emailPreferences });
+      res.json({ ...user, password: undefined });
+    } catch (error) {
+      console.error("Email preferences update error:", error);
+      res.status(500).json({ message: "Failed to update email preferences" });
+    }
+  });
+
   app.delete("/api/users/:id", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
@@ -1494,7 +1519,9 @@ export async function registerRoutes(
               // Get owner email to send low stock alert
               const tenantUsers = await storage.getUsersByTenant(tenantId);
               const owner = tenantUsers.find(u => u.role === 'owner');
-              if (owner?.email) {
+              // Check if owner has low stock alerts enabled
+              const emailPrefs = owner?.emailPreferences as { lowStockAlerts?: boolean } | null;
+              if (owner?.email && emailPrefs?.lowStockAlerts !== false) {
                 const tenant = await storage.getTenant(tenantId);
                 emailService.sendLowStockAlert(
                   owner.email,

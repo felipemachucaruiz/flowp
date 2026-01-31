@@ -891,6 +891,94 @@ function TaxEditForm({
   );
 }
 
+function EmailNotificationPreferences() {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const { user, tenant } = useAuth();
+  const [saving, setSaving] = useState(false);
+
+  const defaultPrefs = {
+    lowStockAlerts: true,
+    dailySalesReport: false,
+    weeklyReport: false,
+    orderNotifications: true,
+    systemAlerts: true,
+  };
+
+  const preferences = (user?.emailPreferences as typeof defaultPrefs) || defaultPrefs;
+
+  const [prefs, setPrefs] = useState(preferences);
+
+  useEffect(() => {
+    if (user?.emailPreferences) {
+      setPrefs(user.emailPreferences as typeof defaultPrefs);
+    }
+  }, [user?.emailPreferences]);
+
+  const handleToggle = async (key: keyof typeof defaultPrefs, value: boolean) => {
+    const newPrefs = { ...prefs, [key]: value };
+    setPrefs(newPrefs);
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/users/${user?.id}/email-preferences`, {
+        method: 'PATCH',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-tenant-id': tenant?.id || ''
+        },
+        body: JSON.stringify(newPrefs)
+      });
+      if (!res.ok) throw new Error('Failed to update preferences');
+      const updatedUser = { ...user, emailPreferences: newPrefs };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      toast({ title: t("common.saved") || "Saved" });
+    } catch (err) {
+      setPrefs(prefs);
+      toast({ title: t("common.error") || "Error", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const notificationTypes = [
+    { key: 'lowStockAlerts' as const, label: t("email.pref_low_stock") || "Low Stock Alerts", description: t("email.pref_low_stock_desc") || "Get notified when inventory drops below threshold" },
+    { key: 'orderNotifications' as const, label: t("email.pref_orders") || "Order Notifications", description: t("email.pref_orders_desc") || "Receive notifications for new orders" },
+    { key: 'dailySalesReport' as const, label: t("email.pref_daily_report") || "Daily Sales Report", description: t("email.pref_daily_report_desc") || "Receive a daily summary of sales" },
+    { key: 'weeklyReport' as const, label: t("email.pref_weekly_report") || "Weekly Report", description: t("email.pref_weekly_report_desc") || "Receive a weekly summary report" },
+    { key: 'systemAlerts' as const, label: t("email.pref_system") || "System Alerts", description: t("email.pref_system_desc") || "Important system notifications and updates" },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Mail className="w-5 h-5" />
+          {t("email.notifications") || "Email Notifications"}
+        </CardTitle>
+        <CardDescription>
+          {t("email.notifications_desc") || "Control which email notifications you receive"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {notificationTypes.map((item) => (
+          <div key={item.key} className="flex items-center justify-between py-2 border-b last:border-0">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">{item.label}</Label>
+              <p className="text-xs text-muted-foreground">{item.description}</p>
+            </div>
+            <Switch
+              checked={prefs[item.key]}
+              onCheckedChange={(value) => handleToggle(item.key, value)}
+              disabled={saving}
+              data-testid={`switch-email-${item.key}`}
+            />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const { tenant, refreshTenant } = useAuth();
@@ -2927,6 +3015,7 @@ export default function SettingsPage() {
 
         {/* Email Templates Tab */}
         <TabsContent value="emails" className="mt-6 space-y-6">
+          <EmailNotificationPreferences />
           <EmailTemplateEditor />
         </TabsContent>
       </Tabs>
