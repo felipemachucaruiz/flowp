@@ -312,6 +312,17 @@ export async function registerRoutes(
         isActive: true,
       });
 
+      // Send welcome email (async, don't wait)
+      if (adminEmail) {
+        emailService.sendWelcomeEmail(
+          adminEmail,
+          adminName || adminUsername,
+          businessName,
+          tenant.id,
+          displayLanguage || 'en'
+        ).catch(err => console.error('Failed to send welcome email:', err));
+      }
+
       res.json({ tenant, user: { ...user, password: undefined } });
     } catch (error: any) {
       console.error("Registration error:", error);
@@ -1474,6 +1485,32 @@ export async function registerRoutes(
             notes: null,
             userId,
           });
+
+          // Check for low stock and send alert
+          if (product.lowStockThreshold != null) {
+            const stockLevels = await storage.getStockLevels(tenantId);
+            const currentStock = stockLevels[product.id] || 0;
+            if (currentStock <= product.lowStockThreshold) {
+              // Get owner email to send low stock alert
+              const tenantUsers = await storage.getUsersByTenant(tenantId);
+              const owner = tenantUsers.find(u => u.role === 'owner');
+              if (owner?.email) {
+                const tenant = await storage.getTenant(tenantId);
+                emailService.sendLowStockAlert(
+                  owner.email,
+                  product.name,
+                  currentStock,
+                  tenantId,
+                  tenant?.displayLanguage || 'en',
+                  {
+                    companyName: tenant?.companyName || undefined,
+                    minStock: product.lowStockThreshold,
+                    sku: product.sku || undefined,
+                  }
+                ).catch(err => console.error('Failed to send low stock alert:', err));
+              }
+            }
+          }
         }
 
         // FIFO ingredient consumption for restaurant Pro tenants
@@ -1594,6 +1631,74 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Order error:", error);
       res.status(400).json({ message: "Failed to create order" });
+    }
+  });
+
+  // Send transaction receipt email
+  app.post("/api/orders/:orderId/send-receipt", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { orderId } = req.params;
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ message: "Email address is required" });
+      }
+
+      // Get order and verify tenant ownership
+      const order = await storage.getOrder(orderId);
+      if (!order || order.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Get order items
+      const orderItems = await storage.getOrderItems(orderId);
+      const tenant = await storage.getTenant(tenantId);
+      const payments = await storage.getPaymentsByOrder(orderId);
+      const paymentMethod = payments[0]?.method || 'cash';
+
+      // Build items list with product names
+      const itemsWithNames = await Promise.all(orderItems.map(async (item) => {
+        const product = await storage.getProduct(item.productId);
+        return {
+          name: product?.name || 'Product',
+          quantity: item.quantity,
+          price: `${tenant?.currency || '$'}${parseFloat(item.unitPrice).toFixed(2)}`,
+        };
+      }));
+
+      // Send transaction receipt email
+      const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
+      const sent = await emailService.sendTransactionReceipt(
+        email,
+        {
+          receiptNumber: order.orderNumber,
+          date: orderDate.toLocaleDateString(),
+          cashier: undefined,
+          items: itemsWithNames,
+          subtotal: `${tenant?.currency || '$'}${parseFloat(order.subtotal).toFixed(2)}`,
+          tax: `${tenant?.currency || '$'}${parseFloat(order.taxAmount).toFixed(2)}`,
+          total: `${tenant?.currency || '$'}${parseFloat(order.total).toFixed(2)}`,
+          paymentMethod: paymentMethod,
+          companyName: tenant?.companyName || 'Flowp POS',
+          companyLogo: tenant?.companyLogo || undefined,
+        },
+        tenantId,
+        tenant?.displayLanguage || 'en'
+      );
+
+      if (sent) {
+        res.json({ success: true, message: "Receipt sent successfully" });
+      } else {
+        res.status(500).json({ success: false, message: "Failed to send receipt" });
+      }
+    } catch (error) {
+      console.error("Send receipt error:", error);
+      res.status(500).json({ message: "Failed to send receipt" });
     }
   });
 

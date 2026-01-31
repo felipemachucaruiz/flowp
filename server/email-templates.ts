@@ -745,6 +745,101 @@ export function getTransactionReceiptTemplate(data: TransactionReceiptTemplateDa
   };
 }
 
+export interface WelcomeEmailTemplateData extends EmailTemplateData {
+  userName: string;
+  businessName: string;
+  loginUrl?: string;
+}
+
+const welcomeTranslations = {
+  en: {
+    subject: "Welcome to Flowp POS!",
+    title: "Welcome to Flowp!",
+    greeting: "Hello",
+    intro: "Thank you for registering your business with Flowp POS. Your account is now ready to use!",
+    businessLabel: "Business Name",
+    getStarted: "Here's how to get started:",
+    step1: "Add your products and categories",
+    step2: "Configure your tax rates and payment methods",
+    step3: "Invite your team members",
+    step4: "Start making sales!",
+    loginButton: "Go to Dashboard",
+    support: "If you have any questions, our support team is here to help.",
+    thanks: "Best regards,",
+    team: "The Flowp Team",
+  },
+  es: {
+    subject: "¡Bienvenido a Flowp POS!",
+    title: "¡Bienvenido a Flowp!",
+    greeting: "Hola",
+    intro: "Gracias por registrar tu negocio en Flowp POS. ¡Tu cuenta está lista para usar!",
+    businessLabel: "Nombre del Negocio",
+    getStarted: "Así puedes comenzar:",
+    step1: "Agrega tus productos y categorías",
+    step2: "Configura tus tasas de impuestos y métodos de pago",
+    step3: "Invita a los miembros de tu equipo",
+    step4: "¡Comienza a vender!",
+    loginButton: "Ir al Panel",
+    support: "Si tienes alguna pregunta, nuestro equipo de soporte está aquí para ayudarte.",
+    thanks: "Saludos cordiales,",
+    team: "El Equipo de Flowp",
+  },
+  pt: {
+    subject: "Bem-vindo ao Flowp POS!",
+    title: "Bem-vindo ao Flowp!",
+    greeting: "Olá",
+    intro: "Obrigado por registrar seu negócio no Flowp POS. Sua conta está pronta para uso!",
+    businessLabel: "Nome do Negócio",
+    getStarted: "Veja como começar:",
+    step1: "Adicione seus produtos e categorias",
+    step2: "Configure suas taxas de impostos e métodos de pagamento",
+    step3: "Convide os membros da sua equipe",
+    step4: "Comece a vender!",
+    loginButton: "Ir para o Painel",
+    support: "Se você tiver alguma dúvida, nossa equipe de suporte está aqui para ajudar.",
+    thanks: "Atenciosamente,",
+    team: "A Equipe Flowp",
+  },
+};
+
+export function getWelcomeEmailTemplate(data: WelcomeEmailTemplateData, language: string = "en"): { subject: string; html: string } {
+  const t = welcomeTranslations[language as keyof typeof welcomeTranslations] || welcomeTranslations.en;
+  const loginUrl = data.loginUrl || "https://pos.flowp.app/login";
+
+  const content = `
+    <h1>${t.title}</h1>
+    <p>${t.greeting} ${data.userName},</p>
+    <p>${t.intro}</p>
+    
+    <div class="info-box">
+      <div class="info-row" style="border-bottom: none;">
+        <span class="info-label">${t.businessLabel}</span>
+        <span class="info-value">${data.businessName}</span>
+      </div>
+    </div>
+    
+    <p><strong>${t.getStarted}</strong></p>
+    <ol style="color: #52525b; padding-left: 24px;">
+      <li style="margin-bottom: 8px;">${t.step1}</li>
+      <li style="margin-bottom: 8px;">${t.step2}</li>
+      <li style="margin-bottom: 8px;">${t.step3}</li>
+      <li style="margin-bottom: 8px;">${t.step4}</li>
+    </ol>
+    
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${loginUrl}" class="button">${t.loginButton}</a>
+    </div>
+    
+    <p>${t.support}</p>
+    <p>${t.thanks}<br/>${t.team}</p>
+  `;
+
+  return {
+    subject: t.subject,
+    html: getEmailWrapper(content, data),
+  };
+}
+
 export const defaultTemplates = {
   password_reset: {
     subject: "Reset Your Password",
@@ -770,5 +865,10 @@ export const defaultTemplates = {
     subject: "Receipt #{{receiptNumber}}",
     description: "Digital receipt sent to customers",
     variables: ["{{receiptNumber}}", "{{date}}", "{{total}}", "{{items}}"],
+  },
+  welcome_email: {
+    subject: "Welcome to Flowp POS!",
+    description: "Sent when a new business registers",
+    variables: ["{{userName}}", "{{businessName}}", "{{loginUrl}}"],
   },
 };

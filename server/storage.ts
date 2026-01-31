@@ -126,6 +126,7 @@ export interface IStorage {
   
   // Payments
   createPayment(payment: InsertPayment): Promise<Payment>;
+  getPaymentsByOrder(orderId: string): Promise<Payment[]>;
   
   // Stock Movements
   getStockMovementsByTenant(tenantId: string): Promise<StockMovement[]>;
@@ -643,6 +644,10 @@ export class DatabaseStorage implements IStorage {
   async createPayment(payment: InsertPayment): Promise<Payment> {
     const [created] = await db.insert(payments).values(payment).returning();
     return created;
+  }
+
+  async getPaymentsByOrder(orderId: string): Promise<Payment[]> {
+    return db.select().from(payments).where(eq(payments.orderId, orderId));
   }
 
   // Stock Movements

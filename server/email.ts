@@ -8,11 +8,13 @@ import {
   getPaymentReceivedTemplate,
   getLowStockAlertTemplate,
   getTransactionReceiptTemplate,
+  getWelcomeEmailTemplate,
   type PasswordResetTemplateData,
   type OrderConfirmationTemplateData,
   type PaymentReceivedTemplateData,
   type LowStockAlertTemplateData,
   type TransactionReceiptTemplateData,
+  type WelcomeEmailTemplateData,
 } from "./email-templates";
 
 interface SmtpConfig {
@@ -186,6 +188,51 @@ class EmailService {
     
     await storage.createEmailLog({
       templateType: "password_reset",
+      recipientEmail: email,
+      subject,
+      status: sent ? "sent" : "failed",
+      errorMessage: sent ? null : "SMTP not configured or send failed",
+    });
+
+    return sent;
+  }
+
+  async sendWelcomeEmail(
+    email: string,
+    userName: string,
+    businessName: string,
+    tenantId?: string,
+    language: string = "en"
+  ): Promise<boolean> {
+    const customTemplate = await storage.getEmailTemplate("welcome_email");
+    const loginUrl = `${process.env.APP_URL || 'https://pos.flowp.app'}/login`;
+    
+    let subject: string;
+    let html: string;
+
+    if (customTemplate?.isActive && customTemplate.htmlBody) {
+      subject = customTemplate.subject
+        .replace(/\{\{userName\}\}/g, userName)
+        .replace(/\{\{businessName\}\}/g, businessName);
+      html = customTemplate.htmlBody
+        .replace(/\{\{userName\}\}/g, userName)
+        .replace(/\{\{businessName\}\}/g, businessName)
+        .replace(/\{\{loginUrl\}\}/g, loginUrl);
+    } else {
+      const template = getWelcomeEmailTemplate({
+        userName,
+        businessName,
+        loginUrl,
+      }, language);
+      subject = template.subject;
+      html = template.html;
+    }
+
+    const sent = await this.sendEmail({ to: email, subject, html });
+    
+    await storage.createEmailLog({
+      tenantId,
+      templateType: "welcome_email",
       recipientEmail: email,
       subject,
       status: sent ? "sent" : "failed",
