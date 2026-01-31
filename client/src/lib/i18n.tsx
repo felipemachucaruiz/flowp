@@ -127,6 +127,7 @@ const translations = {
     "payment.cancel": "Cancel",
     "payment.cash": "Cash",
     "payment.card": "Card",
+    "payment.split": "Split Payment",
     
     // Settings
     "settings.title": "Settings",
@@ -1678,6 +1679,7 @@ const translations = {
     "payment.cancel": "Cancelar",
     "payment.cash": "Efectivo",
     "payment.card": "Tarjeta",
+    "payment.split": "Pago Dividido",
     
     // Settings
     "settings.title": "Configuración",
@@ -3226,6 +3228,7 @@ const translations = {
     "payment.cancel": "Cancelar",
     "payment.cash": "Dinheiro",
     "payment.card": "Cartão",
+    "payment.split": "Pagamento Dividido",
     
     // Settings
     "settings.title": "Configurações",
