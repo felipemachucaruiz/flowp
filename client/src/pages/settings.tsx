@@ -40,11 +40,13 @@ import {
   Upload,
   ImageIcon,
   Receipt,
+  Mail,
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
 import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw, Smartphone } from "lucide-react";
 import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
+import { EmailTemplateEditor } from "@/components/email-template-editor";
 
 const businessSettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
@@ -1464,6 +1466,13 @@ export default function SettingsPage() {
                 <Download className="w-4 h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">{t("settings.downloads")}</span>
                 <span className="sm:hidden">{t("settings.downloads").split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="emails" data-testid="tab-emails" className="text-xs sm:text-sm">
+                <Mail className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.emails") || "Emails"}</span>
+                <span className="sm:hidden">Emails</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -2908,6 +2917,11 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Email Templates Tab */}
+        <TabsContent value="emails" className="mt-6 space-y-6">
+          <EmailTemplateEditor />
         </TabsContent>
       </Tabs>
 
