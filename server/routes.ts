@@ -1774,6 +1774,182 @@ export async function registerRoutes(
     }
   });
 
+  // ===== RETURNS / REFUNDS ROUTES =====
+
+  app.get("/api/returns", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json([]);
+      }
+      const returns = await storage.getReturnsByTenant(tenantId);
+      res.json(returns);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch returns" });
+    }
+  });
+
+  app.get("/api/returns/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      const returnData = await storage.getReturn(id);
+      if (!returnData || returnData.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Return not found" });
+      }
+      const items = await storage.getReturnItems(id);
+      res.json({ ...returnData, items });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch return" });
+    }
+  });
+
+  app.get("/api/orders/:orderId/returnable", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { orderId } = req.params;
+      const order = await storage.getOrder(orderId);
+      if (!order || order.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const orderItems = await storage.getOrderItems(orderId);
+      const returnableItems = await Promise.all(
+        orderItems.map(async (item) => {
+          const returnedQty = await storage.getReturnedQuantityForOrderItem(item.id);
+          const product = await storage.getProduct(item.productId);
+          return {
+            ...item,
+            productName: product?.name || 'Unknown Product',
+            returnedQuantity: returnedQty,
+            returnableQuantity: item.quantity - returnedQty,
+          };
+        })
+      );
+
+      res.json({
+        order,
+        items: returnableItems.filter(item => item.returnableQuantity > 0),
+      });
+    } catch (error) {
+      console.error("Get returnable items error:", error);
+      res.status(500).json({ message: "Failed to get returnable items" });
+    }
+  });
+
+  app.post("/api/returns", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId || !userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { orderId, reason, reasonNotes, refundMethod, restockItems, items } = req.body;
+
+      if (!orderId || !items || items.length === 0) {
+        return res.status(400).json({ message: "Order ID and items are required" });
+      }
+
+      const order = await storage.getOrder(orderId);
+      if (!order || order.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const returnNumber = await storage.getNextReturnNumber(tenantId);
+      let subtotal = 0;
+      let taxAmount = 0;
+
+      for (const item of items) {
+        const orderItem = await storage.getOrderItem(item.orderItemId);
+        if (!orderItem) {
+          return res.status(400).json({ message: `Order item ${item.orderItemId} not found` });
+        }
+
+        const returnedQty = await storage.getReturnedQuantityForOrderItem(item.orderItemId);
+        const returnableQty = orderItem.quantity - returnedQty;
+        
+        if (item.quantity > returnableQty) {
+          return res.status(400).json({ 
+            message: `Cannot return more than ${returnableQty} units of this item` 
+          });
+        }
+
+        const itemSubtotal = parseFloat(orderItem.unitPrice) * item.quantity;
+        subtotal += itemSubtotal;
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      const taxRate = parseFloat(tenant?.taxRate || "0") / 100;
+      taxAmount = subtotal * taxRate;
+      const total = subtotal + taxAmount;
+
+      const returnData = await storage.createReturn({
+        tenantId,
+        orderId,
+        returnNumber,
+        userId,
+        customerId: order.customerId,
+        status: "completed",
+        reason: reason || "customer_changed_mind",
+        reasonNotes: reasonNotes || null,
+        subtotal: subtotal.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        total: total.toFixed(2),
+        refundMethod: refundMethod || "cash",
+        restockItems: restockItems !== false,
+      });
+
+      for (const item of items) {
+        const orderItem = await storage.getOrderItem(item.orderItemId);
+        if (!orderItem) continue;
+
+        await storage.createReturnItem({
+          returnId: returnData.id,
+          orderItemId: item.orderItemId,
+          productId: orderItem.productId,
+          quantity: item.quantity,
+          unitPrice: orderItem.unitPrice,
+          taxAmount: (parseFloat(orderItem.unitPrice) * item.quantity * taxRate).toFixed(2),
+        });
+
+        if (restockItems !== false) {
+          const product = await storage.getProduct(orderItem.productId);
+          if (product?.trackInventory) {
+            await storage.createStockMovement({
+              tenantId,
+              productId: orderItem.productId,
+              type: "return",
+              quantity: item.quantity,
+              referenceId: returnData.id,
+              notes: `Return #${returnNumber}`,
+              userId,
+            });
+          }
+        }
+      }
+
+      const tenantUsers = await storage.getUsersByTenant(tenantId);
+      const owner = tenantUsers.find(u => u.role === 'owner');
+      const ownerPrefs = owner?.emailPreferences as { refundAlerts?: boolean } | null;
+      
+      if (owner?.email && ownerPrefs?.refundAlerts) {
+        console.log(`Refund alert would be sent to ${owner.email} for return #${returnNumber}`);
+      }
+
+      res.json(returnData);
+    } catch (error) {
+      console.error("Create return error:", error);
+      res.status(500).json({ message: "Failed to process return" });
+    }
+  });
+
   // ===== KITCHEN TICKETS ROUTES =====
 
   app.get("/api/kitchen/tickets", async (req: Request, res: Response) => {

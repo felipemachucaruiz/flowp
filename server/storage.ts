@@ -1,7 +1,7 @@
 import {
   tenants, users, registers, registerSessions, categories, products,
   modifierGroups, modifiers, productModifierGroups, floors, tables,
-  orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs, customers,
+  orders, orderItems, kitchenTickets, payments, returns, returnItems, stockMovements, auditLogs, customers,
   loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions,
   systemSettings, passwordResetTokens, emailTemplates, emailLogs, notifications,
   suppliers, purchaseOrders, purchaseOrderItems, supplierIngredients, supplierProducts,
@@ -18,6 +18,7 @@ import {
   type Floor, type InsertFloor, type Table, type InsertTable,
   type Order, type InsertOrder, type OrderItem, type InsertOrderItem,
   type KitchenTicket, type InsertKitchenTicket, type Payment, type InsertPayment,
+  type Return, type InsertReturn, type ReturnItem, type InsertReturnItem,
   type StockMovement, type InsertStockMovement,
   type Supplier, type InsertSupplier,
   type PurchaseOrder, type InsertPurchaseOrder,
@@ -115,6 +116,7 @@ export interface IStorage {
   
   // Order Items
   getOrderItems(orderId: string): Promise<OrderItem[]>;
+  getOrderItem(id: string): Promise<OrderItem | undefined>;
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
   
   // Kitchen Tickets
@@ -127,6 +129,16 @@ export interface IStorage {
   // Payments
   createPayment(payment: InsertPayment): Promise<Payment>;
   getPaymentsByOrder(orderId: string): Promise<Payment[]>;
+  
+  // Returns
+  getReturnsByTenant(tenantId: string): Promise<Return[]>;
+  getReturn(id: string): Promise<Return | undefined>;
+  getReturnByOrder(orderId: string): Promise<Return[]>;
+  createReturn(returnData: InsertReturn): Promise<Return>;
+  getReturnItems(returnId: string): Promise<ReturnItem[]>;
+  createReturnItem(item: InsertReturnItem): Promise<ReturnItem>;
+  getNextReturnNumber(tenantId: string): Promise<number>;
+  getReturnedQuantityForOrderItem(orderItemId: string): Promise<number>;
   
   // Stock Movements
   getStockMovementsByTenant(tenantId: string): Promise<StockMovement[]>;
@@ -591,6 +603,11 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
   }
 
+  async getOrderItem(id: string): Promise<OrderItem | undefined> {
+    const [item] = await db.select().from(orderItems).where(eq(orderItems.id, id));
+    return item;
+  }
+
   async createOrderItem(item: InsertOrderItem): Promise<OrderItem> {
     const [created] = await db.insert(orderItems).values(item).returning();
     return created;
@@ -648,6 +665,54 @@ export class DatabaseStorage implements IStorage {
 
   async getPaymentsByOrder(orderId: string): Promise<Payment[]> {
     return db.select().from(payments).where(eq(payments.orderId, orderId));
+  }
+
+  // Returns
+  async getReturnsByTenant(tenantId: string): Promise<Return[]> {
+    return db
+      .select()
+      .from(returns)
+      .where(eq(returns.tenantId, tenantId))
+      .orderBy(desc(returns.createdAt));
+  }
+
+  async getReturn(id: string): Promise<Return | undefined> {
+    const [result] = await db.select().from(returns).where(eq(returns.id, id));
+    return result;
+  }
+
+  async getReturnByOrder(orderId: string): Promise<Return[]> {
+    return db.select().from(returns).where(eq(returns.orderId, orderId));
+  }
+
+  async createReturn(returnData: InsertReturn): Promise<Return> {
+    const [created] = await db.insert(returns).values(returnData).returning();
+    return created;
+  }
+
+  async getReturnItems(returnId: string): Promise<ReturnItem[]> {
+    return db.select().from(returnItems).where(eq(returnItems.returnId, returnId));
+  }
+
+  async createReturnItem(item: InsertReturnItem): Promise<ReturnItem> {
+    const [created] = await db.insert(returnItems).values(item).returning();
+    return created;
+  }
+
+  async getNextReturnNumber(tenantId: string): Promise<number> {
+    const [result] = await db
+      .select({ max: sql<number>`COALESCE(MAX(return_number), 0)` })
+      .from(returns)
+      .where(eq(returns.tenantId, tenantId));
+    return (result?.max || 0) + 1;
+  }
+
+  async getReturnedQuantityForOrderItem(orderItemId: string): Promise<number> {
+    const [result] = await db
+      .select({ total: sql<number>`COALESCE(SUM(quantity), 0)` })
+      .from(returnItems)
+      .where(eq(returnItems.orderItemId, orderItemId));
+    return result?.total || 0;
   }
 
   // Stock Movements

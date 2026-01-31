@@ -351,6 +351,38 @@ export const payments = pgTable("payments", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Returns / Refunds
+export const returnStatusEnum = pgEnum("return_status", ["pending", "approved", "completed", "rejected"]);
+export const returnReasonEnum = pgEnum("return_reason", ["defective", "wrong_item", "customer_changed_mind", "damaged", "expired", "other"]);
+
+export const returns = pgTable("returns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  orderId: varchar("order_id").references(() => orders.id).notNull(),
+  returnNumber: integer("return_number").notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  customerId: varchar("customer_id").references(() => customers.id),
+  status: returnStatusEnum("status").default("completed"),
+  reason: returnReasonEnum("reason").default("customer_changed_mind"),
+  reasonNotes: text("reason_notes"),
+  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default("0"),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  refundMethod: paymentMethodEnum("refund_method").notNull(),
+  restockItems: boolean("restock_items").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const returnItems = pgTable("return_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  returnId: varchar("return_id").references(() => returns.id).notNull(),
+  orderItemId: varchar("order_item_id").references(() => orderItems.id).notNull(),
+  productId: varchar("product_id").references(() => products.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default("0"),
+});
+
 // Stock Movements (Ledger-based Inventory)
 export const stockMovements = pgTable("stock_movements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -855,6 +887,8 @@ export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, cre
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });
 export const insertKitchenTicketSchema = createInsertSchema(kitchenTickets).omit({ id: true, createdAt: true, startedAt: true, completedAt: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true });
+export const insertReturnSchema = createInsertSchema(returns).omit({ id: true, createdAt: true });
+export const insertReturnItemSchema = createInsertSchema(returnItems).omit({ id: true });
 export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({ id: true, createdAt: true });
 export const insertSupplierSchema = createInsertSchema(suppliers).omit({ id: true, createdAt: true });
 export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit({ id: true, createdAt: true, updatedAt: true });
@@ -930,6 +964,10 @@ export type KitchenTicket = typeof kitchenTickets.$inferSelect;
 export type InsertKitchenTicket = z.infer<typeof insertKitchenTicketSchema>;
 export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+export type Return = typeof returns.$inferSelect;
+export type InsertReturn = z.infer<typeof insertReturnSchema>;
+export type ReturnItem = typeof returnItems.$inferSelect;
+export type InsertReturnItem = z.infer<typeof insertReturnItemSchema>;
 export type StockMovement = typeof stockMovements.$inferSelect;
 export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 export type Supplier = typeof suppliers.$inferSelect;
