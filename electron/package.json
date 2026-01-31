@@ -1,6 +1,6 @@
 {
   "name": "flowp-desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Flowp POS - Multi-Tenant Point of Sale System",
   "main": "main.js",
   "author": "Flowp",
@@ -40,14 +40,18 @@
       {
         "from": "../dist",
         "to": "app",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "resources/icon.ico",
@@ -56,14 +60,21 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerLanguages": ["en_US", "es_ES", "pt_BR"],
+      "installerLanguages": [
+        "en_US",
+        "es_ES",
+        "pt_BR"
+      ],
       "language": "1033"
     },
     "mac": {
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "resources/icon.icns",
