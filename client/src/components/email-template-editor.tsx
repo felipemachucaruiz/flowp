@@ -42,13 +42,18 @@ interface EmailTemplate {
   updatedAt: string;
 }
 
-const templateTypeConfig: Record<string, { icon: any; color: string; name: string; description: string; variables: string[] }> = {
+const templateTypeConfig: Record<string, { icon: any; color: string; name: string; description: string; variables: string[]; sampleData: Record<string, string> }> = {
   order_confirmation: {
     icon: ShoppingCart,
     color: "text-blue-500",
     name: "Order Confirmation",
     description: "Sent when an order is placed",
     variables: ["{{orderId}}", "{{orderTotal}}", "{{orderItems}}"],
+    sampleData: {
+      "{{orderId}}": "ORD-2026-0001",
+      "{{orderTotal}}": "$156.99",
+      "{{orderItems}}": "2x Classic Burger ($24.99), 1x Caesar Salad ($12.50), 3x Soft Drink ($8.97)",
+    },
   },
   payment_received: {
     icon: CreditCard,
@@ -56,6 +61,11 @@ const templateTypeConfig: Record<string, { icon: any; color: string; name: strin
     name: "Payment Received",
     description: "Sent when a payment is processed successfully",
     variables: ["{{amount}}", "{{paymentMethod}}", "{{transactionId}}"],
+    sampleData: {
+      "{{amount}}": "$156.99",
+      "{{paymentMethod}}": "Credit Card (Visa ****4242)",
+      "{{transactionId}}": "TXN-8F7A2B3C",
+    },
   },
   low_stock_alert: {
     icon: Package,
@@ -63,6 +73,11 @@ const templateTypeConfig: Record<string, { icon: any; color: string; name: strin
     name: "Low Stock Alert",
     description: "Sent when a product falls below minimum stock level",
     variables: ["{{productName}}", "{{currentStock}}", "{{minStock}}"],
+    sampleData: {
+      "{{productName}}": "Organic Chicken Breast",
+      "{{currentStock}}": "5 units",
+      "{{minStock}}": "10 units",
+    },
   },
   transaction_receipt: {
     icon: Receipt,
@@ -70,6 +85,12 @@ const templateTypeConfig: Record<string, { icon: any; color: string; name: strin
     name: "Transaction Receipt",
     description: "Digital receipt sent to customers",
     variables: ["{{receiptNumber}}", "{{date}}", "{{total}}", "{{items}}"],
+    sampleData: {
+      "{{receiptNumber}}": "REC-2026-00847",
+      "{{date}}": "January 31, 2026 - 2:45 PM",
+      "{{total}}": "$156.99",
+      "{{items}}": "2x Classic Burger, 1x Caesar Salad, 3x Soft Drink",
+    },
   },
 };
 
@@ -195,7 +216,33 @@ export function EmailTemplateEditor() {
   const [editHtmlBody, setEditHtmlBody] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
   const [activeEditorTab, setActiveEditorTab] = useState<"visual" | "html">("visual");
+  const [showFinalPreview, setShowFinalPreview] = useState(true);
   const visualEditorRef = useRef<VisualEmailEditorRef>(null);
+
+  const replaceVariablesWithSampleData = (content: string, templateType: string): string => {
+    const config = templateTypeConfig[templateType];
+    if (!config?.sampleData) return content;
+    
+    let result = content;
+    for (const [variable, value] of Object.entries(config.sampleData)) {
+      result = result.replace(new RegExp(variable.replace(/[{}]/g, '\\$&'), 'g'), value);
+    }
+    return result;
+  };
+
+  const getPreviewContent = (template: EmailTemplate) => {
+    if (showFinalPreview) {
+      return replaceVariablesWithSampleData(template.htmlBody, template.type);
+    }
+    return template.htmlBody;
+  };
+
+  const getPreviewSubject = (template: EmailTemplate) => {
+    if (showFinalPreview) {
+      return replaceVariablesWithSampleData(template.subject, template.type);
+    }
+    return template.subject;
+  };
 
   const { data: templates, isLoading } = useQuery<EmailTemplate[]>({
     queryKey: ["/api/internal/email-templates"],
@@ -516,14 +563,33 @@ export function EmailTemplateEditor() {
               {t("emails.preview")}: {previewTemplate && (t(`emails.${previewTemplate.type}`) || templateTypeConfig[previewTemplate.type]?.name)}
             </DialogTitle>
             <DialogDescription>
-              {t("emails.email_subject")}: {previewTemplate?.subject}
+              {t("emails.email_subject")}: {previewTemplate && getPreviewSubject(previewTemplate)}
             </DialogDescription>
           </DialogHeader>
           
+          <div className="flex items-center justify-between py-2 px-1">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="final-preview-toggle" className="text-sm">
+                {t("emails.show_with_sample_data")}
+              </Label>
+              <Switch
+                id="final-preview-toggle"
+                checked={showFinalPreview}
+                onCheckedChange={setShowFinalPreview}
+                data-testid="switch-final-preview"
+              />
+            </div>
+            {showFinalPreview && (
+              <Badge variant="secondary" className="text-xs">
+                {t("emails.sample_data_preview")}
+              </Badge>
+            )}
+          </div>
+          
           <ScrollArea className="flex-1 border rounded-lg bg-white">
             <div 
-              className="p-4"
-              dangerouslySetInnerHTML={{ __html: previewTemplate?.htmlBody || "" }}
+              className="p-4 text-black"
+              dangerouslySetInnerHTML={{ __html: previewTemplate ? getPreviewContent(previewTemplate) : "" }}
             />
           </ScrollArea>
 
