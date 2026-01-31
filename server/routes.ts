@@ -1543,6 +1543,50 @@ export async function registerRoutes(
             orderCount: (customer.orderCount || 0) + 1,
             lastPurchaseAt: new Date(),
           });
+
+          // Send order confirmation email if customer has email
+          if (customer.email) {
+            const tenant = await storage.getTenant(tenantId);
+            
+            // Build items list from the request (already have product info)
+            const emailItems = items.map((item: any) => ({
+              name: item.product.name || 'Product',
+              quantity: item.quantity,
+              price: parseFloat(item.product.price),
+            }));
+            
+            // Send order confirmation email (async, don't wait)
+            emailService.sendOrderConfirmation(
+              customer.email,
+              customer.name,
+              {
+                orderNumber: order.orderNumber,
+                orderDate: new Date().toISOString(),
+                items: emailItems,
+                subtotal: parseFloat(order.subtotal),
+                tax: parseFloat(order.taxAmount),
+                total: parseFloat(order.total),
+                companyName: tenant?.companyName || 'Flowp POS',
+                companyLogo: tenant?.companyLogo || undefined,
+              },
+              tenant?.displayLanguage || 'en'
+            ).catch(err => console.error('Failed to send order confirmation email:', err));
+
+            // Send payment received email (async, don't wait)
+            emailService.sendPaymentReceivedEmail(
+              customer.email,
+              customer.name,
+              {
+                orderNumber: order.orderNumber,
+                paymentDate: new Date().toISOString(),
+                amount: parseFloat(order.total),
+                paymentMethod: paymentMethod,
+                companyName: tenant?.companyName || 'Flowp POS',
+                companyLogo: tenant?.companyLogo || undefined,
+              },
+              tenant?.displayLanguage || 'en'
+            ).catch(err => console.error('Failed to send payment received email:', err));
+          }
         }
       }
 
