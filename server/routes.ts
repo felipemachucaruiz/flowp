@@ -3249,7 +3249,8 @@ export async function registerRoutes(
         host,
         port: parseInt(port) || 587,
         secure: secure === true || secure === "true",
-        auth: { user, pass: actualPass },
+        user,
+        password: actualPass,
         fromEmail,
         fromName,
       });
