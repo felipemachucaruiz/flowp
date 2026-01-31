@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n";
 
 interface Tenant {
   id: string;
@@ -58,18 +59,10 @@ interface TenantUser {
   role: string;
 }
 
-const AVAILABLE_FEATURES = [
-  { id: "restaurant_bom", label: "Ingredient Inventory (BOM)", description: "Recipe management with FIFO auto-consumption" },
-  { id: "advanced_reporting", label: "Advanced Reporting", description: "Detailed analytics and custom reports" },
-  { id: "multi_location", label: "Multi-Location", description: "Manage multiple store locations" },
-  { id: "loyalty_program", label: "Loyalty Program", description: "Customer loyalty and rewards" },
-  { id: "electronic_invoicing", label: "Electronic Invoicing", description: "DIAN electronic invoicing (Colombia)" },
-  { id: "api_access", label: "API Access", description: "External API integrations" },
-];
-
 export default function AdminTenants() {
   const [search, setSearch] = useState("");
   const { toast } = useToast();
+  const { t, formatDate } = useI18n();
   
   // Feature management dialog
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
@@ -81,6 +74,15 @@ export default function AdminTenants() {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<TenantUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
+
+  const AVAILABLE_FEATURES = [
+    { id: "restaurant_bom", label: t("admin.feature_bom"), description: t("admin.feature_bom_desc") },
+    { id: "advanced_reporting", label: t("admin.feature_reporting"), description: t("admin.feature_reporting_desc") },
+    { id: "multi_location", label: t("admin.feature_multi_location"), description: t("admin.feature_multi_location_desc") },
+    { id: "loyalty_program", label: t("admin.feature_loyalty"), description: t("admin.feature_loyalty_desc") },
+    { id: "electronic_invoicing", label: t("admin.feature_invoicing"), description: t("admin.feature_invoicing_desc") },
+    { id: "api_access", label: t("admin.feature_api"), description: t("admin.feature_api_desc") },
+  ];
 
   const { data: tenants, isLoading } = useQuery<Tenant[]>({
     queryKey: ["/api/internal/tenants"],
@@ -97,10 +99,10 @@ export default function AdminTenants() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/internal/tenants"] });
-      toast({ title: "Tenant suspended successfully" });
+      toast({ title: t("admin.tenant_suspended") });
     },
     onError: () => {
-      toast({ title: "Failed to suspend tenant", variant: "destructive" });
+      toast({ title: t("admin.tenant_suspended_error"), variant: "destructive" });
     },
   });
 
@@ -110,10 +112,10 @@ export default function AdminTenants() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/internal/tenants"] });
-      toast({ title: "Tenant unsuspended successfully" });
+      toast({ title: t("admin.tenant_unsuspended") });
     },
     onError: () => {
-      toast({ title: "Failed to unsuspend tenant", variant: "destructive" });
+      toast({ title: t("admin.tenant_unsuspended_error"), variant: "destructive" });
     },
   });
 
@@ -123,11 +125,11 @@ export default function AdminTenants() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/internal/tenants"] });
-      toast({ title: "Tenant updated successfully" });
+      toast({ title: t("admin.tenant_updated") });
       setShowFeaturesDialog(false);
     },
     onError: () => {
-      toast({ title: "Failed to update tenant", variant: "destructive" });
+      toast({ title: t("admin.tenant_updated_error"), variant: "destructive" });
     },
   });
 
@@ -136,13 +138,13 @@ export default function AdminTenants() {
       return apiRequest("POST", `/api/internal/tenants/${tenantId}/users/${userId}/reset-password`, { newPassword });
     },
     onSuccess: () => {
-      toast({ title: "Password reset successfully" });
+      toast({ title: t("admin.password_reset") });
       setShowPasswordDialog(false);
       setNewPassword("");
       setSelectedUser(null);
     },
     onError: () => {
-      toast({ title: "Failed to reset password", variant: "destructive" });
+      toast({ title: t("admin.password_reset_error"), variant: "destructive" });
     },
   });
 
@@ -199,18 +201,26 @@ export default function AdminTenants() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return <Badge className="bg-green-500">Active</Badge>;
+        return <Badge className="bg-green-500">{t("admin.active")}</Badge>;
       case "trial":
-        return <Badge variant="secondary">Trial</Badge>;
+        return <Badge variant="secondary">{t("admin.trial")}</Badge>;
       case "suspended":
-        return <Badge variant="destructive">Suspended</Badge>;
+        return <Badge variant="destructive">{t("admin.suspended")}</Badge>;
       case "past_due":
-        return <Badge className="bg-yellow-500">Past Due</Badge>;
+        return <Badge className="bg-yellow-500">{t("admin.past_due")}</Badge>;
       case "cancelled":
-        return <Badge variant="outline">Cancelled</Badge>;
+        return <Badge variant="outline">{t("admin.cancelled")}</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
+  };
+
+  const getTypeBadge = (type: string) => {
+    return (
+      <Badge variant="outline" className="capitalize">
+        {type === "retail" ? t("admin.retail") : t("admin.restaurant")}
+      </Badge>
+    );
   };
 
   if (isLoading) {
@@ -226,8 +236,8 @@ export default function AdminTenants() {
     <div className="p-6 space-y-6" data-testid="admin-tenants">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-tenants-title">Tenants</h1>
-          <p className="text-muted-foreground">Manage all customer accounts</p>
+          <h1 className="text-2xl font-bold" data-testid="text-tenants-title">{t("admin.tenants")}</h1>
+          <p className="text-muted-foreground">{t("admin.manage_accounts")}</p>
         </div>
       </div>
 
@@ -237,7 +247,7 @@ export default function AdminTenants() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search tenants..."
+                placeholder={t("admin.search_tenants")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -250,12 +260,12 @@ export default function AdminTenants() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Features</TableHead>
-                <TableHead>Currency</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead>{t("admin.name")}</TableHead>
+                <TableHead>{t("admin.type")}</TableHead>
+                <TableHead>{t("admin.status")}</TableHead>
+                <TableHead>{t("admin.features")}</TableHead>
+                <TableHead>{t("admin.currency")}</TableHead>
+                <TableHead>{t("admin.created")}</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -268,11 +278,7 @@ export default function AdminTenants() {
                       {tenant.name}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="capitalize">
-                      {tenant.type}
-                    </Badge>
-                  </TableCell>
+                  <TableCell>{getTypeBadge(tenant.type)}</TableCell>
                   <TableCell>{getStatusBadge(tenant.status)}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
@@ -283,7 +289,7 @@ export default function AdminTenants() {
                           </Badge>
                         ))
                       ) : (
-                        <span className="text-muted-foreground text-sm">None</span>
+                        <span className="text-muted-foreground text-sm">{t("admin.none")}</span>
                       )}
                       {(tenant.featureFlags || []).length > 2 && (
                         <Badge variant="outline" className="text-xs">
@@ -294,7 +300,7 @@ export default function AdminTenants() {
                   </TableCell>
                   <TableCell>{tenant.currency}</TableCell>
                   <TableCell>
-                    {new Date(tenant.createdAt).toLocaleDateString()}
+                    {formatDate(new Date(tenant.createdAt))}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -306,11 +312,11 @@ export default function AdminTenants() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => openFeaturesDialog(tenant)}>
                           <Settings className="h-4 w-4 mr-2" />
-                          Manage Subscription
+                          {t("admin.manage_subscription")}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openPasswordDialog(tenant)}>
                           <Key className="h-4 w-4 mr-2" />
-                          Reset User Password
+                          {t("admin.reset_user_password")}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {tenant.status !== "suspended" ? (
@@ -318,20 +324,20 @@ export default function AdminTenants() {
                             onClick={() =>
                               suspendMutation.mutate({
                                 id: tenant.id,
-                                reason: "Manual suspension by admin",
+                                reason: t("admin.manual_suspension"),
                               })
                             }
                             className="text-destructive"
                           >
                             <Ban className="h-4 w-4 mr-2" />
-                            Suspend
+                            {t("admin.suspend")}
                           </DropdownMenuItem>
                         ) : (
                           <DropdownMenuItem
                             onClick={() => unsuspendMutation.mutate(tenant.id)}
                           >
                             <CheckCircle className="h-4 w-4 mr-2" />
-                            Unsuspend
+                            {t("admin.unsuspend")}
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -342,7 +348,7 @@ export default function AdminTenants() {
               {(!filteredTenants || filteredTenants.length === 0) && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    No tenants found
+                    {t("admin.no_tenants")}
                   </TableCell>
                 </TableRow>
               )}
@@ -355,31 +361,31 @@ export default function AdminTenants() {
       <Dialog open={showFeaturesDialog} onOpenChange={setShowFeaturesDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Manage Subscription - {selectedTenant?.name}</DialogTitle>
+            <DialogTitle>{t("admin.manage_subscription")} - {selectedTenant?.name}</DialogTitle>
             <DialogDescription>
-              Update subscription status and enable/disable Pro features for this tenant.
+              {t("admin.update_status_features")}
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-6 py-4">
             <div className="space-y-2">
-              <Label>Subscription Status</Label>
+              <Label>{t("admin.subscription_status")}</Label>
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger data-testid="select-tenant-status">
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue placeholder={t("admin.status")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="trial">Trial</SelectItem>
-                  <SelectItem value="active">Active (Pro)</SelectItem>
-                  <SelectItem value="past_due">Past Due</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                  <SelectItem value="trial">{t("admin.trial")}</SelectItem>
+                  <SelectItem value="active">{t("admin.active_pro")}</SelectItem>
+                  <SelectItem value="past_due">{t("admin.past_due")}</SelectItem>
+                  <SelectItem value="suspended">{t("admin.suspended")}</SelectItem>
+                  <SelectItem value="cancelled">{t("admin.cancelled")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-3">
-              <Label>Pro Features</Label>
+              <Label>{t("admin.pro_features")}</Label>
               <div className="border rounded-lg p-4 space-y-3">
                 {AVAILABLE_FEATURES.map((feature) => (
                   <div key={feature.id} className="flex items-start gap-3">
@@ -408,14 +414,14 @@ export default function AdminTenants() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowFeaturesDialog(false)}>
-              Cancel
+              {t("admin.cancel")}
             </Button>
             <Button 
               onClick={handleSaveFeatures}
               disabled={updateTenantMutation.isPending}
               data-testid="button-save-features"
             >
-              {updateTenantMutation.isPending ? "Saving..." : "Save Changes"}
+              {updateTenantMutation.isPending ? t("admin.saving") : t("admin.save_changes")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -425,15 +431,15 @@ export default function AdminTenants() {
       <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Reset User Password - {selectedTenant?.name}</DialogTitle>
+            <DialogTitle>{t("admin.reset_user_password")} - {selectedTenant?.name}</DialogTitle>
             <DialogDescription>
-              Select a user and set a new password for them.
+              {t("admin.select_user_reset")}
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Select User</Label>
+              <Label>{t("admin.select_user")}</Label>
               <Select 
                 value={selectedUser?.id || ""} 
                 onValueChange={(userId) => {
@@ -442,7 +448,7 @@ export default function AdminTenants() {
                 }}
               >
                 <SelectTrigger data-testid="select-user-reset">
-                  <SelectValue placeholder="Select a user" />
+                  <SelectValue placeholder={t("admin.select_user_placeholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {tenantUsers?.map((user) => (
@@ -461,11 +467,11 @@ export default function AdminTenants() {
 
             {selectedUser && (
               <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
+                <Label htmlFor="newPassword">{t("admin.new_password")}</Label>
                 <Input
                   id="newPassword"
                   type="password"
-                  placeholder="Enter new password (min 6 characters)"
+                  placeholder={t("admin.new_password_placeholder")}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   data-testid="input-new-password"
@@ -476,14 +482,14 @@ export default function AdminTenants() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
-              Cancel
+              {t("admin.cancel")}
             </Button>
             <Button 
               onClick={handleResetPassword}
               disabled={!selectedUser || newPassword.length < 6 || resetPasswordMutation.isPending}
               data-testid="button-reset-password"
             >
-              {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+              {resetPasswordMutation.isPending ? t("admin.resetting") : t("admin.reset_password")}
             </Button>
           </DialogFooter>
         </DialogContent>

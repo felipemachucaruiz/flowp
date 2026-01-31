@@ -1359,6 +1359,7 @@ const translations = {
     "admin.cancel": "Cancel",
     "admin.retail": "Retail",
     "admin.restaurant": "Restaurant",
+    "admin.manual_suspension": "Manual suspension by admin",
   },
   es: {
     // Navigation
@@ -2713,6 +2714,7 @@ const translations = {
     "admin.cancel": "Cancelar",
     "admin.retail": "Retail",
     "admin.restaurant": "Restaurante",
+    "admin.manual_suspension": "Suspensión manual por administrador",
   },
   pt: {
     // Navigation
@@ -4067,6 +4069,7 @@ const translations = {
     "admin.cancel": "Cancelar",
     "admin.retail": "Varejo",
     "admin.restaurant": "Restaurante",
+    "admin.manual_suspension": "Suspensão manual por administrador",
   },
 };
 
