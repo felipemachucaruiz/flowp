@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useI18n } from "@/lib/i18n";
@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { VisualEmailEditor } from "@/components/visual-email-editor";
+import { VisualEmailEditor, VisualEmailEditorRef } from "@/components/visual-email-editor";
 import {
   Mail,
   Pencil,
@@ -118,6 +118,8 @@ export function EmailTemplateEditor() {
   const [editSubject, setEditSubject] = useState("");
   const [editHtmlBody, setEditHtmlBody] = useState("");
   const [editIsActive, setEditIsActive] = useState(true);
+  const [activeEditorTab, setActiveEditorTab] = useState<"visual" | "html">("visual");
+  const visualEditorRef = useRef<VisualEmailEditorRef>(null);
 
   const { data: templates, isLoading } = useQuery<EmailTemplate[]>({
     queryKey: ["/api/internal/email-templates"],
@@ -342,7 +344,7 @@ export function EmailTemplateEditor() {
 
               <div className="space-y-2">
                 <Label>{t("emails.email_body")}</Label>
-                <Tabs defaultValue="visual" className="w-full">
+                <Tabs value={activeEditorTab} onValueChange={(v) => setActiveEditorTab(v as "visual" | "html")} className="w-full">
                   <TabsList className="grid w-full grid-cols-2 mb-2">
                     <TabsTrigger value="visual" className="gap-2" data-testid="tab-visual-editor">
                       <Paintbrush className="h-4 w-4" />
@@ -355,6 +357,7 @@ export function EmailTemplateEditor() {
                   </TabsList>
                   <TabsContent value="visual" className="mt-0">
                     <VisualEmailEditor
+                      ref={visualEditorRef}
                       content={editHtmlBody}
                       onChange={setEditHtmlBody}
                     />
@@ -383,11 +386,19 @@ export function EmailTemplateEditor() {
                         variant="secondary"
                         className="font-mono text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground"
                         onClick={() => {
-                          navigator.clipboard.writeText(variable);
-                          toast({
-                            title: t("emails.copied"),
-                            description: variable,
-                          });
+                          if (activeEditorTab === "visual" && visualEditorRef.current) {
+                            visualEditorRef.current.insertText(variable);
+                            toast({
+                              title: t("emails.inserted"),
+                              description: variable,
+                            });
+                          } else {
+                            setEditHtmlBody(prev => prev + variable);
+                            toast({
+                              title: t("emails.inserted"),
+                              description: variable,
+                            });
+                          }
                         }}
                         data-testid={`variable-${variable}`}
                       >
