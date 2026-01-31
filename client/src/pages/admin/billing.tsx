@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +29,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, Package, DollarSign, Users, Building2, Monitor } from "lucide-react";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import { Plus, Pencil, Trash2, Package, Check, Users, Building2, Monitor } from "lucide-react";
 import type { SubscriptionPlan } from "@shared/schema";
 
 interface PlanFormData {
@@ -57,13 +64,49 @@ const defaultFormData: PlanFormData = {
   sortOrder: 0,
 };
 
+const RETAIL_BASE_FEATURES = [
+  { id: "pos.core", label: "Point of Sale", description: "Core POS functionality" },
+  { id: "inventory.core", label: "Inventory Management", description: "Stock tracking and management" },
+  { id: "purchasing.core", label: "Purchasing", description: "Purchase orders and suppliers" },
+  { id: "customers.core", label: "Customer Management", description: "Customer database and profiles" },
+  { id: "reporting.core", label: "Reports", description: "Sales and inventory reports" },
+  { id: "retail.barcode", label: "Barcode Scanning", description: "Scan product barcodes" },
+  { id: "retail.returns", label: "Returns & Refunds", description: "Process returns and refunds" },
+  { id: "retail.bulk_discounts", label: "Bulk Discounts", description: "Quantity-based pricing" },
+];
+
+const RESTAURANT_BASE_FEATURES = [
+  { id: "pos.core", label: "Point of Sale", description: "Core POS functionality" },
+  { id: "inventory.core", label: "Inventory Management", description: "Stock tracking and management" },
+  { id: "purchasing.core", label: "Purchasing", description: "Purchase orders and suppliers" },
+  { id: "customers.core", label: "Customer Management", description: "Customer database and profiles" },
+  { id: "reporting.core", label: "Reports", description: "Sales and inventory reports" },
+  { id: "restaurant.tables", label: "Table Management", description: "Floor and table layout" },
+  { id: "restaurant.floors", label: "Multiple Floors", description: "Manage multiple floors" },
+  { id: "restaurant.kitchen_tickets", label: "Kitchen Tickets", description: "Kitchen display system" },
+  { id: "restaurant.modifiers", label: "Modifiers", description: "Product modifiers and options" },
+  { id: "restaurant.courses", label: "Courses", description: "Course-based ordering" },
+  { id: "restaurant.split_checks", label: "Split Checks", description: "Split bills between customers" },
+  { id: "restaurant.tips", label: "Tips", description: "Tip management" },
+];
+
+const PRO_FEATURES = [
+  { id: "restaurant_bom", label: "Ingredient Inventory (BOM)", description: "Recipe management with FIFO auto-consumption" },
+  { id: "advanced_reporting", label: "Advanced Reporting", description: "Detailed analytics and custom reports" },
+  { id: "multi_location", label: "Multi-Location", description: "Manage multiple store locations" },
+  { id: "loyalty_program", label: "Loyalty Program", description: "Customer loyalty and rewards" },
+  { id: "electronic_invoicing", label: "Electronic Invoicing", description: "DIAN electronic invoicing (Colombia)" },
+  { id: "api_access", label: "API Access", description: "External API integrations" },
+];
+
 export default function AdminBilling() {
   const { toast } = useToast();
+  const { t } = useI18n();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SubscriptionPlan | null>(null);
   const [deletingPlan, setDeletingPlan] = useState<SubscriptionPlan | null>(null);
   const [formData, setFormData] = useState<PlanFormData>(defaultFormData);
-  const [featuresText, setFeaturesText] = useState("");
+  const [planType, setPlanType] = useState<"retail" | "restaurant">("retail");
 
   const { data: plans = [], isLoading } = useQuery<SubscriptionPlan[]>({
     queryKey: ["/api/internal/plans"],
@@ -78,10 +121,10 @@ export default function AdminBilling() {
       queryClient.invalidateQueries({ queryKey: ["/api/internal/plans"] });
       setIsCreateOpen(false);
       resetForm();
-      toast({ title: "Plan created successfully" });
+      toast({ title: t("admin.billing_plan_created") });
     },
     onError: () => {
-      toast({ title: "Failed to create plan", variant: "destructive" });
+      toast({ title: t("admin.billing_plan_create_error"), variant: "destructive" });
     },
   });
 
@@ -94,10 +137,10 @@ export default function AdminBilling() {
       queryClient.invalidateQueries({ queryKey: ["/api/internal/plans"] });
       setEditingPlan(null);
       resetForm();
-      toast({ title: "Plan updated successfully" });
+      toast({ title: t("admin.billing_plan_updated") });
     },
     onError: () => {
-      toast({ title: "Failed to update plan", variant: "destructive" });
+      toast({ title: t("admin.billing_plan_update_error"), variant: "destructive" });
     },
   });
 
@@ -109,20 +152,23 @@ export default function AdminBilling() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/internal/plans"] });
       setDeletingPlan(null);
-      toast({ title: "Plan deleted successfully" });
+      toast({ title: t("admin.billing_plan_deleted") });
     },
     onError: (error: Error) => {
-      toast({ title: error.message || "Failed to delete plan", variant: "destructive" });
+      toast({ title: error.message || t("admin.billing_plan_delete_error"), variant: "destructive" });
     },
   });
 
   const resetForm = () => {
     setFormData(defaultFormData);
-    setFeaturesText("");
+    setPlanType("retail");
   };
 
   const openEditDialog = (plan: SubscriptionPlan) => {
     setEditingPlan(plan);
+    const features = plan.features || [];
+    const isRestaurant = features.some(f => f.startsWith("restaurant."));
+    setPlanType(isRestaurant ? "restaurant" : "retail");
     setFormData({
       name: plan.name,
       priceMonthly: parseFloat(plan.priceMonthly),
@@ -131,32 +177,35 @@ export default function AdminBilling() {
       maxLocations: plan.maxLocations || 1,
       maxRegisters: plan.maxRegisters || 2,
       maxUsers: plan.maxUsers || 5,
-      features: plan.features || [],
+      features: features,
       isActive: plan.isActive !== false,
       sortOrder: plan.sortOrder || 0,
     });
-    setFeaturesText((plan.features || []).join("\n"));
+  };
+
+  const handleFeatureToggle = (featureId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      features: prev.features.includes(featureId)
+        ? prev.features.filter(f => f !== featureId)
+        : [...prev.features, featureId]
+    }));
   };
 
   const handleSubmit = () => {
-    const features = featuresText
-      .split("\n")
-      .map((f) => f.trim())
-      .filter((f) => f.length > 0);
-
-    const submitData = { ...formData, features };
-
     if (editingPlan) {
-      updateMutation.mutate({ id: editingPlan.id, data: submitData });
+      updateMutation.mutate({ id: editingPlan.id, data: formData });
     } else {
-      createMutation.mutate(submitData);
+      createMutation.mutate(formData);
     }
   };
 
+  const baseFeatures = planType === "restaurant" ? RESTAURANT_BASE_FEATURES : RETAIL_BASE_FEATURES;
+
   const PlanForm = () => (
-    <div className="grid gap-4 py-4">
+    <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto">
       <div className="grid gap-2">
-        <Label htmlFor="name">Plan Name</Label>
+        <Label htmlFor="name">{t("admin.billing_plan_name")}</Label>
         <Input
           id="name"
           value={formData.name}
@@ -168,7 +217,7 @@ export default function AdminBilling() {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="priceMonthly">Monthly Price</Label>
+          <Label htmlFor="priceMonthly">{t("admin.billing_monthly_price")}</Label>
           <Input
             id="priceMonthly"
             type="number"
@@ -179,7 +228,7 @@ export default function AdminBilling() {
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="priceYearly">Yearly Price (optional)</Label>
+          <Label htmlFor="priceYearly">{t("admin.billing_yearly_price")}</Label>
           <Input
             id="priceYearly"
             type="number"
@@ -193,7 +242,7 @@ export default function AdminBilling() {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="currency">Currency</Label>
+          <Label htmlFor="currency">{t("admin.currency")}</Label>
           <Input
             id="currency"
             value={formData.currency}
@@ -203,7 +252,7 @@ export default function AdminBilling() {
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="sortOrder">Sort Order</Label>
+          <Label htmlFor="sortOrder">{t("admin.billing_sort_order")}</Label>
           <Input
             id="sortOrder"
             type="number"
@@ -216,7 +265,7 @@ export default function AdminBilling() {
 
       <div className="grid grid-cols-3 gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="maxLocations">Max Locations</Label>
+          <Label htmlFor="maxLocations">{t("admin.billing_max_locations")}</Label>
           <Input
             id="maxLocations"
             type="number"
@@ -226,7 +275,7 @@ export default function AdminBilling() {
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="maxRegisters">Max Registers</Label>
+          <Label htmlFor="maxRegisters">{t("admin.billing_max_registers")}</Label>
           <Input
             id="maxRegisters"
             type="number"
@@ -236,7 +285,7 @@ export default function AdminBilling() {
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="maxUsers">Max Users</Label>
+          <Label htmlFor="maxUsers">{t("admin.billing_max_users")}</Label>
           <Input
             id="maxUsers"
             type="number"
@@ -247,18 +296,73 @@ export default function AdminBilling() {
         </div>
       </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="features">Features (one per line)</Label>
-        <Textarea
-          id="features"
-          value={featuresText}
-          onChange={(e) => setFeaturesText(e.target.value)}
-          placeholder="Unlimited products
-Priority support
-Advanced reporting"
-          rows={4}
-          data-testid="input-plan-features"
-        />
+      <div className="space-y-4">
+        <Label>{t("admin.billing_plan_type")}</Label>
+        <Tabs value={planType} onValueChange={(v) => {
+          setPlanType(v as "retail" | "restaurant");
+          const proFeatureIds = PRO_FEATURES.map(f => f.id);
+          const currentProFeatures = formData.features.filter(f => proFeatureIds.includes(f));
+          setFormData(prev => ({ ...prev, features: currentProFeatures }));
+        }}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="retail" data-testid="tab-retail">{t("admin.retail")}</TabsTrigger>
+            <TabsTrigger value="restaurant" data-testid="tab-restaurant">{t("admin.restaurant")}</TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      <div className="space-y-3">
+        <Label>{t("admin.billing_base_modules")}</Label>
+        <div className="border rounded-lg p-4 space-y-2 max-h-48 overflow-y-auto">
+          {baseFeatures.map((feature) => (
+            <div key={feature.id} className="flex items-start gap-3">
+              <Checkbox
+                id={`base-${feature.id}`}
+                checked={formData.features.includes(feature.id)}
+                onCheckedChange={() => handleFeatureToggle(feature.id)}
+                data-testid={`checkbox-base-${feature.id}`}
+              />
+              <div className="grid gap-0.5">
+                <label
+                  htmlFor={`base-${feature.id}`}
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  {feature.label}
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  {feature.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label>{t("admin.pro_features")}</Label>
+        <div className="border rounded-lg p-4 space-y-2">
+          {PRO_FEATURES.map((feature) => (
+            <div key={feature.id} className="flex items-start gap-3">
+              <Checkbox
+                id={`pro-${feature.id}`}
+                checked={formData.features.includes(feature.id)}
+                onCheckedChange={() => handleFeatureToggle(feature.id)}
+                data-testid={`checkbox-pro-${feature.id}`}
+              />
+              <div className="grid gap-0.5">
+                <label
+                  htmlFor={`pro-${feature.id}`}
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  {feature.label}
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  {feature.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
@@ -268,7 +372,7 @@ Advanced reporting"
           onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
           data-testid="switch-plan-active"
         />
-        <Label htmlFor="isActive">Active</Label>
+        <Label htmlFor="isActive">{t("admin.billing_active")}</Label>
       </div>
     </div>
   );
@@ -291,28 +395,28 @@ Advanced reporting"
   return (
     <div className="h-full overflow-y-auto touch-scroll">
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-billing-title">Subscription Plans</h1>
-          <p className="text-muted-foreground">Manage pricing packages for your tenants</p>
+          <h1 className="text-2xl font-bold" data-testid="text-billing-title">{t("admin.billing_title")}</h1>
+          <p className="text-muted-foreground">{t("admin.billing_subtitle")}</p>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
             <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} data-testid="button-create-plan">
               <Plus className="h-4 w-4 mr-2" />
-              Create Plan
+              {t("admin.billing_create_plan")}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Create Subscription Plan</DialogTitle>
-              <DialogDescription>Add a new pricing package for tenants</DialogDescription>
+              <DialogTitle>{t("admin.billing_create_plan")}</DialogTitle>
+              <DialogDescription>{t("admin.billing_create_desc")}</DialogDescription>
             </DialogHeader>
             <PlanForm />
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setIsCreateOpen(false)}>{t("admin.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-save-plan">
-                {createMutation.isPending ? "Creating..." : "Create Plan"}
+                {createMutation.isPending ? t("admin.saving") : t("admin.billing_create_plan")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -323,13 +427,13 @@ Advanced reporting"
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Package className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Plans Yet</h3>
+            <h3 className="text-lg font-medium mb-2">{t("admin.billing_no_plans")}</h3>
             <p className="text-muted-foreground text-center mb-4">
-              Create your first subscription plan to start billing tenants
+              {t("admin.billing_no_plans_desc")}
             </p>
             <Button onClick={() => { resetForm(); setIsCreateOpen(true); }} data-testid="button-create-first-plan">
               <Plus className="h-4 w-4 mr-2" />
-              Create First Plan
+              {t("admin.billing_create_first")}
             </Button>
           </CardContent>
         </Card>
@@ -338,20 +442,20 @@ Advanced reporting"
           {plans.map((plan) => (
             <Card key={plan.id} className={!plan.isActive ? "opacity-60" : ""} data-testid={`card-plan-${plan.id}`}>
               <CardHeader>
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between gap-2">
                   <div>
                     <CardTitle className="flex items-center gap-2">
                       {plan.name}
-                      {!plan.isActive && <Badge variant="secondary">Inactive</Badge>}
+                      {!plan.isActive && <Badge variant="secondary">{t("admin.billing_inactive")}</Badge>}
                     </CardTitle>
                     <CardDescription className="mt-1">
                       <span className="text-2xl font-bold text-foreground">
                         ${parseFloat(plan.priceMonthly).toFixed(2)}
                       </span>
-                      <span className="text-muted-foreground">/month</span>
+                      <span className="text-muted-foreground">/{t("admin.billing_month")}</span>
                       {plan.priceYearly && (
                         <span className="ml-2 text-sm">
-                          (${parseFloat(plan.priceYearly).toFixed(2)}/year)
+                          (${parseFloat(plan.priceYearly).toFixed(2)}/{t("admin.billing_year")})
                         </span>
                       )}
                     </CardDescription>
@@ -380,15 +484,15 @@ Advanced reporting"
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div className="flex items-center gap-1">
                     <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <span>{plan.maxLocations} loc</span>
+                    <span>{plan.maxLocations} {t("admin.billing_loc")}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Monitor className="h-4 w-4 text-muted-foreground" />
-                    <span>{plan.maxRegisters} reg</span>
+                    <span>{plan.maxRegisters} {t("admin.billing_reg")}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{plan.maxUsers} users</span>
+                    <span>{plan.maxUsers} {t("admin.billing_users")}</span>
                   </div>
                 </div>
                 
@@ -396,13 +500,13 @@ Advanced reporting"
                   <div className="space-y-1">
                     {plan.features.slice(0, 4).map((feature, i) => (
                       <div key={i} className="text-sm text-muted-foreground flex items-center gap-2">
-                        <DollarSign className="h-3 w-3" />
-                        {feature}
+                        <Check className="h-3 w-3 text-green-500" />
+                        {feature.replace(/_/g, ' ').replace(/\./g, ' - ')}
                       </div>
                     ))}
                     {plan.features.length > 4 && (
                       <div className="text-sm text-muted-foreground">
-                        +{plan.features.length - 4} more features
+                        +{plan.features.length - 4} {t("admin.billing_more_features")}
                       </div>
                     )}
                   </div>
@@ -414,16 +518,16 @@ Advanced reporting"
       )}
 
       <Dialog open={!!editingPlan} onOpenChange={(open) => !open && setEditingPlan(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Plan</DialogTitle>
-            <DialogDescription>Update the subscription plan details</DialogDescription>
+            <DialogTitle>{t("admin.billing_edit_plan")}</DialogTitle>
+            <DialogDescription>{t("admin.billing_edit_desc")}</DialogDescription>
           </DialogHeader>
           <PlanForm />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingPlan(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditingPlan(null)}>{t("admin.cancel")}</Button>
             <Button onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-update-plan">
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              {updateMutation.isPending ? t("admin.saving") : t("admin.save_changes")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -432,20 +536,18 @@ Advanced reporting"
       <AlertDialog open={!!deletingPlan} onOpenChange={(open) => !open && setDeletingPlan(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Plan</AlertDialogTitle>
+            <AlertDialogTitle>{t("admin.billing_delete_plan")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete the "{deletingPlan?.name}" plan? This action cannot be undone.
-              Plans with active subscriptions cannot be deleted.
+              {t("admin.billing_delete_confirm").replace("{name}", deletingPlan?.name || "")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("admin.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingPlan && deleteMutation.mutate(deletingPlan.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               data-testid="button-confirm-delete-plan"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {deleteMutation.isPending ? t("admin.billing_deleting") : t("admin.billing_delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
