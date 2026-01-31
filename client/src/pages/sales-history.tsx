@@ -419,7 +419,7 @@ export default function SalesHistoryPage() {
                         ) : (
                           <Banknote className="w-3 h-3" />
                         )}
-                        {order.payments?.[0]?.method || "cash"}
+                        {t(`payment.${order.payments?.[0]?.method || "cash"}`)}
                       </div>
                     </div>
                   </div>
@@ -463,7 +463,7 @@ export default function SalesHistoryPage() {
                           ) : (
                             <Banknote className="w-3 h-3" />
                           )}
-                          {order.payments?.[0]?.method || "cash"}
+                          {t(`payment.${order.payments?.[0]?.method || "cash"}`)}
                         </div>
                       </div>
                       {expandedOrders.has(order.id) ? (

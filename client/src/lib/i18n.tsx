@@ -125,6 +125,8 @@ const translations = {
     "payment.change": "Change",
     "payment.complete": "Complete Payment",
     "payment.cancel": "Cancel",
+    "payment.cash": "Cash",
+    "payment.card": "Card",
     
     // Settings
     "settings.title": "Settings",
@@ -1674,6 +1676,8 @@ const translations = {
     "payment.change": "Cambio",
     "payment.complete": "Completar Pago",
     "payment.cancel": "Cancelar",
+    "payment.cash": "Efectivo",
+    "payment.card": "Tarjeta",
     
     // Settings
     "settings.title": "Configuración",
@@ -3220,6 +3224,8 @@ const translations = {
     "payment.change": "Troco",
     "payment.complete": "Completar Pagamento",
     "payment.cancel": "Cancelar",
+    "payment.cash": "Dinheiro",
+    "payment.card": "Cartão",
     
     // Settings
     "settings.title": "Configurações",
