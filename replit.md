@@ -4,8 +4,8 @@
 A production-ready, multi-tenant POS + Inventory system delivered as a Progressive Web App (PWA) with native desktop and mobile apps. Supports Windows, macOS, iOS, and Android with thermal printing, barcode scanning, and offline capability. The system supports both Retail and Restaurant tenants with feature flags controlling module availability.
 
 ## Current State
-- **Status**: MVP Complete + Management Portal Phase 1 + Mobile App + Responsive Design
-- **Last Updated**: January 29, 2026
+- **Status**: MVP Complete + Management Portal Phase 1 + Mobile App + Responsive Design + Email Notifications
+- **Last Updated**: January 31, 2026
 - **Stack**: React + TypeScript frontend, Express + PostgreSQL backend
 - **Platforms**: Web (PWA), Windows (Electron), macOS (Electron), iOS (Capacitor), Android (Capacitor)
 
@@ -117,6 +117,14 @@ Each role has granular permissions for:
 - Table status tracking (free, occupied, dirty, reserved)
 - Kitchen Display System (KDS) with real-time updates via WebSocket
 - Ticket status flow: new → preparing → ready → served
+
+### Email Notification System
+- User-configurable email preferences (10 notification types)
+- Active triggers: New Sale, Low Stock Alerts, Order Emails, System Alerts
+- Coming soon: Daily/Weekly Reports, High Value Sales, Expiring Products, New Customer, Refunds
+- Per-user preferences stored in JSON column with sensible defaults
+- Multi-tenant email logging with template tracking
+- SMTP configuration per tenant (TLS/SSL support)
 
 ### Inventory (Ledger-based)
 - Immutable stock movements
