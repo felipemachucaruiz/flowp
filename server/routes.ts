@@ -2620,7 +2620,13 @@ export async function registerRoutes(
         return res.json([]);
       }
       const recipeList = await storage.getRecipesByTenant(tenantId);
-      res.json(recipeList);
+      const recipesWithItems = await Promise.all(
+        recipeList.map(async (recipe) => {
+          const items = await storage.getRecipeItems(recipe.id);
+          return { ...recipe, items };
+        })
+      );
+      res.json(recipesWithItems);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch recipes" });
     }
