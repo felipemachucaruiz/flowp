@@ -126,6 +126,9 @@ export default function PurchasingPage() {
   const [receiveExpirationDates, setReceiveExpirationDates] = useState<Record<string, string>>({});
   const [receiveLotCodes, setReceiveLotCodes] = useState<Record<string, string>>({});
   const [itemType, setItemType] = useState<"product" | "ingredient">("product");
+  const [selectedReorderItems, setSelectedReorderItems] = useState<Set<string>>(new Set());
+  const [reorderQuantities, setReorderQuantities] = useState<Record<string, number>>({});
+  const [reorderSupplierId, setReorderSupplierId] = useState<string>("");
 
   const { data: suppliers, isLoading: suppliersLoading } = useQuery<Supplier[]>({
     queryKey: ["/api/suppliers"],
@@ -142,6 +145,22 @@ export default function PurchasingPage() {
   const { data: ingredients } = useQuery<Ingredient[]>({
     queryKey: ["/api/ingredients"],
     enabled: tenant?.type === "restaurant",
+  });
+
+  type ReorderSuggestion = {
+    type: "product" | "ingredient";
+    id: string;
+    name: string;
+    currentStock: number;
+    reorderPoint: number;
+    suggestedQty: number;
+    preferredSupplierId?: string;
+    preferredSupplierName?: string;
+    unit?: string;
+  };
+
+  const { data: reorderSuggestions, isLoading: reorderLoading, refetch: refetchReorder } = useQuery<ReorderSuggestion[]>({
+    queryKey: ["/api/reorder-suggestions"],
   });
 
   const supplierForm = useForm<SupplierFormData>({
@@ -313,6 +332,21 @@ export default function PurchasingPage() {
     },
   });
 
+  const createReorderMutation = useMutation({
+    mutationFn: async (data: { supplierId: string; items: Array<{ type: "product" | "ingredient"; id: string; quantity: number; unitCost: number }> }) => {
+      const res = await apiRequest("POST", "/api/reorder-suggestions/create-order", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: t("purchasing.order_created") });
+      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/reorder-suggestions"] });
+      setSelectedReorderItems(new Set());
+      setReorderQuantities({});
+      setReorderSupplierId("");
+    },
+  });
+
   const fetchOrderDetails = async (orderId: string) => {
     const res = await fetch(`/api/purchase-orders/${orderId}`, {
       headers: { "x-tenant-id": localStorage.getItem("tenantId") || "" },
@@ -459,6 +493,10 @@ export default function PurchasingPage() {
             <TabsTrigger value="orders" data-testid="tab-orders">
               <Package className="h-4 w-4 mr-2" />
               {t("purchasing.purchase_orders")}
+            </TabsTrigger>
+            <TabsTrigger value="reorder" data-testid="tab-reorder">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              {t("purchasing.quick_reorder")}
             </TabsTrigger>
           </TabsList>
 
@@ -633,6 +671,205 @@ export default function PurchasingPage() {
                   <Package className="h-12 w-12 text-muted-foreground mb-4" />
                   <p className="text-lg font-medium">{t("purchasing.no_orders")}</p>
                   <p className="text-muted-foreground">{t("purchasing.add_first_order")}</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="reorder" className="space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold">{t("purchasing.low_stock_items")}</h3>
+                <p className="text-sm text-muted-foreground">{t("purchasing.reorder_suggestions")}</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => refetchReorder()}
+                data-testid="button-refresh-reorder"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                {t("common.refresh")}
+              </Button>
+            </div>
+
+            {reorderLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <Skeleton className="h-6 w-48 mb-2" />
+                      <Skeleton className="h-4 w-32" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : reorderSuggestions && reorderSuggestions.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedReorderItems.size === reorderSuggestions.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        const allItems = new Set(reorderSuggestions.map(s => `${s.type}-${s.id}`));
+                        setSelectedReorderItems(allItems);
+                        const defaultQtys: Record<string, number> = {};
+                        reorderSuggestions.forEach(s => {
+                          defaultQtys[`${s.type}-${s.id}`] = s.suggestedQty;
+                        });
+                        setReorderQuantities(defaultQtys);
+                      } else {
+                        setSelectedReorderItems(new Set());
+                        setReorderQuantities({});
+                      }
+                    }}
+                    className="h-4 w-4"
+                    data-testid="checkbox-select-all-reorder"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {t("common.select_all")} ({selectedReorderItems.size} / {reorderSuggestions.length})
+                  </span>
+                </div>
+
+                <div className="grid gap-3">
+                  {reorderSuggestions.map(suggestion => {
+                    const key = `${suggestion.type}-${suggestion.id}`;
+                    const isSelected = selectedReorderItems.has(key);
+                    return (
+                      <Card 
+                        key={key} 
+                        className={`hover-elevate ${isSelected ? "ring-2 ring-primary" : ""}`}
+                        data-testid={`card-reorder-${key}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-4">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                const newSet = new Set(selectedReorderItems);
+                                if (e.target.checked) {
+                                  newSet.add(key);
+                                  setReorderQuantities(prev => ({
+                                    ...prev,
+                                    [key]: suggestion.suggestedQty
+                                  }));
+                                } else {
+                                  newSet.delete(key);
+                                  setReorderQuantities(prev => {
+                                    const updated = { ...prev };
+                                    delete updated[key];
+                                    return updated;
+                                  });
+                                }
+                                setSelectedReorderItems(newSet);
+                              }}
+                              className="h-4 w-4"
+                              data-testid={`checkbox-reorder-${key}`}
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                {suggestion.type === "ingredient" ? (
+                                  <Leaf className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <Package className="h-4 w-4 text-blue-600" />
+                                )}
+                                <span className="font-medium" data-testid={`text-reorder-name-${key}`}>{suggestion.name}</span>
+                                {suggestion.unit && (
+                                  <Badge variant="secondary" className="text-xs" data-testid={`badge-reorder-unit-${key}`}>{suggestion.unit}</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                                <span>{t("purchasing.current_stock")}: <span className="text-destructive font-medium" data-testid={`text-reorder-stock-${key}`}>{suggestion.currentStock}</span></span>
+                                <span>{t("purchasing.reorder_point")}: <span data-testid={`text-reorder-point-${key}`}>{suggestion.reorderPoint}</span></span>
+                                {suggestion.preferredSupplierName && (
+                                  <span className="flex items-center gap-1" data-testid={`text-reorder-supplier-${key}`}>
+                                    <Truck className="h-3 w-3" />
+                                    {suggestion.preferredSupplierName}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label className="text-sm">{t("purchasing.quantity")}:</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={reorderQuantities[key] || suggestion.suggestedQty}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || suggestion.suggestedQty;
+                                  setReorderQuantities(prev => ({
+                                    ...prev,
+                                    [key]: val
+                                  }));
+                                  if (!selectedReorderItems.has(key)) {
+                                    setSelectedReorderItems(prev => new Set([...prev, key]));
+                                  }
+                                }}
+                                className="w-20"
+                                data-testid={`input-reorder-qty-${key}`}
+                              />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {selectedReorderItems.size > 0 && (
+                  <Card className="bg-muted/50">
+                    <CardContent className="p-4">
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                          <p className="font-medium" data-testid="text-reorder-count">{selectedReorderItems.size} {t("purchasing.low_stock_items")} {t("common.selected")}</p>
+                          <p className="text-sm text-muted-foreground">{t("purchasing.select_supplier")}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Select
+                            value={reorderSupplierId}
+                            onValueChange={setReorderSupplierId}
+                          >
+                            <SelectTrigger className="w-48" data-testid="select-reorder-supplier">
+                              <SelectValue placeholder={t("purchasing.select_supplier")} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {suppliers?.filter(s => s.isActive).map(s => (
+                                <SelectItem key={s.id} value={s.id} data-testid={`select-supplier-${s.id}`}>{s.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            onClick={() => {
+                              const items = Array.from(selectedReorderItems).map(key => {
+                                const [type, id] = key.split("-") as ["product" | "ingredient", string];
+                                const suggestion = reorderSuggestions?.find(s => `${s.type}-${s.id}` === key);
+                                return {
+                                  type,
+                                  id,
+                                  quantity: reorderQuantities[key] || suggestion?.suggestedQty || 1,
+                                  unitCost: 0
+                                };
+                              });
+                              createReorderMutation.mutate({ supplierId: reorderSupplierId, items });
+                            }}
+                            disabled={!reorderSupplierId || selectedReorderItems.size === 0 || createReorderMutation.isPending}
+                            data-testid="button-create-reorder-po"
+                          >
+                            {createReorderMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            {t("purchasing.create_po_from_suggestions")}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
+                  <p className="text-lg font-medium">{t("purchasing.no_reorder_suggestions")}</p>
                 </CardContent>
               </Card>
             )}
