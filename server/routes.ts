@@ -582,6 +582,14 @@ export async function registerRoutes(
     }
   });
 
+  const emailPreferencesSchema = z.object({
+    lowStockAlerts: z.boolean().optional(),
+    dailySalesReport: z.boolean().optional(),
+    weeklyReport: z.boolean().optional(),
+    orderNotifications: z.boolean().optional(),
+    systemAlerts: z.boolean().optional(),
+  });
+
   app.patch("/api/users/:id/email-preferences", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
@@ -590,7 +598,13 @@ export async function registerRoutes(
       }
       
       const { id } = req.params;
-      const emailPreferences = req.body;
+      
+      // Validate email preferences
+      const parseResult = emailPreferencesSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ message: "Invalid email preferences", errors: parseResult.error.errors });
+      }
+      const emailPreferences = parseResult.data;
       
       // Verify user belongs to tenant
       const users = await storage.getUsersByTenant(tenantId);
