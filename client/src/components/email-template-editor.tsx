@@ -138,13 +138,10 @@ export function EmailTemplateEditor() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: { type: string; subject: string; htmlBody: string; isActive: boolean }) => {
-      return apiRequest(`/api/internal/email-templates/${data.type}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          subject: data.subject,
-          htmlBody: data.htmlBody,
-          isActive: data.isActive,
-        }),
+      return apiRequest("PUT", `/api/internal/email-templates/${data.type}`, {
+        subject: data.subject,
+        htmlBody: data.htmlBody,
+        isActive: data.isActive,
       });
     },
     onSuccess: () => {
