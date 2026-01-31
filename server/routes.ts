@@ -2031,14 +2031,48 @@ export async function registerRoutes(
       if (!hasFeature) {
         return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true });
       }
+      
+      const { initialStock, ...ingredientData } = req.body;
+      
       const ingredient = await storage.createIngredient({
-        ...req.body,
+        ...ingredientData,
         tenantId,
         createdBy: userId || null,
         updatedBy: userId || null,
       });
+      
+      // If initial stock is provided, create an initial lot
+      if (initialStock && parseFloat(initialStock) > 0) {
+        const qty = parseFloat(initialStock);
+        const lot = await storage.createIngredientLot({
+          tenantId,
+          ingredientId: ingredient.id,
+          qtyReceivedBase: qty.toString(),
+          qtyRemainingBase: qty.toString(),
+          expiresAt: null,
+          costPerBase: null,
+          supplierId: null,
+          lotCode: `INIT-${Date.now()}`,
+          locationId: null,
+          status: "open",
+        });
+        
+        await storage.createIngredientMovement({
+          tenantId,
+          ingredientId: ingredient.id,
+          lotId: lot.id,
+          locationId: null,
+          movementType: "adjustment",
+          qtyDeltaBase: qty.toString(),
+          sourceType: "initial_stock",
+          notes: "Initial stock entry",
+          createdBy: userId || null,
+        });
+      }
+      
       res.json(ingredient);
     } catch (error) {
+      console.error("Create ingredient error:", error);
       res.status(400).json({ message: "Failed to create ingredient" });
     }
   });

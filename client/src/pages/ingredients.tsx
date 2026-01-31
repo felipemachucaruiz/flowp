@@ -27,9 +27,10 @@ export default function IngredientsPage() {
     name: "",
     sku: "",
     barcode: "",
-    uomBase: "g" as "g" | "ml" | "unit",
+    uomBase: "g" as "g" | "kg" | "ml" | "L" | "unit",
     reorderPointBase: "10",
     reorderQtyBase: "100",
+    initialStock: "",
     isActive: true,
   });
 
@@ -89,6 +90,7 @@ export default function IngredientsPage() {
       uomBase: "g",
       reorderPointBase: "10",
       reorderQtyBase: "100",
+      initialStock: "",
       isActive: true,
     });
   };
@@ -99,9 +101,10 @@ export default function IngredientsPage() {
       name: ingredient.name,
       sku: ingredient.sku || "",
       barcode: ingredient.barcode || "",
-      uomBase: ingredient.uomBase,
+      uomBase: ingredient.uomBase as "g" | "kg" | "ml" | "L" | "unit",
       reorderPointBase: ingredient.reorderPointBase || "10",
       reorderQtyBase: ingredient.reorderQtyBase || "100",
+      initialStock: "",
       isActive: ingredient.isActive ?? true,
     });
   };
@@ -169,13 +172,13 @@ export default function IngredientsPage() {
     );
   }
 
-  const IngredientForm = () => (
+  const ingredientForm = (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label>{t("ingredients.name")}</Label>
         <Input
           value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
           required
           data-testid="input-ingredient-name"
         />
@@ -185,7 +188,7 @@ export default function IngredientsPage() {
           <Label>{t("ingredients.sku")}</Label>
           <Input
             value={formData.sku}
-            onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+            onChange={(e) => setFormData(prev => ({ ...prev, sku: e.target.value }))}
             data-testid="input-ingredient-sku"
           />
         </div>
@@ -193,26 +196,42 @@ export default function IngredientsPage() {
           <Label>{t("ingredients.barcode")}</Label>
           <Input
             value={formData.barcode}
-            onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+            onChange={(e) => setFormData(prev => ({ ...prev, barcode: e.target.value }))}
             data-testid="input-ingredient-barcode"
           />
         </div>
       </div>
-      <div className="space-y-2">
-        <Label>{t("ingredients.uom")}</Label>
-        <Select
-          value={formData.uomBase}
-          onValueChange={(v) => setFormData({ ...formData, uomBase: v as "g" | "ml" | "unit" })}
-        >
-          <SelectTrigger data-testid="select-ingredient-uom">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="g">{t("ingredients.grams")}</SelectItem>
-            <SelectItem value="ml">{t("ingredients.milliliters")}</SelectItem>
-            <SelectItem value="unit">{t("ingredients.units")}</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>{t("ingredients.uom")}</Label>
+          <Select
+            value={formData.uomBase}
+            onValueChange={(v) => setFormData(prev => ({ ...prev, uomBase: v as "g" | "kg" | "ml" | "L" | "unit" }))}
+          >
+            <SelectTrigger data-testid="select-ingredient-uom">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="g">{t("ingredients.grams")}</SelectItem>
+              <SelectItem value="kg">{t("ingredients.kilograms")}</SelectItem>
+              <SelectItem value="ml">{t("ingredients.milliliters")}</SelectItem>
+              <SelectItem value="L">{t("ingredients.liters")}</SelectItem>
+              <SelectItem value="unit">{t("ingredients.units")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {!editingIngredient && (
+          <div className="space-y-2">
+            <Label>{t("ingredients.initial_stock")}</Label>
+            <Input
+              type="number"
+              value={formData.initialStock}
+              onChange={(e) => setFormData(prev => ({ ...prev, initialStock: e.target.value }))}
+              placeholder="0"
+              data-testid="input-ingredient-initial-stock"
+            />
+          </div>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -220,7 +239,7 @@ export default function IngredientsPage() {
           <Input
             type="number"
             value={formData.reorderPointBase}
-            onChange={(e) => setFormData({ ...formData, reorderPointBase: e.target.value })}
+            onChange={(e) => setFormData(prev => ({ ...prev, reorderPointBase: e.target.value }))}
             data-testid="input-ingredient-reorder-point"
           />
         </div>
@@ -229,7 +248,7 @@ export default function IngredientsPage() {
           <Input
             type="number"
             value={formData.reorderQtyBase}
-            onChange={(e) => setFormData({ ...formData, reorderQtyBase: e.target.value })}
+            onChange={(e) => setFormData(prev => ({ ...prev, reorderQtyBase: e.target.value }))}
             data-testid="input-ingredient-reorder-qty"
           />
         </div>
@@ -237,12 +256,12 @@ export default function IngredientsPage() {
       <div className="flex items-center gap-2">
         <Switch
           checked={formData.isActive}
-          onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+          onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
           data-testid="switch-ingredient-active"
         />
         <Label>{t("ingredients.active")}</Label>
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 flex-wrap">
         <Button
           type="button"
           variant="outline"
@@ -279,7 +298,7 @@ export default function IngredientsPage() {
             <DialogHeader>
               <DialogTitle>{t("ingredients.add")}</DialogTitle>
             </DialogHeader>
-            <IngredientForm />
+            {ingredientForm}
           </DialogContent>
         </Dialog>
       </div>
@@ -384,7 +403,7 @@ export default function IngredientsPage() {
           <DialogHeader>
             <DialogTitle>{t("ingredients.edit")}</DialogTitle>
           </DialogHeader>
-          <IngredientForm />
+          {ingredientForm}
         </DialogContent>
       </Dialog>
     </div>
