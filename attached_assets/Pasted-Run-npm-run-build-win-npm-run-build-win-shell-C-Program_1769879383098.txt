@@ -1,0 +1,32 @@
+Run npm run build:win
+  npm run build:win
+  shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+  env:
+    GH_TOKEN: ***
+  
+> flowp-desktop@1.0.0 build:win
+> electron-builder --win
+  • electron-builder  version=24.13.3 os=10.0.26100
+  • artifacts will be published if draft release exists  reason=CI detected
+  • loaded configuration  file=package.json ("build" field)
+  • packaging       platform=win32 arch=x64 electron=28.3.3 appOutDir=dist\win-unpacked
+  • downloading     url=https://github.com/electron/electron/releases/download/v28.3.3/electron-v28.3.3-win32-x64.zip size=108 MB parts=4
+  • downloaded      url=https://github.com/electron/electron/releases/download/v28.3.3/electron-v28.3.3-win32-x64.zip duration=431ms
+  ⨯ Cannot detect repository by .git/config. Please specify "repository" in the package.json (https://docs.npmjs.com/files/package.json#repository).
+Please see https://electron.build/configuration/publish  failedTask=build stackTrace=Error: Cannot detect repository by .git/config. Please specify "repository" in the package.json (https://docs.npmjs.com/files/package.json#repository).
+Please see https://electron.build/configuration/publish
+    at getInfo (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\publish\PublishManager.ts:551:13)
+    at getResolvedPublishConfig (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\publish\PublishManager.ts:560:18)
+    at resolvePublishConfigurations (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\publish\PublishManager.ts:443:16)
+    at getPublishConfigs (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\publish\PublishManager.ts:417:10)
+    at getAppUpdatePublishConfiguration (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\publish\PublishManager.ts:249:73)
+    at D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\publish\PublishManager.ts:118:29
+    at Packager.afterPack (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\packager.ts:546:7)
+    at WinPackager.doPack (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\platformPackager.ts:312:5)
+    at WinPackager.pack (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\platformPackager.ts:140:5)
+    at Packager.doBuild (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\packager.ts:445:9)
+    at executeFinally (D:\a\flowp\flowp\electron\node_modules\builder-util\src\promise.ts:12:14)
+    at Packager._build (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\packager.ts:379:31)
+    at Packager.build (D:\a\flowp\flowp\electron\node_modules\app-builder-lib\src\packager.ts:340:12)
+    at executeFinally (D:\a\flowp\flowp\electron\node_modules\builder-util\src\promise.ts:12:14)
+Error: Process completed with exit code 1.
