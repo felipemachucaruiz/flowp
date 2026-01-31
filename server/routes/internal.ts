@@ -412,6 +412,98 @@ router.delete("/plans/:id", requirePermission("billing.plans:manage"), async (re
   }
 });
 
+// Assign subscription to tenant
+router.post("/tenants/:tenantId/subscription", requirePermission("billing.subscriptions:manage"), async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req.params;
+    const { planId, billingPeriod = "monthly" } = req.body;
+
+    if (!planId) {
+      return res.status(400).json({ error: "Plan ID is required" });
+    }
+
+    // Check if tenant exists
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    if (!tenant) {
+      return res.status(404).json({ error: "Tenant not found" });
+    }
+
+    // Check if plan exists
+    const [plan] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, planId));
+    if (!plan) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    // Check if tenant already has an active subscription
+    const existingSub = await db
+      .select()
+      .from(subscriptions)
+      .where(and(eq(subscriptions.tenantId, tenantId), eq(subscriptions.status, "active")));
+
+    if (existingSub.length > 0) {
+      // Update the existing subscription
+      const [updated] = await db
+        .update(subscriptions)
+        .set({
+          planId,
+          billingPeriod,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + (billingPeriod === "yearly" ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000)),
+        })
+        .where(eq(subscriptions.id, existingSub[0].id))
+        .returning();
+
+      return res.json(updated);
+    }
+
+    // Create new subscription
+    const periodEnd = new Date();
+    periodEnd.setMonth(periodEnd.getMonth() + (billingPeriod === "yearly" ? 12 : 1));
+
+    const [newSub] = await db
+      .insert(subscriptions)
+      .values({
+        tenantId,
+        planId,
+        billingPeriod,
+        status: "active",
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: periodEnd,
+      })
+      .returning();
+
+    res.status(201).json(newSub);
+  } catch (error) {
+    console.error("Assign subscription error:", error);
+    res.status(500).json({ error: "Failed to assign subscription" });
+  }
+});
+
+// Get tenant subscription
+router.get("/tenants/:tenantId/subscription", requirePermission("tenants:read"), async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req.params;
+
+    const [subscription] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.tenantId, tenantId))
+      .orderBy(desc(subscriptions.createdAt))
+      .limit(1);
+
+    if (!subscription) {
+      return res.json(null);
+    }
+
+    const [plan] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, subscription.planId));
+
+    res.json({ ...subscription, plan });
+  } catch (error) {
+    console.error("Get tenant subscription error:", error);
+    res.status(500).json({ error: "Failed to get tenant subscription" });
+  }
+});
+
 router.get("/roles", async (req: Request, res: Response) => {
   try {
     const roles = await db.select().from(portalRoles);
