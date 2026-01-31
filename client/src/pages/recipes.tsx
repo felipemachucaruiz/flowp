@@ -32,8 +32,36 @@ export default function RecipesPage() {
   const [recipeItems, setRecipeItems] = useState<Array<{
     ingredientId: string;
     qtyPerProduct: string;
+    uom: string;
     wastePercent: string;
   }>>([]);
+
+  // Unit conversion helper - convert from any UOM to base UOM
+  const convertToBaseUom = (qty: number, fromUom: string, baseUom: string): number => {
+    if (fromUom === baseUom) return qty;
+    
+    // Weight conversions
+    if (fromUom === "g" && baseUom === "kg") return qty / 1000;
+    if (fromUom === "kg" && baseUom === "g") return qty * 1000;
+    
+    // Volume conversions
+    if (fromUom === "ml" && baseUom === "L") return qty / 1000;
+    if (fromUom === "L" && baseUom === "ml") return qty * 1000;
+    
+    // No conversion possible
+    return qty;
+  };
+
+  // Get compatible UOMs for an ingredient
+  const getCompatibleUoms = (ingredientId: string): string[] => {
+    const ingredient = ingredients.find(i => i.id === ingredientId);
+    if (!ingredient) return [];
+    
+    const baseUom = ingredient.uomBase;
+    if (baseUom === "g" || baseUom === "kg") return ["g", "kg"];
+    if (baseUom === "ml" || baseUom === "L") return ["ml", "L"];
+    return [baseUom];
+  };
 
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -124,21 +152,36 @@ export default function RecipesPage() {
       yieldQty: recipe.yieldQty?.toString() || "1",
       notes: "",
     });
-    setRecipeItems(recipe.items.map(item => ({
-      ingredientId: item.ingredientId,
-      qtyPerProduct: item.qtyRequiredBase,
-      wastePercent: item.wastePct || "0",
-    })));
+    setRecipeItems(recipe.items.map(item => {
+      const ingredient = ingredients.find(i => i.id === item.ingredientId);
+      return {
+        ingredientId: item.ingredientId,
+        qtyPerProduct: item.qtyRequiredBase,
+        uom: ingredient?.uomBase || "",
+        wastePercent: item.wastePct || "0",
+      };
+    }));
     setDialogOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate({ ...formData, items: recipeItems });
+    // Convert quantities to base UOM before saving
+    const convertedItems = recipeItems.map(item => {
+      const ingredient = ingredients.find(i => i.id === item.ingredientId);
+      const baseUom = ingredient?.uomBase || item.uom;
+      const qtyInBaseUom = convertToBaseUom(parseFloat(item.qtyPerProduct) || 0, item.uom, baseUom);
+      return {
+        ingredientId: item.ingredientId,
+        qtyPerProduct: qtyInBaseUom.toString(),
+        wastePercent: item.wastePercent,
+      };
+    });
+    createMutation.mutate({ ...formData, items: convertedItems });
   };
 
   const addIngredientRow = () => {
-    setRecipeItems([...recipeItems, { ingredientId: "", qtyPerProduct: "", wastePercent: "0" }]);
+    setRecipeItems([...recipeItems, { ingredientId: "", qtyPerProduct: "", uom: "", wastePercent: "0" }]);
   };
 
   const removeIngredientRow = (index: number) => {
@@ -148,6 +191,15 @@ export default function RecipesPage() {
   const updateIngredientRow = (index: number, field: string, value: string) => {
     const updated = [...recipeItems];
     updated[index] = { ...updated[index], [field]: value };
+    
+    // When ingredient changes, set default UOM to ingredient's base UOM
+    if (field === "ingredientId") {
+      const ingredient = ingredients.find(i => i.id === value);
+      if (ingredient) {
+        updated[index].uom = ingredient.uomBase;
+      }
+    }
+    
     setRecipeItems(updated);
   };
 
@@ -245,8 +297,8 @@ export default function RecipesPage() {
                 ) : (
                   <div className="space-y-2">
                     {recipeItems.map((item, index) => (
-                      <div key={index} className="grid gap-2 sm:grid-cols-4 items-end p-3 border rounded-md">
-                        <div className="sm:col-span-2">
+                      <div key={index} className="grid gap-2 grid-cols-12 items-end p-3 border rounded-md">
+                        <div className="col-span-12 sm:col-span-4">
                           <Label className="text-xs">{t("ingredients.title")}</Label>
                           <Select
                             value={item.ingredientId}
@@ -258,14 +310,14 @@ export default function RecipesPage() {
                             <SelectContent>
                               {ingredients.map(ing => (
                                 <SelectItem key={ing.id} value={ing.id}>
-                                  {ing.name} ({ing.uomBase})
+                                  {ing.name}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
-                        <div>
-                          <Label className="text-xs">{t("recipes.qty_required")} {item.ingredientId && `(${getIngredientUom(item.ingredientId)})`}</Label>
+                        <div className="col-span-4 sm:col-span-2">
+                          <Label className="text-xs">{t("recipes.qty_required")}</Label>
                           <Input
                             type="number"
                             step="0.001"
@@ -275,18 +327,37 @@ export default function RecipesPage() {
                             data-testid={`input-qty-${index}`}
                           />
                         </div>
-                        <div className="flex gap-2 items-end">
-                          <div className="flex-1">
-                            <Label className="text-xs">{t("recipes.waste_percent")}</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              value={item.wastePercent}
-                              onChange={(e) => updateIngredientRow(index, "wastePercent", e.target.value)}
-                              placeholder="0"
-                              data-testid={`input-waste-${index}`}
-                            />
-                          </div>
+                        <div className="col-span-4 sm:col-span-2">
+                          <Label className="text-xs">{t("recipes.unit")}</Label>
+                          <Select
+                            value={item.uom}
+                            onValueChange={(v) => updateIngredientRow(index, "uom", v)}
+                            disabled={!item.ingredientId}
+                          >
+                            <SelectTrigger data-testid={`select-uom-${index}`}>
+                              <SelectValue placeholder="-" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getCompatibleUoms(item.ingredientId).map(uom => (
+                                <SelectItem key={uom} value={uom}>
+                                  {uom}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-3 sm:col-span-2">
+                          <Label className="text-xs">{t("recipes.waste_percent")}</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={item.wastePercent}
+                            onChange={(e) => updateIngredientRow(index, "wastePercent", e.target.value)}
+                            placeholder="0"
+                            data-testid={`input-waste-${index}`}
+                          />
+                        </div>
+                        <div className="col-span-1 sm:col-span-2 flex items-end justify-end">
                           <Button
                             type="button"
                             variant="ghost"
