@@ -44,7 +44,7 @@ import {
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
-import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw, Smartphone } from "lucide-react";
+import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw, Smartphone, Bell } from "lucide-react";
 import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 import { EmailTemplateEditor } from "@/components/email-template-editor";
 
@@ -1571,11 +1571,16 @@ export default function SettingsPage() {
                 <span className="sm:hidden">{t("settings.downloads").split(' ')[0]}</span>
               </TabsTrigger>
             )}
+            <TabsTrigger value="notifications" data-testid="tab-notifications" className="text-xs sm:text-sm">
+                <Bell className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.my_notifications") || "My Notifications"}</span>
+                <span className="sm:hidden">{t("nav.notifications") || "Notifications"}</span>
+              </TabsTrigger>
             {isAdmin && (
               <TabsTrigger value="emails" data-testid="tab-emails" className="text-xs sm:text-sm">
                 <Mail className="w-4 h-4 mr-1 sm:mr-2" />
-                <span className="hidden sm:inline">{t("settings.emails") || "Emails"}</span>
-                <span className="sm:hidden">Emails</span>
+                <span className="hidden sm:inline">{t("settings.email_templates") || "Email Templates"}</span>
+                <span className="sm:hidden">{t("email.templates") || "Templates"}</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -3028,9 +3033,13 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Email Templates Tab */}
-        <TabsContent value="emails" className="mt-6 space-y-6">
+        {/* My Notifications Tab - Available to all users */}
+        <TabsContent value="notifications" className="mt-6 space-y-6">
           <EmailNotificationPreferences />
+        </TabsContent>
+
+        {/* Email Templates Tab - Admin/Owner only */}
+        <TabsContent value="emails" className="mt-6 space-y-6">
           <EmailTemplateEditor />
         </TabsContent>
       </Tabs>
