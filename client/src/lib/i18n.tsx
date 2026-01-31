@@ -181,6 +181,10 @@ const translations = {
     "emails.default": "Default",
     "emails.template_updated": "Email template updated successfully",
     "emails.template_update_failed": "Failed to update email template",
+    "emails.visual_editor": "Visual Editor",
+    "emails.html_code": "HTML Code",
+    "emails.click_to_copy": "Click to copy variable",
+    "emails.copied": "Copied!",
     
     // Downloads Section
     "downloads.title": "Downloads",
@@ -1657,6 +1661,10 @@ const translations = {
     "emails.default": "Predeterminado",
     "emails.template_updated": "Plantilla de correo actualizada exitosamente",
     "emails.template_update_failed": "Error al actualizar la plantilla de correo",
+    "emails.visual_editor": "Editor Visual",
+    "emails.html_code": "Código HTML",
+    "emails.click_to_copy": "Clic para copiar variable",
+    "emails.copied": "¡Copiado!",
     
     // Downloads Section
     "downloads.title": "Descargas",
@@ -3130,6 +3138,10 @@ const translations = {
     "emails.default": "Padrão",
     "emails.template_updated": "Modelo de e-mail atualizado com sucesso",
     "emails.template_update_failed": "Falha ao atualizar o modelo de e-mail",
+    "emails.visual_editor": "Editor Visual",
+    "emails.html_code": "Código HTML",
+    "emails.click_to_copy": "Clique para copiar variável",
+    "emails.copied": "Copiado!",
     
     // Downloads Section
     "downloads.title": "Downloads",

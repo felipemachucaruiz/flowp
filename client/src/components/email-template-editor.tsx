@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { VisualEmailEditor } from "@/components/visual-email-editor";
 import {
   Mail,
   Pencil,
@@ -26,6 +28,8 @@ import {
   Package,
   Receipt,
   Loader2,
+  Paintbrush,
+  Code2,
 } from "lucide-react";
 
 interface EmailTemplate {
@@ -337,29 +341,55 @@ export function EmailTemplateEditor() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="template-body">{t("emails.email_body")}</Label>
-                <Textarea
-                  id="template-body"
-                  value={editHtmlBody}
-                  onChange={(e) => setEditHtmlBody(e.target.value)}
-                  placeholder={t("emails.email_body")}
-                  className="font-mono text-sm min-h-[300px]"
-                  data-testid="textarea-template-body"
-                />
+                <Label>{t("emails.email_body")}</Label>
+                <Tabs defaultValue="visual" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-2">
+                    <TabsTrigger value="visual" className="gap-2" data-testid="tab-visual-editor">
+                      <Paintbrush className="h-4 w-4" />
+                      {t("emails.visual_editor")}
+                    </TabsTrigger>
+                    <TabsTrigger value="html" className="gap-2" data-testid="tab-html-editor">
+                      <Code2 className="h-4 w-4" />
+                      {t("emails.html_code")}
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="visual" className="mt-0">
+                    <VisualEmailEditor
+                      content={editHtmlBody}
+                      onChange={setEditHtmlBody}
+                    />
+                  </TabsContent>
+                  <TabsContent value="html" className="mt-0">
+                    <Textarea
+                      id="template-body"
+                      value={editHtmlBody}
+                      onChange={(e) => setEditHtmlBody(e.target.value)}
+                      placeholder={t("emails.email_body")}
+                      className="font-mono text-sm min-h-[300px]"
+                      data-testid="textarea-template-body"
+                    />
+                  </TabsContent>
+                </Tabs>
               </div>
 
               {editingTemplate && (
                 <div className="p-3 bg-muted rounded-lg">
                   <Label className="text-xs text-muted-foreground">{t("emails.available_variables")}</Label>
-                  <div className="flex flex-wrap gap-1 mt-2">
+                  <p className="text-xs text-muted-foreground mt-1 mb-2">{t("emails.click_to_copy")}</p>
+                  <div className="flex flex-wrap gap-1">
                     {templateTypeConfig[editingTemplate.type]?.variables.map((variable) => (
                       <Badge
                         key={variable}
                         variant="secondary"
                         className="font-mono text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground"
                         onClick={() => {
-                          setEditHtmlBody(prev => prev + variable);
+                          navigator.clipboard.writeText(variable);
+                          toast({
+                            title: t("emails.copied"),
+                            description: variable,
+                          });
                         }}
+                        data-testid={`variable-${variable}`}
                       >
                         {variable}
                       </Badge>
