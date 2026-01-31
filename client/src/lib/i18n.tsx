@@ -15,6 +15,7 @@ const translations = {
     "nav.reports": "Reports",
     "nav.sales_history": "Sales History",
     "nav.settings": "Settings",
+    "nav.notifications": "My Notifications",
     "nav.logout": "Logout",
     "nav.install_app": "Install App",
     
@@ -163,6 +164,7 @@ const translations = {
     // Email Notification Preferences
     "email.notifications": "Email Notifications",
     "email.notifications_desc": "Control which email notifications you receive",
+    "email.templates": "Email Templates",
     "email.pref_new_sale": "New Sale Notifications",
     "email.pref_new_sale_desc": "Get notified immediately when a sale is made",
     "email.pref_high_value": "High Value Sale Alerts",
@@ -1567,6 +1569,7 @@ const translations = {
     "nav.reports": "Reportes",
     "nav.sales_history": "Historial de Ventas",
     "nav.settings": "Configuración",
+    "nav.notifications": "Mis Notificaciones",
     "nav.logout": "Cerrar Sesión",
     "nav.install_app": "Instalar App",
     
@@ -1715,6 +1718,7 @@ const translations = {
     // Email Notification Preferences
     "email.notifications": "Notificaciones por Correo",
     "email.notifications_desc": "Controla qué notificaciones por correo recibes",
+    "email.templates": "Plantillas de Correo",
     "email.pref_new_sale": "Notificaciones de Nueva Venta",
     "email.pref_new_sale_desc": "Recibe notificación inmediata cuando se realiza una venta",
     "email.pref_high_value": "Alertas de Ventas de Alto Valor",
@@ -3116,6 +3120,7 @@ const translations = {
     "nav.reports": "Relatórios",
     "nav.sales_history": "Histórico de Vendas",
     "nav.settings": "Configurações",
+    "nav.notifications": "Minhas Notificações",
     "nav.logout": "Sair",
     "nav.install_app": "Instalar App",
     
@@ -3264,6 +3269,7 @@ const translations = {
     // Email Notification Preferences
     "email.notifications": "Notificações por E-mail",
     "email.notifications_desc": "Controle quais notificações por e-mail você recebe",
+    "email.templates": "Modelos de E-mail",
     "email.pref_new_sale": "Notificações de Nova Venda",
     "email.pref_new_sale_desc": "Receba notificação imediata quando uma venda for realizada",
     "email.pref_high_value": "Alertas de Vendas de Alto Valor",
