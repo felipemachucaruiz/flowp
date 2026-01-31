@@ -220,6 +220,7 @@ export interface IStorage {
   createRecipeItem(item: InsertRecipeItem): Promise<RecipeItem>;
   updateRecipeItem(id: string, data: Partial<InsertRecipeItem>): Promise<RecipeItem | undefined>;
   deleteRecipeItem(id: string): Promise<void>;
+  deleteRecipeItemsByRecipeId(recipeId: string): Promise<void>;
   
   // Ingredient Movements
   createIngredientMovement(movement: InsertIngredientMovement): Promise<IngredientMovement>;
@@ -1400,6 +1401,10 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRecipeItem(id: string): Promise<void> {
     await db.delete(recipeItems).where(eq(recipeItems.id, id));
+  }
+
+  async deleteRecipeItemsByRecipeId(recipeId: string): Promise<void> {
+    await db.delete(recipeItems).where(eq(recipeItems.recipeId, recipeId));
   }
 
   // Ingredient Movements

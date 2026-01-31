@@ -128,6 +128,30 @@ export default function RecipesPage() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof formData & { items: typeof recipeItems } }) => {
+      const response = await apiRequest("PATCH", `/api/recipes/${id}`, {
+        ...data,
+        yieldQty: parseFloat(data.yieldQty),
+        items: data.items.map(item => ({
+          ingredientId: item.ingredientId,
+          qtyRequiredBase: item.qtyPerProduct,
+          wastePct: item.wastePercent || "0",
+        })),
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
+      setDialogOpen(false);
+      resetForm();
+      toast({ title: t("recipes.update_success") });
+    },
+    onError: () => {
+      toast({ title: t("recipes.update_error"), variant: "destructive" });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/recipes/${id}`),
     onSuccess: () => {
@@ -177,7 +201,11 @@ export default function RecipesPage() {
         wastePercent: item.wastePercent,
       };
     });
-    createMutation.mutate({ ...formData, items: convertedItems });
+    if (editingRecipe) {
+      updateMutation.mutate({ id: editingRecipe.id, data: { ...formData, items: convertedItems } });
+    } else {
+      createMutation.mutate({ ...formData, items: convertedItems });
+    }
   };
 
   const addIngredientRow = () => {

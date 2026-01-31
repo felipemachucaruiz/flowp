@@ -2709,7 +2709,22 @@ export async function registerRoutes(
         updatedBy: userId || null,
       });
 
-      res.json(updated);
+      // Update recipe items: delete existing and create new ones
+      if (items && Array.isArray(items)) {
+        // Delete existing items
+        await storage.deleteRecipeItemsByRecipeId(id);
+        // Create new items
+        for (const item of items) {
+          await storage.createRecipeItem({
+            ...item,
+            recipeId: id,
+            tenantId,
+          });
+        }
+      }
+
+      const recipeItems = await storage.getRecipeItems(id);
+      res.json({ ...updated, items: recipeItems });
     } catch (error) {
       res.status(400).json({ message: "Failed to update recipe" });
     }
