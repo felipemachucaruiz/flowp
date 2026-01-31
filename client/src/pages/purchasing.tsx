@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import type { Supplier, PurchaseOrder, PurchaseOrderItem, Product } from "@shared/schema";
+import type { Supplier, PurchaseOrder, PurchaseOrderItem, Product, Ingredient } from "@shared/schema";
 import {
   Truck,
   Plus,
@@ -33,6 +33,9 @@ import {
   ShoppingCart,
   Eye,
   Loader2,
+  Leaf,
+  CalendarDays,
+  RefreshCw,
 } from "lucide-react";
 
 type SupplierFormData = {
@@ -52,7 +55,9 @@ type PurchaseOrderFormData = {
 };
 
 type OrderItemFormData = {
-  productId: string;
+  itemType: "product" | "ingredient";
+  productId?: string;
+  ingredientId?: string;
   quantity: number;
   unitCost: number;
 };
@@ -97,9 +102,14 @@ export default function PurchasingPage() {
   });
 
   const orderItemSchema = z.object({
-    productId: z.string().min(1, t("common.required")),
+    itemType: z.enum(["product", "ingredient"]),
+    productId: z.string().optional(),
+    ingredientId: z.string().optional(),
     quantity: z.number().min(1, t("common.required")),
     unitCost: z.number().min(0, t("common.required")),
+  }).refine(data => (data.itemType === "product" && data.productId) || (data.itemType === "ingredient" && data.ingredientId), {
+    message: t("common.required"),
+    path: ["productId"],
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [showSupplierDialog, setShowSupplierDialog] = useState(false);
@@ -113,6 +123,9 @@ export default function PurchasingPage() {
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
   const [showReceiveDialog, setShowReceiveDialog] = useState(false);
   const [receiveQuantities, setReceiveQuantities] = useState<Record<string, number>>({});
+  const [receiveExpirationDates, setReceiveExpirationDates] = useState<Record<string, string>>({});
+  const [receiveLotCodes, setReceiveLotCodes] = useState<Record<string, string>>({});
+  const [itemType, setItemType] = useState<"product" | "ingredient">("product");
 
   const { data: suppliers, isLoading: suppliersLoading } = useQuery<Supplier[]>({
     queryKey: ["/api/suppliers"],
@@ -124,6 +137,11 @@ export default function PurchasingPage() {
 
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
+  });
+
+  const { data: ingredients } = useQuery<Ingredient[]>({
+    queryKey: ["/api/ingredients"],
+    enabled: tenant?.type === "restaurant",
   });
 
   const supplierForm = useForm<SupplierFormData>({
@@ -151,7 +169,9 @@ export default function PurchasingPage() {
   const itemForm = useForm<OrderItemFormData>({
     resolver: zodResolver(orderItemSchema),
     defaultValues: {
+      itemType: "product",
       productId: "",
+      ingredientId: "",
       quantity: 1,
       unitCost: 0,
     },
@@ -215,7 +235,13 @@ export default function PurchasingPage() {
 
   const addItemMutation = useMutation({
     mutationFn: async ({ orderId, data }: { orderId: string; data: OrderItemFormData }) => {
-      const res = await apiRequest("POST", `/api/purchase-orders/${orderId}/items`, data);
+      const payload = {
+        productId: data.itemType === "product" ? data.productId : null,
+        ingredientId: data.itemType === "ingredient" ? data.ingredientId : null,
+        quantity: data.quantity,
+        unitCost: data.unitCost,
+      };
+      const res = await apiRequest("POST", `/api/purchase-orders/${orderId}/items`, payload);
       return res.json();
     },
     onSuccess: () => {
@@ -225,6 +251,7 @@ export default function PurchasingPage() {
       }
       setShowAddItemDialog(false);
       itemForm.reset();
+      setItemType("product");
     },
   });
 
@@ -254,7 +281,7 @@ export default function PurchasingPage() {
   });
 
   const receiveStockMutation = useMutation({
-    mutationFn: async ({ orderId, items }: { orderId: string; items: Array<{ itemId: string; receivedQuantity: number }> }) => {
+    mutationFn: async ({ orderId, items }: { orderId: string; items: Array<{ itemId: string; receivedQuantity: number; expirationDate?: string; lotCode?: string }> }) => {
       const res = await apiRequest("POST", `/api/purchase-orders/${orderId}/receive`, { items });
       return res.json();
     },
@@ -262,8 +289,12 @@ export default function PurchasingPage() {
       toast({ title: t("purchasing.stock_received") });
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/levels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ingredients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/ingredient-lots"] });
       setShowReceiveDialog(false);
       setReceiveQuantities({});
+      setReceiveExpirationDates({});
+      setReceiveLotCodes({});
       if (selectedOrder) {
         fetchOrderDetails(selectedOrder.id);
       }
@@ -330,7 +361,12 @@ export default function PurchasingPage() {
     
     const itemsToReceive = Object.entries(receiveQuantities)
       .filter(([, qty]) => qty > 0)
-      .map(([itemId, receivedQuantity]) => ({ itemId, receivedQuantity }));
+      .map(([itemId, receivedQuantity]) => ({
+        itemId,
+        receivedQuantity,
+        expirationDate: receiveExpirationDates[itemId] || undefined,
+        lotCode: receiveLotCodes[itemId] || undefined,
+      }));
     
     if (itemsToReceive.length > 0) {
       receiveStockMutation.mutate({ orderId: selectedOrder.id, items: itemsToReceive });
@@ -364,8 +400,28 @@ export default function PurchasingPage() {
     return suppliers?.find(s => s.id === supplierId)?.name || "-";
   };
 
-  const getProductName = (productId: string) => {
+  const getProductName = (productId: string | null | undefined) => {
+    if (!productId) return "-";
     return products?.find(p => p.id === productId)?.name || "-";
+  };
+
+  const getIngredientName = (ingredientId: string | null | undefined) => {
+    if (!ingredientId) return "-";
+    return ingredients?.find(i => i.id === ingredientId)?.name || "-";
+  };
+
+  const getItemName = (item: PurchaseOrderItem) => {
+    if (item.productId) {
+      return getProductName(item.productId);
+    }
+    if (item.ingredientId) {
+      return getIngredientName(item.ingredientId);
+    }
+    return "-";
+  };
+
+  const isIngredientItem = (item: PurchaseOrderItem) => {
+    return !!item.ingredientId;
   };
 
   const calculateOrderTotal = (items?: PurchaseOrderItem[]) => {
@@ -843,7 +899,14 @@ export default function PurchasingPage() {
                         {selectedOrder.items.map(item => (
                           <div key={item.id} className="flex items-center justify-between p-2 border rounded">
                             <div>
-                              <p className="font-medium">{getProductName(item.productId)}</p>
+                              <div className="flex items-center gap-2">
+                                {isIngredientItem(item) ? (
+                                  <Leaf className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <Package className="h-4 w-4 text-blue-600" />
+                                )}
+                                <p className="font-medium">{getItemName(item)}</p>
+                              </div>
                               <p className="text-sm text-muted-foreground">
                                 {t("purchasing.quantity")}: {item.quantity} | {t("purchasing.unit_cost")}: {formatCurrency(parseFloat(item.unitCost || "0"))}
                               </p>
@@ -913,35 +976,104 @@ export default function PurchasingPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+        <Dialog open={showAddItemDialog} onOpenChange={(open) => {
+          setShowAddItemDialog(open);
+          if (!open) {
+            setItemType("product");
+            itemForm.reset();
+          }
+        }}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{t("purchasing.add_item")}</DialogTitle>
             </DialogHeader>
             <Form {...itemForm}>
               <form onSubmit={itemForm.handleSubmit(handleAddItem)} className="space-y-4">
-                <FormField
-                  control={itemForm.control}
-                  name="productId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("purchasing.product")}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-item-product">
-                            <SelectValue placeholder={t("purchasing.select_product")} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {products?.map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {tenant?.type === "restaurant" && ingredients && ingredients.length > 0 && (
+                  <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
+                    <Label className="text-sm font-medium">{t("purchasing.item_type")}</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={itemType === "product" ? "default" : "outline"}
+                        onClick={() => {
+                          setItemType("product");
+                          itemForm.setValue("itemType", "product");
+                          itemForm.setValue("ingredientId", "");
+                        }}
+                        data-testid="button-item-type-product"
+                      >
+                        <Package className="h-4 w-4 mr-1" />
+                        {t("purchasing.product")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={itemType === "ingredient" ? "default" : "outline"}
+                        onClick={() => {
+                          setItemType("ingredient");
+                          itemForm.setValue("itemType", "ingredient");
+                          itemForm.setValue("productId", "");
+                        }}
+                        data-testid="button-item-type-ingredient"
+                      >
+                        <Leaf className="h-4 w-4 mr-1" />
+                        {t("ingredients.ingredient")}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {itemType === "product" && (
+                  <FormField
+                    control={itemForm.control}
+                    name="productId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("purchasing.product")}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-item-product">
+                              <SelectValue placeholder={t("purchasing.select_product")} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {products?.map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {itemType === "ingredient" && (
+                  <FormField
+                    control={itemForm.control}
+                    name="ingredientId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("ingredients.ingredient")}</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-item-ingredient">
+                              <SelectValue placeholder={t("ingredients.select_ingredient")} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {ingredients?.map(i => (
+                              <SelectItem key={i.id} value={i.id}>{i.name} ({i.uomBase})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={itemForm.control}
@@ -997,35 +1129,84 @@ export default function PurchasingPage() {
           </DialogContent>
         </Dialog>
 
-        <Dialog open={showReceiveDialog} onOpenChange={setShowReceiveDialog}>
-          <DialogContent>
+        <Dialog open={showReceiveDialog} onOpenChange={(open) => {
+          setShowReceiveDialog(open);
+          if (!open) {
+            setReceiveQuantities({});
+            setReceiveExpirationDates({});
+            setReceiveLotCodes({});
+          }
+        }}>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{t("purchasing.receiving_stock")}</DialogTitle>
             </DialogHeader>
             {selectedOrder?.items && (
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[60vh] overflow-y-auto">
                 {selectedOrder.items
                   .filter(item => (item.receivedQuantity || 0) < item.quantity)
                   .map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-3 border rounded">
-                      <div>
-                        <p className="font-medium">{getProductName(item.productId)}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {t("purchasing.quantity")}: {item.quantity} | {t("purchasing.received")}: {item.receivedQuantity || 0}
-                        </p>
+                    <div key={item.id} className="p-3 border rounded space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {isIngredientItem(item) ? (
+                            <Leaf className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <Package className="h-4 w-4 text-blue-600" />
+                          )}
+                          <p className="font-medium">{getItemName(item)}</p>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {t("purchasing.ordered")}: {item.quantity} | {t("purchasing.received")}: {item.receivedQuantity || 0}
+                        </div>
                       </div>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={item.quantity - (item.receivedQuantity || 0)}
-                        value={receiveQuantities[item.id] || 0}
-                        onChange={(e) => setReceiveQuantities(prev => ({
-                          ...prev,
-                          [item.id]: parseInt(e.target.value) || 0,
-                        }))}
-                        className="w-24"
-                        data-testid={`input-receive-qty-${item.id}`}
-                      />
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">{t("purchasing.receive_qty")}</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={item.quantity - (item.receivedQuantity || 0)}
+                            value={receiveQuantities[item.id] || 0}
+                            onChange={(e) => setReceiveQuantities(prev => ({
+                              ...prev,
+                              [item.id]: parseInt(e.target.value) || 0,
+                            }))}
+                            data-testid={`input-receive-qty-${item.id}`}
+                          />
+                        </div>
+                        
+                        {isIngredientItem(item) && (
+                          <div>
+                            <Label className="text-xs">{t("purchasing.expiration_date")}</Label>
+                            <Input
+                              type="date"
+                              value={receiveExpirationDates[item.id] || ""}
+                              onChange={(e) => setReceiveExpirationDates(prev => ({
+                                ...prev,
+                                [item.id]: e.target.value,
+                              }))}
+                              data-testid={`input-expiration-${item.id}`}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {isIngredientItem(item) && (
+                        <div>
+                          <Label className="text-xs">{t("purchasing.lot_code")}</Label>
+                          <Input
+                            placeholder={t("purchasing.lot_code_placeholder")}
+                            value={receiveLotCodes[item.id] || ""}
+                            onChange={(e) => setReceiveLotCodes(prev => ({
+                              ...prev,
+                              [item.id]: e.target.value,
+                            }))}
+                            data-testid={`input-lot-code-${item.id}`}
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                 {selectedOrder.items.every(item => (item.receivedQuantity || 0) >= item.quantity) && (
