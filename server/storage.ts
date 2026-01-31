@@ -4,7 +4,7 @@ import {
   orders, orderItems, kitchenTickets, payments, stockMovements, auditLogs, customers,
   loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions,
   systemSettings, passwordResetTokens, emailTemplates, emailLogs, notifications,
-  suppliers, purchaseOrders, purchaseOrderItems,
+  suppliers, purchaseOrders, purchaseOrderItems, supplierIngredients, supplierProducts,
   ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
   saleIngredientConsumptions, ingredientAlerts,
   type Tenant, type InsertTenant, type User, type InsertUser,
@@ -22,6 +22,8 @@ import {
   type Supplier, type InsertSupplier,
   type PurchaseOrder, type InsertPurchaseOrder,
   type PurchaseOrderItem, type InsertPurchaseOrderItem,
+  type SupplierIngredient, type InsertSupplierIngredient,
+  type SupplierProduct, type InsertSupplierProduct,
   type SubscriptionPlan, type Subscription,
   type SystemSetting, type InsertSystemSetting,
   type PasswordResetToken, type InsertPasswordResetToken,
@@ -150,6 +152,22 @@ export interface IStorage {
   createPurchaseOrderItem(item: InsertPurchaseOrderItem): Promise<PurchaseOrderItem>;
   updatePurchaseOrderItem(id: string, data: Partial<InsertPurchaseOrderItem>): Promise<PurchaseOrderItem | undefined>;
   deletePurchaseOrderItem(id: string): Promise<boolean>;
+  
+  // Supplier-Ingredient Linking
+  getSupplierIngredients(tenantId: string): Promise<SupplierIngredient[]>;
+  getSupplierIngredientsBySupplier(supplierId: string): Promise<SupplierIngredient[]>;
+  getSupplierIngredientsByIngredient(ingredientId: string): Promise<SupplierIngredient[]>;
+  createSupplierIngredient(link: InsertSupplierIngredient): Promise<SupplierIngredient>;
+  updateSupplierIngredient(id: string, data: Partial<InsertSupplierIngredient>): Promise<SupplierIngredient | undefined>;
+  deleteSupplierIngredient(id: string): Promise<boolean>;
+  
+  // Supplier-Product Linking
+  getSupplierProducts(tenantId: string): Promise<SupplierProduct[]>;
+  getSupplierProductsBySupplier(supplierId: string): Promise<SupplierProduct[]>;
+  getSupplierProductsByProduct(productId: string): Promise<SupplierProduct[]>;
+  createSupplierProduct(link: InsertSupplierProduct): Promise<SupplierProduct>;
+  updateSupplierProduct(id: string, data: Partial<InsertSupplierProduct>): Promise<SupplierProduct | undefined>;
+  deleteSupplierProduct(id: string): Promise<boolean>;
   
   // Reports
   getDashboardStats(tenantId: string): Promise<{
@@ -758,6 +776,62 @@ export class DatabaseStorage implements IStorage {
 
   async deletePurchaseOrderItem(id: string): Promise<boolean> {
     await db.delete(purchaseOrderItems).where(eq(purchaseOrderItems.id, id));
+    return true;
+  }
+
+  // Supplier-Ingredient Linking
+  async getSupplierIngredients(tenantId: string): Promise<SupplierIngredient[]> {
+    return db.select().from(supplierIngredients).where(eq(supplierIngredients.tenantId, tenantId));
+  }
+
+  async getSupplierIngredientsBySupplier(supplierId: string): Promise<SupplierIngredient[]> {
+    return db.select().from(supplierIngredients).where(eq(supplierIngredients.supplierId, supplierId));
+  }
+
+  async getSupplierIngredientsByIngredient(ingredientId: string): Promise<SupplierIngredient[]> {
+    return db.select().from(supplierIngredients).where(eq(supplierIngredients.ingredientId, ingredientId));
+  }
+
+  async createSupplierIngredient(link: InsertSupplierIngredient): Promise<SupplierIngredient> {
+    const [created] = await db.insert(supplierIngredients).values(link).returning();
+    return created;
+  }
+
+  async updateSupplierIngredient(id: string, data: Partial<InsertSupplierIngredient>): Promise<SupplierIngredient | undefined> {
+    const [updated] = await db.update(supplierIngredients).set(data).where(eq(supplierIngredients.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSupplierIngredient(id: string): Promise<boolean> {
+    await db.delete(supplierIngredients).where(eq(supplierIngredients.id, id));
+    return true;
+  }
+
+  // Supplier-Product Linking
+  async getSupplierProducts(tenantId: string): Promise<SupplierProduct[]> {
+    return db.select().from(supplierProducts).where(eq(supplierProducts.tenantId, tenantId));
+  }
+
+  async getSupplierProductsBySupplier(supplierId: string): Promise<SupplierProduct[]> {
+    return db.select().from(supplierProducts).where(eq(supplierProducts.supplierId, supplierId));
+  }
+
+  async getSupplierProductsByProduct(productId: string): Promise<SupplierProduct[]> {
+    return db.select().from(supplierProducts).where(eq(supplierProducts.productId, productId));
+  }
+
+  async createSupplierProduct(link: InsertSupplierProduct): Promise<SupplierProduct> {
+    const [created] = await db.insert(supplierProducts).values(link).returning();
+    return created;
+  }
+
+  async updateSupplierProduct(id: string, data: Partial<InsertSupplierProduct>): Promise<SupplierProduct | undefined> {
+    const [updated] = await db.update(supplierProducts).set(data).where(eq(supplierProducts.id, id)).returning();
+    return updated;
+  }
+
+  async deleteSupplierProduct(id: string): Promise<boolean> {
+    await db.delete(supplierProducts).where(eq(supplierProducts.id, id));
     return true;
   }
 

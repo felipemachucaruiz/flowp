@@ -1733,6 +1733,298 @@ export async function registerRoutes(
     }
   });
 
+  // ===== SUPPLIER-INGREDIENT LINKING =====
+  
+  app.get("/api/supplier-ingredients", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const links = await storage.getSupplierIngredients(tenantId);
+      res.json(links);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch supplier ingredients" });
+    }
+  });
+
+  app.get("/api/suppliers/:supplierId/ingredients", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { supplierId } = req.params;
+      const links = await storage.getSupplierIngredientsBySupplier(supplierId);
+      res.json(links);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch supplier ingredients" });
+    }
+  });
+
+  app.post("/api/supplier-ingredients", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const link = await storage.createSupplierIngredient({
+        ...req.body,
+        tenantId,
+      });
+      res.json(link);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to create supplier ingredient link" });
+    }
+  });
+
+  app.patch("/api/supplier-ingredients/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      const updated = await storage.updateSupplierIngredient(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update supplier ingredient link" });
+    }
+  });
+
+  app.delete("/api/supplier-ingredients/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      await storage.deleteSupplierIngredient(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete supplier ingredient link" });
+    }
+  });
+
+  // ===== SUPPLIER-PRODUCT LINKING =====
+  
+  app.get("/api/supplier-products", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const links = await storage.getSupplierProducts(tenantId);
+      res.json(links);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch supplier products" });
+    }
+  });
+
+  app.get("/api/suppliers/:supplierId/products", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { supplierId } = req.params;
+      const links = await storage.getSupplierProductsBySupplier(supplierId);
+      res.json(links);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch supplier products" });
+    }
+  });
+
+  app.post("/api/supplier-products", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const link = await storage.createSupplierProduct({
+        ...req.body,
+        tenantId,
+      });
+      res.json(link);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to create supplier product link" });
+    }
+  });
+
+  app.patch("/api/supplier-products/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      const updated = await storage.updateSupplierProduct(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update supplier product link" });
+    }
+  });
+
+  app.delete("/api/supplier-products/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { id } = req.params;
+      await storage.deleteSupplierProduct(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete supplier product link" });
+    }
+  });
+
+  // ===== QUICK REORDER =====
+  
+  app.get("/api/reorder-suggestions", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const tenant = await storage.getTenant(tenantId);
+      const suggestions: Array<{
+        type: "product" | "ingredient";
+        id: string;
+        name: string;
+        currentStock: number;
+        reorderPoint: number;
+        suggestedQty: number;
+        uom?: string;
+        preferredSupplierId?: string | null;
+        preferredSupplierName?: string | null;
+        unitCost?: string | null;
+      }> = [];
+      
+      // Get low stock products
+      const products = await storage.getProductsByTenant(tenantId);
+      const stockLevels = await storage.getStockLevels(tenantId);
+      
+      for (const product of products) {
+        if (product.trackInventory && product.lowStockThreshold) {
+          const currentStock = stockLevels[product.id] || 0;
+          if (currentStock <= product.lowStockThreshold) {
+            const supplierLinks = await storage.getSupplierProductsByProduct(product.id);
+            const primarySupplier = supplierLinks.find(l => l.isPrimary) || supplierLinks[0];
+            let supplierName = null;
+            if (primarySupplier) {
+              const supplier = await storage.getSupplier(primarySupplier.supplierId);
+              supplierName = supplier?.name || null;
+            }
+            
+            suggestions.push({
+              type: "product",
+              id: product.id,
+              name: product.name,
+              currentStock,
+              reorderPoint: product.lowStockThreshold,
+              suggestedQty: Math.max((product.lowStockThreshold * 2) - currentStock, 1),
+              preferredSupplierId: primarySupplier?.supplierId || null,
+              preferredSupplierName: supplierName,
+              unitCost: primarySupplier?.unitCost || product.cost || null,
+            });
+          }
+        }
+      }
+      
+      // Get low stock ingredients (if restaurant tenant with Pro)
+      if (tenant?.type === "restaurant") {
+        const hasFeature = await storage.hasTenantProFeature(tenantId, "restaurant_bom");
+        if (hasFeature) {
+          const ingredients = await storage.getIngredientsByTenant(tenantId);
+          const ingredientStockLevels = await storage.getIngredientStockLevels(tenantId);
+          
+          for (const ingredient of ingredients) {
+            if (ingredient.reorderPoint) {
+              const currentStock = ingredientStockLevels[ingredient.id] || 0;
+              const reorderPoint = parseFloat(ingredient.reorderPoint);
+              if (currentStock <= reorderPoint) {
+                const supplierLinks = await storage.getSupplierIngredientsByIngredient(ingredient.id);
+                const primarySupplier = supplierLinks.find(l => l.isPrimary) || supplierLinks[0];
+                let supplierName = null;
+                if (primarySupplier) {
+                  const supplier = await storage.getSupplier(primarySupplier.supplierId);
+                  supplierName = supplier?.name || null;
+                }
+                
+                const reorderQty = parseFloat(ingredient.reorderQty || "0");
+                suggestions.push({
+                  type: "ingredient",
+                  id: ingredient.id,
+                  name: ingredient.name,
+                  currentStock,
+                  reorderPoint,
+                  suggestedQty: reorderQty > 0 ? reorderQty : Math.max((reorderPoint * 2) - currentStock, 1),
+                  uom: ingredient.uomBase,
+                  preferredSupplierId: primarySupplier?.supplierId || null,
+                  preferredSupplierName: supplierName,
+                  unitCost: primarySupplier?.unitCost || null,
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      res.json(suggestions);
+    } catch (error) {
+      console.error("Reorder suggestions error:", error);
+      res.status(500).json({ message: "Failed to fetch reorder suggestions" });
+    }
+  });
+
+  // Create purchase order from reorder suggestions
+  app.post("/api/reorder-suggestions/create-order", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { items, supplierId, notes } = req.body;
+      // items: Array<{ type: 'product' | 'ingredient', id: string, quantity: number, unitCost: number }>
+      
+      // Generate order number
+      const existingOrders = await storage.getPurchaseOrdersByTenant(tenantId);
+      const orderNumber = `PO-${String(existingOrders.length + 1).padStart(5, '0')}`;
+      
+      // Create purchase order
+      const order = await storage.createPurchaseOrder({
+        tenantId,
+        supplierId: supplierId || null,
+        orderNumber,
+        status: "draft",
+        notes: notes || "Auto-generated from reorder suggestions",
+        createdBy: userId || null,
+      });
+      
+      // Add items
+      for (const item of items) {
+        await storage.createPurchaseOrderItem({
+          purchaseOrderId: order.id,
+          productId: item.type === "product" ? item.id : null,
+          ingredientId: item.type === "ingredient" ? item.id : null,
+          quantity: item.quantity,
+          unitCost: item.unitCost?.toString() || "0",
+        });
+      }
+      
+      // Get full order with items
+      const orderItems = await storage.getPurchaseOrderItems(order.id);
+      res.json({ ...order, items: orderItems });
+    } catch (error) {
+      console.error("Create reorder error:", error);
+      res.status(400).json({ message: "Failed to create purchase order" });
+    }
+  });
+
   // ===== PURCHASE ORDER ROUTES =====
 
   app.get("/api/purchase-orders", async (req: Request, res: Response) => {
@@ -1914,7 +2206,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
       const { id } = req.params;
-      const { items } = req.body; // Array of { itemId, receivedQuantity }
+      const { items } = req.body; // Array of { itemId, receivedQuantity, expirationDate?, lotCode? }
       
       // Verify order belongs to tenant
       const order = await storage.getPurchaseOrder(id);
@@ -1928,21 +2220,55 @@ export async function registerRoutes(
       for (const received of items) {
         const orderItem = orderItems.find(i => i.id === received.itemId);
         if (orderItem && received.receivedQuantity > 0) {
-          // Update item received quantity
+          // Update item received quantity, expiration date and lot code
           await storage.updatePurchaseOrderItem(received.itemId, {
             receivedQuantity: (orderItem.receivedQuantity || 0) + received.receivedQuantity,
+            expirationDate: received.expirationDate ? new Date(received.expirationDate) : undefined,
+            lotCode: received.lotCode || undefined,
           });
           
-          // Create stock movement for the received items
-          await storage.createStockMovement({
-            tenantId,
-            productId: orderItem.productId,
-            type: "purchase",
-            quantity: received.receivedQuantity,
-            referenceId: id,
-            notes: `Received from PO ${order.orderNumber}`,
-            userId: userId || null,
-          });
+          // Check if this is a product or ingredient item
+          if (orderItem.productId) {
+            // Create stock movement for product
+            await storage.createStockMovement({
+              tenantId,
+              productId: orderItem.productId,
+              type: "purchase",
+              quantity: received.receivedQuantity,
+              referenceId: id,
+              notes: `Received from PO ${order.orderNumber}`,
+              userId: userId || null,
+            });
+          } else if (orderItem.ingredientId) {
+            // Create ingredient lot for ingredient
+            const lotCode = received.lotCode || `PO-${order.orderNumber}-${Date.now()}`;
+            const lot = await storage.createIngredientLot({
+              tenantId,
+              ingredientId: orderItem.ingredientId,
+              qtyReceivedBase: received.receivedQuantity.toString(),
+              qtyRemainingBase: received.receivedQuantity.toString(),
+              expiresAt: received.expirationDate ? new Date(received.expirationDate) : null,
+              costPerBase: orderItem.unitCost || null,
+              supplierId: order.supplierId || null,
+              lotCode,
+              locationId: null,
+              status: "open",
+            });
+            
+            // Create ingredient movement
+            await storage.createIngredientMovement({
+              tenantId,
+              ingredientId: orderItem.ingredientId,
+              lotId: lot.id,
+              locationId: null,
+              movementType: "purchase_receive",
+              qtyDeltaBase: received.receivedQuantity.toString(),
+              sourceType: "purchase_order",
+              sourceId: id,
+              notes: `Received from PO ${order.orderNumber}`,
+              createdBy: userId || null,
+            });
+          }
         }
       }
       
@@ -1969,6 +2295,7 @@ export async function registerRoutes(
       const updatedOrder = await storage.getPurchaseOrder(id);
       res.json({ ...updatedOrder, items: updatedItems });
     } catch (error) {
+      console.error("Receive stock error:", error);
       res.status(400).json({ message: "Failed to receive stock" });
     }
   });
