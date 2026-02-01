@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { db } from "../db";
-import { internalUsers } from "@shared/schema";
+import { internalUsers, users } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -70,12 +70,35 @@ export async function internalAuth(req: Request, res: Response, next: NextFuncti
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 
-  const user = await db.query.internalUsers.findFirst({
+  // First try to find in internalUsers table
+  let user = await db.query.internalUsers.findFirst({
     where: and(
       eq(internalUsers.id, payload.userId),
       eq(internalUsers.isActive, true),
     ),
   });
+
+  // If not found, check the regular users table for internal users
+  if (!user) {
+    const regularUser = await db.query.users.findFirst({
+      where: and(
+        eq(users.id, payload.userId),
+        eq(users.isActive, true),
+        eq(users.isInternal, true),
+      ),
+    });
+
+    if (regularUser) {
+      // Map regular user to internal user format
+      req.internalUser = {
+        id: regularUser.id,
+        email: regularUser.email || regularUser.username,
+        name: regularUser.name,
+        role: mapRoleToInternalRole(regularUser.role),
+      };
+      return next();
+    }
+  }
 
   if (!user) {
     return res.status(401).json({ error: "User not found or inactive" });
@@ -89,6 +112,13 @@ export async function internalAuth(req: Request, res: Response, next: NextFuncti
   };
 
   next();
+}
+
+function mapRoleToInternalRole(role: string): "superadmin" | "supportagent" | "billingops" {
+  // Map regular user roles to internal admin roles
+  if (role === "admin" || role === "owner") return "superadmin";
+  if (role === "manager") return "supportagent";
+  return "billingops";
 }
 
 export function requireRole(allowedRoles: ("superadmin" | "supportagent" | "billingops")[]) {
