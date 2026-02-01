@@ -168,6 +168,8 @@ Separate admin portal at `/internal-admin` for managing e-billing subscriptions,
 
 ### DIAN/MATIAS Electronic Billing (Colombian Tax Compliance)
 - Full integration with MATIAS API for DIAN electronic invoicing
+- **API Documentation**: https://documenter.getpostman.com/view/8699065/2s9YyvBLby
+- **Global Configuration**: MATIAS credentials are platform-wide (managed in Internal Admin Console only)
 - Document types: POS (type 20), Invoice (1), Credit Note (91/94), Debit Note (92/93), Support Doc (11)
 - Async document processing - checkout never blocks for DIAN submission
 - Encrypted credential storage (AES-256-CBC) with SESSION_SECRET
@@ -175,9 +177,9 @@ Separate admin portal at `/internal-admin` for managing e-billing subscriptions,
 - Document numbering with row-level locks (SELECT FOR UPDATE) for safe allocation
 - Queue-based processing with max 3 retries and status tracking (PENDING→SENT→ACCEPTED/REJECTED)
 - UBL 2.1 XML format, digital signatures, CUFE codes, and QR codes
-- Per-tenant configuration and resolution numbers
 - Files: server/integrations/matias/* (matiasClient.ts, payloadBuilders.ts, documentQueue.ts, routes.ts)
 - API routes: /api/billing/matias/*
+- **Tenant E-Billing Page** (`/admin/ebilling`): Shows status, document counts, and recent submissions (read-only)
 
 ### Inventory (Ledger-based)
 - Immutable stock movements
