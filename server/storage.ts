@@ -1585,7 +1585,7 @@ export class DatabaseStorage implements IStorage {
         ingredientId,
         lotId: lot.id,
         locationId: lot.locationId,
-        movementType: "sale_consumption",
+        movementType: "sale_consume",
         qtyDeltaBase: (-consumed).toString(),
         sourceType: "order",
         sourceId: orderId,
