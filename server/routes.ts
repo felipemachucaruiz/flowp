@@ -24,6 +24,7 @@ import internalRoutes from "./routes/internal";
 import tenantRoutes from "./routes/tenant";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { matiasRouter } from "./integrations/matias/routes";
+import { internalAdminRouter } from "./routes/internalAdmin";
 
 // WebSocket clients by tenant for real-time KDS updates
 const wsClients = new Map<string, Set<WebSocket>>();
@@ -72,6 +73,9 @@ export async function registerRoutes(
 
   // ===== MATIAS / DIAN ELECTRONIC BILLING ROUTES =====
   app.use("/api/billing/matias", matiasRouter);
+
+  // ===== INTERNAL ADMIN CONSOLE ROUTES =====
+  app.use("/api/internal-admin", internalAdminRouter);
 
   // ===== PRINTBRIDGE DOWNLOAD =====
   app.get("/printbridge/PrintBridge-Source.zip", (req: Request, res: Response) => {

@@ -1,0 +1,322 @@
+You are a senior full-stack TypeScript engineer. Implement the Flowp INTERNAL ADMIN CONSOLE modules for e-Billing (DIAN provider integration) plus package-based billing. This is NOT tenant UI; it is Flowp’s global admin console that manages all tenants.
+
+STACK & RULES
+- Frontend admin: React 18 + TS, Vite, Tailwind, shadcn/ui, TanStack Query, Wouter, React Hook Form + Zod
+- Backend: Node.js + Express + TS
+- DB: PostgreSQL + Drizzle ORM
+- Multi-tenant SaaS already exists. This admin console is “internal users” with roles (SuperAdmin, SupportAgent, BillingOps).
+- Security: never display secrets. Store credentials encrypted.
+- No document editing after DIAN acceptance. Only view, retry, download.
+
+GOALS
+1) Provide full observability + operations for DIAN documents across all tenants.
+2) Provide package-based charging: documents consumed from package; alerts at thresholds; optional overage policy.
+3) Reduce support tickets via self-serve tools: connection test, retries, status, downloads, clear errors.
+4) Full audit trail for internal actions (retries, package changes, suspensions).
+
+=====================================================
+A) DATA MODEL (DRIZZLE TABLES)
+=====================================================
+Create/extend the following tables. All include created_at, updated_at, created_by, updated_by where applicable.
+
+1) internal_users
+- id, email, name
+- role ENUM: 'superadmin'|'supportagent'|'billingops'
+- password_hash (or SSO placeholder)
+- is_active boolean
+
+2) audit_logs
+- id
+- actor_internal_user_id
+- action_type ENUM: 'TENANT_UPDATE'|'INTEGRATION_TEST'|'DOC_RETRY'|'PACKAGE_ASSIGN'|'PACKAGE_CHANGE'|'CREDIT_ADJUST'|'TENANT_SUSPEND'|'TENANT_UNSUSPEND'
+- tenant_id nullable (sometimes global)
+- entity_type text
+- entity_id uuid
+- metadata jsonb
+- created_at
+
+3) tenant_integrations_matias (if not already present)
+- tenant_id PK
+- base_url
+- auth_method ENUM: 'login'|'oauth'
+- email (nullable)
+- password_encrypted (nullable)
+- client_id_encrypted (nullable)
+- client_secret_encrypted (nullable)
+- access_token_encrypted (nullable)
+- token_expires_at timestamp
+- last_auth_ok_at timestamp nullable
+- last_auth_error text nullable
+- default_resolution_number
+- default_prefix
+- status ENUM: 'configured'|'needs_attention'|'disabled'
+- created_at, updated_at
+
+4) electronic_documents (already exists in your earlier plan; ensure it supports all docs)
+- id, tenant_id
+- kind ENUM: 'POS'|'INVOICE'|'POS_CREDIT_NOTE'|'POS_DEBIT_NOTE'|'SUPPORT_DOC'|'SUPPORT_ADJUSTMENT'
+- source_type ENUM: 'sale'|'refund'|'purchase'|'adjustment'
+- source_id uuid
+- issued_at timestamp
+- resolution_number, prefix, document_number, order_number
+- track_id (CUFE/CUDS/CUDE etc.)
+- status ENUM: 'PENDING'|'SENT'|'ACCEPTED'|'REJECTED'|'RETRY'|'FAILED'
+- is_valid boolean nullable
+- last_error_message text nullable
+- last_http_status int nullable
+- request_json jsonb
+- response_json jsonb
+- retry_count int default 0
+- next_retry_at timestamp nullable
+- created_at, updated_at
+INDEXES:
+- (tenant_id, issued_at)
+- (status, next_retry_at)
+- (track_id)
+- (kind, issued_at)
+
+5) electronic_document_files
+- id
+- electronic_document_id
+- kind ENUM: 'pdf'|'xml'|'attached_zip'|'qr'
+- url text nullable
+- path text nullable
+- created_at
+
+6) ebilling_packages (pricing catalog)
+- id
+- name
+- billing_cycle ENUM: 'monthly'|'annual'
+- included_documents int (0 means unlimited with fair use)
+- includes_pos boolean
+- includes_invoice boolean
+- includes_notes boolean
+- includes_support_docs boolean
+- price_usd_cents int
+- is_active boolean
+- created_at, updated_at
+
+7) tenant_ebilling_subscription
+- id
+- tenant_id
+- package_id
+- status ENUM: 'trial'|'active'|'past_due'|'suspended'|'cancelled'
+- cycle_start date
+- cycle_end date
+- auto_renew boolean default true
+- overage_policy ENUM: 'block'|'allow_and_charge'|'allow_and_mark_overage'
+- overage_price_per_doc_usd_cents int nullable
+- documents_included_snapshot int
+- created_at, updated_at
+INDEX: (tenant_id, status)
+
+8) tenant_ebilling_usage (metering)
+- id
+- tenant_id
+- subscription_id
+- period_start date
+- period_end date
+- used_pos int default 0
+- used_invoice int default 0
+- used_notes int default 0
+- used_support_docs int default 0
+- used_total int default 0
+- remaining_total int default 0
+- updated_at
+UNIQUE: (tenant_id, period_start, period_end)
+
+9) tenant_ebilling_credits (manual adjustments)
+- id
+- tenant_id
+- subscription_id
+- delta_documents int (can be positive or negative)
+- reason text
+- created_by_internal_user_id
+- created_at
+
+10) ebilling_alerts (internal + tenant alerts)
+- id
+- tenant_id
+- type ENUM: 'THRESHOLD_70'|'THRESHOLD_90'|'LIMIT_REACHED'|'AUTH_FAIL'|'HIGH_REJECT_RATE'
+- severity ENUM: 'info'|'warning'|'critical'
+- message text
+- is_acknowledged boolean default false
+- acknowledged_by_internal_user_id nullable
+- created_at
+
+=====================================================
+B) BUSINESS RULES
+=====================================================
+1) Metering increments ONLY when a document submission is ACCEPTED (or queued by provider with 201 then later becomes ACCEPTED).
+2) What counts as “one document”:
+- POS = 1
+- Invoice = 1
+- Credit note = 1
+- Debit note = 1
+- Support document = 1
+- Support adjustment note = 1
+3) Package limits:
+- If remaining_total <= 0, apply overage_policy:
+  - block: prevent new submissions (but still allow POS checkout; mark docs as PENDING_BLOCKED and show in admin)
+  - allow_and_charge: accept submission and record overage count for billing
+  - allow_and_mark_overage: accept submission but show warning, no charge (manual later)
+4) Threshold alerts:
+- Create alerts at 70% and 90% usage and at 100% limit reached (per period).
+5) Integration health:
+- If auth fails (401/403) or token expires, mark tenant_integrations_matias.status = needs_attention and create AUTH_FAIL alert.
+6) Internal actions must be audited:
+- Any retry, package assignment, credit adjustment, or tenant suspension writes audit_logs.
+
+=====================================================
+C) SERVER-SIDE SERVICES
+=====================================================
+Create service modules:
+
+1) MatiasIntegrationService
+- testConnection(tenant_id)
+- getStatus(tenant_id) (auth ok, last auth, base_url)
+- safeReauth(tenant_id) (server-only)
+
+2) EDocumentOpsService
+- listDocuments(filters: tenant_id, kind, status, date range, track_id, order_number)
+- getDocumentDetails(id)
+- retryDocument(id) (set status RETRY, next_retry_at=now, increment retry_count)
+- downloadPdf(id) (using track_id via provider client)
+- downloadAttached(id)
+
+3) EBillingPackagesService
+- listPackages(), createPackage(), updatePackage(), deactivatePackage()
+
+4) TenantBillingService
+- assignPackage(tenant_id, package_id, overage_policy, overage_price)
+- startNewCycleIfNeeded(tenant_id) (monthly rollovers)
+- recomputeUsage(tenant_id, period) (for safety)
+- applyCredit(tenant_id, delta, reason)
+
+5) AlertsService
+- createUsageAlerts(tenant_id)
+- acknowledgeAlert(alert_id, internal_user)
+- healthAlerts(reject-rate, auth-fail, stuck-pending)
+
+=====================================================
+D) API ENDPOINTS (EXPRESS) - INTERNAL ADMIN ONLY
+=====================================================
+All routes under /api/internal require internal auth + role checks.
+
+AUTH/ROLES:
+- Implement middleware internalAuth + requireRole([...])
+
+1) Tenants
+- GET  /api/internal/tenants?search=&status=
+- GET  /api/internal/tenants/:tenantId/overview
+  returns: tenant core data + integration status + subscription + usage + recent alerts
+
+2) Integration
+- GET  /api/internal/tenants/:tenantId/ebilling/integration
+- POST /api/internal/tenants/:tenantId/ebilling/integration/test
+- POST /api/internal/tenants/:tenantId/ebilling/integration/update
+  (SuperAdmin only; stores base_url & credentials encrypted, triggers test)
+
+3) Documents
+- GET  /api/internal/ebilling/documents?tenantId=&kind=&status=&from=&to=&query=
+- GET  /api/internal/ebilling/documents/:id
+- POST /api/internal/ebilling/documents/:id/retry   (SupportAgent+)
+- GET  /api/internal/ebilling/documents/:id/pdf     (SupportAgent+)
+- POST /api/internal/ebilling/documents/:id/attached (SupportAgent+)
+
+4) Packages catalog
+- GET  /api/internal/ebilling/packages
+- POST /api/internal/ebilling/packages            (SuperAdmin)
+- PATCH /api/internal/ebilling/packages/:id       (SuperAdmin)
+
+5) Tenant subscriptions + usage
+- GET  /api/internal/tenants/:tenantId/ebilling/subscription
+- POST /api/internal/tenants/:tenantId/ebilling/subscription/assign   (BillingOps/SuperAdmin)
+- POST /api/internal/tenants/:tenantId/ebilling/credits               (BillingOps/SuperAdmin)
+- GET  /api/internal/tenants/:tenantId/ebilling/usage?period=YYYY-MM
+
+6) Alerts & Audit
+- GET  /api/internal/ebilling/alerts?tenantId=&type=&ack=
+- POST /api/internal/ebilling/alerts/:id/ack
+- GET  /api/internal/audit?tenantId=&action=&from=&to=
+
+=====================================================
+E) ADMIN CONSOLE UI (REACT ROUTES)
+=====================================================
+Add routes under internal admin app:
+
+/internal
+  /tenants
+  /tenants/:tenantId
+  /ebilling/documents
+  /ebilling/alerts
+  /ebilling/packages
+  /audit
+
+1) Tenants list
+- Search by name/email/id
+- Columns: status, eBilling package, usage %, integration health, last error
+
+2) Tenant detail (tabs)
+- Overview tab:
+  - current package, usage bar, remaining docs, overage policy
+  - integration status widget (connected/needs attention)
+  - last 10 documents (with status)
+  - last 10 alerts
+- Integration tab (SuperAdmin/BillingOps):
+  - base_url, auth method, masked credentials, test button
+- Billing tab:
+  - assign package, set overage policy, apply credits, view usage history
+- Documents tab:
+  - filter + table + open details drawer
+
+3) Documents global page
+- Filters: tenant, kind, status, date range, search trackId/order/document_number
+- Row actions: view details, retry, download pdf, download attached
+- Details drawer:
+  - request JSON (read-only)
+  - response JSON (read-only)
+  - error message, http status, timestamps, retry history
+
+4) Packages page
+- Create/edit packages
+- Show pricing, included docs, included document kinds
+- Activate/deactivate
+
+5) Alerts page
+- Filters by severity/type/tenant
+- Acknowledge action
+- Quick links to affected tenant/doc
+
+6) Audit page
+- Timeline table, export CSV
+- Actor, action, tenant, metadata
+
+UI REQUIREMENTS
+- Use shadcn components, consistent tables, drawers, tabs.
+- Use TanStack Query; optimistic updates for ack/retry where safe.
+- Hide sensitive fields; show “masked” placeholder.
+
+=====================================================
+F) METERING HOOKS (CRITICAL)
+=====================================================
+When an electronic document transitions to ACCEPTED:
+- Increment the appropriate usage counters (pos/invoice/notes/support)
+- Recompute used_total and remaining_total
+- Create threshold alerts at 70/90/100% if crossing boundaries
+- If limit reached and overage_policy=block:
+  - mark future documents as PENDING_BLOCKED (new status) OR keep PENDING but set a blocking reason
+  - expose this in admin & tenant UI (tenant UI can show “billing package limit reached”)
+
+Also include a safety job:
+- Nightly reconciliation: recompute usage from electronic_documents ACCEPTED for the period to fix drift.
+
+=====================================================
+G) DEFINITION OF DONE
+=====================================================
+- Internal admins can: configure tenant integration, test connection, view documents, retry, download pdf/attached.
+- Billing team can: create packages, assign to tenants, see usage, apply credits, enforce overage policies.
+- System records audit logs for all internal actions.
+- Alerts appear for thresholds, auth failures, and high reject rates.
+
+Do not implement tenant-facing billing UI in this task.

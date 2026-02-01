@@ -1342,3 +1342,171 @@ export const insertElectronicDocumentSequenceSchema = createInsertSchema(electro
 });
 export type ElectronicDocumentSequence = typeof electronicDocumentSequences.$inferSelect;
 export type InsertElectronicDocumentSequence = z.infer<typeof insertElectronicDocumentSequenceSchema>;
+
+// ============================================================
+// INTERNAL ADMIN CONSOLE (E-Billing Management)
+// ============================================================
+
+// Internal Admin Enums
+export const internalUserRoleEnum = pgEnum("internal_user_role", ["superadmin", "supportagent", "billingops"]);
+export const internalAuditActionEnum = pgEnum("internal_audit_action", [
+  "TENANT_UPDATE", "INTEGRATION_TEST", "DOC_RETRY", "PACKAGE_ASSIGN", 
+  "PACKAGE_CHANGE", "CREDIT_ADJUST", "TENANT_SUSPEND", "TENANT_UNSUSPEND"
+]);
+export const billingCycleEnum = pgEnum("billing_cycle", ["monthly", "annual"]);
+export const overagePolicyEnum = pgEnum("overage_policy", ["block", "allow_and_charge", "allow_and_mark_overage"]);
+export const ebillingAlertTypeEnum = pgEnum("ebilling_alert_type", [
+  "THRESHOLD_70", "THRESHOLD_90", "LIMIT_REACHED", "AUTH_FAIL", "HIGH_REJECT_RATE"
+]);
+export const integrationStatusEnum = pgEnum("integration_status", ["configured", "needs_attention", "disabled"]);
+
+// Internal Users (Flowp admin staff)
+export const internalUsers = pgTable("internal_users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  role: internalUserRoleEnum("role").notNull().default("supportagent"),
+  passwordHash: text("password_hash"),
+  isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertInternalUserSchema = createInsertSchema(internalUsers).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true,
+  lastLoginAt: true 
+});
+export type InternalUser = typeof internalUsers.$inferSelect;
+export type InsertInternalUser = z.infer<typeof insertInternalUserSchema>;
+
+// Internal Audit Logs (for admin actions)
+export const internalAuditLogs = pgTable("internal_audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  actorInternalUserId: varchar("actor_internal_user_id").references(() => internalUsers.id),
+  actionType: internalAuditActionEnum("action_type").notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  entityType: text("entity_type"),
+  entityId: varchar("entity_id"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertInternalAuditLogSchema = createInsertSchema(internalAuditLogs).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type InternalAuditLog = typeof internalAuditLogs.$inferSelect;
+export type InsertInternalAuditLog = z.infer<typeof insertInternalAuditLogSchema>;
+
+// E-Billing Packages (pricing catalog)
+export const ebillingPackages = pgTable("ebilling_packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  billingCycle: billingCycleEnum("billing_cycle").notNull().default("monthly"),
+  includedDocuments: integer("included_documents").notNull().default(0),
+  includesPos: boolean("includes_pos").default(true),
+  includesInvoice: boolean("includes_invoice").default(true),
+  includesNotes: boolean("includes_notes").default(true),
+  includesSupportDocs: boolean("includes_support_docs").default(true),
+  priceUsdCents: integer("price_usd_cents").notNull().default(0),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertEbillingPackageSchema = createInsertSchema(ebillingPackages).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type EbillingPackage = typeof ebillingPackages.$inferSelect;
+export type InsertEbillingPackage = z.infer<typeof insertEbillingPackageSchema>;
+
+// Tenant E-Billing Subscription
+export const tenantEbillingSubscriptions = pgTable("tenant_ebilling_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  packageId: varchar("package_id").references(() => ebillingPackages.id).notNull(),
+  status: subscriptionStatusEnum("status").default("trial"),
+  cycleStart: timestamp("cycle_start").notNull(),
+  cycleEnd: timestamp("cycle_end").notNull(),
+  autoRenew: boolean("auto_renew").default(true),
+  overagePolicy: overagePolicyEnum("overage_policy").default("block"),
+  overagePricePerDocUsdCents: integer("overage_price_per_doc_usd_cents"),
+  documentsIncludedSnapshot: integer("documents_included_snapshot").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTenantEbillingSubscriptionSchema = createInsertSchema(tenantEbillingSubscriptions).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type TenantEbillingSubscription = typeof tenantEbillingSubscriptions.$inferSelect;
+export type InsertTenantEbillingSubscription = z.infer<typeof insertTenantEbillingSubscriptionSchema>;
+
+// Tenant E-Billing Usage (metering)
+export const tenantEbillingUsage = pgTable("tenant_ebilling_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  subscriptionId: varchar("subscription_id").references(() => tenantEbillingSubscriptions.id).notNull(),
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  usedPos: integer("used_pos").default(0),
+  usedInvoice: integer("used_invoice").default(0),
+  usedNotes: integer("used_notes").default(0),
+  usedSupportDocs: integer("used_support_docs").default(0),
+  usedTotal: integer("used_total").default(0),
+  remainingTotal: integer("remaining_total").default(0),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTenantEbillingUsageSchema = createInsertSchema(tenantEbillingUsage).omit({ 
+  id: true, 
+  updatedAt: true 
+});
+export type TenantEbillingUsage = typeof tenantEbillingUsage.$inferSelect;
+export type InsertTenantEbillingUsage = z.infer<typeof insertTenantEbillingUsageSchema>;
+
+// Tenant E-Billing Credits (manual adjustments)
+export const tenantEbillingCredits = pgTable("tenant_ebilling_credits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  subscriptionId: varchar("subscription_id").references(() => tenantEbillingSubscriptions.id).notNull(),
+  deltaDocuments: integer("delta_documents").notNull(),
+  reason: text("reason"),
+  createdByInternalUserId: varchar("created_by_internal_user_id").references(() => internalUsers.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTenantEbillingCreditSchema = createInsertSchema(tenantEbillingCredits).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type TenantEbillingCredit = typeof tenantEbillingCredits.$inferSelect;
+export type InsertTenantEbillingCredit = z.infer<typeof insertTenantEbillingCreditSchema>;
+
+// E-Billing Alerts (internal + tenant alerts)
+export const ebillingAlerts = pgTable("ebilling_alerts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  type: ebillingAlertTypeEnum("type").notNull(),
+  severity: alertSeverityEnum("severity").notNull().default("info"),
+  message: text("message").notNull(),
+  isAcknowledged: boolean("is_acknowledged").default(false),
+  acknowledgedByInternalUserId: varchar("acknowledged_by_internal_user_id").references(() => internalUsers.id),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertEbillingAlertSchema = createInsertSchema(ebillingAlerts).omit({ 
+  id: true, 
+  createdAt: true,
+  acknowledgedAt: true 
+});
+export type EbillingAlert = typeof ebillingAlerts.$inferSelect;
+export type InsertEbillingAlert = z.infer<typeof insertEbillingAlertSchema>;
