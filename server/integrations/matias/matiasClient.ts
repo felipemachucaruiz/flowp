@@ -15,11 +15,17 @@ import type {
   MatiasSupportAdjustmentPayload,
 } from "./types";
 
-const ENCRYPTION_KEY = process.env.MATIAS_ENCRYPTION_KEY || process.env.SESSION_SECRET || "default-encryption-key-32chars!";
+function getEncryptionKey(): string {
+  const key = process.env.MATIAS_ENCRYPTION_KEY || process.env.SESSION_SECRET;
+  if (!key) {
+    throw new Error("MATIAS_ENCRYPTION_KEY or SESSION_SECRET environment variable is required for secure credential storage");
+  }
+  return key;
+}
 
 function encrypt(text: string): string {
   const iv = crypto.randomBytes(16);
-  const key = crypto.scryptSync(ENCRYPTION_KEY, "salt", 32);
+  const key = crypto.scryptSync(getEncryptionKey(), "salt", 32);
   const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
   let encrypted = cipher.update(text, "utf8", "hex");
   encrypted += cipher.final("hex");
@@ -30,7 +36,7 @@ function decrypt(encryptedText: string): string {
   const parts = encryptedText.split(":");
   const iv = Buffer.from(parts[0], "hex");
   const encrypted = parts[1];
-  const key = crypto.scryptSync(ENCRYPTION_KEY, "salt", 32);
+  const key = crypto.scryptSync(getEncryptionKey(), "salt", 32);
   const decipher = crypto.createDecipheriv("aes-256-cbc", key, iv);
   let decrypted = decipher.update(encrypted, "hex", "utf8");
   decrypted += decipher.final("utf8");

@@ -4,8 +4,8 @@
 A production-ready, multi-tenant POS + Inventory system delivered as a Progressive Web App (PWA) with native desktop and mobile apps. Supports Windows, macOS, iOS, and Android with thermal printing, barcode scanning, and offline capability. The system supports both Retail and Restaurant tenants with feature flags controlling module availability.
 
 ## Current State
-- **Status**: MVP Complete + Management Portal Phase 1 + Mobile App + Responsive Design + Email Notifications
-- **Last Updated**: January 31, 2026
+- **Status**: MVP Complete + Management Portal Phase 1 + Mobile App + Responsive Design + Email Notifications + DIAN/MATIAS Electronic Billing
+- **Last Updated**: February 1, 2026
 - **Stack**: React + TypeScript frontend, Express + PostgreSQL backend
 - **Platforms**: Web (PWA), Windows (Electron), macOS (Electron), iOS (Capacitor), Android (Capacitor)
 
@@ -125,6 +125,19 @@ Each role has granular permissions for:
 - Per-user preferences stored in JSON column with sensible defaults
 - Multi-tenant email logging with template tracking
 - SMTP configuration per tenant (TLS/SSL support)
+
+### DIAN/MATIAS Electronic Billing (Colombian Tax Compliance)
+- Full integration with MATIAS API for DIAN electronic invoicing
+- Document types: POS (type 20), Invoice (1), Credit Note (91/94), Debit Note (92/93), Support Doc (11)
+- Async document processing - checkout never blocks for DIAN submission
+- Encrypted credential storage (AES-256-CBC) with SESSION_SECRET
+- OAuth token caching with auto-refresh on 401
+- Document numbering with row-level locks (SELECT FOR UPDATE) for safe allocation
+- Queue-based processing with max 3 retries and status tracking (PENDING→SENT→ACCEPTED/REJECTED)
+- UBL 2.1 XML format, digital signatures, CUFE codes, and QR codes
+- Per-tenant configuration and resolution numbers
+- Files: server/integrations/matias/* (matiasClient.ts, payloadBuilders.ts, documentQueue.ts, routes.ts)
+- API routes: /api/billing/matias/*
 
 ### Inventory (Ledger-based)
 - Immutable stock movements

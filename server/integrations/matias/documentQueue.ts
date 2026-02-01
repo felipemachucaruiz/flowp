@@ -16,13 +16,20 @@ export async function getNextDocumentNumber(
   prefix: string,
 ): Promise<number> {
   return await db.transaction(async (tx) => {
-    const sequence = await tx.query.electronicDocumentSequences.findFirst({
-      where: and(
-        eq(electronicDocumentSequences.tenantId, tenantId),
-        eq(electronicDocumentSequences.resolutionNumber, resolutionNumber),
-        eq(electronicDocumentSequences.prefix, prefix),
-      ),
-    });
+    // Use SELECT ... FOR UPDATE to acquire row-level lock and prevent race conditions
+    const sequenceRows = await tx.execute(sql`
+      SELECT * FROM electronic_document_sequences
+      WHERE tenant_id = ${tenantId}
+        AND resolution_number = ${resolutionNumber}
+        AND prefix = ${prefix}
+      FOR UPDATE
+    `);
+
+    const sequence = sequenceRows.rows[0] as {
+      id: string;
+      current_number: number;
+      range_end: number | null;
+    } | undefined;
 
     if (!sequence) {
       const client = await getMatiasClient(tenantId);
@@ -45,19 +52,17 @@ export async function getNextDocumentNumber(
       return startNumber;
     }
 
-    const nextNumber = sequence.currentNumber + 1;
+    const nextNumber = sequence.current_number + 1;
 
-    if (sequence.rangeEnd && nextNumber > sequence.rangeEnd) {
-      throw new Error(`Document number ${nextNumber} exceeds resolution range (max: ${sequence.rangeEnd})`);
+    if (sequence.range_end && nextNumber > sequence.range_end) {
+      throw new Error(`Document number ${nextNumber} exceeds resolution range (max: ${sequence.range_end})`);
     }
 
-    await tx
-      .update(electronicDocumentSequences)
-      .set({ 
-        currentNumber: nextNumber,
-        updatedAt: new Date(),
-      })
-      .where(eq(electronicDocumentSequences.id, sequence.id));
+    await tx.execute(sql`
+      UPDATE electronic_document_sequences 
+      SET current_number = ${nextNumber}, updated_at = NOW()
+      WHERE id = ${sequence.id}
+    `);
 
     return nextNumber;
   });
