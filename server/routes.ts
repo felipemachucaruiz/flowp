@@ -1635,24 +1635,21 @@ export async function registerRoutes(
             const emailItems = items.map((item: any) => ({
               name: item.product.name || 'Product',
               quantity: item.quantity,
-              price: parseFloat(item.product.price),
+              price: `${tenant?.currencySymbol || '$'}${parseFloat(item.product.price).toFixed(2)}`,
             }));
             
             // Send order confirmation email (async, don't wait)
             emailService.sendOrderConfirmation(
               customer.email,
-              customer.name,
+              order.orderNumber.toString(),
+              `${tenant?.currencySymbol || '$'}${parseFloat(order.total).toFixed(2)}`,
+              emailItems,
+              tenantId,
+              tenant?.displayLanguage || 'en',
               {
-                orderNumber: order.orderNumber,
-                orderDate: new Date().toISOString(),
-                items: emailItems,
-                subtotal: parseFloat(order.subtotal),
-                tax: parseFloat(order.taxAmount),
-                total: parseFloat(order.total),
                 companyName: tenant?.companyName || 'Flowp POS',
                 companyLogo: tenant?.companyLogo || undefined,
-              },
-              tenant?.displayLanguage || 'en'
+              }
             ).catch(err => console.error('Failed to send order confirmation email:', err));
 
             // Send payment received email (async, don't wait)
