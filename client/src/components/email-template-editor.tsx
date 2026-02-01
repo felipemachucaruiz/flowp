@@ -245,19 +245,19 @@ export function EmailTemplateEditor() {
   };
 
   const { data: templates, isLoading } = useQuery<EmailTemplate[]>({
-    queryKey: ["/api/internal/email-templates"],
+    queryKey: ["/api/email-templates"],
   });
 
   const updateMutation = useMutation({
     mutationFn: async (data: { type: string; subject: string; htmlBody: string; isActive: boolean }) => {
-      return apiRequest("PUT", `/api/internal/email-templates/${data.type}`, {
+      return apiRequest("PUT", `/api/email-templates/${data.type}`, {
         subject: data.subject,
         htmlBody: data.htmlBody,
         isActive: data.isActive,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/internal/email-templates"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-templates"] });
       toast({
         title: t("common.success"),
         description: t("emails.template_updated"),

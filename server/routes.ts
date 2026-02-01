@@ -3757,6 +3757,39 @@ export async function registerRoutes(
     }
   });
 
+  // ===== TENANT EMAIL TEMPLATES =====
+
+  // Get email templates (tenant accessible)
+  app.get("/api/email-templates", async (req: Request, res: Response) => {
+    try {
+      const templates = await storage.getAllEmailTemplates();
+      res.json(templates);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch email templates" });
+    }
+  });
+
+  // Update email template (tenant accessible - owners only should be enforced by frontend)
+  app.put("/api/email-templates/:type", async (req: Request, res: Response) => {
+    try {
+      const { type } = req.params;
+      const { subject, htmlBody, textBody, isActive } = req.body;
+      
+      const template = await storage.upsertEmailTemplate({
+        type: type as any,
+        subject,
+        htmlBody,
+        textBody,
+        isActive,
+      });
+      
+      res.json(template);
+    } catch (error) {
+      console.error("Email template update error:", error);
+      res.status(500).json({ message: "Failed to update email template" });
+    }
+  });
+
   // ===== IN-APP NOTIFICATIONS =====
 
   // Get notifications for current user
