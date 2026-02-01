@@ -7,6 +7,7 @@ import { db } from "../db";
 import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig } from "@shared/schema";
 import { eq, like, or, desc, and } from "drizzle-orm";
 import crypto from "crypto";
+import https from "https";
 
 const ENCRYPTION_KEY = process.env.SESSION_SECRET || "default-encryption-key-32-chars!";
 
@@ -495,15 +496,16 @@ internalAdminRouter.get("/matias/config", requireRole(["superadmin"]), async (re
     const configs = await db.select().from(platformConfig).where(
       or(
         eq(platformConfig.key, "matias_base_url"),
-        eq(platformConfig.key, "matias_email"),
-        eq(platformConfig.key, "matias_password"),
-        eq(platformConfig.key, "matias_enabled")
+        eq(platformConfig.key, "matias_client_id"),
+        eq(platformConfig.key, "matias_client_secret"),
+        eq(platformConfig.key, "matias_enabled"),
+        eq(platformConfig.key, "matias_skip_ssl")
       )
     );
 
     const configMap: Record<string, string> = {};
     for (const c of configs) {
-      if (c.key === "matias_password" && c.encryptedValue) {
+      if (c.key === "matias_client_secret" && c.encryptedValue) {
         configMap[c.key] = c.encryptedValue;
       } else {
         configMap[c.key] = c.value || "";
@@ -511,10 +513,11 @@ internalAdminRouter.get("/matias/config", requireRole(["superadmin"]), async (re
     }
 
     const config = {
-      baseUrl: configMap.matias_base_url || "https://api.matias-api.com",
-      email: configMap.matias_email || "",
-      hasPassword: !!configMap.matias_password,
+      baseUrl: configMap.matias_base_url || "https://api.matias.com",
+      clientId: configMap.matias_client_id || "",
+      hasClientSecret: !!configMap.matias_client_secret,
       isEnabled: configMap.matias_enabled === "true",
+      skipSSL: configMap.matias_skip_ssl === "true",
     };
 
     res.json({ success: true, config });
@@ -525,7 +528,7 @@ internalAdminRouter.get("/matias/config", requireRole(["superadmin"]), async (re
 
 internalAdminRouter.post("/matias/config", requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
-    const { baseUrl, email, password, isEnabled } = req.body;
+    const { baseUrl, clientId, clientSecret, isEnabled, skipSSL } = req.body;
     const userId = (req as any).user?.userId;
 
     const upsertConfig = async (key: string, value: string | null, isEncrypted = false) => {
@@ -553,12 +556,13 @@ internalAdminRouter.post("/matias/config", requireRole(["superadmin"]), async (r
       }
     };
 
-    await upsertConfig("matias_base_url", baseUrl || "https://api.matias-api.com");
-    await upsertConfig("matias_email", email || "");
-    if (password) {
-      await upsertConfig("matias_password", password, true);
+    await upsertConfig("matias_base_url", baseUrl || "https://api.matias.com");
+    await upsertConfig("matias_client_id", clientId || "");
+    if (clientSecret) {
+      await upsertConfig("matias_client_secret", clientSecret, true);
     }
     await upsertConfig("matias_enabled", isEnabled ? "true" : "false");
+    await upsertConfig("matias_skip_ssl", skipSSL ? "true" : "false");
 
     res.json({ 
       success: true, 
@@ -574,14 +578,15 @@ internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]),
     const configs = await db.select().from(platformConfig).where(
       or(
         eq(platformConfig.key, "matias_base_url"),
-        eq(platformConfig.key, "matias_email"),
-        eq(platformConfig.key, "matias_password")
+        eq(platformConfig.key, "matias_client_id"),
+        eq(platformConfig.key, "matias_client_secret"),
+        eq(platformConfig.key, "matias_skip_ssl")
       )
     );
 
     const configMap: Record<string, string> = {};
     for (const c of configs) {
-      if (c.key === "matias_password" && c.encryptedValue) {
+      if (c.key === "matias_client_secret" && c.encryptedValue) {
         try {
           configMap[c.key] = decrypt(c.encryptedValue);
         } catch {
@@ -592,37 +597,45 @@ internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]),
       }
     }
 
-    const baseUrl = configMap.matias_base_url || "https://api.matias-api.com";
-    const email = configMap.matias_email;
-    const password = configMap.matias_password;
+    const baseUrl = configMap.matias_base_url || "https://api.matias.com";
+    const clientId = configMap.matias_client_id;
+    const clientSecret = configMap.matias_client_secret;
+    const skipSSL = configMap.matias_skip_ssl === "true";
 
-    if (!email || !password) {
+    if (!clientId || !clientSecret) {
       return res.json({ 
         success: false, 
-        message: "Email and password are required to test connection."
+        message: "Client ID and Client Secret are required to test connection."
       });
     }
 
     try {
       const tokenUrl = `${baseUrl}/oauth/token`;
-      console.log(`[MATIAS] Testing connection to: ${tokenUrl}`);
+      console.log(`[MATIAS] Testing connection to: ${tokenUrl} (skipSSL: ${skipSSL})`);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
       
-      const response = await fetch(tokenUrl, {
+      const fetchOptions: RequestInit = {
         method: "POST",
         headers: { 
           "Content-Type": "application/x-www-form-urlencoded",
           "Accept": "application/json"
         },
         body: new URLSearchParams({
-          grant_type: "password",
-          username: email,
-          password: password,
+          grant_type: "client_credentials",
+          client_id: clientId,
+          client_secret: clientSecret,
         }),
         signal: controller.signal,
-      });
+      };
+
+      if (skipSSL) {
+        const agent = new https.Agent({ rejectUnauthorized: false });
+        (fetchOptions as any).agent = agent;
+      }
+      
+      const response = await fetch(tokenUrl, fetchOptions);
       
       clearTimeout(timeoutId);
 

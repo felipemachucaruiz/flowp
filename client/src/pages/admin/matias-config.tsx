@@ -9,18 +9,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { adminFetch } from "@/lib/admin-fetch";
-import { Settings, Wifi, WifiOff, Loader2, CheckCircle } from "lucide-react";
+import { Settings, Wifi, WifiOff, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
 
 export default function AdminMatiasConfig() {
   const { toast } = useToast();
   
   const [matiasConfig, setMatiasConfig] = useState({
-    baseUrl: "https://api.matias-api.com",
-    email: "",
-    password: "",
+    baseUrl: "https://api.matias.com",
+    clientId: "",
+    clientSecret: "",
     isEnabled: true,
+    skipSSL: false,
   });
-  const [showPassword, setShowPassword] = useState(false);
+  const [showSecret, setShowSecret] = useState(false);
 
   const { data: configData, isLoading } = useQuery({
     queryKey: ["/api/internal-admin/matias/config"],
@@ -35,9 +36,10 @@ export default function AdminMatiasConfig() {
     if (configData?.config) {
       setMatiasConfig(prev => ({
         ...prev,
-        baseUrl: configData.config.baseUrl || "https://api.matias-api.com",
-        email: configData.config.email || "",
+        baseUrl: configData.config.baseUrl || "https://api.matias.com",
+        clientId: configData.config.clientId || "",
         isEnabled: configData.config.isEnabled ?? true,
+        skipSSL: configData.config.skipSSL ?? false,
       }));
     }
   }, [configData]);
@@ -83,8 +85,8 @@ export default function AdminMatiasConfig() {
   });
 
   const handleSaveConfig = () => {
-    if (!matiasConfig.baseUrl || !matiasConfig.email) {
-      toast({ title: "Error", description: "API URL and Email are required", variant: "destructive" });
+    if (!matiasConfig.baseUrl || !matiasConfig.clientId) {
+      toast({ title: "Error", description: "API URL and Client ID are required", variant: "destructive" });
       return;
     }
     saveConfigMutation.mutate(matiasConfig);
@@ -99,7 +101,7 @@ export default function AdminMatiasConfig() {
     );
   }
 
-  const isConfigured = configData?.config?.isEnabled && configData?.config?.email;
+  const isConfigured = configData?.config?.isEnabled && configData?.config?.clientId;
 
   return (
     <div className="h-full overflow-y-auto space-y-6 p-6">
@@ -155,7 +157,7 @@ export default function AdminMatiasConfig() {
               <Label htmlFor="baseUrl">API URL</Label>
               <Input
                 id="baseUrl"
-                placeholder="https://api.matias-api.com"
+                placeholder="https://api.matias.com"
                 value={matiasConfig.baseUrl}
                 onChange={(e) => setMatiasConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
                 data-testid="input-matias-url"
@@ -164,40 +166,40 @@ export default function AdminMatiasConfig() {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="email">Email / Username</Label>
+              <Label htmlFor="clientId">Client ID</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="user@example.com"
-                value={matiasConfig.email}
-                onChange={(e) => setMatiasConfig(prev => ({ ...prev, email: e.target.value }))}
-                data-testid="input-matias-email"
+                id="clientId"
+                placeholder="YOUR_CLIENT_ID"
+                value={matiasConfig.clientId}
+                onChange={(e) => setMatiasConfig(prev => ({ ...prev, clientId: e.target.value }))}
+                data-testid="input-matias-client-id"
               />
+              <p className="text-xs text-muted-foreground">Your MATIAS OAuth Client ID</p>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="clientSecret">Client Secret</Label>
               <div className="flex gap-2">
                 <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder={configData?.config?.hasPassword ? "••••••••" : "Enter password"}
-                  value={matiasConfig.password}
-                  onChange={(e) => setMatiasConfig(prev => ({ ...prev, password: e.target.value }))}
-                  data-testid="input-matias-password"
+                  id="clientSecret"
+                  type={showSecret ? "text" : "password"}
+                  placeholder={configData?.config?.hasClientSecret ? "••••••••" : "Enter client secret"}
+                  value={matiasConfig.clientSecret}
+                  onChange={(e) => setMatiasConfig(prev => ({ ...prev, clientSecret: e.target.value }))}
+                  data-testid="input-matias-client-secret"
                 />
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() => setShowSecret(!showSecret)}
                 >
-                  {showPassword ? "Hide" : "Show"}
+                  {showSecret ? "Hide" : "Show"}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                {configData?.config?.hasPassword 
-                  ? "Password is saved. Leave blank to keep existing."
-                  : "Your MATIAS account password (encrypted before storage)"
+                {configData?.config?.hasClientSecret 
+                  ? "Client secret is saved. Leave blank to keep existing."
+                  : "Your MATIAS OAuth Client Secret (encrypted before storage)"
                 }
               </p>
             </div>
@@ -213,6 +215,23 @@ export default function AdminMatiasConfig() {
                 checked={matiasConfig.isEnabled}
                 onCheckedChange={(checked) => setMatiasConfig(prev => ({ ...prev, isEnabled: checked }))}
                 data-testid="switch-matias-enabled"
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
+                <div>
+                  <p className="font-medium">Skip SSL Verification</p>
+                  <p className="text-sm text-muted-foreground">
+                    Enable this if the MATIAS API has SSL certificate issues. Not recommended for production.
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={matiasConfig.skipSSL}
+                onCheckedChange={(checked) => setMatiasConfig(prev => ({ ...prev, skipSSL: checked }))}
+                data-testid="switch-skip-ssl"
               />
             </div>
           </div>
