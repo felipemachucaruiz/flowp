@@ -39,6 +39,7 @@ import {
   Trash2,
   Receipt,
   Minus,
+  Loader2,
 } from "lucide-react";
 
 type TabWithItems = Order & { items: OrderItem[] };
@@ -74,7 +75,7 @@ export default function TablesPage() {
     queryKey: ["/api/products"],
   });
 
-  const { data: currentTab, refetch: refetchTab } = useQuery<TabWithItems | null>({
+  const { data: currentTab, refetch: refetchTab, isLoading: tabLoading, isFetching: tabFetching } = useQuery<TabWithItems | null>({
     queryKey: ["/api/tabs/table", selectedTableForTab?.id],
     queryFn: async () => {
       if (!selectedTableForTab) return null;
@@ -86,7 +87,7 @@ export default function TablesPage() {
       if (!res.ok) return null;
       return res.json();
     },
-    enabled: !!selectedTableForTab,
+    enabled: !!selectedTableForTab && showTabDialog,
   });
 
   const updateTableMutation = useMutation({
@@ -451,6 +452,38 @@ export default function TablesPage() {
             {currentTab ? `${t("tabs.order")} #${currentTab.orderNumber}` : t("tabs.new_tab")}
           </DialogDescription>
         </DialogHeader>
+
+        {(tabLoading || tabFetching) && !currentTab && (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {!tabLoading && !tabFetching && !currentTab && (
+          <div className="space-y-4">
+            <div className="text-center py-8 text-muted-foreground">
+              <Receipt className="w-12 h-12 mx-auto mb-3 opacity-30" />
+              <p>{t("tabs.no_items")}</p>
+              <p className="text-sm">{t("tabs.add_items_hint")}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleAddItems} className="flex-1" data-testid="button-add-items-new">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("tabs.add_items")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowTabDialog(false);
+                  setSelectedTableForTab(null);
+                }}
+                data-testid="button-close-dialog"
+              >
+                {t("common.close")}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {currentTab && (
           <div className="space-y-4">
