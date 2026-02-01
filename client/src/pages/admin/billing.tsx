@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -202,14 +202,14 @@ export default function AdminBilling() {
 
   const baseFeatures = planType === "restaurant" ? RESTAURANT_BASE_FEATURES : RETAIL_BASE_FEATURES;
 
-  const PlanForm = () => (
+  const planFormContent = (
     <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto">
       <div className="grid gap-2">
         <Label htmlFor="name">{t("admin.billing_plan_name")}</Label>
         <Input
           id="name"
           value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
           placeholder="e.g., Starter, Professional, Enterprise"
           data-testid="input-plan-name"
         />
@@ -223,7 +223,7 @@ export default function AdminBilling() {
             type="number"
             step="0.01"
             value={formData.priceMonthly}
-            onChange={(e) => setFormData({ ...formData, priceMonthly: parseFloat(e.target.value) || 0 })}
+            onChange={(e) => setFormData(prev => ({ ...prev, priceMonthly: parseFloat(e.target.value) || 0 }))}
             data-testid="input-plan-price-monthly"
           />
         </div>
@@ -234,7 +234,7 @@ export default function AdminBilling() {
             type="number"
             step="0.01"
             value={formData.priceYearly ?? ""}
-            onChange={(e) => setFormData({ ...formData, priceYearly: e.target.value ? parseFloat(e.target.value) : null })}
+            onChange={(e) => setFormData(prev => ({ ...prev, priceYearly: e.target.value ? parseFloat(e.target.value) : null }))}
             data-testid="input-plan-price-yearly"
           />
         </div>
@@ -246,7 +246,7 @@ export default function AdminBilling() {
           <Input
             id="currency"
             value={formData.currency}
-            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+            onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
             placeholder="USD"
             data-testid="input-plan-currency"
           />
@@ -257,7 +257,7 @@ export default function AdminBilling() {
             id="sortOrder"
             type="number"
             value={formData.sortOrder}
-            onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
+            onChange={(e) => setFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
             data-testid="input-plan-sort-order"
           />
         </div>
@@ -270,7 +270,7 @@ export default function AdminBilling() {
             id="maxLocations"
             type="number"
             value={formData.maxLocations}
-            onChange={(e) => setFormData({ ...formData, maxLocations: parseInt(e.target.value) || 1 })}
+            onChange={(e) => setFormData(prev => ({ ...prev, maxLocations: parseInt(e.target.value) || 1 }))}
             data-testid="input-plan-max-locations"
           />
         </div>
@@ -280,7 +280,7 @@ export default function AdminBilling() {
             id="maxRegisters"
             type="number"
             value={formData.maxRegisters}
-            onChange={(e) => setFormData({ ...formData, maxRegisters: parseInt(e.target.value) || 2 })}
+            onChange={(e) => setFormData(prev => ({ ...prev, maxRegisters: parseInt(e.target.value) || 2 }))}
             data-testid="input-plan-max-registers"
           />
         </div>
@@ -290,7 +290,7 @@ export default function AdminBilling() {
             id="maxUsers"
             type="number"
             value={formData.maxUsers}
-            onChange={(e) => setFormData({ ...formData, maxUsers: parseInt(e.target.value) || 5 })}
+            onChange={(e) => setFormData(prev => ({ ...prev, maxUsers: parseInt(e.target.value) || 5 }))}
             data-testid="input-plan-max-users"
           />
         </div>
@@ -369,7 +369,7 @@ export default function AdminBilling() {
         <Switch
           id="isActive"
           checked={formData.isActive}
-          onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+          onCheckedChange={(checked) => setFormData(prev => ({ ...prev, isActive: checked }))}
           data-testid="switch-plan-active"
         />
         <Label htmlFor="isActive">{t("admin.billing_active")}</Label>
@@ -412,7 +412,7 @@ export default function AdminBilling() {
               <DialogTitle>{t("admin.billing_create_plan")}</DialogTitle>
               <DialogDescription>{t("admin.billing_create_desc")}</DialogDescription>
             </DialogHeader>
-            <PlanForm />
+            {planFormContent}
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsCreateOpen(false)}>{t("admin.cancel")}</Button>
               <Button onClick={handleSubmit} disabled={createMutation.isPending} data-testid="button-save-plan">
@@ -523,7 +523,7 @@ export default function AdminBilling() {
             <DialogTitle>{t("admin.billing_edit_plan")}</DialogTitle>
             <DialogDescription>{t("admin.billing_edit_desc")}</DialogDescription>
           </DialogHeader>
-          <PlanForm />
+          {planFormContent}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingPlan(null)}>{t("admin.cancel")}</Button>
             <Button onClick={handleSubmit} disabled={updateMutation.isPending} data-testid="button-update-plan">
