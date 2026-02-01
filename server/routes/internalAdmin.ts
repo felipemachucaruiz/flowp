@@ -604,33 +604,52 @@ internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]),
     }
 
     try {
-      const response = await fetch(`${baseUrl}/oauth/token`, {
+      const tokenUrl = `${baseUrl}/oauth/token`;
+      console.log(`[MATIAS] Testing connection to: ${tokenUrl}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      
+      const response = await fetch(tokenUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        headers: { 
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept": "application/json"
+        },
         body: new URLSearchParams({
           grant_type: "password",
           username: email,
           password: password,
         }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const data = await response.json();
+        console.log(`[MATIAS] Connection successful`);
         res.json({ 
           success: true, 
           message: `Connection successful! Token obtained.`
         });
       } else {
         const errorText = await response.text();
+        console.log(`[MATIAS] Connection failed: ${response.status} - ${errorText}`);
         res.json({ 
           success: false, 
-          message: `Connection failed: ${response.status} - ${errorText}`
+          message: `API returned ${response.status}: ${errorText.substring(0, 200)}`
         });
       }
     } catch (fetchError: any) {
+      console.error(`[MATIAS] Fetch error:`, fetchError);
+      let errorMessage = fetchError.message || "Unknown error";
+      if (fetchError.cause) {
+        errorMessage += ` (${fetchError.cause.code || fetchError.cause.message || "network error"})`;
+      }
       res.json({ 
         success: false, 
-        message: `Connection failed: ${fetchError.message}`
+        message: `Connection failed: ${errorMessage}`
       });
     }
   } catch (error: any) {
