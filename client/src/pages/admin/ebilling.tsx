@@ -15,9 +15,11 @@ import { queryClient } from "@/lib/queryClient";
 import { FileText, CheckCircle, XCircle, Settings, Wifi, WifiOff, Loader2 } from "lucide-react";
 
 export default function AdminEbillingPage() {
-  const { tenant } = useAuth();
+  const { tenant, user } = useAuth();
   const { t } = useI18n();
   const { toast } = useToast();
+  
+  const tenantId = tenant?.id || user?.tenantId || "";
 
   const [matiasConfig, setMatiasConfig] = useState({
     baseUrl: "",
@@ -30,27 +32,27 @@ export default function AdminEbillingPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   const { data: integrationStatus, isLoading } = useQuery({
-    queryKey: ["/api/billing/matias/status", tenant?.id],
+    queryKey: ["/api/billing/matias/status", tenantId],
     queryFn: async () => {
       const res = await fetch("/api/billing/matias/status", {
-        headers: { "x-tenant-id": tenant?.id || "" },
+        headers: { "x-tenant-id": tenantId },
       });
       if (!res.ok) return null;
       return res.json();
     },
-    enabled: !!tenant?.id,
+    enabled: !!tenantId,
   });
 
   const { data: configData } = useQuery({
-    queryKey: ["/api/billing/matias/config", tenant?.id],
+    queryKey: ["/api/billing/matias/config", tenantId],
     queryFn: async () => {
       const res = await fetch("/api/billing/matias/config", {
-        headers: { "x-tenant-id": tenant?.id || "" },
+        headers: { "x-tenant-id": tenantId },
       });
       if (!res.ok) return null;
       return res.json();
     },
-    enabled: !!tenant?.id,
+    enabled: !!tenantId,
   });
 
   useEffect(() => {
@@ -67,15 +69,15 @@ export default function AdminEbillingPage() {
   }, [configData]);
 
   const { data: recentDocs } = useQuery({
-    queryKey: ["/api/billing/matias/documents", tenant?.id],
+    queryKey: ["/api/billing/matias/documents", tenantId],
     queryFn: async () => {
       const res = await fetch("/api/billing/matias/documents?limit=10", {
-        headers: { "x-tenant-id": tenant?.id || "" },
+        headers: { "x-tenant-id": tenantId },
       });
       if (!res.ok) return { documents: [] };
       return res.json();
     },
-    enabled: !!tenant?.id,
+    enabled: !!tenantId,
   });
 
   const saveConfigMutation = useMutation({
@@ -84,7 +86,7 @@ export default function AdminEbillingPage() {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "x-tenant-id": tenant?.id || "",
+          "x-tenant-id": tenantId,
         },
         body: JSON.stringify(config),
       });
@@ -93,8 +95,8 @@ export default function AdminEbillingPage() {
     onSuccess: (data) => {
       if (data.success) {
         toast({ title: "Configuration saved successfully" });
-        queryClient.invalidateQueries({ queryKey: ["/api/billing/matias/status", tenant?.id] });
-        queryClient.invalidateQueries({ queryKey: ["/api/billing/matias/config", tenant?.id] });
+        queryClient.invalidateQueries({ queryKey: ["/api/billing/matias/status", tenantId] });
+        queryClient.invalidateQueries({ queryKey: ["/api/billing/matias/config", tenantId] });
       } else {
         toast({ title: "Error", description: data.error || "Failed to save", variant: "destructive" });
       }
@@ -108,7 +110,7 @@ export default function AdminEbillingPage() {
     mutationFn: async () => {
       const res = await fetch("/api/billing/matias/test-connection", {
         method: "POST",
-        headers: { "x-tenant-id": tenant?.id || "" },
+        headers: { "x-tenant-id": tenantId },
       });
       return res.json();
     },
