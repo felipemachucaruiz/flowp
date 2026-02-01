@@ -18,6 +18,7 @@ import {
   type WelcomeEmailTemplateData,
   type NewSaleNotificationTemplateData,
 } from "./email-templates";
+import { generateReceiptPDF } from "./pdf-receipt";
 
 interface SmtpConfig {
   host: string;
@@ -29,11 +30,18 @@ interface SmtpConfig {
   fromName: string;
 }
 
+interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+  contentType?: string;
+}
+
 interface EmailOptions {
   to: string;
   subject: string;
   html: string;
   text?: string;
+  attachments?: EmailAttachment[];
 }
 
 class EmailService {
@@ -148,13 +156,23 @@ class EmailService {
     }
 
     try {
-      await this.transporter!.sendMail({
+      const mailOptions: any = {
         from: `"${this.config!.fromName}" <${this.config!.fromEmail}>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
         text: options.text || options.html.replace(/<[^>]*>/g, ""),
-      });
+      };
+
+      if (options.attachments && options.attachments.length > 0) {
+        mailOptions.attachments = options.attachments.map(att => ({
+          filename: att.filename,
+          content: att.content,
+          contentType: att.contentType || 'application/pdf',
+        }));
+      }
+
+      await this.transporter!.sendMail(mailOptions);
       return true;
     } catch (error) {
       console.error("Failed to send email:", error);
@@ -412,7 +430,35 @@ class EmailService {
       html = template.html;
     }
 
-    const sent = await this.sendEmail({ to: email, subject, html });
+    let pdfBuffer: Buffer | undefined;
+    try {
+      pdfBuffer = await generateReceiptPDF({
+        receiptNumber: data.receiptNumber,
+        date: data.date,
+        cashier: data.cashier,
+        items: data.items.map(item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        subtotal: data.subtotal,
+        tax: data.tax,
+        total: data.total,
+        paymentMethod: data.paymentMethod,
+        companyName: data.companyName || 'Flowp POS',
+        companyLogo: data.companyLogo,
+      }, language);
+    } catch (error) {
+      console.error("Failed to generate PDF receipt:", error);
+    }
+
+    const attachments = pdfBuffer ? [{
+      filename: `receipt-${data.receiptNumber}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf',
+    }] : undefined;
+
+    const sent = await this.sendEmail({ to: email, subject, html, attachments });
     
     await storage.createEmailLog({
       tenantId,
