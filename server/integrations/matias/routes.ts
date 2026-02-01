@@ -20,6 +20,41 @@ import {
 
 export const matiasRouter = Router();
 
+matiasRouter.get("/status", async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  if (!tenantId) {
+    return res.status(400).json({ error: "Tenant ID required" });
+  }
+
+  try {
+    const config = await getMatiasConfig(tenantId);
+    
+    const documents = await db.query.matiasDocumentQueue.findMany({
+      where: eq(matiasDocumentQueue.tenantId, tenantId),
+    });
+
+    const thisMonth = documents.filter(d => {
+      if (!d.createdAt) return false;
+      const docDate = new Date(d.createdAt);
+      const now = new Date();
+      return docDate.getMonth() === now.getMonth() && docDate.getFullYear() === now.getFullYear();
+    });
+
+    const accepted = documents.filter(d => d.status === "ACCEPTED").length;
+    const total = documents.length;
+    const successRate = total > 0 ? `${Math.round((accepted / total) * 100)}%` : "N/A";
+
+    res.json({
+      configured: config?.isEnabled || false,
+      documentsThisMonth: thisMonth.length,
+      documentsTotal: total,
+      successRate,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 matiasRouter.get("/config", async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {

@@ -40,6 +40,7 @@ import AdminDashboard from "@/pages/admin/dashboard";
 import AdminTenants from "@/pages/admin/tenants";
 import AdminUsers from "@/pages/admin/users";
 import AdminBilling from "@/pages/admin/billing";
+import AdminEbilling from "@/pages/admin/ebilling";
 import AdminEmailSettings from "@/pages/admin/email-settings";
 import OnboardingPage from "@/pages/onboarding";
 import ForgotPasswordPage from "@/pages/forgot-password";
@@ -187,6 +188,9 @@ function AdminRouter() {
         </Route>
         <Route path="/admin/billing">
           <AdminRoute component={AdminBilling} />
+        </Route>
+        <Route path="/admin/ebilling">
+          <AdminRoute component={AdminEbilling} />
         </Route>
         <Route path="/admin/email-settings">
           <AdminRoute component={AdminEmailSettings} />
