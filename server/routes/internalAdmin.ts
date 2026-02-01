@@ -450,7 +450,7 @@ internalAdminRouter.get("/audit", requireRole(["superadmin"]), async (req: Reque
     const conditions = [];
 
     if (action) {
-      conditions.push(eq(internalAuditLogs.actionType, action as string));
+      conditions.push(eq(internalAuditLogs.actionType, action as any));
     }
 
     const logs = await db.query.internalAuditLogs.findMany({
