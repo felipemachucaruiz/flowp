@@ -89,6 +89,7 @@ export default function POSPage() {
   const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
+  const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
   const [newCustomerIdType, setNewCustomerIdType] = useState<string>("");
   const [newCustomerIdNumber, setNewCustomerIdNumber] = useState("");
@@ -686,9 +687,10 @@ export default function POSPage() {
   };
 
   const handleCreateCustomer = () => {
-    if (!newCustomerName.trim()) return;
+    if (!newCustomerName.trim() || !newCustomerEmail.trim()) return;
     createCustomerMutation.mutate({
       name: newCustomerName.trim(),
+      email: newCustomerEmail.trim(),
       phone: newCustomerPhone.trim() || undefined,
       idType: newCustomerIdType || undefined,
       idNumber: newCustomerIdNumber.trim() || undefined,
@@ -1275,6 +1277,13 @@ export default function POSPage() {
                     data-testid="input-new-customer-name"
                   />
                   <Input
+                    type="email"
+                    placeholder={`${t("customers.email")} *`}
+                    value={newCustomerEmail}
+                    onChange={(e) => setNewCustomerEmail(e.target.value)}
+                    data-testid="input-new-customer-email"
+                  />
+                  <Input
                     placeholder={`${t("customers.phone")} *`}
                     value={newCustomerPhone}
                     onChange={(e) => setNewCustomerPhone(e.target.value)}
@@ -1312,7 +1321,7 @@ export default function POSPage() {
                     <Button
                       size="sm"
                       onClick={handleCreateCustomer}
-                      disabled={!newCustomerName.trim() || !newCustomerPhone.trim() || !newCustomerIdType || !newCustomerIdNumber.trim() || createCustomerMutation.isPending}
+                      disabled={!newCustomerName.trim() || !newCustomerEmail.trim() || !newCustomerPhone.trim() || !newCustomerIdType || !newCustomerIdNumber.trim() || createCustomerMutation.isPending}
                       className="flex-1"
                       data-testid="button-save-new-customer"
                     >
