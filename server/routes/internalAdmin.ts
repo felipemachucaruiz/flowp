@@ -613,52 +613,70 @@ internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]),
       const tokenUrl = `${baseUrl}/oauth/token`;
       console.log(`[MATIAS] Testing connection to: ${tokenUrl} (skipSSL: ${skipSSL})`);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      
-      const fetchOptions: RequestInit = {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Accept": "application/json"
-        },
-        body: new URLSearchParams({
-          grant_type: "client_credentials",
-          client_id: clientId,
-          client_secret: clientSecret,
-        }),
-        signal: controller.signal,
+      const postData = new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: clientId,
+        client_secret: clientSecret,
+      }).toString();
+
+      const makeRequest = (): Promise<{ ok: boolean; status: number; data: string }> => {
+        return new Promise((resolve, reject) => {
+          const url = new URL(tokenUrl);
+          const options: https.RequestOptions = {
+            hostname: url.hostname,
+            port: url.port || 443,
+            path: url.pathname,
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              "Accept": "application/json",
+              "Content-Length": Buffer.byteLength(postData),
+            },
+            rejectUnauthorized: !skipSSL,
+          };
+
+          const req = https.request(options, (response) => {
+            let data = "";
+            response.on("data", (chunk) => { data += chunk; });
+            response.on("end", () => {
+              resolve({
+                ok: response.statusCode !== undefined && response.statusCode >= 200 && response.statusCode < 300,
+                status: response.statusCode || 0,
+                data,
+              });
+            });
+          });
+
+          req.on("error", (error) => reject(error));
+          req.setTimeout(15000, () => {
+            req.destroy();
+            reject(new Error("Request timeout"));
+          });
+          req.write(postData);
+          req.end();
+        });
       };
 
-      if (skipSSL) {
-        const agent = new https.Agent({ rejectUnauthorized: false });
-        (fetchOptions as any).agent = agent;
-      }
-      
-      const response = await fetch(tokenUrl, fetchOptions);
-      
-      clearTimeout(timeoutId);
+      const response = await makeRequest();
 
       if (response.ok) {
-        const data = await response.json();
         console.log(`[MATIAS] Connection successful`);
         res.json({ 
           success: true, 
           message: `Connection successful! Token obtained.`
         });
       } else {
-        const errorText = await response.text();
-        console.log(`[MATIAS] Connection failed: ${response.status} - ${errorText}`);
+        console.log(`[MATIAS] Connection failed: ${response.status} - ${response.data}`);
         res.json({ 
           success: false, 
-          message: `API returned ${response.status}: ${errorText.substring(0, 200)}`
+          message: `API returned ${response.status}: ${response.data.substring(0, 200)}`
         });
       }
     } catch (fetchError: any) {
       console.error(`[MATIAS] Fetch error:`, fetchError);
       let errorMessage = fetchError.message || "Unknown error";
-      if (fetchError.cause) {
-        errorMessage += ` (${fetchError.cause.code || fetchError.cause.message || "network error"})`;
+      if (fetchError.code) {
+        errorMessage += ` (${fetchError.code})`;
       }
       res.json({ 
         success: false, 
