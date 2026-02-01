@@ -203,6 +203,12 @@ export default function POSPage() {
     enabled: !!tenant?.id,
   });
 
+  // Tables query for tab mode display
+  const { data: tables } = useQuery<any[]>({
+    queryKey: ["/api/tables"],
+    enabled: !!tenant?.id && !!selectedTable,
+  });
+
   const { data: loyaltyRewards } = useQuery<LoyaltyReward[]>({
     queryKey: ["/api/loyalty/rewards"],
     enabled: !!tenant?.id,
@@ -224,7 +230,7 @@ export default function POSPage() {
   });
 
   // Query for open tab when table is selected (restaurant dine-in)
-  const { data: openTab, refetch: refetchTab } = useQuery<any>({
+  const { data: openTab, refetch: refetchTab, isLoading: tabLoading, isFetching: tabFetching } = useQuery<any>({
     queryKey: ["/api/tabs/table", selectedTable],
     queryFn: async () => {
       if (!selectedTable) return null;
@@ -235,7 +241,11 @@ export default function POSPage() {
       return res.json();
     },
     enabled: !!selectedTable && !!tenant?.id,
+    staleTime: 0, // Always refetch when navigating
   });
+  
+  // Tab mode is active when a table is selected
+  const isTabMode = !!selectedTable;
 
   // Mutation to add items to tab
   const addToTabMutation = useMutation({
@@ -797,6 +807,14 @@ export default function POSPage() {
   const CartContent = () => (
     <>
       <div className="p-3 border-b">
+        {isTabMode && (
+          <div className="mb-2 p-2 bg-primary/10 rounded-md flex items-center gap-2">
+            <Receipt className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium text-primary">
+              {t("tabs.adding_to_table")} {tables?.find(t => t.id === selectedTable)?.name || selectedTable}
+            </span>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <ShoppingCart className="w-4 h-4 text-primary shrink-0" />
@@ -968,16 +986,16 @@ export default function POSPage() {
               </Button>
             </div>
 
-            {openTab ? (
+            {isTabMode ? (
               /* Tab mode: Add to Tab and Back buttons */
               <div className="space-y-2">
                 <Button
                   className="w-full"
                   onClick={handleAddToTab}
-                  disabled={cart.length === 0 || addToTabMutation.isPending}
+                  disabled={cart.length === 0 || addToTabMutation.isPending || tabLoading || tabFetching || !openTab}
                   data-testid="button-add-to-tab"
                 >
-                  {addToTabMutation.isPending ? (
+                  {(addToTabMutation.isPending || tabLoading || tabFetching) ? (
                     <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
                   ) : (
                     <Plus className="w-4 h-4 mr-1.5" />

@@ -408,6 +408,7 @@ const translations = {
     "tabs.items_added_desc": "Items added to tab successfully",
     "tabs.add_to_tab": "Add to Tab",
     "tabs.back_to_tables": "Back to Tables",
+    "tabs.adding_to_table": "Adding to Table",
     
     // Kitchen
     "kitchen.title": "Kitchen Display",
@@ -1993,6 +1994,7 @@ const translations = {
     "tabs.items_added_desc": "Ítems agregados a la cuenta exitosamente",
     "tabs.add_to_tab": "Agregar a Cuenta",
     "tabs.back_to_tables": "Volver a Mesas",
+    "tabs.adding_to_table": "Agregando a Mesa",
     
     // Kitchen
     "kitchen.title": "Pantalla de Cocina",
@@ -3575,6 +3577,7 @@ const translations = {
     "tabs.items_added_desc": "Itens adicionados à comanda com sucesso",
     "tabs.add_to_tab": "Adicionar à Comanda",
     "tabs.back_to_tables": "Voltar às Mesas",
+    "tabs.adding_to_table": "Adicionando à Mesa",
     
     // Kitchen
     "kitchen.title": "Tela da Cozinha",
