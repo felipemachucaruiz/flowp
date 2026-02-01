@@ -1430,6 +1430,456 @@ export async function registerRoutes(
     }
   });
 
+  // ===== TAB MANAGEMENT ROUTES (Restaurant Dine-in) =====
+
+  // Get open tab for a table
+  app.get("/api/tabs/table/:tableId", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { tableId } = req.params;
+      
+      // Verify table belongs to tenant
+      const tables = await storage.getTablesByTenant(tenantId);
+      const table = tables.find(t => t.id === tableId);
+      if (!table) {
+        return res.status(404).json({ message: "Table not found" });
+      }
+      
+      const tab = await storage.getOpenTabByTable(tableId);
+      if (!tab) {
+        return res.json(null);
+      }
+      
+      // Get items for the tab
+      const items = await storage.getOrderItems(tab.id);
+      res.json({ ...tab, items });
+    } catch (error) {
+      console.error("Error fetching tab:", error);
+      res.status(500).json({ message: "Failed to fetch tab" });
+    }
+  });
+
+  // Open a new tab for a table
+  app.post("/api/tabs", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId || !userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { tableId, customerId } = req.body;
+      
+      // Verify table belongs to tenant
+      const tables = await storage.getTablesByTenant(tenantId);
+      const table = tables.find(t => t.id === tableId);
+      if (!table) {
+        return res.status(404).json({ message: "Table not found" });
+      }
+      
+      // Check if table already has an open tab
+      const existingTab = await storage.getOpenTabByTable(tableId);
+      if (existingTab) {
+        return res.status(400).json({ message: "Table already has an open tab" });
+      }
+      
+      // Get next order number
+      const orderNumber = await storage.getNextOrderNumber(tenantId);
+      
+      // Create tab (order with status "tab")
+      const tab = await storage.createOrder({
+        tenantId,
+        userId,
+        tableId,
+        customerId: customerId || null,
+        orderNumber,
+        status: "tab",
+        subtotal: "0",
+        taxAmount: "0",
+        discountAmount: "0",
+        total: "0",
+      });
+      
+      // Update table status to occupied
+      await storage.updateTable(tableId, { status: "occupied" });
+      
+      res.json(tab);
+    } catch (error) {
+      console.error("Error opening tab:", error);
+      res.status(500).json({ message: "Failed to open tab" });
+    }
+  });
+
+  // Add items to a tab
+  app.post("/api/tabs/:id/items", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { id } = req.params;
+      const { items } = req.body;
+      
+      // Verify tab exists and belongs to tenant
+      const tab = await storage.getOrder(id);
+      if (!tab || tab.tenantId !== tenantId || tab.status !== "tab") {
+        return res.status(404).json({ message: "Tab not found" });
+      }
+      
+      // Add items to the tab
+      const createdItems = [];
+      for (const item of items) {
+        const orderItem = await storage.createOrderItem({
+          orderId: id,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          modifiers: item.modifiers || [],
+          notes: item.notes || null,
+          sentToKitchen: false,
+        });
+        createdItems.push(orderItem);
+      }
+      
+      // Recalculate tab totals
+      const allItems = await storage.getOrderItems(id);
+      let subtotal = 0;
+      for (const item of allItems) {
+        const itemTotal = parseFloat(item.unitPrice) * item.quantity;
+        const modifierTotal = (item.modifiers || []).reduce((sum: number, m: any) => sum + parseFloat(m.price || "0"), 0) * item.quantity;
+        subtotal += itemTotal + modifierTotal;
+      }
+      
+      // Get tax rates for calculation
+      const taxRates = await storage.getTaxRatesByTenant(tenantId);
+      const activeTaxRates = taxRates.filter(t => t.isActive);
+      const totalTaxRate = activeTaxRates.reduce((sum, t) => sum + parseFloat(t.rate), 0);
+      const taxAmount = subtotal * (totalTaxRate / 100);
+      const total = subtotal + taxAmount;
+      
+      await storage.updateOrder(id, {
+        subtotal: subtotal.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        total: total.toFixed(2),
+      });
+      
+      res.json({ items: createdItems, subtotal, taxAmount, total });
+    } catch (error) {
+      console.error("Error adding items to tab:", error);
+      res.status(500).json({ message: "Failed to add items to tab" });
+    }
+  });
+
+  // Update item in a tab
+  app.patch("/api/tabs/:id/items/:itemId", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { id, itemId } = req.params;
+      const { quantity, notes } = req.body;
+      
+      // Verify tab exists and belongs to tenant
+      const tab = await storage.getOrder(id);
+      if (!tab || tab.tenantId !== tenantId || tab.status !== "tab") {
+        return res.status(404).json({ message: "Tab not found" });
+      }
+      
+      // Verify item belongs to this tab
+      const item = await storage.getOrderItem(itemId);
+      if (!item || item.orderId !== id) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      
+      // Don't allow modifying items already sent to kitchen
+      if (item.sentToKitchen) {
+        return res.status(400).json({ message: "Cannot modify item already sent to kitchen" });
+      }
+      
+      await storage.updateOrderItem(itemId, { quantity, notes });
+      
+      // Recalculate totals
+      const allItems = await storage.getOrderItems(id);
+      let subtotal = 0;
+      for (const i of allItems) {
+        const itemTotal = parseFloat(i.unitPrice) * (i.id === itemId ? quantity : i.quantity);
+        const modifierTotal = (i.modifiers || []).reduce((sum: number, m: any) => sum + parseFloat(m.price || "0"), 0) * (i.id === itemId ? quantity : i.quantity);
+        subtotal += itemTotal + modifierTotal;
+      }
+      
+      const taxRates = await storage.getTaxRatesByTenant(tenantId);
+      const activeTaxRates = taxRates.filter(t => t.isActive);
+      const totalTaxRate = activeTaxRates.reduce((sum, t) => sum + parseFloat(t.rate), 0);
+      const taxAmount = subtotal * (totalTaxRate / 100);
+      const total = subtotal + taxAmount;
+      
+      await storage.updateOrder(id, {
+        subtotal: subtotal.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        total: total.toFixed(2),
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating tab item:", error);
+      res.status(500).json({ message: "Failed to update item" });
+    }
+  });
+
+  // Remove item from a tab
+  app.delete("/api/tabs/:id/items/:itemId", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { id, itemId } = req.params;
+      
+      // Verify tab exists and belongs to tenant
+      const tab = await storage.getOrder(id);
+      if (!tab || tab.tenantId !== tenantId || tab.status !== "tab") {
+        return res.status(404).json({ message: "Tab not found" });
+      }
+      
+      // Verify item belongs to this tab
+      const item = await storage.getOrderItem(itemId);
+      if (!item || item.orderId !== id) {
+        return res.status(404).json({ message: "Item not found" });
+      }
+      
+      // Don't allow removing items already sent to kitchen
+      if (item.sentToKitchen) {
+        return res.status(400).json({ message: "Cannot remove item already sent to kitchen" });
+      }
+      
+      await storage.deleteOrderItem(itemId);
+      
+      // Recalculate totals
+      const allItems = await storage.getOrderItems(id);
+      let subtotal = 0;
+      for (const i of allItems) {
+        if (i.id !== itemId) {
+          const itemTotal = parseFloat(i.unitPrice) * i.quantity;
+          const modifierTotal = (i.modifiers || []).reduce((sum: number, m: any) => sum + parseFloat(m.price || "0"), 0) * i.quantity;
+          subtotal += itemTotal + modifierTotal;
+        }
+      }
+      
+      const taxRates = await storage.getTaxRatesByTenant(tenantId);
+      const activeTaxRates = taxRates.filter(t => t.isActive);
+      const totalTaxRate = activeTaxRates.reduce((sum, t) => sum + parseFloat(t.rate), 0);
+      const taxAmount = subtotal * (totalTaxRate / 100);
+      const total = subtotal + taxAmount;
+      
+      await storage.updateOrder(id, {
+        subtotal: subtotal.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        total: total.toFixed(2),
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error removing tab item:", error);
+      res.status(500).json({ message: "Failed to remove item" });
+    }
+  });
+
+  // Send items to kitchen
+  app.post("/api/tabs/:id/send-to-kitchen", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { id } = req.params;
+      
+      // Verify tab exists and belongs to tenant
+      const tab = await storage.getOrder(id);
+      if (!tab || tab.tenantId !== tenantId || tab.status !== "tab") {
+        return res.status(404).json({ message: "Tab not found" });
+      }
+      
+      // Get items not yet sent to kitchen
+      const allItems = await storage.getOrderItems(id);
+      const unsent = allItems.filter(item => !item.sentToKitchen);
+      
+      if (unsent.length === 0) {
+        return res.status(400).json({ message: "No new items to send to kitchen" });
+      }
+      
+      // Get product names for ticket
+      const products = await storage.getProductsByTenant(tenantId);
+      const productMap = new Map(products.map(p => [p.id, p]));
+      
+      // Create kitchen ticket with unsent items
+      const ticketItems = unsent.map(item => {
+        const product = productMap.get(item.productId);
+        return {
+          id: item.id,
+          name: product?.name || "Unknown",
+          quantity: item.quantity,
+          modifiers: (item.modifiers || []).map((m: any) => m.name),
+          notes: item.notes || undefined,
+        };
+      });
+      
+      const ticket = await storage.createKitchenTicket({
+        orderId: id,
+        tableId: tab.tableId,
+        station: "kitchen",
+        status: "new",
+        items: ticketItems,
+      });
+      
+      // Mark items as sent to kitchen
+      for (const item of unsent) {
+        await storage.updateOrderItem(item.id, { sentToKitchen: true });
+      }
+      
+      // Broadcast to kitchen display
+      broadcastToTenant(tenantId, {
+        type: "NEW_TICKET",
+        ticket,
+      });
+      
+      res.json({ ticket, itemsSent: unsent.length });
+    } catch (error) {
+      console.error("Error sending to kitchen:", error);
+      res.status(500).json({ message: "Failed to send to kitchen" });
+    }
+  });
+
+  // Close tab and process payment
+  app.post("/api/tabs/:id/close", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId || !userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { id } = req.params;
+      const { paymentMethod, paymentReference, splitPayments } = req.body;
+      
+      // Verify tab exists and belongs to tenant
+      const tab = await storage.getOrder(id);
+      if (!tab || tab.tenantId !== tenantId || tab.status !== "tab") {
+        return res.status(404).json({ message: "Tab not found" });
+      }
+      
+      // Create payment record(s)
+      if (splitPayments && splitPayments.length > 0) {
+        for (const split of splitPayments) {
+          await storage.createPayment({
+            orderId: id,
+            method: split.method,
+            amount: split.amount.toFixed(2),
+            reference: split.reference || null,
+          });
+        }
+      } else {
+        await storage.createPayment({
+          orderId: id,
+          method: paymentMethod || "cash",
+          amount: tab.total,
+          reference: paymentReference || null,
+        });
+      }
+      
+      // Update order status to completed
+      await storage.updateOrder(id, {
+        status: "completed",
+        completedAt: new Date(),
+      });
+      
+      // Get items for stock deduction
+      const items = await storage.getOrderItems(id);
+      const products = await storage.getProductsByTenant(tenantId);
+      const productMap = new Map(products.map(p => [p.id, p]));
+      
+      // Deduct inventory
+      for (const item of items) {
+        const product = productMap.get(item.productId);
+        if (product?.trackInventory) {
+          await storage.createStockMovement({
+            tenantId,
+            productId: item.productId,
+            type: "sale",
+            quantity: -item.quantity,
+            referenceId: id,
+            userId,
+          });
+        }
+      }
+      
+      // Update table status to dirty
+      if (tab.tableId) {
+        await storage.updateTable(tab.tableId, { status: "dirty" });
+      }
+      
+      // Update customer stats if applicable
+      if (tab.customerId) {
+        const customer = await storage.getCustomer(tab.customerId);
+        if (customer) {
+          await storage.updateCustomer(tab.customerId, {
+            totalSpent: (parseFloat(customer.totalSpent?.toString() || "0") + parseFloat(tab.total)).toString(),
+            orderCount: (customer.orderCount || 0) + 1,
+            lastPurchaseAt: new Date(),
+          });
+        }
+      }
+      
+      const updatedTab = await storage.getOrder(id);
+      res.json(updatedTab);
+    } catch (error) {
+      console.error("Error closing tab:", error);
+      res.status(500).json({ message: "Failed to close tab" });
+    }
+  });
+
+  // Cancel/void a tab
+  app.post("/api/tabs/:id/cancel", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const { id } = req.params;
+      const { reason } = req.body;
+      
+      // Verify tab exists and belongs to tenant
+      const tab = await storage.getOrder(id);
+      if (!tab || tab.tenantId !== tenantId || tab.status !== "tab") {
+        return res.status(404).json({ message: "Tab not found" });
+      }
+      
+      // Update order status to cancelled
+      await storage.updateOrder(id, {
+        status: "cancelled",
+        notes: reason || "Tab cancelled",
+      });
+      
+      // Update table status to dirty
+      if (tab.tableId) {
+        await storage.updateTable(tab.tableId, { status: "dirty" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error cancelling tab:", error);
+      res.status(500).json({ message: "Failed to cancel tab" });
+    }
+  });
+
   // ===== ORDERS ROUTES =====
 
   app.get("/api/orders", async (req: Request, res: Response) => {

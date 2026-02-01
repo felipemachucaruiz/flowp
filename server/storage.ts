@@ -118,6 +118,11 @@ export interface IStorage {
   getOrderItems(orderId: string): Promise<OrderItem[]>;
   getOrderItem(id: string): Promise<OrderItem | undefined>;
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
+  updateOrderItem(id: string, data: Partial<InsertOrderItem>): Promise<OrderItem | undefined>;
+  deleteOrderItem(id: string): Promise<void>;
+  
+  // Tab management
+  getOpenTabByTable(tableId: string): Promise<Order | undefined>;
   
   // Kitchen Tickets
   getKitchenTicket(id: string): Promise<KitchenTicket | undefined>;
@@ -611,6 +616,25 @@ export class DatabaseStorage implements IStorage {
   async createOrderItem(item: InsertOrderItem): Promise<OrderItem> {
     const [created] = await db.insert(orderItems).values(item).returning();
     return created;
+  }
+
+  async updateOrderItem(id: string, data: Partial<InsertOrderItem>): Promise<OrderItem | undefined> {
+    const [updated] = await db.update(orderItems).set(data).where(eq(orderItems.id, id)).returning();
+    return updated;
+  }
+
+  async deleteOrderItem(id: string): Promise<void> {
+    await db.delete(orderItems).where(eq(orderItems.id, id));
+  }
+
+  // Tab management - get open tab for a table
+  async getOpenTabByTable(tableId: string): Promise<Order | undefined> {
+    const [order] = await db.select().from(orders)
+      .where(and(
+        eq(orders.tableId, tableId),
+        eq(orders.status, "tab")
+      ));
+    return order || undefined;
   }
 
   // Kitchen Tickets
