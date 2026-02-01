@@ -23,6 +23,7 @@ import { loadPortalSession } from "./middleware/rbac";
 import internalRoutes from "./routes/internal";
 import tenantRoutes from "./routes/tenant";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import { matiasRouter } from "./integrations/matias/routes";
 
 // WebSocket clients by tenant for real-time KDS updates
 const wsClients = new Map<string, Set<WebSocket>>();
@@ -68,6 +69,9 @@ export async function registerRoutes(
 
   // ===== OBJECT STORAGE ROUTES =====
   registerObjectStorageRoutes(app);
+
+  // ===== MATIAS / DIAN ELECTRONIC BILLING ROUTES =====
+  app.use("/api/billing/matias", matiasRouter);
 
   // ===== PRINTBRIDGE DOWNLOAD =====
   app.get("/printbridge/PrintBridge-Source.zip", (req: Request, res: Response) => {
@@ -2145,6 +2149,16 @@ export async function registerRoutes(
           }
         ).catch(err => console.error('Failed to send new sale notification:', err));
       }
+
+      // Queue DIAN/MATIAS electronic document (async, don't block checkout)
+      const { queueDocument } = await import("./integrations/matias/index");
+      queueDocument({
+        tenantId,
+        kind: "POS",
+        sourceType: "sale",
+        sourceId: order.id,
+        orderNumber: order.orderNumber.toString(),
+      }).catch(err => console.error('Failed to queue MATIAS document:', err));
 
       res.json(order);
     } catch (error) {
