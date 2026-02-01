@@ -1658,16 +1658,16 @@ export async function registerRoutes(
             // Send payment received email (async, don't wait)
             emailService.sendPaymentReceivedEmail(
               customer.email,
-              customer.name,
+              `${tenant?.currencySymbol || '$'}${parseFloat(order.total).toFixed(2)}`,
+              paymentMethod,
+              tenantId,
+              tenant?.displayLanguage || 'en',
               {
-                orderNumber: order.orderNumber,
-                paymentDate: new Date().toISOString(),
-                amount: parseFloat(order.total),
-                paymentMethod: paymentMethod,
                 companyName: tenant?.companyName || 'Flowp POS',
                 companyLogo: tenant?.companyLogo || undefined,
-              },
-              tenant?.displayLanguage || 'en'
+                transactionId: order.orderNumber,
+                date: new Date().toLocaleDateString(tenant?.displayLanguage || 'en', { year: 'numeric', month: 'long', day: 'numeric' }),
+              }
             ).catch(err => console.error('Failed to send payment received email:', err));
           }
         }

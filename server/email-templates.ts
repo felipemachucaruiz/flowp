@@ -5,7 +5,9 @@ export interface EmailTemplateData {
   language?: string;
 }
 
-const FLOWP_LOGO_URL = "https://pos.flowp.app/flowp-logo.png";
+// Note: Logo images in emails are often blocked by email clients
+// Use text fallback when external logo URLs are unavailable
+const FLOWP_LOGO_URL = "";
 
 export function getEmailWrapper(content: string, data: EmailTemplateData = {}): string {
   const {
@@ -249,7 +251,7 @@ export function getEmailWrapper(content: string, data: EmailTemplateData = {}): 
 <body>
   <div class="email-container">
     <div class="header">
-      ${companyLogo ? `<img src="${companyLogo}" alt="${companyName}" />` : `<h1 class="header-text">${companyName}</h1>`}
+      ${companyLogo && companyLogo.startsWith('http') ? `<img src="${companyLogo}" alt="${companyName}" style="max-height: 60px; max-width: 200px;" />` : `<h1 class="header-text">${companyName}</h1>`}
     </div>
     
     <div class="content">
@@ -257,7 +259,7 @@ export function getEmailWrapper(content: string, data: EmailTemplateData = {}): 
     </div>
     
     <div class="footer">
-      <img src="${FLOWP_LOGO_URL}" alt="Flowp" class="footer-logo" />
+      <p style="font-size: 14px; font-weight: 600; color: #6E51CD; margin-bottom: 8px;">Flowp</p>
       <p>Powered by Flowp - Modern POS & Inventory Management</p>
       <p>&copy; ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
     </div>
