@@ -45,6 +45,17 @@ import OnboardingPage from "@/pages/onboarding";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 
+import { InternalAdminProvider } from "@/lib/internal-admin-context";
+import { InternalAdminLayout } from "@/pages/internal-admin/layout";
+import InternalAdminLogin from "@/pages/internal-admin/login";
+import InternalAdminDashboard from "@/pages/internal-admin/dashboard";
+import InternalAdminTenants from "@/pages/internal-admin/tenants";
+import InternalAdminTenantDetail from "@/pages/internal-admin/tenant-detail";
+import InternalAdminDocuments from "@/pages/internal-admin/documents";
+import InternalAdminPackages from "@/pages/internal-admin/packages";
+import InternalAdminAlerts from "@/pages/internal-admin/alerts";
+import InternalAdminAudit from "@/pages/internal-admin/audit";
+
 function ProtectedRoute({ component: Component, skipOnboardingCheck }: { component: () => JSX.Element; skipOnboardingCheck?: boolean }) {
   const { user, isLoading, isInternal, tenant } = useAuth();
   const [location] = useLocation();
@@ -274,9 +285,37 @@ function OnboardingRoute() {
   return <OnboardingPage />;
 }
 
+function InternalAdminRouter() {
+  return (
+    <InternalAdminProvider>
+      <InternalAdminLayout>
+        <Switch>
+          <Route path="/internal-admin/login" component={InternalAdminLogin} />
+          <Route path="/internal-admin/dashboard" component={InternalAdminDashboard} />
+          <Route path="/internal-admin/tenants/:tenantId" component={InternalAdminTenantDetail} />
+          <Route path="/internal-admin/tenants" component={InternalAdminTenants} />
+          <Route path="/internal-admin/documents" component={InternalAdminDocuments} />
+          <Route path="/internal-admin/packages" component={InternalAdminPackages} />
+          <Route path="/internal-admin/alerts" component={InternalAdminAlerts} />
+          <Route path="/internal-admin/audit" component={InternalAdminAudit} />
+          <Route path="/internal-admin">
+            {() => <Redirect to="/internal-admin/dashboard" />}
+          </Route>
+          <Route component={NotFound} />
+        </Switch>
+      </InternalAdminLayout>
+    </InternalAdminProvider>
+  );
+}
+
 function Router() {
   const [location] = useLocation();
   const isAdminRoute = location.startsWith("/admin");
+  const isInternalAdminRoute = location.startsWith("/internal-admin");
+
+  if (isInternalAdminRoute) {
+    return <InternalAdminRouter />;
+  }
 
   return (
     <Switch>

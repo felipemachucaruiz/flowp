@@ -4,11 +4,63 @@ import {
   matiasDocumentFiles,
   electronicDocumentSequences,
   tenantIntegrationsMatias,
+  tenantEbillingUsage,
 } from "@shared/schema";
 import { eq, and, sql, lte } from "drizzle-orm";
 import { getMatiasClient } from "./matiasClient";
 import { buildPosPayload, buildPosCreditNotePayload } from "./payloadBuilders";
 import type { MatiasPayload, MatiasNotePayload } from "./types";
+
+async function incrementDocumentUsage(tenantId: string, documentKind: string): Promise<void> {
+  try {
+    const now = new Date();
+    const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const existing = await db.query.tenantEbillingUsage.findFirst({
+      where: and(
+        eq(tenantEbillingUsage.tenantId, tenantId),
+        eq(tenantEbillingUsage.periodStart, periodStart)
+      ),
+    });
+
+    const columnMap: Record<string, string> = {
+      POS: "documents_pos_invoice",
+      INVOICE: "documents_pos_invoice",
+      POS_CREDIT_NOTE: "documents_credit_note",
+      POS_DEBIT_NOTE: "documents_debit_note",
+      SUPPORT_DOC: "documents_support_doc",
+      SUPPORT_ADJUSTMENT: "documents_support_doc",
+    };
+    const column = columnMap[documentKind] || "documents_pos_invoice";
+
+    if (existing) {
+      await db.execute(sql`
+        UPDATE tenant_ebilling_usage
+        SET ${sql.raw(column)} = ${sql.raw(column)} + 1, updated_at = NOW()
+        WHERE id = ${existing.id}
+      `);
+    } else {
+      const usageValues: any = {
+        tenantId,
+        periodStart,
+        documentsPosInvoice: 0,
+        documentsCreditNote: 0,
+        documentsDebitNote: 0,
+        documentsSupportDoc: 0,
+      };
+      if (column === "documents_pos_invoice") usageValues.documentsPosInvoice = 1;
+      if (column === "documents_credit_note") usageValues.documentsCreditNote = 1;
+      if (column === "documents_debit_note") usageValues.documentsDebitNote = 1;
+      if (column === "documents_support_doc") usageValues.documentsSupportDoc = 1;
+
+      await db.insert(tenantEbillingUsage).values(usageValues);
+    }
+
+    console.log(`[Metering] Incremented ${column} for tenant ${tenantId}`);
+  } catch (error: any) {
+    console.error("[Metering] Failed to increment usage:", error.message);
+  }
+}
 
 export async function getNextDocumentNumber(
   tenantId: string,
@@ -235,6 +287,8 @@ export async function processDocument(documentId: string): Promise<boolean> {
           updatedAt: new Date(),
         })
         .where(eq(matiasDocumentQueue.id, documentId));
+
+      await incrementDocumentUsage(doc.tenantId, doc.kind);
 
       if (response.data.track_id) {
         const pdfBuffer = await client.downloadPdf(response.data.track_id);

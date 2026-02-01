@@ -3,6 +3,19 @@ import { db } from "../db";
 import { internalUsers } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.SESSION_SECRET || process.env.INTERNAL_JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.warn("[InternalAuth] SESSION_SECRET or INTERNAL_JWT_SECRET not set - internal admin authentication will fail");
+}
+
+interface InternalTokenPayload {
+  userId: string;
+  email: string;
+  role: "superadmin" | "supportagent" | "billingops";
+}
 
 declare global {
   namespace Express {
@@ -17,23 +30,55 @@ declare global {
   }
 }
 
-export async function internalAuth(req: Request, res: Response, next: NextFunction) {
-  const internalUserId = req.headers["x-internal-user-id"] as string;
-  const internalToken = req.headers["x-internal-token"] as string;
+export function generateInternalToken(user: { id: string; email: string; role: "superadmin" | "supportagent" | "billingops" }): string {
+  if (!JWT_SECRET) {
+    throw new Error("JWT secret not configured");
+  }
+  
+  const payload: InternalTokenPayload = {
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+  };
 
-  if (!internalUserId) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
+}
+
+export function verifyInternalToken(token: string): InternalTokenPayload | null {
+  if (!JWT_SECRET) {
+    return null;
+  }
+
+  try {
+    return jwt.verify(token, JWT_SECRET) as InternalTokenPayload;
+  } catch {
+    return null;
+  }
+}
+
+export async function internalAuth(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ error: "Internal authentication required" });
+  }
+
+  const token = authHeader.substring(7);
+  const payload = verifyInternalToken(token);
+
+  if (!payload) {
+    return res.status(401).json({ error: "Invalid or expired token" });
   }
 
   const user = await db.query.internalUsers.findFirst({
     where: and(
-      eq(internalUsers.id, internalUserId),
+      eq(internalUsers.id, payload.userId),
       eq(internalUsers.isActive, true),
     ),
   });
 
   if (!user) {
-    return res.status(401).json({ error: "Invalid internal user" });
+    return res.status(401).json({ error: "User not found or inactive" });
   }
 
   req.internalUser = {
@@ -109,10 +154,17 @@ export async function verifyInternalUser(email: string, password: string) {
     .set({ lastLoginAt: new Date() })
     .where(eq(internalUsers.id, user.id));
 
+  const token = generateInternalToken({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+  });
+
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    token,
   };
 }

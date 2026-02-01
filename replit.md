@@ -4,7 +4,7 @@
 A production-ready, multi-tenant POS + Inventory system delivered as a Progressive Web App (PWA) with native desktop and mobile apps. Supports Windows, macOS, iOS, and Android with thermal printing, barcode scanning, and offline capability. The system supports both Retail and Restaurant tenants with feature flags controlling module availability.
 
 ## Current State
-- **Status**: MVP Complete + Management Portal Phase 1 + Mobile App + Responsive Design + Email Notifications + DIAN/MATIAS Electronic Billing
+- **Status**: MVP Complete + Management Portal Phase 1 + Mobile App + Responsive Design + Email Notifications + DIAN/MATIAS Electronic Billing + Internal Admin Console
 - **Last Updated**: February 1, 2026
 - **Stack**: React + TypeScript frontend, Express + PostgreSQL backend
 - **Platforms**: Web (PWA), Windows (Electron), macOS (Electron), iOS (Capacitor), Android (Capacitor)
@@ -85,6 +85,46 @@ Each role has granular permissions for:
 - Current auth uses localStorage (frontend-only session state)
 - Phase 2 will add JWT/session-based server authentication
 - RBAC permission enforcement needs token validation middleware
+
+## Internal Admin Console (E-Billing SaaS Management)
+Separate admin portal at `/internal-admin` for managing e-billing subscriptions, document operations, and tenant administration.
+
+### Access URL
+- **Login**: `/internal-admin/login`
+- **Dashboard**: `/internal-admin/dashboard`
+
+### Internal Admin Roles
+- **superadmin**: Full platform control, all features
+- **supportagent**: Tenant support, document ops, read-only billing
+- **billingops**: Package management, subscription assignments, credits
+
+### Features
+- **Dashboard**: Stats overview (tenants, documents, alerts, packages)
+- **Tenants List**: View, search, filter tenants with suspend/unsuspend actions
+- **Tenant Detail**: Overview, e-billing subscription, usage metrics, documents, alerts
+- **Documents**: List all DIAN documents with retry/download actions
+- **Packages**: Create/edit e-billing packages (pricing, included docs, overage policies)
+- **Alerts**: Usage threshold alerts (70%, 90%, 100%) with acknowledge actions
+- **Audit Log**: Track all admin actions (suspend, credits, package changes)
+
+### Database Tables
+- `internal_users`: Internal admin accounts with bcrypt passwords
+- `internal_audit_logs`: All admin actions logged
+- `ebilling_packages`: Subscription package definitions
+- `tenant_ebilling_subscriptions`: Tenant-package assignments
+- `tenant_ebilling_usage`: Monthly document usage tracking
+- `tenant_ebilling_credits`: Credit adjustments
+- `ebilling_alerts`: Usage threshold alerts
+
+### API Routes
+- `/api/internal-admin/auth/login` - Internal admin login
+- `/api/internal-admin/stats` - Dashboard statistics
+- `/api/internal-admin/tenants` - Tenant management
+- `/api/internal-admin/tenants/:id/overview` - Tenant detail with e-billing info
+- `/api/internal-admin/ebilling/documents` - Document operations
+- `/api/internal-admin/ebilling/packages` - Package CRUD
+- `/api/internal-admin/ebilling/alerts` - Alert management
+- `/api/internal-admin/audit` - Audit log
 
 ## Key Features
 

@@ -41,6 +41,29 @@ internalAdminRouter.post("/auth/register", async (req: Request, res: Response) =
 
 internalAdminRouter.use(internalAuth);
 
+internalAdminRouter.get("/stats", requireRole(["superadmin", "supportagent", "billingops"]), async (req: Request, res: Response) => {
+  try {
+    const allTenants = await db.query.tenants.findMany();
+    const packages = await ebillingService.listPackages();
+    
+    const tenantStats = {
+      total: allTenants.length,
+      active: allTenants.filter(t => t.status === "active").length,
+      trial: allTenants.filter(t => t.status === "trial").length,
+      pastDue: allTenants.filter(t => t.status === "past_due").length,
+      suspended: allTenants.filter(t => t.status === "suspended").length,
+    };
+
+    res.json({
+      tenants: tenantStats,
+      documents: { thisMonth: 0, accepted: 0 },
+      packages: { active: packages.filter(p => p.isActive).length },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 internalAdminRouter.get("/tenants", requireRole(["superadmin", "supportagent", "billingops"]), async (req: Request, res: Response) => {
   try {
     const { search, status } = req.query;
@@ -416,6 +439,28 @@ internalAdminRouter.get("/ebilling/stats", requireRole(["superadmin", "billingop
     const { tenantId } = req.query;
     const stats = await documentOpsService.getDocumentStats(tenantId as string);
     res.json({ success: true, stats });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.get("/audit", requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    const { action, limit = "50", offset = "0" } = req.query;
+    const conditions = [];
+
+    if (action) {
+      conditions.push(eq(internalAuditLogs.actionType, action as string));
+    }
+
+    const logs = await db.query.internalAuditLogs.findMany({
+      where: conditions.length > 0 ? and(...conditions) : undefined,
+      orderBy: desc(internalAuditLogs.createdAt),
+      limit: parseInt(limit as string),
+      offset: parseInt(offset as string),
+    });
+
+    res.json({ success: true, logs, total: logs.length });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
