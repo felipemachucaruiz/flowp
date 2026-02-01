@@ -58,6 +58,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       localStorage.setItem("pos_is_internal", data.isInternal ? "true" : "false");
       
+      // Store internal admin token if provided (for API authentication)
+      if (data.token) {
+        localStorage.setItem("internal_admin_token", data.token);
+      }
+      
       // For new tenants that haven't completed onboarding, redirect to wizard
       let redirectTo = data.redirectTo;
       if (!redirectTo) {
@@ -86,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("pos_user");
     localStorage.removeItem("pos_tenant");
     localStorage.removeItem("pos_is_internal");
+    localStorage.removeItem("internal_admin_token");
     // Clear all cached data to prevent showing data from previous company
     queryClient.clear();
   };

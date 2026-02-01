@@ -25,6 +25,7 @@ import tenantRoutes from "./routes/tenant";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { matiasRouter } from "./integrations/matias/routes";
 import { internalAdminRouter } from "./routes/internalAdmin";
+import { generateInternalToken } from "./middleware/internalAuth";
 
 // WebSocket clients by tenant for real-time KDS updates
 const wsClients = new Map<string, Set<WebSocket>>();
@@ -361,11 +362,19 @@ export async function registerRoutes(
 
       // Handle internal admin users (no tenant)
       if (user.isInternal) {
+        // Generate JWT token for internal admin API access
+        const token = generateInternalToken({
+          id: user.id,
+          email: user.email || user.username,
+          role: (user.role as "superadmin" | "supportagent" | "billingops") || "superadmin",
+        });
+        
         return res.json({
           user: { ...user, password: undefined },
           tenant: null,
           isInternal: true,
           redirectTo: "/admin",
+          token,
         });
       }
 

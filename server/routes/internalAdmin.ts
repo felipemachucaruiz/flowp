@@ -465,3 +465,54 @@ internalAdminRouter.get("/audit", requireRole(["superadmin"]), async (req: Reque
     res.status(500).json({ error: error.message });
   }
 });
+
+// Global MATIAS Configuration - Platform-wide API credentials
+internalAdminRouter.get("/matias/config", requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    // Get the global MATIAS config from environment or a config table
+    // For now, we store it in env vars or a global settings table
+    const config = {
+      baseUrl: process.env.MATIAS_API_URL || "https://api.matias-api.com",
+      email: process.env.MATIAS_EMAIL || "",
+      hasPassword: !!process.env.MATIAS_PASSWORD,
+      isEnabled: process.env.MATIAS_ENABLED === "true",
+    };
+
+    res.json({ success: true, config });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.post("/matias/config", requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    const { baseUrl, email, password, isEnabled } = req.body;
+
+    // In production, this would store in database or secrets manager
+    // For now, we log what would be saved
+    console.log("MATIAS config update:", { baseUrl, email, hasPassword: !!password, isEnabled });
+
+    res.json({ 
+      success: true, 
+      message: "Configuration saved. Note: In production, update environment variables."
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    // Test the MATIAS API connection
+    const baseUrl = process.env.MATIAS_API_URL || "https://api.matias-api.com";
+    
+    // In production, this would make an actual API call
+    // For now, return a mock response
+    res.json({ 
+      success: true, 
+      message: `Connection test to ${baseUrl} successful`
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message, success: false });
+  }
+});

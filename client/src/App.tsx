@@ -12,10 +12,8 @@ import { TourOverlay, TourButton } from "@/components/tour-overlay";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AdminSidebar } from "@/components/admin-sidebar";
-import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationCenter } from "@/components/notification-center";
-import { LogOut } from "lucide-react";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -38,24 +36,19 @@ import SettingsPage from "@/pages/settings";
 
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminTenants from "@/pages/admin/tenants";
+import AdminTenantDetail from "@/pages/admin/tenant-detail";
 import AdminUsers from "@/pages/admin/users";
 import AdminBilling from "@/pages/admin/billing";
 import AdminEbilling from "@/pages/admin/ebilling";
 import AdminEmailSettings from "@/pages/admin/email-settings";
+import AdminDocuments from "@/pages/admin/documents";
+import AdminPackages from "@/pages/admin/packages";
+import AdminAlerts from "@/pages/admin/alerts";
+import AdminAudit from "@/pages/admin/audit";
+import AdminMatiasConfig from "@/pages/admin/matias-config";
 import OnboardingPage from "@/pages/onboarding";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
-
-import { InternalAdminProvider } from "@/lib/internal-admin-context";
-import { InternalAdminLayout } from "@/pages/internal-admin/layout";
-import InternalAdminLogin from "@/pages/internal-admin/login";
-import InternalAdminDashboard from "@/pages/internal-admin/dashboard";
-import InternalAdminTenants from "@/pages/internal-admin/tenants";
-import InternalAdminTenantDetail from "@/pages/internal-admin/tenant-detail";
-import InternalAdminDocuments from "@/pages/internal-admin/documents";
-import InternalAdminPackages from "@/pages/internal-admin/packages";
-import InternalAdminAlerts from "@/pages/internal-admin/alerts";
-import InternalAdminAudit from "@/pages/internal-admin/audit";
 
 function ProtectedRoute({ component: Component, skipOnboardingCheck }: { component: () => JSX.Element; skipOnboardingCheck?: boolean }) {
   const { user, isLoading, isInternal, tenant } = useAuth();
@@ -105,18 +98,12 @@ function AdminRoute({ component: Component }: { component: () => JSX.Element }) 
 }
 
 function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
-  const { t } = useI18n();
+  const { user } = useAuth();
   const [, navigate] = useLocation();
 
   if (!user) {
     return <>{children}</>;
   }
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
 
   const style = {
     "--sidebar-width": "12rem",
@@ -180,6 +167,9 @@ function AdminRouter() {
         <Route path="/admin">
           <AdminRoute component={AdminDashboard} />
         </Route>
+        <Route path="/admin/tenants/:tenantId">
+          <AdminRoute component={AdminTenantDetail} />
+        </Route>
         <Route path="/admin/tenants">
           <AdminRoute component={AdminTenants} />
         </Route>
@@ -191,6 +181,21 @@ function AdminRouter() {
         </Route>
         <Route path="/admin/ebilling">
           <AdminRoute component={AdminEbilling} />
+        </Route>
+        <Route path="/admin/documents">
+          <AdminRoute component={AdminDocuments} />
+        </Route>
+        <Route path="/admin/packages">
+          <AdminRoute component={AdminPackages} />
+        </Route>
+        <Route path="/admin/alerts">
+          <AdminRoute component={AdminAlerts} />
+        </Route>
+        <Route path="/admin/audit">
+          <AdminRoute component={AdminAudit} />
+        </Route>
+        <Route path="/admin/matias-config">
+          <AdminRoute component={AdminMatiasConfig} />
         </Route>
         <Route path="/admin/email-settings">
           <AdminRoute component={AdminEmailSettings} />
@@ -289,37 +294,9 @@ function OnboardingRoute() {
   return <OnboardingPage />;
 }
 
-function InternalAdminRouter() {
-  return (
-    <InternalAdminProvider>
-      <InternalAdminLayout>
-        <Switch>
-          <Route path="/internal-admin/login" component={InternalAdminLogin} />
-          <Route path="/internal-admin/dashboard" component={InternalAdminDashboard} />
-          <Route path="/internal-admin/tenants/:tenantId" component={InternalAdminTenantDetail} />
-          <Route path="/internal-admin/tenants" component={InternalAdminTenants} />
-          <Route path="/internal-admin/documents" component={InternalAdminDocuments} />
-          <Route path="/internal-admin/packages" component={InternalAdminPackages} />
-          <Route path="/internal-admin/alerts" component={InternalAdminAlerts} />
-          <Route path="/internal-admin/audit" component={InternalAdminAudit} />
-          <Route path="/internal-admin">
-            {() => <Redirect to="/internal-admin/dashboard" />}
-          </Route>
-          <Route component={NotFound} />
-        </Switch>
-      </InternalAdminLayout>
-    </InternalAdminProvider>
-  );
-}
-
 function Router() {
   const [location] = useLocation();
   const isAdminRoute = location.startsWith("/admin");
-  const isInternalAdminRoute = location.startsWith("/internal-admin");
-
-  if (isInternalAdminRoute) {
-    return <InternalAdminRouter />;
-  }
 
   return (
     <Switch>
