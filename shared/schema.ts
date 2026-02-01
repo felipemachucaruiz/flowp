@@ -1382,6 +1382,20 @@ export const insertInternalUserSchema = createInsertSchema(internalUsers).omit({
 export type InternalUser = typeof internalUsers.$inferSelect;
 export type InsertInternalUser = z.infer<typeof insertInternalUserSchema>;
 
+// Platform Configuration (global settings)
+export const platformConfig = pgTable("platform_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(),
+  value: text("value"),
+  encryptedValue: text("encrypted_value"),
+  description: text("description"),
+  updatedBy: varchar("updated_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export type PlatformConfig = typeof platformConfig.$inferSelect;
+
 // Internal Audit Logs (for admin actions)
 export const internalAuditLogs = pgTable("internal_audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

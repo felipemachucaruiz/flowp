@@ -4,8 +4,31 @@ import * as ebillingService from "../services/internal-admin/ebillingService";
 import * as documentOpsService from "../services/internal-admin/documentOpsService";
 import * as integrationService from "../services/internal-admin/integrationService";
 import { db } from "../db";
-import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs } from "@shared/schema";
+import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig } from "@shared/schema";
 import { eq, like, or, desc, and } from "drizzle-orm";
+import crypto from "crypto";
+
+const ENCRYPTION_KEY = process.env.SESSION_SECRET || "default-encryption-key-32-chars!";
+
+function encrypt(text: string): string {
+  const iv = crypto.randomBytes(16);
+  const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  return iv.toString('hex') + ':' + encrypted;
+}
+
+function decrypt(text: string): string {
+  const parts = text.split(':');
+  const iv = Buffer.from(parts[0], 'hex');
+  const encryptedText = parts[1];
+  const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
+  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+  let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
 
 export const internalAdminRouter = Router();
 
@@ -469,13 +492,29 @@ internalAdminRouter.get("/audit", requireRole(["superadmin"]), async (req: Reque
 // Global MATIAS Configuration - Platform-wide API credentials
 internalAdminRouter.get("/matias/config", requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
-    // Get the global MATIAS config from environment or a config table
-    // For now, we store it in env vars or a global settings table
+    const configs = await db.select().from(platformConfig).where(
+      or(
+        eq(platformConfig.key, "matias_base_url"),
+        eq(platformConfig.key, "matias_email"),
+        eq(platformConfig.key, "matias_password"),
+        eq(platformConfig.key, "matias_enabled")
+      )
+    );
+
+    const configMap: Record<string, string> = {};
+    for (const c of configs) {
+      if (c.key === "matias_password" && c.encryptedValue) {
+        configMap[c.key] = c.encryptedValue;
+      } else {
+        configMap[c.key] = c.value || "";
+      }
+    }
+
     const config = {
-      baseUrl: process.env.MATIAS_API_URL || "https://api.matias-api.com",
-      email: process.env.MATIAS_EMAIL || "",
-      hasPassword: !!process.env.MATIAS_PASSWORD,
-      isEnabled: process.env.MATIAS_ENABLED === "true",
+      baseUrl: configMap.matias_base_url || "https://api.matias-api.com",
+      email: configMap.matias_email || "",
+      hasPassword: !!configMap.matias_password,
+      isEnabled: configMap.matias_enabled === "true",
     };
 
     res.json({ success: true, config });
@@ -487,14 +526,43 @@ internalAdminRouter.get("/matias/config", requireRole(["superadmin"]), async (re
 internalAdminRouter.post("/matias/config", requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
     const { baseUrl, email, password, isEnabled } = req.body;
+    const userId = (req as any).user?.userId;
 
-    // In production, this would store in database or secrets manager
-    // For now, we log what would be saved
-    console.log("MATIAS config update:", { baseUrl, email, hasPassword: !!password, isEnabled });
+    const upsertConfig = async (key: string, value: string | null, isEncrypted = false) => {
+      const existing = await db.select().from(platformConfig).where(eq(platformConfig.key, key));
+      const now = new Date();
+      
+      if (existing.length > 0) {
+        await db.update(platformConfig)
+          .set({
+            value: isEncrypted ? null : value,
+            encryptedValue: isEncrypted && value ? encrypt(value) : null,
+            updatedBy: userId,
+            updatedAt: now,
+          })
+          .where(eq(platformConfig.key, key));
+      } else {
+        await db.insert(platformConfig).values({
+          key,
+          value: isEncrypted ? null : value,
+          encryptedValue: isEncrypted && value ? encrypt(value) : null,
+          updatedBy: userId,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    };
+
+    await upsertConfig("matias_base_url", baseUrl || "https://api.matias-api.com");
+    await upsertConfig("matias_email", email || "");
+    if (password) {
+      await upsertConfig("matias_password", password, true);
+    }
+    await upsertConfig("matias_enabled", isEnabled ? "true" : "false");
 
     res.json({ 
       success: true, 
-      message: "Configuration saved. Note: In production, update environment variables."
+      message: "Configuration saved successfully."
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -503,15 +571,68 @@ internalAdminRouter.post("/matias/config", requireRole(["superadmin"]), async (r
 
 internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
-    // Test the MATIAS API connection
-    const baseUrl = process.env.MATIAS_API_URL || "https://api.matias-api.com";
-    
-    // In production, this would make an actual API call
-    // For now, return a mock response
-    res.json({ 
-      success: true, 
-      message: `Connection test to ${baseUrl} successful`
-    });
+    const configs = await db.select().from(platformConfig).where(
+      or(
+        eq(platformConfig.key, "matias_base_url"),
+        eq(platformConfig.key, "matias_email"),
+        eq(platformConfig.key, "matias_password")
+      )
+    );
+
+    const configMap: Record<string, string> = {};
+    for (const c of configs) {
+      if (c.key === "matias_password" && c.encryptedValue) {
+        try {
+          configMap[c.key] = decrypt(c.encryptedValue);
+        } catch {
+          configMap[c.key] = "";
+        }
+      } else {
+        configMap[c.key] = c.value || "";
+      }
+    }
+
+    const baseUrl = configMap.matias_base_url || "https://api.matias-api.com";
+    const email = configMap.matias_email;
+    const password = configMap.matias_password;
+
+    if (!email || !password) {
+      return res.json({ 
+        success: false, 
+        message: "Email and password are required to test connection."
+      });
+    }
+
+    try {
+      const response = await fetch(`${baseUrl}/oauth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "password",
+          username: email,
+          password: password,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        res.json({ 
+          success: true, 
+          message: `Connection successful! Token obtained.`
+        });
+      } else {
+        const errorText = await response.text();
+        res.json({ 
+          success: false, 
+          message: `Connection failed: ${response.status} - ${errorText}`
+        });
+      }
+    } catch (fetchError: any) {
+      res.json({ 
+        success: false, 
+        message: `Connection failed: ${fetchError.message}`
+      });
+    }
   } catch (error: any) {
     res.status(500).json({ error: error.message, success: false });
   }
