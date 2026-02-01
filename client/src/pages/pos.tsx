@@ -247,6 +247,30 @@ export default function POSPage() {
   // Tab mode is active when a table is selected
   const isTabMode = !!selectedTable;
 
+  // Mutation to create/open a tab for a table
+  const openTabMutation = useMutation({
+    mutationFn: async (tableId: string) => {
+      return apiRequest("POST", `/api/tabs/open`, { tableId });
+    },
+    onSuccess: () => {
+      refetchTab();
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("common.error"),
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Auto-create tab when entering tab mode if no tab exists
+  useEffect(() => {
+    if (isTabMode && selectedTable && !openTab && !tabLoading && !tabFetching && !openTabMutation.isPending) {
+      openTabMutation.mutate(selectedTable);
+    }
+  }, [isTabMode, selectedTable, openTab, tabLoading, tabFetching, openTabMutation.isPending]);
+
   // Mutation to add items to tab
   const addToTabMutation = useMutation({
     mutationFn: async (items: any[]) => {
@@ -992,10 +1016,10 @@ export default function POSPage() {
                 <Button
                   className="w-full"
                   onClick={handleAddToTab}
-                  disabled={cart.length === 0 || addToTabMutation.isPending || tabLoading || tabFetching || !openTab}
+                  disabled={cart.length === 0 || addToTabMutation.isPending || openTabMutation.isPending || tabLoading || tabFetching || !openTab}
                   data-testid="button-add-to-tab"
                 >
-                  {(addToTabMutation.isPending || tabLoading || tabFetching) ? (
+                  {(addToTabMutation.isPending || openTabMutation.isPending || tabLoading || tabFetching) ? (
                     <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
                   ) : (
                     <Plus className="w-4 h-4 mr-1.5" />
