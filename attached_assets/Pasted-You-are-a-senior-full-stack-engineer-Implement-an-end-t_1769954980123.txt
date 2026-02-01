@@ -1,0 +1,160 @@
+You are a senior full-stack engineer. Implement an end-to-end integration between Flowp (multi-tenant POS SaaS) and MATIAS API (DIAN provider).
+
+STACK
+- Backend: Node.js + Express + TypeScript
+- DB: PostgreSQL + Drizzle ORM
+- Validation: Zod
+- Monorepo folders: /server, /client, /shared
+
+NON-NEGOTIABLE PRINCIPLES
+1) Never block checkout for DIAN/API. A sale is closed locally first, then DIAN submission is async.
+2) Credentials/tokens MUST never reach the frontend.
+3) Multi-tenant: each tenant has its own Matias config and numbering/resolutions.
+
+MATIAS AUTH
+Use /auth/login with { email, password, remember_me: 0 } and store access_token; reuse until expiration (~1 year) and refresh on 401 once. Use headers:
+- Authorization: Bearer <token>
+- Content-Type: application/json
+- Accept: application/json
+
+MATIAS ENDPOINTS (baseUrl is tenant-configurable)
+Billing & POS:
+- POST {{url}}/invoice  (used for invoices and POS depending on type_document_id)
+Notes:
+- POST {{url}}/notes/credit
+- POST {{url}}/notes/debit
+Support docs:
+- POST {{url}}/ds/document
+- POST {{url}}/ds/adjustment-note
+Documents / downloads / status:
+- GET  {{url}}/documents?... (search by order_number, number, resolution, prefix, etc.)
+- GET  {{url}}/documents/last?resolution=...&prefix=...
+- GET  {{url}}/status?order_number=...&resolution=...&number=...&prefix=...
+- GET  {{url}}/status/document/{trackId}
+- GET  {{url}}/documents/pdf/{trackId} (optional regenerate=1)
+- POST {{url}}/documents/attached/{trackId} (optional regenerate=1)
+
+DOCUMENT TYPES / JSON SOURCES OF TRUTH (use Matias examples)
+A) POS ELECTRONICO (default in Flowp)
+- POS final consumer uses type_document_id = 20.
+- Must include: resolution_number, prefix, document_number, operation_type_id, payments, lines, legal_monetary_totals, tax_totals, plus point_of_sale + software_manufacturer and document_signature.
+
+B) POS WITH DISCOUNT
+- Discounts must be represented as line.allowance_charges[] with:
+  - charge_indicator=false
+  - allowance_charge_reason
+  - base_amount
+  - amount
+- Ensure totals reconcile: legal_monetary_totals.tax_inclusive_amount matches taxes + tax_exclusive.
+
+C) POS DEBIT NOTE
+- type_document_id = 93
+- Must include discrepancy_response and billing_reference (number/date/uuid) referencing original POS.
+- Use operation_type_id per example.
+
+D) POS CREDIT NOTE
+- type_document_id = 94
+- Must include discrepancy_response and billing_reference including scheme_name (e.g., CUDE-SHA384) per example.
+
+E) DOCUMENTO SOPORTE (optional module)
+- Resident support document uses type_document_id = 11.
+- Support adjustment note uses type_document_id = 15 and references original support document via billing_reference + discrepancy_response.
+
+WHAT TO BUILD (BACKEND ONLY)
+
+1) Integration module
+/server/integrations/matias/
+- matiasClient.ts
+  - auth, token caching, retry 401 once
+  - submitInvoice(payload)
+  - submitCreditNote(payload)
+  - submitDebitNote(payload)
+  - submitSupportDocument(payload)
+  - submitSupportAdjustmentNote(payload)
+  - searchDocuments(params)
+  - getLastDocument(resolution,prefix)
+  - getStatus(params)
+  - getStatusByTrackId(trackId)
+  - downloadPdf(trackId, regenerate?)
+  - downloadAttached(trackId, regenerate?)
+
+2) Database schema (Drizzle)
+A) tenant_integrations_matias
+- tenant_id
+- base_url
+- email/password_encrypted
+- access_token_encrypted
+- token_expires_at
+- default_resolution_number
+- default_prefix
+- pos_terminal_number, pos_sales_code, pos_cashier_type, pos_address
+- created_at/updated_at
+
+B) electronic_documents
+- id, tenant_id
+- kind: 'POS'|'INVOICE'|'POS_CREDIT_NOTE'|'POS_DEBIT_NOTE'|'SUPPORT_DOC'|'SUPPORT_ADJUSTMENT'
+- source_type: 'sale'|'refund'|'purchase'|'adjustment'
+- source_id (saleId etc.)
+- resolution_number, prefix, document_number, order_number
+- track_id (document_key / uuid used for downloads/status)
+- status: 'PENDING'|'SENT'|'ACCEPTED'|'REJECTED'|'RETRY'|'FAILED'
+- last_error_message, last_http_status
+- request_json (jsonb), response_json (jsonb)
+- created_at/updated_at
+
+C) electronic_document_files
+- electronic_document_id
+- kind: 'pdf'|'attached_zip'|'qr'
+- url/path/base64(optional)
+
+3) Async runner (DB-backed queue)
+- When a sale is closed, create electronic_documents row as PENDING and return success to POS immediately.
+- Background worker picks PENDING/RETRY docs and submits to Matias.
+- Retry policy:
+  - retry on 5xx/timeouts/network
+  - no retry on schema/validation 4xx (mark REJECTED)
+  - max retries then FAILED
+- After submission, poll status using /status or /status/document/{trackId} and update ACCEPTED/REJECTED.
+
+4) Numbering strategy
+- Use /documents/last?resolution=&prefix= to get last number and allocate next document_number per tenant+resolution+prefix safely (transaction + lock).
+- Store allocated number on electronic_documents before submitting (idempotency).
+
+5) Builders / mappers from Flowp → Matias payload
+Implement builders:
+- buildPosFinalConsumerPayload(sale, tenantConfig)
+- buildPosWithDiscountPayload(sale, tenantConfig) (adds line.allowance_charges)
+- buildPosDebitNotePayload(originalPosDoc, adjustments)
+- buildPosCreditNotePayload(originalPosDoc, refund)
+- buildSupportDocumentPayload(purchase) (if enabled)
+- buildSupportAdjustmentNotePayload(originalSupportDoc, reason)
+
+All builders must:
+- generate payments[] from Flowp tenders
+- build lines[] with correct taxes per item
+- compute legal_monetary_totals and tax_totals
+- add document_signature + point_of_sale + software_manufacturer for POS flows
+
+6) Zod validation
+- Create Zod schemas for Matias payloads (POS, notes, support docs) and validate before sending.
+- Validate totals consistency to avoid “common errors” DIAN rejects.
+
+7) Express routes (no frontend)
+Admin config:
+- POST /api/admin/integrations/matias/config (save & test)
+- POST /api/admin/integrations/matias/test (login check)
+Ops:
+- POST /api/billing/matias/pos/issue (creates PENDING doc)
+- POST /api/billing/matias/pos/credit-note
+- POST /api/billing/matias/pos/debit-note
+- POST /api/billing/matias/support/issue (optional)
+- POST /api/billing/matias/support/adjustment-note (optional)
+- GET  /api/billing/matias/documents/:id
+- POST /api/billing/matias/documents/:id/retry
+- GET  /api/billing/matias/documents/:id/pdf
+- POST /api/billing/matias/documents/:id/attached
+
+OUTPUT
+- Commit-ready code changes: modules, drizzle schema/migrations, routes, worker, payload builders, validations.
+- README: how to configure Matias per tenant and how Flowp decides POS final consumer vs invoice vs notes vs support docs.
+- Do not build UI screens; only backend APIs.
