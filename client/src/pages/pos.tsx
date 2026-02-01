@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { usePOS } from "@/lib/pos-context";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
@@ -48,12 +49,15 @@ import { syncManager } from "@/lib/sync-manager";
 import { CameraBarcodeScanner } from "@/components/camera-barcode-scanner";
 
 export default function POSPage() {
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const { t } = useI18n();
   const { tenant, user } = useAuth();
   const {
     cart,
     heldOrders,
+    selectedTable,
+    setSelectedTable,
     addToCart,
     removeFromCart,
     removeFreeItems,
@@ -217,6 +221,43 @@ export default function POSPage() {
   const { data: stockLevels } = useQuery<Record<string, number>>({
     queryKey: ["/api/inventory/levels"],
     enabled: !!tenant?.id,
+  });
+
+  // Query for open tab when table is selected (restaurant dine-in)
+  const { data: openTab, refetch: refetchTab } = useQuery<any>({
+    queryKey: ["/api/tabs/table", selectedTable],
+    queryFn: async () => {
+      if (!selectedTable) return null;
+      const res = await fetch(`/api/tabs/table/${selectedTable}`, {
+        headers: { "x-tenant-id": tenant?.id || "" },
+      });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!selectedTable && !!tenant?.id,
+  });
+
+  // Mutation to add items to tab
+  const addToTabMutation = useMutation({
+    mutationFn: async (items: any[]) => {
+      if (!openTab) throw new Error("No open tab");
+      return apiRequest("POST", `/api/tabs/${openTab.id}/items`, { items });
+    },
+    onSuccess: () => {
+      refetchTab();
+      clearCart();
+      toast({
+        title: t("tabs.items_added"),
+        description: t("tabs.items_added_desc"),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("common.error"),
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   // Check if a product can be added to cart based on stock settings
@@ -686,6 +727,29 @@ export default function POSPage() {
     createOrderMutation.mutate(orderData);
   };
 
+  // Handler for adding items to an open tab (restaurant dine-in)
+  const handleAddToTab = () => {
+    if (cart.length === 0) return;
+    if (!openTab) return;
+
+    const items = cart.map(item => ({
+      productId: item.product.id,
+      quantity: item.quantity,
+      unitPrice: item.product.price,
+      modifiers: item.modifiers,
+      notes: item.notes,
+    }));
+
+    addToTabMutation.mutate(items);
+  };
+
+  // Handler to go back to tables page
+  const handleBackToTables = () => {
+    setSelectedTable(null);
+    clearCart();
+    navigate("/tables");
+  };
+
   const handleCreateCustomer = () => {
     if (!newCustomerName.trim() || !newCustomerEmail.trim()) return;
     createCustomerMutation.mutate({
@@ -904,14 +968,42 @@ export default function POSPage() {
               </Button>
             </div>
 
-            <Button
-              className="w-full"
-              onClick={() => { setShowPaymentDialog(true); if (isMobile) setShowMobileCart(false); }}
-              data-testid="button-checkout"
-            >
-              <CreditCard className="w-4 h-4 mr-1.5" />
-              {t("pos.checkout")}
-            </Button>
+            {openTab ? (
+              /* Tab mode: Add to Tab and Back buttons */
+              <div className="space-y-2">
+                <Button
+                  className="w-full"
+                  onClick={handleAddToTab}
+                  disabled={cart.length === 0 || addToTabMutation.isPending}
+                  data-testid="button-add-to-tab"
+                >
+                  {addToTabMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4 mr-1.5" />
+                  )}
+                  {t("tabs.add_to_tab")}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleBackToTables}
+                  data-testid="button-back-to-tables"
+                >
+                  {t("tabs.back_to_tables")}
+                </Button>
+              </div>
+            ) : (
+              /* Regular mode: Checkout button */
+              <Button
+                className="w-full"
+                onClick={() => { setShowPaymentDialog(true); if (isMobile) setShowMobileCart(false); }}
+                data-testid="button-checkout"
+              >
+                <CreditCard className="w-4 h-4 mr-1.5" />
+                {t("pos.checkout")}
+              </Button>
+            )}
           </div>
         </>
       )}

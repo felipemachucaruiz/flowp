@@ -3,14 +3,29 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { usePOS } from "@/lib/pos-context";
+import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import type { Floor, Table } from "@shared/schema";
+import type { Floor, Table, Order, OrderItem, Product } from "@shared/schema";
 import {
   LayoutGrid,
   Users,
@@ -18,14 +33,27 @@ import {
   CircleDot,
   ChefHat,
   Plus,
+  Send,
+  CreditCard,
+  X,
+  Trash2,
+  Receipt,
+  Minus,
 } from "lucide-react";
+
+type TabWithItems = Order & { items: OrderItem[] };
 
 export default function TablesPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, formatCurrency } = useI18n();
+  const { tenant } = useAuth();
   const { setSelectedTable } = usePOS();
   const [activeFloor, setActiveFloor] = useState<string | null>(null);
+  const [selectedTableForTab, setSelectedTableForTab] = useState<Table | null>(null);
+  const [showTabDialog, setShowTabDialog] = useState(false);
+  const [showCloseTabDialog, setShowCloseTabDialog] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "card">("cash");
 
   const statusColors: Record<string, { bg: string; text: string; label: string }> = {
     free: { bg: "bg-green-500/10", text: "text-green-600", label: t("tables.available") },
@@ -42,12 +70,98 @@ export default function TablesPage() {
     queryKey: ["/api/tables"],
   });
 
+  const { data: products } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
+
+  const { data: currentTab, refetch: refetchTab } = useQuery<TabWithItems | null>({
+    queryKey: ["/api/tabs/table", selectedTableForTab?.id],
+    queryFn: async () => {
+      if (!selectedTableForTab) return null;
+      const res = await fetch(`/api/tabs/table/${selectedTableForTab.id}`, {
+        headers: {
+          "x-tenant-id": tenant?.id || "",
+        },
+      });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!selectedTableForTab,
+  });
+
   const updateTableMutation = useMutation({
     mutationFn: async ({ tableId, status }: { tableId: string; status: string }) => {
       return apiRequest("PATCH", `/api/tables/${tableId}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tables"] });
+    },
+  });
+
+  const openTabMutation = useMutation({
+    mutationFn: async (tableId: string) => {
+      return apiRequest("POST", "/api/tabs", { tableId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tables"] });
+      refetchTab();
+    },
+  });
+
+  const sendToKitchenMutation = useMutation({
+    mutationFn: async (tabId: string) => {
+      return apiRequest("POST", `/api/tabs/${tabId}/send-to-kitchen`, {});
+    },
+    onSuccess: (data: any) => {
+      refetchTab();
+      toast({
+        title: t("tabs.sent_to_kitchen"),
+        description: t("tabs.items_sent", { count: data.itemsSent }),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("common.error"),
+        description: error.message || t("tabs.send_failed"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const closeTabMutation = useMutation({
+    mutationFn: async ({ tabId, paymentMethod }: { tabId: string; paymentMethod: string }) => {
+      return apiRequest("POST", `/api/tabs/${tabId}/close`, { paymentMethod });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tables"] });
+      setShowCloseTabDialog(false);
+      setShowTabDialog(false);
+      setSelectedTableForTab(null);
+      toast({
+        title: t("tabs.tab_closed"),
+        description: t("tabs.payment_processed"),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("common.error"),
+        description: error.message || t("tabs.close_failed"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const cancelTabMutation = useMutation({
+    mutationFn: async (tabId: string) => {
+      return apiRequest("POST", `/api/tabs/${tabId}/cancel`, { reason: "Cancelled by user" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/tables"] });
+      setShowTabDialog(false);
+      setSelectedTableForTab(null);
+      toast({
+        title: t("tabs.tab_cancelled"),
+      });
     },
   });
 
@@ -58,16 +172,20 @@ export default function TablesPage() {
 
   const currentFloorTables = tables?.filter((t) => t.floorId === activeFloor) || [];
 
-  const handleTableClick = (table: Table) => {
+  const handleTableClick = async (table: Table) => {
     if (table.status === "free") {
-      // Open new order for this table
-      setSelectedTable(table.id);
-      updateTableMutation.mutate({ tableId: table.id, status: "occupied" });
-      navigate("/pos");
+      // Open new tab for this table
+      setSelectedTableForTab(table);
+      try {
+        await openTabMutation.mutateAsync(table.id);
+        setShowTabDialog(true);
+      } catch (error) {
+        console.error("Failed to open tab:", error);
+      }
     } else if (table.status === "occupied") {
-      // Continue order for this table
-      setSelectedTable(table.id);
-      navigate("/pos");
+      // Show existing tab
+      setSelectedTableForTab(table);
+      setShowTabDialog(true);
     } else if (table.status === "dirty") {
       // Mark as clean
       updateTableMutation.mutate({ tableId: table.id, status: "free" });
@@ -75,6 +193,35 @@ export default function TablesPage() {
         title: t("tables.table_cleaned"),
         description: `${table.name} ${t("tables.now_available")}`,
       });
+    }
+  };
+
+  const handleAddItems = () => {
+    if (selectedTableForTab) {
+      setSelectedTable(selectedTableForTab.id);
+      navigate("/pos");
+    }
+  };
+
+  const handleSendToKitchen = () => {
+    if (currentTab) {
+      sendToKitchenMutation.mutate(currentTab.id);
+    }
+  };
+
+  const handleCloseTab = () => {
+    setShowCloseTabDialog(true);
+  };
+
+  const confirmCloseTab = () => {
+    if (currentTab) {
+      closeTabMutation.mutate({ tabId: currentTab.id, paymentMethod });
+    }
+  };
+
+  const handleCancelTab = () => {
+    if (currentTab && confirm(t("tabs.confirm_cancel"))) {
+      cancelTabMutation.mutate(currentTab.id);
     }
   };
 
@@ -93,12 +240,20 @@ export default function TablesPage() {
     }
   };
 
+  const getProductName = (productId: string) => {
+    const product = products?.find((p) => p.id === productId);
+    return product?.name || t("common.unknown");
+  };
+
   const stats = {
     total: tables?.filter((t) => t.floorId === activeFloor).length || 0,
     free: currentFloorTables.filter((t) => t.status === "free").length,
     occupied: currentFloorTables.filter((t) => t.status === "occupied").length,
     dirty: currentFloorTables.filter((t) => t.status === "dirty").length,
   };
+
+  const unsentItems = currentTab?.items?.filter((item) => !item.sentToKitchen) || [];
+  const sentItems = currentTab?.items?.filter((item) => item.sentToKitchen) || [];
 
   if (floorsLoading) {
     return (
@@ -258,6 +413,11 @@ export default function TablesPage() {
                         {getStatusIcon(table.status || "free")}
                         <span className="text-sm font-medium">{status.label}</span>
                       </div>
+                      {table.status === "occupied" && (
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          {t("tabs.tap_to_manage")}
+                        </div>
+                      )}
                     </button>
                   );
                 })}
@@ -278,6 +438,175 @@ export default function TablesPage() {
         ))}
       </div>
     </div>
+
+    {/* Tab Management Dialog */}
+    <Dialog open={showTabDialog} onOpenChange={setShowTabDialog}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Receipt className="w-5 h-5" />
+            {selectedTableForTab?.name} - {t("tabs.open_tab")}
+          </DialogTitle>
+          <DialogDescription>
+            {currentTab ? `${t("tabs.order")} #${currentTab.orderNumber}` : t("tabs.new_tab")}
+          </DialogDescription>
+        </DialogHeader>
+
+        {currentTab && (
+          <div className="space-y-4">
+            {/* Unsent Items */}
+            {unsentItems.length > 0 && (
+              <div>
+                <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-orange-500" />
+                  {t("tabs.pending_items")}
+                </h4>
+                <div className="space-y-2 bg-orange-500/5 rounded-lg p-3">
+                  {unsentItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between text-sm">
+                      <div>
+                        <span className="font-medium">{item.quantity}x</span>{" "}
+                        {getProductName(item.productId)}
+                      </div>
+                      <span>{formatCurrency(parseFloat(item.unitPrice) * item.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sent Items */}
+            {sentItems.length > 0 && (
+              <div>
+                <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                  <ChefHat className="w-4 h-4 text-green-500" />
+                  {t("tabs.sent_items")}
+                </h4>
+                <div className="space-y-2 bg-green-500/5 rounded-lg p-3">
+                  {sentItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between text-sm">
+                      <div>
+                        <span className="font-medium">{item.quantity}x</span>{" "}
+                        {getProductName(item.productId)}
+                      </div>
+                      <span>{formatCurrency(parseFloat(item.unitPrice) * item.quantity)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {currentTab.items?.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Receipt className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>{t("tabs.no_items")}</p>
+                <p className="text-sm">{t("tabs.add_items_hint")}</p>
+              </div>
+            )}
+
+            {/* Totals */}
+            <div className="border-t pt-3 space-y-1">
+              <div className="flex justify-between text-sm">
+                <span>{t("pos.subtotal")}</span>
+                <span>{formatCurrency(parseFloat(currentTab.subtotal))}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>{t("pos.tax")}</span>
+                <span>{formatCurrency(parseFloat(currentTab.taxAmount))}</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg">
+                <span>{t("pos.total")}</span>
+                <span>{formatCurrency(parseFloat(currentTab.total))}</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <Button onClick={handleAddItems} variant="outline" data-testid="button-add-items">
+                <Plus className="w-4 h-4 mr-2" />
+                {t("tabs.add_items")}
+              </Button>
+              <Button
+                onClick={handleSendToKitchen}
+                variant="outline"
+                disabled={unsentItems.length === 0 || sendToKitchenMutation.isPending}
+                data-testid="button-send-kitchen"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {t("tabs.send_to_kitchen")}
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={handleCancelTab}
+                variant="destructive"
+                disabled={cancelTabMutation.isPending}
+                data-testid="button-cancel-tab"
+              >
+                <X className="w-4 h-4 mr-2" />
+                {t("tabs.cancel_tab")}
+              </Button>
+              <Button
+                onClick={handleCloseTab}
+                disabled={parseFloat(currentTab.total) === 0 || closeTabMutation.isPending}
+                data-testid="button-close-tab"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                {t("tabs.close_tab")}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+
+    {/* Close Tab / Payment Dialog */}
+    <Dialog open={showCloseTabDialog} onOpenChange={setShowCloseTabDialog}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{t("tabs.close_tab")}</DialogTitle>
+          <DialogDescription>
+            {t("tabs.total_amount")}: {currentTab && formatCurrency(parseFloat(currentTab.total))}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-2 block">{t("pos.payment_method")}</label>
+            <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as "cash" | "card")}>
+              <SelectTrigger data-testid="select-payment-method">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">{t("pos.cash")}</SelectItem>
+                <SelectItem value="card">{t("pos.card")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setShowCloseTabDialog(false)}
+              data-testid="button-cancel-payment"
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={confirmCloseTab}
+              disabled={closeTabMutation.isPending}
+              data-testid="button-confirm-payment"
+            >
+              {closeTabMutation.isPending ? t("common.processing") : t("tabs.confirm_payment")}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 }
