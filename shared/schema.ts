@@ -1166,3 +1166,179 @@ export const RESTAURANT_FEATURES = [
   "restaurant.split_checks",
   "restaurant.tips",
 ];
+
+// ==========================================
+// MATIAS / DIAN Electronic Billing Integration
+// ==========================================
+
+// Electronic document kind enum
+export const electronicDocumentKindEnum = pgEnum("electronic_document_kind", [
+  "POS",
+  "INVOICE", 
+  "POS_CREDIT_NOTE",
+  "POS_DEBIT_NOTE",
+  "SUPPORT_DOC",
+  "SUPPORT_ADJUSTMENT"
+]);
+
+// Electronic document source type enum
+export const electronicDocumentSourceTypeEnum = pgEnum("electronic_document_source_type", [
+  "sale",
+  "refund",
+  "purchase",
+  "adjustment"
+]);
+
+// Electronic document status enum (more granular than existing documentStatusEnum)
+export const electronicDocumentStatusEnum = pgEnum("electronic_document_status", [
+  "PENDING",
+  "SENT",
+  "ACCEPTED",
+  "REJECTED",
+  "RETRY",
+  "FAILED"
+]);
+
+// Electronic document file kind enum
+export const electronicDocumentFileKindEnum = pgEnum("electronic_document_file_kind", [
+  "pdf",
+  "attached_zip",
+  "qr",
+  "xml"
+]);
+
+// Tenant MATIAS Integration Configuration
+export const tenantIntegrationsMatias = pgTable("tenant_integrations_matias", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id).unique(),
+  
+  // API Configuration
+  baseUrl: text("base_url").notNull(),
+  email: text("email").notNull(),
+  passwordEncrypted: text("password_encrypted").notNull(),
+  accessTokenEncrypted: text("access_token_encrypted"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  
+  // Default Resolution/Numbering
+  defaultResolutionNumber: text("default_resolution_number"),
+  defaultPrefix: text("default_prefix"),
+  
+  // POS Configuration
+  posTerminalNumber: text("pos_terminal_number"),
+  posSalesCode: text("pos_sales_code"),
+  posCashierType: text("pos_cashier_type"),
+  posAddress: text("pos_address"),
+  
+  // Software/Manufacturer Info (required for DIAN)
+  softwareId: text("software_id"),
+  softwarePin: text("software_pin"),
+  manufacturerName: text("manufacturer_name").default("Flowp"),
+  manufacturerNit: text("manufacturer_nit"),
+  
+  // Feature toggles
+  isEnabled: boolean("is_enabled").default(false),
+  autoSubmitSales: boolean("auto_submit_sales").default(true),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTenantIntegrationsMatiasSchema = createInsertSchema(tenantIntegrationsMatias).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true 
+});
+export type TenantIntegrationsMatias = typeof tenantIntegrationsMatias.$inferSelect;
+export type InsertTenantIntegrationsMatias = z.infer<typeof insertTenantIntegrationsMatiasSchema>;
+
+// MATIAS Document Queue (separate from existing electronicDocuments to avoid conflicts)
+export const matiasDocumentQueue = pgTable("matias_document_queue", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  
+  // Document Classification
+  kind: electronicDocumentKindEnum("kind").notNull(),
+  sourceType: electronicDocumentSourceTypeEnum("source_type").notNull(),
+  sourceId: varchar("source_id").notNull(),
+  
+  // DIAN Numbering
+  resolutionNumber: text("resolution_number"),
+  prefix: text("prefix"),
+  documentNumber: integer("document_number"),
+  orderNumber: text("order_number"),
+  
+  // DIAN Tracking
+  trackId: text("track_id"),
+  cufe: text("cufe"),
+  qrCode: text("qr_code"),
+  
+  // Processing Status
+  status: electronicDocumentStatusEnum("status").notNull().default("PENDING"),
+  retryCount: integer("retry_count").default(0),
+  maxRetries: integer("max_retries").default(3),
+  lastErrorMessage: text("last_error_message"),
+  lastHttpStatus: integer("last_http_status"),
+  
+  // Request/Response Storage
+  requestJson: jsonb("request_json"),
+  responseJson: jsonb("response_json"),
+  
+  // Reference to original document (for credit/debit notes)
+  originalDocumentId: varchar("original_document_id"),
+  
+  // Timestamps
+  submittedAt: timestamp("submitted_at"),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertMatiasDocumentQueueSchema = createInsertSchema(matiasDocumentQueue).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true,
+  submittedAt: true,
+  acceptedAt: true
+});
+export type MatiasDocumentQueue = typeof matiasDocumentQueue.$inferSelect;
+export type InsertMatiasDocumentQueue = z.infer<typeof insertMatiasDocumentQueueSchema>;
+
+// MATIAS Document Files (PDF, XML, QR, etc.)
+export const matiasDocumentFiles = pgTable("matias_document_files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  documentId: varchar("document_id").notNull().references(() => matiasDocumentQueue.id),
+  
+  kind: electronicDocumentFileKindEnum("kind").notNull(),
+  url: text("url"),
+  path: text("path"),
+  base64Data: text("base64_data"),
+  mimeType: text("mime_type"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMatiasDocumentFileSchema = createInsertSchema(matiasDocumentFiles).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type MatiasDocumentFile = typeof matiasDocumentFiles.$inferSelect;
+export type InsertMatiasDocumentFile = z.infer<typeof insertMatiasDocumentFileSchema>;
+
+// Document Number Sequences (for safe allocation with locking)
+export const electronicDocumentSequences = pgTable("electronic_document_sequences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  resolutionNumber: text("resolution_number").notNull(),
+  prefix: text("prefix").notNull(),
+  currentNumber: integer("current_number").notNull().default(0),
+  rangeStart: integer("range_start"),
+  rangeEnd: integer("range_end"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertElectronicDocumentSequenceSchema = createInsertSchema(electronicDocumentSequences).omit({ 
+  id: true, 
+  updatedAt: true 
+});
+export type ElectronicDocumentSequence = typeof electronicDocumentSequences.$inferSelect;
+export type InsertElectronicDocumentSequence = z.infer<typeof insertElectronicDocumentSequenceSchema>;
