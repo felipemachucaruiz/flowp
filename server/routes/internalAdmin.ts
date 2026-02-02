@@ -597,7 +597,6 @@ internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]),
       }
     }
 
-    const baseUrl = configMap.matias_base_url || "https://api-v2.matias-api.com";
     const email = configMap.matias_email;
     const password = configMap.matias_password;
     const skipSSL = configMap.matias_skip_ssl === "true";
@@ -610,8 +609,9 @@ internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]),
     }
 
     try {
-      // MATIAS uses /auth/login endpoint (confirmed by support)
-      const loginUrl = `${baseUrl}/auth/login`;
+      // MATIAS v2 uses separate auth URL for login
+      const authBaseUrl = "https://auth-v2.matias-api.com";
+      const loginUrl = `${authBaseUrl}/auth/login`;
       console.log(`[MATIAS] Testing connection to: ${loginUrl} (skipSSL: ${skipSSL})`);
       
       const postData = JSON.stringify({
