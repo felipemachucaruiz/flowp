@@ -114,9 +114,27 @@ const ebillingSchema = z.object({
   isEnabled: z.boolean().default(false),
   resolutionNumber: z.string().optional(),
   prefix: z.string().optional(),
-  startingNumber: z.coerce.number().int().min(1).optional(),
-  endingNumber: z.coerce.number().int().min(1).optional(),
+  startingNumber: z.coerce.number().int().min(1).optional().or(z.literal("")),
+  endingNumber: z.coerce.number().int().min(1).optional().or(z.literal("")),
   autoSubmitSales: z.boolean().default(true),
+}).refine((data) => {
+  if (data.isEnabled) {
+    const hasResolution = !!data.resolutionNumber;
+    const hasPrefix = !!data.prefix;
+    const hasStarting = typeof data.startingNumber === 'number' && data.startingNumber > 0;
+    const hasEnding = typeof data.endingNumber === 'number' && data.endingNumber > 0;
+    return hasResolution && hasPrefix && hasStarting && hasEnding;
+  }
+  return true;
+}, {
+  message: "Resolution, prefix, starting number, and ending number are required when e-billing is enabled",
+}).refine((data) => {
+  if (typeof data.startingNumber === 'number' && typeof data.endingNumber === 'number') {
+    return data.endingNumber >= data.startingNumber;
+  }
+  return true;
+}, {
+  message: "Ending number must be greater than or equal to starting number",
 });
 
 const CURRENCIES = [
