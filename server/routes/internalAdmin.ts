@@ -610,8 +610,8 @@ internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]),
     }
 
     try {
-      // v2 API uses /api/login endpoint
-      const loginUrl = `${baseUrl}/api/login`;
+      // MATIAS uses /auth/login endpoint (confirmed by support)
+      const loginUrl = `${baseUrl}/auth/login`;
       console.log(`[MATIAS] Testing connection to: ${loginUrl} (skipSSL: ${skipSSL})`);
       
       const postData = JSON.stringify({
