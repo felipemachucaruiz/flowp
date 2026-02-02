@@ -15,7 +15,7 @@ export default function AdminMatiasConfig() {
   const { toast } = useToast();
   
   const [matiasConfig, setMatiasConfig] = useState({
-    baseUrl: "https://api.matias.com",
+    baseUrl: "https://api-v2.matias-api.com",
     email: "",
     password: "",
     isEnabled: true,
@@ -36,7 +36,7 @@ export default function AdminMatiasConfig() {
     if (configData?.config) {
       setMatiasConfig(prev => ({
         ...prev,
-        baseUrl: configData.config.baseUrl || "https://api.matias.com",
+        baseUrl: configData.config.baseUrl || "https://api-v2.matias-api.com",
         email: configData.config.email || "",
         isEnabled: configData.config.isEnabled ?? true,
         skipSSL: configData.config.skipSSL ?? false,
@@ -157,12 +157,12 @@ export default function AdminMatiasConfig() {
               <Label htmlFor="baseUrl">API URL</Label>
               <Input
                 id="baseUrl"
-                placeholder="https://api.matias.com"
+                placeholder="https://api-v2.matias-api.com"
                 value={matiasConfig.baseUrl}
                 onChange={(e) => setMatiasConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
                 data-testid="input-matias-url"
               />
-              <p className="text-xs text-muted-foreground">The base URL for the MATIAS API (e.g., https://api.matias.com)</p>
+              <p className="text-xs text-muted-foreground">The base URL for the MATIAS API (e.g., https://api-v2.matias-api.com)</p>
             </div>
 
             <div className="grid gap-2">

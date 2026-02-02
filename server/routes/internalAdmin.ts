@@ -513,7 +513,7 @@ internalAdminRouter.get("/matias/config", requireRole(["superadmin"]), async (re
     }
 
     const config = {
-      baseUrl: configMap.matias_base_url || "https://api.matias.com",
+      baseUrl: configMap.matias_base_url || "https://api-v2.matias-api.com",
       email: configMap.matias_email || "",
       hasPassword: !!configMap.matias_password,
       isEnabled: configMap.matias_enabled === "true",
@@ -556,7 +556,7 @@ internalAdminRouter.post("/matias/config", requireRole(["superadmin"]), async (r
       }
     };
 
-    await upsertConfig("matias_base_url", baseUrl || "https://api.matias.com");
+    await upsertConfig("matias_base_url", baseUrl || "https://api-v2.matias-api.com");
     await upsertConfig("matias_email", email || "");
     if (password) {
       await upsertConfig("matias_password", password, true);
@@ -597,7 +597,7 @@ internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]),
       }
     }
 
-    const baseUrl = configMap.matias_base_url || "https://api.matias.com";
+    const baseUrl = configMap.matias_base_url || "https://api-v2.matias-api.com";
     const email = configMap.matias_email;
     const password = configMap.matias_password;
     const skipSSL = configMap.matias_skip_ssl === "true";

@@ -326,7 +326,7 @@ export default function InternalAdminTenantDetail() {
                   <Label htmlFor="baseUrl">API URL</Label>
                   <Input
                     id="baseUrl"
-                    placeholder="https://api.matias-api.com"
+                    placeholder="https://api-v2.matias-api.com"
                     value={matiasConfig.baseUrl}
                     onChange={(e) => setMatiasConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
                     data-testid="input-matias-url"
