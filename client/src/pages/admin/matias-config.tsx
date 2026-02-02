@@ -154,18 +154,6 @@ export default function AdminMatiasConfig() {
 
           <div className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="baseUrl">API URL</Label>
-              <Input
-                id="baseUrl"
-                placeholder="https://api-v2.matias-api.com"
-                value={matiasConfig.baseUrl}
-                onChange={(e) => setMatiasConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
-                data-testid="input-matias-url"
-              />
-              <p className="text-xs text-muted-foreground">The base URL for the MATIAS API (e.g., https://api-v2.matias-api.com)</p>
-            </div>
-
-            <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
