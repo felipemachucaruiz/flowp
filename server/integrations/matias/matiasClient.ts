@@ -1,7 +1,11 @@
 import { db } from "../../db";
-import { tenantIntegrationsMatias, matiasDocumentQueue, matiasDocumentFiles } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { tenantIntegrationsMatias, matiasDocumentQueue, matiasDocumentFiles, platformConfig } from "@shared/schema";
+import { eq, and, or } from "drizzle-orm";
 import crypto from "crypto";
+
+// MATIAS API v2 URLs
+const MATIAS_AUTH_URL = "https://auth-v2.matias-api.com";
+const MATIAS_API_URL = "https://api-v2.matias-api.com/api/ubl2.1";
 import type {
   MatiasAuthRequest,
   MatiasAuthResponse,
@@ -45,7 +49,8 @@ function decrypt(encryptedText: string): string {
 
 export class MatiasClient {
   private tenantId: string;
-  private baseUrl: string = "";
+  private authUrl: string = MATIAS_AUTH_URL;
+  private apiUrl: string = MATIAS_API_URL;
   private accessToken: string = "";
   private email: string = "";
   private password: string = "";
@@ -56,23 +61,60 @@ export class MatiasClient {
   }
 
   async initialize(): Promise<boolean> {
-    const config = await db.query.tenantIntegrationsMatias.findFirst({
+    // Check if tenant has MATIAS enabled
+    const tenantConfig = await db.query.tenantIntegrationsMatias.findFirst({
       where: eq(tenantIntegrationsMatias.tenantId, this.tenantId),
     });
 
-    if (!config || !config.isEnabled) {
+    if (!tenantConfig || !tenantConfig.isEnabled) {
       return false;
     }
 
-    this.baseUrl = config.baseUrl;
-    this.email = config.email;
-    this.password = decrypt(config.passwordEncrypted);
+    // Get global MATIAS credentials from platformConfig
+    const globalConfigs = await db.select().from(platformConfig).where(
+      or(
+        eq(platformConfig.key, "matias_email"),
+        eq(platformConfig.key, "matias_password"),
+        eq(platformConfig.key, "matias_enabled"),
+        eq(platformConfig.key, "matias_access_token"),
+        eq(platformConfig.key, "matias_token_expires")
+      )
+    );
 
-    if (config.accessTokenEncrypted && config.tokenExpiresAt) {
+    const configMap: Record<string, string> = {};
+    for (const c of globalConfigs) {
+      if ((c.key === "matias_password" || c.key === "matias_access_token") && c.encryptedValue) {
+        try {
+          configMap[c.key] = decrypt(c.encryptedValue);
+        } catch {
+          configMap[c.key] = "";
+        }
+      } else {
+        configMap[c.key] = c.value || "";
+      }
+    }
+
+    if (configMap.matias_enabled !== "true") {
+      console.log("[MATIAS] Global MATIAS integration is disabled");
+      return false;
+    }
+
+    if (!configMap.matias_email || !configMap.matias_password) {
+      console.log("[MATIAS] Global MATIAS credentials not configured");
+      return false;
+    }
+
+    this.email = configMap.matias_email;
+    this.password = configMap.matias_password;
+
+    // Check for cached token
+    if (configMap.matias_access_token && configMap.matias_token_expires) {
+      const expiresAt = new Date(configMap.matias_token_expires);
       const now = new Date();
-      if (config.tokenExpiresAt > now) {
-        this.accessToken = decrypt(config.accessTokenEncrypted);
-        this.tokenExpiresAt = config.tokenExpiresAt;
+      if (expiresAt > now) {
+        this.accessToken = configMap.matias_access_token;
+        this.tokenExpiresAt = expiresAt;
+        console.log("[MATIAS] Using cached global token");
         return true;
       }
     }
@@ -82,13 +124,15 @@ export class MatiasClient {
 
   private async authenticate(): Promise<boolean> {
     try {
+      console.log(`[MATIAS] Authenticating with ${this.authUrl}/auth/login`);
+      
       const authPayload: MatiasAuthRequest = {
         email: this.email,
         password: this.password,
         remember_me: 0,
       };
 
-      const response = await fetch(`${this.baseUrl}/auth/login`, {
+      const response = await fetch(`${this.authUrl}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -98,7 +142,8 @@ export class MatiasClient {
       });
 
       if (!response.ok) {
-        console.error("MATIAS auth failed:", response.status);
+        const errorText = await response.text();
+        console.error("[MATIAS] Auth failed:", response.status, errorText);
         return false;
       }
 
@@ -108,19 +153,39 @@ export class MatiasClient {
       const expiresIn = data.expires_in || 31536000;
       this.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
 
-      await db
-        .update(tenantIntegrationsMatias)
-        .set({
-          accessTokenEncrypted: encrypt(this.accessToken),
-          tokenExpiresAt: this.tokenExpiresAt,
-          updatedAt: new Date(),
-        })
-        .where(eq(tenantIntegrationsMatias.tenantId, this.tenantId));
+      // Save token globally in platformConfig
+      const now = new Date();
+      await this.upsertPlatformConfig("matias_access_token", this.accessToken, true);
+      await this.upsertPlatformConfig("matias_token_expires", this.tokenExpiresAt.toISOString(), false);
 
+      console.log("[MATIAS] Authentication successful, token cached globally");
       return true;
     } catch (error) {
-      console.error("MATIAS auth error:", error);
+      console.error("[MATIAS] Auth error:", error);
       return false;
+    }
+  }
+
+  private async upsertPlatformConfig(key: string, value: string, isEncrypted: boolean): Promise<void> {
+    const existing = await db.select().from(platformConfig).where(eq(platformConfig.key, key));
+    const now = new Date();
+    
+    if (existing.length > 0) {
+      await db.update(platformConfig)
+        .set({
+          value: isEncrypted ? null : value,
+          encryptedValue: isEncrypted ? encrypt(value) : null,
+          updatedAt: now,
+        })
+        .where(eq(platformConfig.key, key));
+    } else {
+      await db.insert(platformConfig).values({
+        key,
+        value: isEncrypted ? null : value,
+        encryptedValue: isEncrypted ? encrypt(value) : null,
+        createdAt: now,
+        updatedAt: now,
+      });
     }
   }
 
@@ -131,7 +196,7 @@ export class MatiasClient {
     retryOn401 = true
   ): Promise<{ success: boolean; data?: T; error?: string; status?: number }> {
     try {
-      const url = `${this.baseUrl}${endpoint}`;
+      const url = `${this.apiUrl}${endpoint}`;
       const options: RequestInit = {
         method,
         headers: {
@@ -253,7 +318,7 @@ export class MatiasClient {
 
   async downloadPdf(trackId: string, regenerate = false): Promise<Buffer | null> {
     try {
-      const url = `${this.baseUrl}/documents/pdf/${trackId}${regenerate ? "?regenerate=1" : ""}`;
+      const url = `${this.apiUrl}/documents/pdf/${trackId}${regenerate ? "?regenerate=1" : ""}`;
       const response = await fetch(url, {
         method: "GET",
         headers: {
@@ -276,7 +341,7 @@ export class MatiasClient {
 
   async downloadAttached(trackId: string, regenerate = false): Promise<Buffer | null> {
     try {
-      const url = `${this.baseUrl}/documents/attached/${trackId}${regenerate ? "?regenerate=1" : ""}`;
+      const url = `${this.apiUrl}/documents/attached/${trackId}${regenerate ? "?regenerate=1" : ""}`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
