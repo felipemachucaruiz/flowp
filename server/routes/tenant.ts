@@ -3,7 +3,7 @@ import { db } from "../db";
 import { 
   tenants, users, locations, registers, 
   electronicDocuments, supportTickets, ticketComments,
-  subscriptions, invoices, auditLogs, orders
+  subscriptions, invoices, auditLogs, orders, tenantIntegrationsMatias
 } from "@shared/schema";
 import { eq, desc, sql, and, count, sum, gte } from "drizzle-orm";
 import { requireTenant, requirePermission, enforceTenantIsolation } from "../middleware/rbac";
@@ -403,6 +403,106 @@ router.post("/tickets/:id/comments", requirePermission("support.tickets:manage")
   } catch (error) {
     console.error("Add comment error:", error);
     res.status(500).json({ error: "Failed to add comment" });
+  }
+});
+
+// E-Billing Configuration
+router.get("/ebilling-config", requirePermission('manage_settings'), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const config = await db.query.tenantIntegrationsMatias.findFirst({
+      where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+    });
+
+    if (!config) {
+      return res.json({
+        isEnabled: false,
+        resolutionNumber: "",
+        prefix: "",
+        startingNumber: null,
+        endingNumber: null,
+        currentNumber: null,
+        autoSubmitSales: true,
+      });
+    }
+
+    res.json({
+      isEnabled: config.isEnabled ?? false,
+      resolutionNumber: config.defaultResolutionNumber || "",
+      prefix: config.defaultPrefix || "",
+      startingNumber: config.startingNumber,
+      endingNumber: config.endingNumber,
+      currentNumber: config.currentNumber,
+      autoSubmitSales: config.autoSubmitSales ?? true,
+    });
+  } catch (error) {
+    console.error("Get e-billing config error:", error);
+    res.status(500).json({ error: "Failed to get e-billing configuration" });
+  }
+});
+
+router.put("/ebilling-config", requirePermission('manage_settings'), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const { isEnabled, resolutionNumber, prefix, startingNumber, endingNumber, autoSubmitSales } = req.body;
+
+    const existingConfig = await db.query.tenantIntegrationsMatias.findFirst({
+      where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+    });
+
+    const now = new Date();
+    
+    if (existingConfig) {
+      const updateData: Record<string, any> = {
+        isEnabled: isEnabled ?? false,
+        defaultResolutionNumber: resolutionNumber || null,
+        defaultPrefix: prefix || null,
+        startingNumber: startingNumber || null,
+        endingNumber: endingNumber || null,
+        autoSubmitSales: autoSubmitSales ?? true,
+        updatedAt: now,
+      };
+
+      // Initialize currentNumber if it's not set and we have a starting number
+      if (!existingConfig.currentNumber && startingNumber) {
+        updateData.currentNumber = startingNumber;
+      }
+
+      await db
+        .update(tenantIntegrationsMatias)
+        .set(updateData)
+        .where(eq(tenantIntegrationsMatias.tenantId, tenantId));
+    } else {
+      // Create new config with placeholder values for required fields
+      await db.insert(tenantIntegrationsMatias).values({
+        tenantId,
+        baseUrl: "https://api-v2.matias-api.com/api/ubl2.1",
+        email: "pending@setup.com",
+        passwordEncrypted: "",
+        isEnabled: isEnabled ?? false,
+        defaultResolutionNumber: resolutionNumber || null,
+        defaultPrefix: prefix || null,
+        startingNumber: startingNumber || null,
+        endingNumber: endingNumber || null,
+        currentNumber: startingNumber || null,
+        autoSubmitSales: autoSubmitSales ?? true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Update e-billing config error:", error);
+    res.status(500).json({ error: "Failed to update e-billing configuration" });
   }
 });
 

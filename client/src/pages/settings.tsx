@@ -41,6 +41,7 @@ import {
   ImageIcon,
   Receipt,
   Mail,
+  FileDigit,
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
@@ -107,6 +108,15 @@ const tableSchema = z.object({
   name: z.string().min(1, "Name is required"),
   floorId: z.string().min(1, "Floor is required"),
   capacity: z.number().int().min(1, "Capacity must be at least 1"),
+});
+
+const ebillingSchema = z.object({
+  isEnabled: z.boolean().default(false),
+  resolutionNumber: z.string().optional(),
+  prefix: z.string().optional(),
+  startingNumber: z.coerce.number().int().min(1).optional(),
+  endingNumber: z.coerce.number().int().min(1).optional(),
+  autoSubmitSales: z.boolean().default(true),
 });
 
 const CURRENCIES = [
@@ -994,6 +1004,271 @@ function EmailNotificationPreferences() {
   );
 }
 
+function EBillingSettings() {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const { tenant } = useAuth();
+  const queryClientInstance = useQueryClient();
+
+  const { data: billingConfig, isLoading } = useQuery<{
+    isEnabled: boolean;
+    resolutionNumber: string;
+    prefix: string;
+    startingNumber: number | null;
+    endingNumber: number | null;
+    currentNumber: number | null;
+    autoSubmitSales: boolean;
+  }>({
+    queryKey: ['/api/tenant/ebilling-config'],
+    enabled: !!tenant,
+  });
+
+  const form = useForm<z.infer<typeof ebillingSchema>>({
+    resolver: zodResolver(ebillingSchema),
+    defaultValues: {
+      isEnabled: false,
+      resolutionNumber: "",
+      prefix: "",
+      startingNumber: undefined,
+      endingNumber: undefined,
+      autoSubmitSales: true,
+    },
+  });
+
+  useEffect(() => {
+    if (billingConfig) {
+      form.reset({
+        isEnabled: billingConfig.isEnabled ?? false,
+        resolutionNumber: billingConfig.resolutionNumber || "",
+        prefix: billingConfig.prefix || "",
+        startingNumber: billingConfig.startingNumber ?? undefined,
+        endingNumber: billingConfig.endingNumber ?? undefined,
+        autoSubmitSales: billingConfig.autoSubmitSales ?? true,
+      });
+    }
+  }, [billingConfig]);
+
+  const saveMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof ebillingSchema>) => {
+      const res = await apiRequest('PUT', '/api/tenant/ebilling-config', data);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: t("common.saved") || "Configuration saved" });
+      queryClientInstance.invalidateQueries({ queryKey: ['/api/tenant/ebilling-config'] });
+    },
+    onError: () => {
+      toast({ title: t("common.error") || "Error", variant: "destructive" });
+    },
+  });
+
+  const onSubmit = (data: z.infer<typeof ebillingSchema>) => {
+    saveMutation.mutate(data);
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-72 mt-2" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileDigit className="w-5 h-5" />
+          {t("settings.ebilling") || "Electronic Billing (DIAN)"}
+        </CardTitle>
+        <CardDescription>
+          {t("settings.ebilling_desc") || "Configure DIAN electronic billing for this business"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="isEnabled"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      {t("ebilling.enable") || "Enable Electronic Billing"}
+                    </FormLabel>
+                    <FormDescription>
+                      {t("ebilling.enable_desc") || "Submit sales automatically to DIAN via MATIAS"}
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      data-testid="switch-ebilling-enabled"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="resolutionNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("ebilling.resolution") || "Resolution Number"}</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="18764074347312"
+                        data-testid="input-resolution-number"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("ebilling.resolution_desc") || "DIAN authorization resolution number"}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="prefix"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("ebilling.prefix") || "Invoice Prefix"}</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="FV"
+                        data-testid="input-prefix"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("ebilling.prefix_desc") || "Prefix for invoice numbers (e.g., FV, FC)"}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="startingNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("ebilling.starting_number") || "Starting Number"}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        value={field.value ?? ""}
+                        placeholder="1"
+                        data-testid="input-starting-number"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("ebilling.starting_number_desc") || "First authorized invoice number"}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="endingNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("ebilling.ending_number") || "Ending Number"}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        value={field.value ?? ""}
+                        placeholder="5000"
+                        data-testid="input-ending-number"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("ebilling.ending_number_desc") || "Last authorized invoice number"}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {billingConfig?.currentNumber && (
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {t("ebilling.current_number") || "Current Invoice Number"}
+                  </span>
+                  <Badge variant="secondary" data-testid="badge-current-number">
+                    {billingConfig.prefix}{billingConfig.currentNumber}
+                  </Badge>
+                </div>
+                {billingConfig.endingNumber && (
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {t("ebilling.remaining") || "Remaining"}: {billingConfig.endingNumber - billingConfig.currentNumber} {t("ebilling.invoices") || "invoices"}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <FormField
+              control={form.control}
+              name="autoSubmitSales"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">
+                      {t("ebilling.auto_submit") || "Auto-Submit Sales"}
+                    </FormLabel>
+                    <FormDescription>
+                      {t("ebilling.auto_submit_desc") || "Automatically submit completed sales to DIAN"}
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      data-testid="switch-auto-submit"
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <Button
+              type="submit"
+              disabled={saveMutation.isPending}
+              data-testid="button-save-ebilling"
+            >
+              {saveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("common.save") || "Save Configuration"}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function SettingsPage() {
   const { toast } = useToast();
   const { tenant, refreshTenant } = useAuth();
@@ -1581,6 +1856,13 @@ export default function SettingsPage() {
                 <Mail className="w-4 h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">{t("settings.email_templates") || "Email Templates"}</span>
                 <span className="sm:hidden">{t("email.templates") || "Templates"}</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="ebilling" data-testid="tab-ebilling" className="text-xs sm:text-sm">
+                <FileDigit className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.ebilling") || "E-Billing"}</span>
+                <span className="sm:hidden">{t("ebilling.short") || "E-Bill"}</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -3041,6 +3323,11 @@ export default function SettingsPage() {
         {/* Email Templates Tab - Admin/Owner only */}
         <TabsContent value="emails" className="mt-6 space-y-6">
           <EmailTemplateEditor />
+        </TabsContent>
+
+        {/* E-Billing Settings */}
+        <TabsContent value="ebilling" className="mt-6 space-y-6">
+          <EBillingSettings />
         </TabsContent>
       </Tabs>
 

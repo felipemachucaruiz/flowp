@@ -1222,6 +1222,9 @@ export const tenantIntegrationsMatias = pgTable("tenant_integrations_matias", {
   // Default Resolution/Numbering
   defaultResolutionNumber: text("default_resolution_number"),
   defaultPrefix: text("default_prefix"),
+  startingNumber: integer("starting_number"),
+  endingNumber: integer("ending_number"),
+  currentNumber: integer("current_number"),
   
   // POS Configuration
   posTerminalNumber: text("pos_terminal_number"),
