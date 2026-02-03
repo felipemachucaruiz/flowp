@@ -65,6 +65,14 @@ interface ElectronicBillingInfo {
   prefix?: string;
 }
 
+interface CustomerInfo {
+  name?: string | null;
+  idNumber?: string | null;
+  idType?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
+
 interface ReceiptData {
   orderNumber: string;
   date: Date;
@@ -79,6 +87,7 @@ interface ReceiptData {
   change?: number;
   cashier?: string;
   customer?: string;
+  customerInfo?: CustomerInfo;
   discount?: number;
   discountPercent?: number;
   payments?: PaymentEntry[];
@@ -448,6 +457,16 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
       ${data.cashier ? `<div><span>${t.cashier}:</span><span>${data.cashier}</span></div>` : ""}
     </div>
     
+    ${data.customerInfo ? `
+    <div class="customer-info" style="margin: 10px 0; padding-bottom: 10px; border-bottom: 1px dashed #000; font-size: ${Math.round(fontSize * 0.9)}px;">
+      <div style="font-weight: bold; margin-bottom: 5px;">${lang === "es" ? "Cliente" : lang === "pt" ? "Cliente" : "Customer"}:</div>
+      ${data.customerInfo.name ? `<div>${data.customerInfo.name}</div>` : ""}
+      ${data.customerInfo.idNumber ? `<div>${data.customerInfo.idType === "nit" ? "NIT" : data.customerInfo.idType === "cedula_ciudadania" ? "CC" : "ID"}: ${data.customerInfo.idNumber}</div>` : ""}
+      ${data.customerInfo.phone ? `<div>${lang === "es" ? "Tel" : "Phone"}: ${data.customerInfo.phone}</div>` : ""}
+      ${data.customerInfo.email ? `<div>${data.customerInfo.email}</div>` : ""}
+    </div>
+    ` : ""}
+    
     <div class="items">
       ${data.items.map(item => `
         <div class="item">
@@ -479,14 +498,15 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
     
     ${data.electronicBilling?.cufe ? `
     <div class="electronic-billing" style="margin: 15px 0; padding: 10px 0; border-top: 1px dashed #000; text-align: center;">
-      <div style="font-weight: bold; margin-bottom: 8px; font-size: ${Math.round(fontSize * 0.9)}px;">
-        ${lang === "es" ? "FACTURA ELECTRÓNICA" : lang === "pt" ? "FATURA ELETRÔNICA" : "ELECTRONIC INVOICE"}
-      </div>
       ${data.electronicBilling.prefix && data.electronicBilling.documentNumber ? `
-        <div style="margin-bottom: 5px; font-size: ${Math.round(fontSize * 0.85)}px;">
-          ${lang === "es" ? "Doc" : "Doc"}: ${data.electronicBilling.prefix}${data.electronicBilling.documentNumber}
+        <div style="font-weight: bold; margin-bottom: 8px; font-size: ${Math.round(fontSize * 1.0)}px;">
+          ${lang === "es" ? "FACTURA ELECTRÓNICA" : lang === "pt" ? "FATURA ELETRÔNICA" : "ELECTRONIC INVOICE"} #: ${data.electronicBilling.prefix}${data.electronicBilling.documentNumber}
         </div>
-      ` : ""}
+      ` : `
+        <div style="font-weight: bold; margin-bottom: 8px; font-size: ${Math.round(fontSize * 0.9)}px;">
+          ${lang === "es" ? "FACTURA ELECTRÓNICA" : lang === "pt" ? "FATURA ELETRÔNICA" : "ELECTRONIC INVOICE"}
+        </div>
+      `}
       ${qrCodeDataUrl ? `
         <div style="margin: 10px auto; text-align: center;">
           <img src="${qrCodeDataUrl}" alt="QR Code DIAN" style="width: 35mm; height: 35mm; image-rendering: pixelated;" />
@@ -526,6 +546,20 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
     </div>
   </div>
   ` : ""}
+  
+  <!-- FLOWP Branding Footer - Always last -->
+  <div class="flowp-footer" style="
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px dashed #000;
+    text-align: center;
+    font-size: ${Math.round(fontSize * 0.75)}px;
+    line-height: 1.4;
+  ">
+    <div>Controla todo tu flujo con FLOWP.app</div>
+    <div>Activa tu prueba gratis por 30 días.</div>
+    <div style="margin-top: 5px; font-weight: bold;">Software Cloud para tiendas, FLOWP</div>
+  </div>
   
   <script>
     window.onload = function() {

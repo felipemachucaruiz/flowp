@@ -382,7 +382,7 @@ export default function POSPage() {
 
   // Create new customer mutation
   const createCustomerMutation = useMutation({
-    mutationFn: async (data: { name: string; phone?: string; idType?: string; idNumber?: string }) => {
+    mutationFn: async (data: { name: string; email?: string; phone?: string; idType?: string; idNumber?: string }) => {
       const response = await apiRequest("POST", "/api/customers", data);
       return response.json() as Promise<Customer>;
     },
@@ -573,6 +573,13 @@ export default function POSPage() {
           cashReceived: receiptData.cashReceived,
           change: receiptData.cashReceived ? receiptData.cashReceived - receiptData.total : undefined,
           cashier: user?.name,
+          customerInfo: receiptData.customer ? {
+            name: receiptData.customer.name,
+            idNumber: receiptData.customer.idNumber,
+            idType: receiptData.customer.idType,
+            phone: receiptData.customer.phone,
+            email: receiptData.customer.email,
+          } : undefined,
           electronicBilling: response.cufe ? {
             cufe: response.cufe,
             qrCode: response.qrCode,
