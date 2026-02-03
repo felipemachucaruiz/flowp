@@ -128,24 +128,45 @@ export class MatiasClient {
         body: JSON.stringify(authPayload),
       });
 
+      const responseText = await response.text();
+      console.log(`[MATIAS] Auth response status: ${response.status}`);
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[MATIAS] Auth failed:", response.status, errorText);
+        console.error("[MATIAS] Auth failed:", response.status, responseText);
         return false;
       }
 
-      const data: MatiasAuthResponse = await response.json();
+      // Check if response is HTML (error page)
+      if (responseText.startsWith("<!DOCTYPE") || responseText.startsWith("<html")) {
+        console.error("[MATIAS] Auth returned HTML instead of JSON. Check the API URL.");
+        console.error("[MATIAS] Response preview:", responseText.substring(0, 200));
+        return false;
+      }
+
+      let data: MatiasAuthResponse;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("[MATIAS] Failed to parse auth response:", parseError);
+        console.error("[MATIAS] Response:", responseText.substring(0, 500));
+        return false;
+      }
       this.accessToken = data.access_token;
       
       const expiresIn = data.expires_in || 31536000;
       this.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
 
-      // Save token globally in platformConfig
-      const now = new Date();
-      await this.upsertPlatformConfig("matias_access_token", this.accessToken, true);
-      await this.upsertPlatformConfig("matias_token_expires", this.tokenExpiresAt.toISOString(), false);
+      // Save token to per-tenant configuration
+      await db
+        .update(tenantIntegrationsMatias)
+        .set({
+          accessTokenEncrypted: encrypt(this.accessToken),
+          tokenExpiresAt: this.tokenExpiresAt,
+          updatedAt: new Date(),
+        })
+        .where(eq(tenantIntegrationsMatias.tenantId, this.tenantId));
 
-      console.log("[MATIAS] Authentication successful, token cached globally");
+      console.log(`[MATIAS] Authentication successful for tenant ${this.tenantId}, token cached`);
       return true;
     } catch (error) {
       console.error("[MATIAS] Auth error:", error);
