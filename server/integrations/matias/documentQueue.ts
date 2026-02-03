@@ -493,3 +493,190 @@ export async function downloadDocumentFile(
   if (!file || !file.base64Data) return null;
   return Buffer.from(file.base64Data, "base64");
 }
+
+/**
+ * Synchronous document submission - waits for MATIAS response
+ * Returns CUFE and QR code for immediate use on receipts
+ */
+export async function submitDocumentSync(params: {
+  tenantId: string;
+  kind: "POS" | "INVOICE" | "POS_CREDIT_NOTE" | "POS_DEBIT_NOTE" | "SUPPORT_DOC" | "SUPPORT_ADJUSTMENT";
+  sourceType: "sale" | "refund" | "purchase" | "adjustment";
+  sourceId: string;
+  orderNumber?: string;
+}): Promise<{
+  success: boolean;
+  documentId?: string;
+  documentNumber?: number;
+  cufe?: string;
+  qrCode?: string;
+  trackId?: string;
+  error?: string;
+}> {
+  const config = await db.query.tenantIntegrationsMatias.findFirst({
+    where: eq(tenantIntegrationsMatias.tenantId, params.tenantId),
+  });
+
+  if (!config || !config.isEnabled) {
+    console.log("[MATIAS] Not enabled for tenant:", params.tenantId);
+    return { success: false, error: "E-billing not enabled" };
+  }
+
+  // Check document quota
+  const quotaCheck = await checkDocumentQuota(params.tenantId);
+  if (!quotaCheck.allowed) {
+    console.log(`[MATIAS] Quota exceeded: ${quotaCheck.reason}`);
+    return { success: false, error: quotaCheck.reason };
+  }
+
+  const resolutionNumber = config.defaultResolutionNumber || "";
+  const prefix = config.defaultPrefix || "";
+
+  if (!resolutionNumber) {
+    return { success: false, error: "No resolution number configured" };
+  }
+
+  try {
+    const documentNumber = await getNextDocumentNumber(
+      params.tenantId,
+      resolutionNumber,
+      prefix,
+    );
+
+    console.log(`[MATIAS] Using document number: ${documentNumber}`);
+
+    // Create document record
+    const [doc] = await db.insert(matiasDocumentQueue).values({
+      tenantId: params.tenantId,
+      kind: params.kind,
+      sourceType: params.sourceType,
+      sourceId: params.sourceId,
+      resolutionNumber,
+      prefix,
+      documentNumber,
+      orderNumber: params.orderNumber,
+      status: "PENDING",
+    }).returning();
+
+    // Get MATIAS client
+    const client = await getMatiasClient(params.tenantId);
+    if (!client) {
+      await db.update(matiasDocumentQueue)
+        .set({ status: "FAILED", lastErrorMessage: "Could not initialize MATIAS client", updatedAt: new Date() })
+        .where(eq(matiasDocumentQueue.id, doc.id));
+      return { success: false, documentId: doc.id, documentNumber, error: "Could not connect to MATIAS" };
+    }
+
+    // Build payload
+    let payload: MatiasPayload | MatiasNotePayload | null = null;
+
+    switch (params.kind) {
+      case "POS":
+        payload = await buildPosPayload(params.sourceId, resolutionNumber, prefix, documentNumber);
+        break;
+      case "POS_CREDIT_NOTE":
+      case "POS_DEBIT_NOTE":
+      case "INVOICE":
+      case "SUPPORT_DOC":
+      case "SUPPORT_ADJUSTMENT":
+        break;
+    }
+
+    if (!payload) {
+      await db.update(matiasDocumentQueue)
+        .set({ status: "FAILED", lastErrorMessage: "Could not build payload", updatedAt: new Date() })
+        .where(eq(matiasDocumentQueue.id, doc.id));
+      return { success: false, documentId: doc.id, documentNumber, error: "Could not build document payload" };
+    }
+
+    // Update status to SENT and store request
+    await db.update(matiasDocumentQueue)
+      .set({ status: "SENT", requestJson: payload, submittedAt: new Date(), updatedAt: new Date() })
+      .where(eq(matiasDocumentQueue.id, doc.id));
+
+    // Submit to MATIAS
+    let response;
+    switch (params.kind) {
+      case "POS":
+      case "INVOICE":
+        response = await client.submitPos(payload as MatiasPayload);
+        break;
+      case "POS_CREDIT_NOTE":
+        response = await client.submitCreditNote(payload as MatiasNotePayload);
+        break;
+      case "POS_DEBIT_NOTE":
+        response = await client.submitDebitNote(payload as MatiasNotePayload);
+        break;
+      default:
+        response = { success: false, message: "Unsupported document type" };
+    }
+
+    if (response.success && response.data) {
+      const cufe = response.data.cufe || response.data.uuid;
+      const qrCode = response.data.qr_code;
+      const trackId = response.data.track_id;
+
+      await db.update(matiasDocumentQueue)
+        .set({
+          status: "ACCEPTED",
+          trackId,
+          cufe,
+          qrCode,
+          responseJson: response,
+          acceptedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(matiasDocumentQueue.id, doc.id));
+
+      await incrementDocumentUsage(params.tenantId, params.kind);
+
+      // Download PDF in background (don't wait)
+      if (trackId) {
+        client.downloadPdf(trackId).then(async (pdfBuffer) => {
+          if (pdfBuffer) {
+            await db.insert(matiasDocumentFiles).values({
+              documentId: doc.id,
+              kind: "pdf",
+              base64Data: pdfBuffer.toString("base64"),
+              mimeType: "application/pdf",
+            });
+          }
+        }).catch(err => console.error("[MATIAS] PDF download error:", err));
+      }
+
+      console.log(`[MATIAS] Document ${prefix}${documentNumber} accepted. CUFE: ${cufe?.substring(0, 20)}...`);
+
+      return {
+        success: true,
+        documentId: doc.id,
+        documentNumber,
+        cufe,
+        qrCode,
+        trackId,
+      };
+    } else {
+      // Submission failed - mark for retry (background processor will handle retries)
+      await db.update(matiasDocumentQueue)
+        .set({
+          status: "RETRY",
+          retryCount: 1,
+          lastErrorMessage: response.message || JSON.stringify(response.errors),
+          responseJson: response,
+          updatedAt: new Date(),
+        })
+        .where(eq(matiasDocumentQueue.id, doc.id));
+
+      console.log(`[MATIAS] Document submission failed: ${response.message}`);
+
+      return {
+        success: false,
+        documentId: doc.id,
+        documentNumber,
+        error: response.message || "Document rejected by MATIAS",
+      };
+    }
+  } catch (error: any) {
+    console.error("[MATIAS] Sync submission error:", error);
+    return { success: false, error: error.message };
+  }
+}

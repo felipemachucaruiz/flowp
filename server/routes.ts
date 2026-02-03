@@ -8,6 +8,9 @@ import fs from "fs";
 import archiver from "archiver";
 import { storage } from "./storage";
 import { emailService } from "./email";
+import { db } from "./db";
+import { orders } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import {
   insertTenantSchema,
   insertCategorySchema,
@@ -2163,17 +2166,40 @@ export async function registerRoutes(
         ).catch(err => console.error('Failed to send new sale notification:', err));
       }
 
-      // Queue DIAN/MATIAS electronic document (async, don't block checkout)
-      const { queueDocument } = await import("./integrations/matias/index");
-      queueDocument({
+      // Submit to DIAN/MATIAS for electronic document (synchronous to get CUFE/QR for receipt)
+      const { submitDocumentSync } = await import("./integrations/matias/index");
+      const matiasResult = await submitDocumentSync({
         tenantId,
         kind: "POS",
         sourceType: "sale",
         sourceId: order.id,
         orderNumber: order.orderNumber.toString(),
-      }).catch(err => console.error('Failed to queue MATIAS document:', err));
+      });
 
-      res.json(order);
+      // If MATIAS submission succeeded, update order with CUFE and QR code
+      if (matiasResult.success && (matiasResult.cufe || matiasResult.qrCode)) {
+        await db.update(orders)
+          .set({
+            cufe: matiasResult.cufe,
+            qrCode: matiasResult.qrCode,
+            trackId: matiasResult.trackId,
+          })
+          .where(eq(orders.id, order.id));
+
+        // Return order with CUFE and QR code for receipt
+        res.json({
+          ...order,
+          cufe: matiasResult.cufe,
+          qrCode: matiasResult.qrCode,
+          trackId: matiasResult.trackId,
+        });
+      } else {
+        // Return order without e-billing data (submission failed or not enabled)
+        if (matiasResult.error) {
+          console.log(`[MATIAS] Order ${order.orderNumber} - E-billing submission issue: ${matiasResult.error}`);
+        }
+        res.json(order);
+      }
     } catch (error) {
       console.error("Order error:", error);
       res.status(400).json({ message: "Failed to create order" });
