@@ -205,7 +205,7 @@ export async function buildPosPayload(
     phone: customer?.phone || undefined,
     address: customer?.address || undefined,
     email: customer?.email || undefined,
-    type_document_identification_id: customer ? mapCustomerIdType(customer.idType) : 13,
+    type_document_identification_id: customer ? mapCustomerIdType(customer.idType) : 6, // 6 = Consumidor Final
     type_organization_id: customer?.organizationTypeId || 2,
     type_liability_id: customer?.taxLiabilityId || 117,
     municipality_id: customer?.municipalityId || 1,
@@ -311,7 +311,7 @@ export async function buildPosCreditNotePayload(
     phone: customer?.phone || undefined,
     address: customer?.address || undefined,
     email: customer?.email || undefined,
-    type_document_identification_id: customer ? mapCustomerIdType(customer.idType) : 13,
+    type_document_identification_id: customer ? mapCustomerIdType(customer.idType) : 6, // 6 = Consumidor Final
     type_organization_id: customer?.organizationTypeId || 2,
     type_liability_id: customer?.taxLiabilityId || 117,
     municipality_id: customer?.municipalityId || 1,

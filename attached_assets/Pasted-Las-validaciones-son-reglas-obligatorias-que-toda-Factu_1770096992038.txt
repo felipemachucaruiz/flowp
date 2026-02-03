@@ -1,0 +1,269 @@
+Las validaciones son reglas obligatorias que toda Factura Electrónica debe cumplir para ser aceptada por el sistema de la DIAN. Este documento describe cada validación que se ejecuta.
+
+Categorías de Validación
+1. Validaciones de Estructura
+1.1 XML Schema Validation
+Código: VAL-STR-001
+
+El XML debe cumplir con el esquema XSD de UBL 2.1
+Se valida la estructura general y tipos de datos
+Ejemplo de Error:
+
+<!-- INCORRECTO: Elemento obligatorio faltante -->
+<Invoice>
+  <ID>123</ID>
+  <!-- Falta IssueDate -->
+</Invoice>
+
+1.2 Namespace
+Código: VAL-STR-002
+
+Namespace correcto: urn:oasis:names:specification:ubl:schema:xsd:Invoice-2
+Namespace de extensión DIAN: urn:extensions:payment:ext:1.1:mx
+2. Validaciones de Identificación del Documento
+2.1 Resolución de Facturación
+Código: VAL-ID-001
+
+Campo: resolution_number
+Regla: Debe ser una resolución válida autorizada por la DIAN
+Formato: Números únicamente
+Longitud: Máximo 50 caracteres
+Ejemplo Válido:
+
+"resolution_number": "18764074347312"
+
+2.2 Prefijo de Factura
+Código: VAL-ID-002
+
+Campo: prefix
+Regla: Debe estar dentro del rango autorizado en la resolución
+Formato: 1-5 caracteres alfanuméricos
+Validación: Debe coincidir con los rangos registrados en DIAN
+Ejemplo Válido:
+
+"prefix": "FEV",
+"prefix": "LZT",
+"prefix": "NV"
+
+2.3 Número Secuencial
+Código: VAL-ID-003
+
+Campo: document_number
+Regla: Debe ser consecutivo según la resolución
+Formato: Número entero
+Validación: No puede haber saltos en la numeración (excepto por anulaciones)
+Ejemplo Válido:
+
+"document_number": 2001,
+"document_number": 2002,  // siguiente consecutivo
+"document_number": 2003
+
+2.4 Tipo de Documento
+Código: VAL-ID-004
+
+Campo: type_document_id
+Valores Válidos:
+1: Factura de Venta
+2: Factura de Exportación
+3: Factura de Venta y Exportación
+Otros según tabla DIAN
+3. Validaciones de Fechas y Horas
+3.1 Fecha de Emisión
+Código: VAL-DATE-001
+
+Campo: date
+Formato: YYYY-MM-DD
+Regla: No puede ser posterior a la fecha actual
+Consideración: Puede haber ligera diferencia por zona horaria
+Ejemplo Válido:
+
+"date": "2024-10-17"
+
+3.2 Consistencia Fecha-Hora
+Código: VAL-DATE-002
+
+Fecha y hora deben ser coherentes
+La hora debe corresponder a la fecha especificada
+3.3 Fecha de Vencimiento
+Código: VAL-DATE-003
+
+Si existe, debe ser mayor o igual a la fecha de emisión
+Máximo 30 días después (según DIAN)
+4. Validaciones de Partes
+4.1 Identificación del Emisor
+Código: VAL-PARTY-001
+
+Campo: issuer.tax_id
+Regla: NIT válido según dígito verificador
+Formato: 8-10 dígitos + dígito verificador (sin guiones)
+Algoritmo de Validación de Dígito Verificador:
+
+1. Multiplicar cada dígito del NIT por su peso (3,7,13,17,19,23,29,37,41,43)
+2. Sumar los resultados
+3. Dividir entre 11
+4. El dígito verificador = 11 - (resto de la división)
+5. Si el resultado es 11, el dígito es 0
+6. Si el resultado es 10, el dígito es 9
+
+4.2 Tipo de Documento del Cliente
+Código: VAL-PARTY-002
+
+Campo: customer.identity_document_type
+Valores Válidos: CC, NIT, CE, PA, TI, etc.
+Depende: Del país del cliente
+4.3 Número de Documento del Cliente
+Código: VAL-PARTY-003
+
+Debe ser válido para el tipo de documento especificado
+Para NIT, debe cumplir validación de dígito verificador
+5. Validaciones de Líneas de Factura
+5.1 Línea Obligatoria
+Código: VAL-LINE-001
+
+Toda factura debe tener mínimo 1 línea
+Máximo: Sin límite técnico (pero DIAN establece criterios)
+5.2 Cantidad
+Código: VAL-LINE-002
+
+Campo: quantity
+Regla: Debe ser mayor a 0
+Precisión: Máximo 2 decimales
+5.3 Precio Unitario
+Código: VAL-LINE-003
+
+Campo: unit_price
+Regla: Debe ser mayor o igual a 0
+Precisión: 2 decimales
+5.4 Cálculo de Monto de Línea
+Código: VAL-LINE-004
+
+Fórmula: line_amount = quantity × unit_price
+Se permite máximo 2 centavos de diferencia por redondeo
+Ejemplo Válido:
+
+{
+  "quantity": 2,
+  "unit_price": 50000.00,
+  "line_amount": 100000.00  // 2 × 50000
+}
+
+6. Validaciones de Impuestos
+6.1 Tipo de Impuesto
+Código: VAL-TAX-001
+
+Campo: tax_type
+Valores Válidos: IVA, ICA, ICE, etc.
+Debe corresponder a tabla DIAN
+6.2 Porcentaje de Impuesto
+Código: VAL-TAX-002
+
+Debe coincidir con los porcentajes autorizados por la DIAN
+Ejemplos para IVA: 0%, 5%, 19%
+Tabla de Porcentajes Válidos (IVA):
+
+Tipo de Bien/Servicio	Porcentaje
+Exento	0%
+Alimentos básicos	5%
+Generales	19%
+6.3 Cálculo de Impuesto
+Código: VAL-TAX-003
+
+Fórmula: tax_amount = base × (tax_percentage / 100)
+Se permite máximo 2 centavos de diferencia por redondeo
+7. Validaciones de Totales
+7.1 Subtotal
+Código: VAL-TOTAL-001
+
+Fórmula: subtotal = SUM(line_amount de todas las líneas)
+7.2 Descuentos
+Código: VAL-TOTAL-002
+
+Descuentos no pueden exceder el subtotal
+total_discount ≤ subtotal
+7.3 Total Impuestos
+Código: VAL-TOTAL-003
+
+Fórmula: total_tax = SUM(tax_amount)
+7.4 Total Pagadero
+Código: VAL-TOTAL-004
+
+Fórmula: payable_amount = subtotal - total_discount + total_tax
+Debe ser mayor a 0
+Ejemplo Validación Completa:
+
+{
+  "subtotal": 100000.00,
+  "total_discount": 10000.00,
+  "total_tax": 17100.00,
+  "payable_amount": 107100.00
+  // Validación: 100000 - 10000 + 17100 = 107100 ✓
+}
+
+8. Validaciones de Moneda
+8.1 Moneda
+Código: VAL-CURRENCY-001
+
+Campo: currency_id
+Valor por defecto: 170 (Pesos Colombianos)
+Formato: Código ISO 4217
+9. Validaciones de Forma de Pago
+9.1 Forma de Pago
+Código: VAL-PAYMENT-001
+
+Valores Válidos: 01 (Efectivo), 02 (Cheque), 03 (Tarjeta), etc.
+Debe haber al menos una forma de pago
+9.2 Montos de Pago
+Código: VAL-PAYMENT-002
+
+La suma de los montos de pago debe coincidir con el monto pagadero
+SUM(payment_amounts) = payable_amount
+10. Validaciones de Firma Digital
+10.1 Firma Digital
+Código: VAL-SIGN-001
+
+La factura debe estar firmada con certificado digital válido
+El certificado debe ser de una entidad acreditada
+10.2 CUFE
+Código: VAL-SIGN-002
+
+El CUFE (Código Único de Factura Electrónica) debe calcularse correctamente
+Algoritmo: SHA256 de: NIT_EMISOR + PREFIJO + NUMERO + FECHA + MONTO_TOTAL + NIT_CLIENTE + IVA + ICA + FIRMA
+Matriz de Validación por Tipo de Documento
+Validación	Factura Estándar	Factura Exportación	Nota Crédito	Nota Débito
+VAL-ID-001	✓	✓	✓	✓
+VAL-ID-002	✓	✓	✓	✓
+VAL-PARTY-001	✓	✓	✓	✓
+VAL-TAX-002	✓	✓	✓	✓
+VAL-TOTAL-004	✓	✓	✓ (puede ser negativo)	✓
+Herramientas de Validación
+MATIAS API proporciona validadores automáticos:
+
+# Endpoint de validación
+POST /api/validate/invoice
+Content-Type: application/json
+
+{
+  "invoice": {...}
+}
+
+Response:
+{
+  "valid": true,
+  "errors": [],
+  "warnings": [],
+  "validations_passed": 45
+}
+
+Checklist de Validación Pre-Envío
+Antes de enviar una factura, verifica:
+
+ Prefijo y número consecutivo correctos
+ Fechas válidas y consistentes
+ NIT emisor con dígito verificador correcto
+ Documento cliente identificado
+ Al menos 1 línea de factura
+ Cálculos correctos (líneas, impuestos, totales)
+ Forma de pago especificada
+ Total pagadero > 0
+ Certificado digital vigente
+ Moneda especificada
