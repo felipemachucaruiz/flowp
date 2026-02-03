@@ -9,6 +9,7 @@ Flowp is a production-ready, multi-tenant Point of Sale (POS) and Inventory mana
 - **Receipt Logo**: Can be as large as the full width of receipt paper (no size restrictions up to max paper width)
 - Dark mode support with system preference detection
 - Persistent theme and auth state in localStorage
+- **Admin Panel**: ALL SaaS administration options (tenant management, MATIAS credentials, billing, etc.) must be located under `/admin`. Do not create separate internal admin pages elsewhere.
 
 ## System Architecture
 Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL backend. It is designed to be responsive, optimized for various screen sizes from mobile to large desktops, with a primary optimization for 1024x768.
@@ -26,10 +27,10 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 - **Mobile App (Capacitor)**: Wraps the PWA for native iOS/Android experience, including Bluetooth LE thermal printing, camera-based barcode scanning, and haptic feedback.
 - **Restaurant Module**: Includes floor and table management, table status tracking, and a real-time Kitchen Display System (KDS) via WebSockets.
 - **Email Notification System**: User-configurable email preferences for various notification types (e.g., New Sale, Low Stock Alerts) with multi-tenant logging and SMTP configuration.
-- **DIAN/MATIAS Electronic Billing (Colombia)**: Full integration for electronic invoicing, supporting multiple document types (POS, Invoice, Credit/Debit Notes). Features include asynchronous processing, encrypted credential storage, OAuth token caching, numbering with row-level locks, and a queue-based retry mechanism. Global MATIAS credentials are managed in the Internal Admin Console.
+- **DIAN/MATIAS Electronic Billing (Colombia)**: Full integration for electronic invoicing, supporting multiple document types (POS, Invoice, Credit/Debit Notes). Features include asynchronous processing, encrypted credential storage, OAuth token caching, numbering with row-level locks, and a queue-based retry mechanism. Per-tenant MATIAS credentials are managed in the Admin Console (`/admin`) under Tenants > [Tenant] > MATIAS tab.
 - **Inventory System**: Ledger-based with immutable stock movements (sale, purchase, adjustment, waste) and low stock alerts.
 - **Reporting**: Provides daily sales summaries, order statistics, sales by hour, and top product tracking.
-- **Unified Admin Console**: A single platform for Flowp staff (`/admin`) to manage tenants, e-billing subscriptions, documents, and global configurations like MATIAS API credentials.
+- **Unified Admin Console**: A single platform for Flowp staff (`/admin`) to manage tenants, e-billing subscriptions, documents, and per-tenant MATIAS API credentials.
 
 **System Design Choices:**
 - **PWA Manifest**: Configured for web and mobile experience.

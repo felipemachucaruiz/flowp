@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Building2, FileText, Package, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Building2, FileText, Package, AlertTriangle, CheckCircle, XCircle, Settings, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +17,16 @@ import { useToast } from "@/hooks/use-toast";
 export default function AdminTenantDetail() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const { toast } = useToast();
+  
+  const [matiasConfig, setMatiasConfig] = useState({
+    baseUrl: "https://api-v2.matias-api.com",
+    email: "",
+    password: "",
+    defaultResolutionNumber: "",
+    defaultPrefix: "",
+    isEnabled: true,
+  });
+  const [showPassword, setShowPassword] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/internal-admin/tenants", tenantId, "overview"],
@@ -23,6 +35,78 @@ export default function AdminTenantDetail() {
       return res.json();
     },
   });
+
+  const { data: integrationData } = useQuery({
+    queryKey: ["/api/internal-admin/tenants", tenantId, "integration"],
+    queryFn: async () => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${tenantId}/ebilling/integration`);
+      const data = await res.json();
+      return data;
+    },
+  });
+
+  useEffect(() => {
+    if (integrationData?.integration) {
+      setMatiasConfig(prev => ({
+        ...prev,
+        baseUrl: integrationData.integration.baseUrl || "https://api-v2.matias-api.com",
+        email: integrationData.integration.email || "",
+        defaultResolutionNumber: integrationData.integration.defaultResolutionNumber || "",
+        defaultPrefix: integrationData.integration.defaultPrefix || "",
+        isEnabled: integrationData.integration.status === "configured",
+      }));
+    }
+  }, [integrationData]);
+
+  const integration = integrationData?.integration;
+
+  const saveConfigMutation = useMutation({
+    mutationFn: async (config: typeof matiasConfig) => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${tenantId}/ebilling/integration/update`, {
+        method: "POST",
+        body: JSON.stringify(config),
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: "MATIAS configuration saved" });
+        queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/tenants", tenantId] });
+      } else {
+        toast({ title: "Error", description: data.error || "Failed to save configuration", variant: "destructive" });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const testConnectionMutation = useMutation({
+    mutationFn: async () => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${tenantId}/ebilling/integration/test`, {
+        method: "POST",
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: "Connection successful", description: data.message });
+      } else {
+        toast({ title: "Connection failed", description: data.message || data.error, variant: "destructive" });
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: "Connection error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleSaveConfig = () => {
+    if (!matiasConfig.baseUrl || !matiasConfig.email) {
+      toast({ title: "Error", description: "URL and Email are required", variant: "destructive" });
+      return;
+    }
+    saveConfigMutation.mutate(matiasConfig);
+  };
 
   const suspendMutation = useMutation({
     mutationFn: async () => {
@@ -104,6 +188,7 @@ export default function AdminTenantDetail() {
         <TabsList>
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
           <TabsTrigger value="ebilling" data-testid="tab-ebilling">E-Billing</TabsTrigger>
+          <TabsTrigger value="matias" data-testid="tab-matias">MATIAS</TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
         </TabsList>
 
@@ -199,6 +284,142 @@ export default function AdminTenantDetail() {
                   <XCircle className="h-5 w-5 text-red-500" />
                 )}
                 <span>{subscription ? "E-Billing enabled" : "No e-billing subscription"}</span>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="matias" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                MATIAS API Configuration
+              </CardTitle>
+              <CardDescription>
+                Configure the connection to the MATIAS electronic billing API for this tenant
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="flex items-center gap-3">
+                  {integration?.isConfigured ? (
+                    <Wifi className="h-6 w-6 text-green-500" />
+                  ) : (
+                    <WifiOff className="h-6 w-6 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="font-medium">Connection Status</p>
+                    <p className="text-sm text-muted-foreground">
+                      {integration?.isConfigured 
+                        ? integration?.status === "configured" ? "Configured and enabled" : "Configured but disabled"
+                        : "Not configured"
+                      }
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => testConnectionMutation.mutate()}
+                  disabled={!integration?.isConfigured || testConnectionMutation.isPending}
+                  data-testid="button-test-connection"
+                >
+                  {testConnectionMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Test Connection
+                </Button>
+              </div>
+
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="baseUrl">API URL</Label>
+                  <Input
+                    id="baseUrl"
+                    placeholder="https://api-v2.matias-api.com"
+                    value={matiasConfig.baseUrl}
+                    onChange={(e) => setMatiasConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
+                    data-testid="input-matias-url"
+                  />
+                  <p className="text-xs text-muted-foreground">The base URL for the MATIAS API endpoint</p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="email">Email / Username</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="user@example.com"
+                    value={matiasConfig.email}
+                    onChange={(e) => setMatiasConfig(prev => ({ ...prev, email: e.target.value }))}
+                    data-testid="input-matias-email"
+                  />
+                  <p className="text-xs text-muted-foreground">The email address used to authenticate with MATIAS</p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder={integration?.hasPassword ? "••••••••" : "Enter password"}
+                      value={matiasConfig.password}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, password: e.target.value }))}
+                      data-testid="input-matias-password"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? "Hide" : "Show"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {integration?.hasPassword 
+                      ? "Password is already saved. Leave blank to keep the existing password."
+                      : "The password for your MATIAS account. This will be encrypted before storage."
+                    }
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="defaultResolutionNumber">Resolution Number (optional)</Label>
+                    <Input
+                      id="defaultResolutionNumber"
+                      placeholder="18760000001"
+                      value={matiasConfig.defaultResolutionNumber}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, defaultResolutionNumber: e.target.value }))}
+                      data-testid="input-matias-resolution"
+                    />
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="defaultPrefix">Prefix (optional)</Label>
+                    <Input
+                      id="defaultPrefix"
+                      placeholder="SETT"
+                      value={matiasConfig.defaultPrefix}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, defaultPrefix: e.target.value }))}
+                      data-testid="input-matias-prefix"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    onClick={handleSaveConfig}
+                    disabled={saveConfigMutation.isPending}
+                    data-testid="button-save-matias"
+                  >
+                    {saveConfigMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Save Configuration
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
