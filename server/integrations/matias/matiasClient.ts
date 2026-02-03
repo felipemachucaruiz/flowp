@@ -452,7 +452,15 @@ export async function saveMatiasConfig(
       where: eq(tenantIntegrationsMatias.tenantId, tenantId),
     });
 
-    const encryptedPassword = encrypt(config.password);
+    // For new records, password is required
+    // For existing records, keep existing password if not provided
+    if (!existing && !config.password) {
+      return { success: false, message: "Password is required for initial configuration" };
+    }
+
+    const encryptedPassword = config.password 
+      ? encrypt(config.password) 
+      : existing!.passwordEncrypted;
 
     if (existing) {
       await db
@@ -460,7 +468,7 @@ export async function saveMatiasConfig(
         .set({
           baseUrl: config.baseUrl,
           email: config.email,
-          passwordEncrypted: encryptedPassword,
+          passwordEncrypted: encryptedPassword as string,
           defaultResolutionNumber: config.defaultResolutionNumber,
           defaultPrefix: config.defaultPrefix,
           startingNumber: config.startingNumber,
@@ -485,7 +493,7 @@ export async function saveMatiasConfig(
         tenantId,
         baseUrl: config.baseUrl,
         email: config.email,
-        passwordEncrypted: encryptedPassword,
+        passwordEncrypted: encryptedPassword as string,
         defaultResolutionNumber: config.defaultResolutionNumber,
         defaultPrefix: config.defaultPrefix,
         startingNumber: config.startingNumber,
