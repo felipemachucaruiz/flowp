@@ -48,23 +48,34 @@ function getPaymentMethodId(method: string | null): number {
   }
 }
 
+// Official DIAN ID Type mapping
+// 1 = CC (Cédula de Ciudadanía)
+// 2 = CE (Cédula de Extranjería)
+// 3 = NIT (Número de Identificación Tributaria)
+// 4 = TI (Tarjeta de Identidad)
+// 5 = PP (Pasaporte)
+// 10 = NURE (Número Único de Registro Económico)
 function mapCustomerIdType(idType: string | null): number {
   switch (idType?.toLowerCase()) {
-    case "cedula_ciudadania":
     case "cc":
-      return 3;
-    case "cedula_extranjeria":
+    case "cedula_ciudadania":
+      return 1;
     case "ce":
-      return 4;
+    case "cedula_extranjeria":
+      return 2;
     case "nit":
-      return 6;
+      return 3;
+    case "ti":
+    case "tarjeta_identidad":
+      return 4;
+    case "pp":
     case "pasaporte":
     case "passport":
-      return 7;
-    case "tin":
       return 5;
+    case "nure":
+      return 10;
     default:
-      return 13;
+      return 1; // Default to CC
   }
 }
 

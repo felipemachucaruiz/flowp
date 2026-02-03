@@ -212,10 +212,16 @@ export default function CustomersPage() {
   };
 
   const idTypeLabels: Record<string, string> = {
-    cedula_ciudadania: t("customers.id_cedula"),
-    cedula_extranjeria: t("customers.id_cedula_ext"),
-    pasaporte: t("customers.id_passport"),
-    nit: "NIT",
+    cc: "CC - Cédula de Ciudadanía",
+    ce: "CE - Cédula de Extranjería",
+    nit: "NIT - Número de Identificación Tributaria",
+    ti: "TI - Tarjeta de Identidad",
+    pp: "PP - Pasaporte",
+    nure: "NURE - Número Único de Registro Económico",
+    // Legacy mappings for backward compatibility
+    cedula_ciudadania: "CC - Cédula de Ciudadanía",
+    cedula_extranjeria: "CE - Cédula de Extranjería",
+    pasaporte: "PP - Pasaporte",
   };
 
   return (
@@ -709,10 +715,12 @@ export default function CustomersPage() {
                     <SelectValue placeholder={t("customers.select_type")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cedula_ciudadania">{t("customers.id_cedula")}</SelectItem>
-                    <SelectItem value="cedula_extranjeria">{t("customers.id_cedula_ext")}</SelectItem>
-                    <SelectItem value="pasaporte">{t("customers.id_passport")}</SelectItem>
-                    <SelectItem value="nit">NIT</SelectItem>
+                    <SelectItem value="cc">CC - Cédula de Ciudadanía</SelectItem>
+                    <SelectItem value="ce">CE - Cédula de Extranjería</SelectItem>
+                    <SelectItem value="nit">NIT - Número de Identificación Tributaria</SelectItem>
+                    <SelectItem value="ti">TI - Tarjeta de Identidad</SelectItem>
+                    <SelectItem value="pp">PP - Pasaporte</SelectItem>
+                    <SelectItem value="nure">NURE - Número Único de Registro Económico</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
