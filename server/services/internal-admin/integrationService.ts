@@ -32,7 +32,7 @@ export async function getIntegrationStatus(tenantId: string) {
   };
 }
 
-export async function testConnection(tenantId: string, actorInternalUserId: string) {
+export async function testConnection(tenantId: string, actorInternalUserId?: string | null) {
   try {
     const client = await getMatiasClient(tenantId);
     if (!client) {
@@ -44,14 +44,20 @@ export async function testConnection(tenantId: string, actorInternalUserId: stri
 
     const result = await client.testConnection();
 
-    await db.insert(internalAuditLogs).values({
-      actorInternalUserId,
-      actionType: "INTEGRATION_TEST",
-      tenantId,
-      entityType: "integration",
-      entityId: tenantId,
-      metadata: { success: result.success, message: result.message },
-    });
+    if (actorInternalUserId) {
+      try {
+        await db.insert(internalAuditLogs).values({
+          actorInternalUserId,
+          actionType: "INTEGRATION_TEST",
+          tenantId,
+          entityType: "integration",
+          entityId: tenantId,
+          metadata: { success: result.success, message: result.message },
+        });
+      } catch (auditError) {
+        console.warn("[IntegrationService] Failed to log audit event:", auditError);
+      }
+    }
 
     if (!result.success) {
       await db.insert(ebillingAlerts).values({
@@ -64,14 +70,20 @@ export async function testConnection(tenantId: string, actorInternalUserId: stri
 
     return result;
   } catch (error: any) {
-    await db.insert(internalAuditLogs).values({
-      actorInternalUserId,
-      actionType: "INTEGRATION_TEST",
-      tenantId,
-      entityType: "integration",
-      entityId: tenantId,
-      metadata: { success: false, error: error.message },
-    });
+    if (actorInternalUserId) {
+      try {
+        await db.insert(internalAuditLogs).values({
+          actorInternalUserId,
+          actionType: "INTEGRATION_TEST",
+          tenantId,
+          entityType: "integration",
+          entityId: tenantId,
+          metadata: { success: false, error: error.message },
+        });
+      } catch (auditError) {
+        console.warn("[IntegrationService] Failed to log audit event:", auditError);
+      }
+    }
 
     return {
       success: false,

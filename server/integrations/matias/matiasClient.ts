@@ -61,61 +61,48 @@ export class MatiasClient {
   }
 
   async initialize(): Promise<boolean> {
-    // Check if tenant has MATIAS enabled
+    // Get per-tenant MATIAS configuration
     const tenantConfig = await db.query.tenantIntegrationsMatias.findFirst({
       where: eq(tenantIntegrationsMatias.tenantId, this.tenantId),
     });
 
     if (!tenantConfig || !tenantConfig.isEnabled) {
+      console.log(`[MATIAS] Tenant ${this.tenantId} MATIAS integration not enabled`);
       return false;
     }
 
-    // Get global MATIAS credentials from platformConfig
-    const globalConfigs = await db.select().from(platformConfig).where(
-      or(
-        eq(platformConfig.key, "matias_email"),
-        eq(platformConfig.key, "matias_password"),
-        eq(platformConfig.key, "matias_enabled"),
-        eq(platformConfig.key, "matias_access_token"),
-        eq(platformConfig.key, "matias_token_expires")
-      )
-    );
-
-    const configMap: Record<string, string> = {};
-    for (const c of globalConfigs) {
-      if ((c.key === "matias_password" || c.key === "matias_access_token") && c.encryptedValue) {
-        try {
-          configMap[c.key] = decrypt(c.encryptedValue);
-        } catch {
-          configMap[c.key] = "";
-        }
-      } else {
-        configMap[c.key] = c.value || "";
-      }
-    }
-
-    if (configMap.matias_enabled !== "true") {
-      console.log("[MATIAS] Global MATIAS integration is disabled");
+    // Use per-tenant credentials
+    if (!tenantConfig.email || !tenantConfig.passwordEncrypted) {
+      console.log(`[MATIAS] Tenant ${this.tenantId} MATIAS credentials not configured`);
       return false;
     }
 
-    if (!configMap.matias_email || !configMap.matias_password) {
-      console.log("[MATIAS] Global MATIAS credentials not configured");
+    this.email = tenantConfig.email;
+    try {
+      this.password = decrypt(tenantConfig.passwordEncrypted);
+    } catch (e) {
+      console.error(`[MATIAS] Failed to decrypt password for tenant ${this.tenantId}`);
       return false;
     }
 
-    this.email = configMap.matias_email;
-    this.password = configMap.matias_password;
+    // Use tenant's API URL if configured, otherwise use default
+    if (tenantConfig.baseUrl) {
+      this.apiUrl = tenantConfig.baseUrl;
+    }
 
-    // Check for cached token
-    if (configMap.matias_access_token && configMap.matias_token_expires) {
-      const expiresAt = new Date(configMap.matias_token_expires);
+    // Check for cached per-tenant token
+    if (tenantConfig.accessTokenEncrypted && tenantConfig.tokenExpiresAt) {
+      const expiresAt = new Date(tenantConfig.tokenExpiresAt);
       const now = new Date();
       if (expiresAt > now) {
-        this.accessToken = configMap.matias_access_token;
-        this.tokenExpiresAt = expiresAt;
-        console.log("[MATIAS] Using cached global token");
-        return true;
+        try {
+          this.accessToken = decrypt(tenantConfig.accessTokenEncrypted);
+          this.tokenExpiresAt = expiresAt;
+          console.log(`[MATIAS] Using cached token for tenant ${this.tenantId}`);
+          return true;
+        } catch {
+          // Token decrypt failed, need to re-authenticate
+        }
       }
     }
 

@@ -179,7 +179,7 @@ internalAdminRouter.get("/tenants/:tenantId/ebilling/integration", requireRole([
 internalAdminRouter.post("/tenants/:tenantId/ebilling/integration/test", requireRole(["superadmin", "supportagent"]), async (req: Request, res: Response) => {
   try {
     const tenantId = req.params.tenantId as string;
-    const result = await integrationService.testConnection(tenantId, req.internalUser!.id);
+    const result = await integrationService.testConnection(tenantId, req.internalUser?.id);
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
