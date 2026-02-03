@@ -3,7 +3,7 @@ import { db } from "../db";
 import { 
   tenants, users, portalRoles, userPortalRoles, 
   locations, registers, electronicDocuments, supportTickets,
-  subscriptions, subscriptionPlans, invoices
+  subscriptions, subscriptionPlans, invoices, matiasDocumentQueue
 } from "@shared/schema";
 import { eq, desc, sql, and, count } from "drizzle-orm";
 import { requireInternal, requirePermission, enforceTenantIsolation } from "../middleware/rbac";
@@ -32,15 +32,16 @@ router.get("/dashboard", async (req: Request, res: Response) => {
       })
       .from(tenants);
 
+    // Query MATIAS document queue for global e-billing stats across all tenants
     const [docStats] = await db
       .select({
         total: count(),
-        pending: sql<number>`COUNT(*) FILTER (WHERE status = 'pending')`,
-        accepted: sql<number>`COUNT(*) FILTER (WHERE status = 'accepted')`,
-        rejected: sql<number>`COUNT(*) FILTER (WHERE status = 'rejected')`,
-        error: sql<number>`COUNT(*) FILTER (WHERE status = 'error')`,
+        pending: sql<number>`COUNT(*) FILTER (WHERE status = 'PENDING')`,
+        accepted: sql<number>`COUNT(*) FILTER (WHERE status = 'SENT')`,
+        rejected: sql<number>`COUNT(*) FILTER (WHERE status = 'REJECTED')`,
+        error: sql<number>`COUNT(*) FILTER (WHERE status = 'ERROR')`,
       })
-      .from(electronicDocuments);
+      .from(matiasDocumentQueue);
 
     const [ticketStats] = await db
       .select({
