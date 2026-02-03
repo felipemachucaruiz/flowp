@@ -256,6 +256,25 @@ export async function buildPosPayload(
     }],
     invoice_lines: invoiceLines,
     lines: invoiceLines,
+    // Required POS fields (type_document_id = 20)
+    point_of_sale: {
+      cashier_term: matiasConfig.posTerminalNumber || "CAJA01",
+      cashier_type: matiasConfig.posCashierType || "POS",
+      cashier_name: "Cajero",
+      sales_code: matiasConfig.posSalesCode || "0001",
+      terminal_number: matiasConfig.posTerminalNumber || "001",
+      address: matiasConfig.posAddress || tenant.address || "Dirección Principal",
+      sub_total: lineExtensionAmount,
+    },
+    software_manufacturer: {
+      software_id: matiasConfig.softwareId || "flowp-pos",
+      software_pin: matiasConfig.softwarePin || "",
+      software_name: "Flowp POS",
+      manufacturer_name: matiasConfig.manufacturerName || "Flowp",
+      manufacturer_nit: matiasConfig.manufacturerNit || "901234567",
+      owner_name: tenant.name || "Flowp",
+      company_name: tenant.name || "Flowp",
+    },
   };
 
   return payload;
