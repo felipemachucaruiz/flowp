@@ -137,11 +137,19 @@ export async function buildPosPayload(
   const now = new Date();
   const taxRate = Number(tenant.taxRate || 0);
 
+  // DIAN 5.2 Tax Calculation per line:
+  // 1. línea_subtotal = cantidad × precio_unitario
+  // 2. Apply line discounts (if any)
+  // 3. línea_base = línea_subtotal - descuentos = line_extension_amount
+  // 4. línea_impuesto = línea_base × porcentaje_impuesto / 100 = tax_amount
+  // 5. línea_total = línea_base + línea_impuesto
   const invoiceLines = items.map((item, index) => {
     const product = productMap.get(item.productId);
     const qty = Number(item.quantity);
     const unitPrice = Number(item.unitPrice);
+    // línea_base (after any discounts applied at order level)
     const lineTotal = roundTo2(qty * unitPrice);
+    // línea_impuesto = línea_base × porcentaje / 100
     const taxAmount = taxRate > 0 ? roundTo2(lineTotal * (taxRate / 100)) : 0;
 
     return {
@@ -166,10 +174,14 @@ export async function buildPosPayload(
     };
   });
 
+  // DIAN 5.2 Aggregate calculations:
+  // total_base = Σ línea_base = line_extension_amount
   const lineExtensionAmount = roundTo2(invoiceLines.reduce((sum, line) => sum + line.line_extension_amount, 0));
+  // total_impuestos = Σ línea_impuesto
   const totalTax = roundTo2(invoiceLines.reduce((sum, line) => 
     sum + (line.tax_totals?.[0]?.tax_amount || 0), 0
   ));
+  // total_factura = total_base + total_impuestos
   const totalWithTax = roundTo2(lineExtensionAmount + totalTax);
 
   const customerData = {
