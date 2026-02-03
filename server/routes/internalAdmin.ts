@@ -50,13 +50,15 @@ internalAdminRouter.post("/auth/login", async (req: Request, res: Response) => {
 
 internalAdminRouter.post("/auth/register", async (req: Request, res: Response) => {
   try {
-    const { email, name, password, role, adminSecret } = req.body;
+    const { email, name, password, role } = req.body;
     
-    if (adminSecret !== process.env.INTERNAL_ADMIN_SECRET) {
-      return res.status(403).json({ error: "Invalid admin secret" });
+    // Only allow registration when NO admin users exist (first-time setup)
+    const existingAdmins = await db.query.internalUsers.findMany();
+    if (existingAdmins.length > 0) {
+      return res.status(403).json({ error: "Registration is disabled. Admin users already exist." });
     }
 
-    const user = await createInternalUser({ email, name, password, role });
+    const user = await createInternalUser({ email, name, password, role: "superadmin" });
     res.json({ success: true, user });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
