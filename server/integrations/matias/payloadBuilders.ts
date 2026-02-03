@@ -178,7 +178,7 @@ export async function buildPosPayload(
   };
 
   const payload: MatiasPayload = {
-    type_document_id: MATIAS_DOCUMENT_TYPES.INVOICE,
+    type_document_id: MATIAS_DOCUMENT_TYPES.POS,
     resolution_number: resolutionNumber,
     prefix: prefix,
     number: documentNumber,

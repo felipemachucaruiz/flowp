@@ -260,7 +260,7 @@ export class MatiasClient {
   }
 
   async submitPos(payload: MatiasPayload): Promise<MatiasDocumentResponse> {
-    const result = await this.request<MatiasDocumentResponse>("POST", "/invoice", payload);
+    const result = await this.request<MatiasDocumentResponse>("POST", "/pos", payload);
     return result.data || { success: false, message: result.error };
   }
 

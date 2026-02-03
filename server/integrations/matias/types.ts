@@ -91,6 +91,7 @@ export const matiasLineSchema = z.object({
 export const matiasPaymentSchema = z.object({
   payment_form_id: z.number(),
   payment_method_id: z.number(),
+  means_payment_id: z.number().optional(),
   payment_due_date: z.string().optional(),
   duration_measure: z.string().optional(),
 });
@@ -165,6 +166,8 @@ export const matiasDiscrepancyResponseSchema = z.object({
 export const matiasPaymentWithAmountSchema = z.object({
   payment_form_id: z.number(),
   payment_method_id: z.number(),
+  means_payment_id: z.number().optional(),
+  value_paid: z.number().optional(),
   payment_amount: z.number().optional(),
   payment_due_date: z.string().optional(),
   duration_measure: z.string().optional(),
