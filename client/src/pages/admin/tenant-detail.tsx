@@ -101,8 +101,8 @@ export default function AdminTenantDetail() {
   });
 
   const handleSaveConfig = () => {
-    if (!matiasConfig.baseUrl || !matiasConfig.email) {
-      toast({ title: "Error", description: "URL and Email are required", variant: "destructive" });
+    if (!matiasConfig.email) {
+      toast({ title: "Error", description: "Email is required", variant: "destructive" });
       return;
     }
     saveConfigMutation.mutate(matiasConfig);
@@ -332,18 +332,6 @@ export default function AdminTenantDetail() {
               </div>
 
               <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="baseUrl">API URL</Label>
-                  <Input
-                    id="baseUrl"
-                    placeholder="https://api-v2.matias-api.com"
-                    value={matiasConfig.baseUrl}
-                    onChange={(e) => setMatiasConfig(prev => ({ ...prev, baseUrl: e.target.value }))}
-                    data-testid="input-matias-url"
-                  />
-                  <p className="text-xs text-muted-foreground">The base URL for the MATIAS API endpoint</p>
-                </div>
-
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email / Username</Label>
                   <Input
