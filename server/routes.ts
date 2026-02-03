@@ -1133,7 +1133,10 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Customer not found" });
       }
       // Only allow specific fields to be updated
-      const { name, email, phone, address, idType, idNumber, notes } = req.body;
+      const { 
+        name, email, phone, address, idType, idNumber, notes,
+        countryCode, municipalityId, organizationTypeId, taxRegimeId, taxLiabilityId, defaultDiscount
+      } = req.body;
       const updateData: Record<string, any> = {};
       if (name !== undefined) updateData.name = name;
       if (email !== undefined) updateData.email = email;
@@ -1142,6 +1145,12 @@ export async function registerRoutes(
       if (idType !== undefined) updateData.idType = idType;
       if (idNumber !== undefined) updateData.idNumber = idNumber;
       if (notes !== undefined) updateData.notes = notes;
+      if (countryCode !== undefined) updateData.countryCode = countryCode;
+      if (municipalityId !== undefined) updateData.municipalityId = municipalityId;
+      if (organizationTypeId !== undefined) updateData.organizationTypeId = organizationTypeId;
+      if (taxRegimeId !== undefined) updateData.taxRegimeId = taxRegimeId;
+      if (taxLiabilityId !== undefined) updateData.taxLiabilityId = taxLiabilityId;
+      if (defaultDiscount !== undefined) updateData.defaultDiscount = defaultDiscount;
       
       const customer = await storage.updateCustomer(id, updateData);
       res.json(customer);
