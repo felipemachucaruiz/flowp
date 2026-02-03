@@ -19,6 +19,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, Order, LoyaltyTransaction, LoyaltyReward, Product } from "@shared/schema";
 import { DIAN_COUNTRIES } from "@shared/dianCountries";
+import { DIAN_MUNICIPALITIES } from "@shared/dianMunicipalities";
+import { DIAN_ORGANIZATION_TYPES, DIAN_TAX_REGIMES, DIAN_TAX_LIABILITIES } from "@shared/dianTaxTypes";
 import {
   Search,
   User,
@@ -62,6 +64,10 @@ export default function CustomersPage() {
     phone: "",
     address: "",
     countryCode: "169",
+    municipalityId: "1",
+    organizationTypeId: "2",
+    taxRegimeId: "2",
+    taxLiabilityId: "117",
     idType: "",
     idNumber: "",
     notes: "",
@@ -137,6 +143,10 @@ export default function CustomersPage() {
       phone: "",
       address: "",
       countryCode: "169",
+      municipalityId: "1",
+      organizationTypeId: "2",
+      taxRegimeId: "2",
+      taxLiabilityId: "117",
       idType: "",
       idNumber: "",
       notes: "",
@@ -173,6 +183,10 @@ export default function CustomersPage() {
       phone: customer.phone || "",
       address: customer.address || "",
       countryCode: customer.countryCode || "169",
+      municipalityId: String(customer.municipalityId || 1),
+      organizationTypeId: String(customer.organizationTypeId || 2),
+      taxRegimeId: String(customer.taxRegimeId || 2),
+      taxLiabilityId: String(customer.taxLiabilityId || 117),
       idType: customer.idType || "",
       idNumber: customer.idNumber || "",
       notes: customer.notes || "",
@@ -531,6 +545,10 @@ export default function CustomersPage() {
                                 email: selectedCustomer.email || "",
                                 address: selectedCustomer.address || "",
                                 countryCode: selectedCustomer.countryCode || "169",
+                                municipalityId: String(selectedCustomer.municipalityId || 1),
+                                organizationTypeId: String(selectedCustomer.organizationTypeId || 2),
+                                taxRegimeId: String(selectedCustomer.taxRegimeId || 2),
+                                taxLiabilityId: String(selectedCustomer.taxLiabilityId || 117),
                                 idType: selectedCustomer.idType || "",
                                 idNumber: selectedCustomer.idNumber || "",
                                 notes: notesText,
@@ -724,6 +742,82 @@ export default function CustomersPage() {
                     {DIAN_COUNTRIES.map((country) => (
                       <SelectItem key={country.code} value={country.code}>
                         {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{t("customers.municipality")}</Label>
+                <Select
+                  value={customerForm.municipalityId}
+                  onValueChange={(value) => setCustomerForm({ ...customerForm, municipalityId: value })}
+                >
+                  <SelectTrigger data-testid="select-customer-municipality">
+                    <SelectValue placeholder={t("customers.select_municipality")} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {DIAN_MUNICIPALITIES.map((municipality) => (
+                      <SelectItem key={municipality.code} value={String(municipality.code)}>
+                        {municipality.name}, {municipality.department}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{t("customers.organization_type")}</Label>
+                <Select
+                  value={customerForm.organizationTypeId}
+                  onValueChange={(value) => setCustomerForm({ ...customerForm, organizationTypeId: value })}
+                >
+                  <SelectTrigger data-testid="select-customer-org-type">
+                    <SelectValue placeholder={t("customers.select_org_type")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DIAN_ORGANIZATION_TYPES.map((org) => (
+                      <SelectItem key={org.id} value={String(org.id)}>
+                        {org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>{t("customers.tax_regime")}</Label>
+                <Select
+                  value={customerForm.taxRegimeId}
+                  onValueChange={(value) => setCustomerForm({ ...customerForm, taxRegimeId: value })}
+                >
+                  <SelectTrigger data-testid="select-customer-tax-regime">
+                    <SelectValue placeholder={t("customers.select_tax_regime")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DIAN_TAX_REGIMES.map((regime) => (
+                      <SelectItem key={regime.id} value={String(regime.id)}>
+                        {regime.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>{t("customers.tax_liability")}</Label>
+                <Select
+                  value={customerForm.taxLiabilityId}
+                  onValueChange={(value) => setCustomerForm({ ...customerForm, taxLiabilityId: value })}
+                >
+                  <SelectTrigger data-testid="select-customer-tax-liability">
+                    <SelectValue placeholder={t("customers.select_tax_liability")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DIAN_TAX_LIABILITIES.map((liability) => (
+                      <SelectItem key={liability.id} value={String(liability.id)}>
+                        {liability.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

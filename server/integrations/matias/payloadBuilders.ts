@@ -170,10 +170,10 @@ export async function buildPosPayload(
     address: customer?.address || undefined,
     email: customer?.email || undefined,
     type_document_identification_id: customer ? mapCustomerIdType(customer.idType) : 13,
-    type_organization_id: 2,
-    type_liability_id: 117,
-    municipality_id: 149,
-    type_regime_id: 2,
+    type_organization_id: customer?.organizationTypeId || 2,
+    type_liability_id: customer?.taxLiabilityId || 117,
+    municipality_id: customer?.municipalityId || 1,
+    type_regime_id: customer?.taxRegimeId || 2,
     country_id: parseInt(customer?.countryCode || "169", 10),
   };
 
@@ -275,10 +275,10 @@ export async function buildPosCreditNotePayload(
     address: customer?.address || undefined,
     email: customer?.email || undefined,
     type_document_identification_id: customer ? mapCustomerIdType(customer.idType) : 13,
-    type_organization_id: 2,
-    type_liability_id: 117,
-    municipality_id: 149,
-    type_regime_id: 2,
+    type_organization_id: customer?.organizationTypeId || 2,
+    type_liability_id: customer?.taxLiabilityId || 117,
+    municipality_id: customer?.municipalityId || 1,
+    type_regime_id: customer?.taxRegimeId || 2,
     country_id: parseInt(customer?.countryCode || "169", 10),
   };
 
