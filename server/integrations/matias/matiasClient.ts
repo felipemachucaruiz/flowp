@@ -4,10 +4,9 @@ import { eq, and, or } from "drizzle-orm";
 import crypto from "crypto";
 
 // MATIAS API v2 URLs
-// Both auth and document submission are under /api/ubl2.1
-const MATIAS_API_BASE = "https://api-v2.matias-api.com/api/ubl2.1";
-const MATIAS_AUTH_URL = MATIAS_API_BASE; // Auth endpoint: /auth/login under this base
-const MATIAS_API_URL = MATIAS_API_BASE; // Document submission endpoint
+// Auth is on a separate domain from the API
+const MATIAS_AUTH_URL = "https://auth-v2.matias-api.com"; // Auth endpoint: /auth/login
+const MATIAS_API_URL = "https://api-v2.matias-api.com/api/ubl2.1"; // Document submission endpoint
 import type {
   MatiasAuthRequest,
   MatiasAuthResponse,
