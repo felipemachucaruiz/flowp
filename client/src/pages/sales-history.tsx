@@ -159,6 +159,12 @@ export default function SalesHistoryPage() {
       cashReceived: undefined,
       change: undefined,
       cashier: undefined,
+      electronicBilling: order.cufe ? {
+        cufe: order.cufe,
+        qrCode: order.qrCode || undefined,
+        documentNumber: order.orderNumber.toString(),
+        prefix: order.prefix || undefined,
+      } : undefined,
     });
   };
 

@@ -91,6 +91,12 @@ interface ReceiptData {
     align?: "left" | "center" | "right";
     size?: "small" | "normal" | "large" | "xlarge";
   }>;
+  electronicBilling?: {
+    cufe?: string;
+    qrCode?: string;
+    documentNumber?: string;
+    prefix?: string;
+  };
 }
 
 interface PrinterConfig {

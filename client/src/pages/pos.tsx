@@ -546,9 +546,9 @@ export default function POSPage() {
         return { id: offlineId, orderNumber: `OFF-${offlineId.slice(-6).toUpperCase()}`, offline: true };
       }
       const response = await apiRequest("POST", "/api/orders", orderData);
-      return response.json() as Promise<{ id: string; orderNumber?: string }>;
+      return response.json() as Promise<{ id: string; orderNumber?: string; cufe?: string; qrCode?: string; prefix?: string }>;
     },
-    onSuccess: (response: { id: string; orderNumber?: string; offline?: boolean }) => {
+    onSuccess: (response: { id: string; orderNumber?: string; offline?: boolean; cufe?: string; qrCode?: string; prefix?: string }) => {
       const receiptData = pendingReceiptData.current;
       if (receiptData) {
         printReceipt(tenant, {
@@ -573,6 +573,12 @@ export default function POSPage() {
           cashReceived: receiptData.cashReceived,
           change: receiptData.cashReceived ? receiptData.cashReceived - receiptData.total : undefined,
           cashier: user?.name,
+          electronicBilling: response.cufe ? {
+            cufe: response.cufe,
+            qrCode: response.qrCode,
+            documentNumber: response.orderNumber,
+            prefix: response.prefix,
+          } : undefined,
         });
         
         // Open cash drawer for cash payments if enabled

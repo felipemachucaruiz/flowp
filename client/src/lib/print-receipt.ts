@@ -43,6 +43,13 @@ interface TaxEntry {
   amount: number;
 }
 
+interface ElectronicBillingInfo {
+  cufe?: string;
+  qrCode?: string;
+  documentNumber?: string;
+  prefix?: string;
+}
+
 interface ReceiptData {
   orderNumber: string;
   date: Date;
@@ -60,6 +67,7 @@ interface ReceiptData {
   discount?: number;
   discountPercent?: number;
   payments?: PaymentEntry[];
+  electronicBilling?: ElectronicBillingInfo;
 }
 
 async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise<boolean> {
@@ -130,6 +138,12 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
       cutPaper: true,
       couponEnabled: tenant?.couponEnabled || false,
       couponLines: tenant?.couponEnabled ? parseCouponLines(tenant?.couponText) : undefined,
+      electronicBilling: data.electronicBilling ? {
+        cufe: data.electronicBilling.cufe,
+        qrCode: data.electronicBilling.qrCode,
+        documentNumber: data.electronicBilling.documentNumber,
+        prefix: data.electronicBilling.prefix,
+      } : undefined,
     });
 
     return result.success;
@@ -439,6 +453,32 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
         <div><span>${t.change}:</span><span>${formatCurrency(data.change || 0)}</span></div>
       ` : ""}
     </div>
+    
+    ${data.electronicBilling?.cufe ? `
+    <div class="electronic-billing" style="margin: 15px 0; padding: 10px 0; border-top: 1px dashed #000; text-align: center;">
+      <div style="font-weight: bold; margin-bottom: 8px; font-size: ${Math.round(fontSize * 0.9)}px;">
+        ${lang === "es" ? "FACTURA ELECTRÓNICA" : lang === "pt" ? "FATURA ELETRÔNICA" : "ELECTRONIC INVOICE"}
+      </div>
+      ${data.electronicBilling.prefix && data.electronicBilling.documentNumber ? `
+        <div style="margin-bottom: 5px; font-size: ${Math.round(fontSize * 0.85)}px;">
+          ${lang === "es" ? "Doc" : "Doc"}: ${data.electronicBilling.prefix}${data.electronicBilling.documentNumber}
+        </div>
+      ` : ""}
+      ${data.electronicBilling.qrCode ? `
+        <div style="margin: 10px auto; text-align: center;">
+          <img src="${data.electronicBilling.qrCode}" alt="QR Code" style="width: 35mm; height: 35mm; image-rendering: pixelated;" />
+        </div>
+      ` : `
+        <div style="margin: 10px auto; text-align: center;">
+          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data.electronicBilling.cufe)}" alt="QR CUFE" style="width: 35mm; height: 35mm;" />
+        </div>
+      `}
+      <div style="font-size: ${Math.round(fontSize * 0.7)}px; word-break: break-all; margin-top: 5px; line-height: 1.3;">
+        <strong>CUFE:</strong><br/>
+        ${data.electronicBilling.cufe}
+      </div>
+    </div>
+    ` : ""}
     
     <div class="footer">
       ${tenant?.receiptFooterText ? `<div class="footer-text">${tenant.receiptFooterText}</div>` : ""}
