@@ -472,23 +472,37 @@ internalAdminRouter.patch("/tenants/:tenantId", requireRole(["superadmin"]), asy
     const tenantId = req.params.tenantId as string;
     const { status, featureFlags } = req.body;
 
+    // Validate tenant exists
+    const tenant = await db.query.tenants.findFirst({
+      where: eq(tenants.id, tenantId),
+    });
+    if (!tenant) {
+      return res.status(404).json({ error: "Tenant not found" });
+    }
+
     const updateData: any = {};
     if (status) updateData.status = status;
-    if (featureFlags) updateData.featureFlags = featureFlags;
+    if (featureFlags !== undefined) updateData.featureFlags = featureFlags;
 
-    await db.update(tenants).set(updateData).where(eq(tenants.id, tenantId));
+    if (Object.keys(updateData).length > 0) {
+      await db.update(tenants).set(updateData).where(eq(tenants.id, tenantId));
+    }
 
-    await db.insert(internalAuditLogs).values({
-      actorInternalUserId: req.internalUser!.id,
-      actionType: "TENANT_UPDATE",
-      tenantId,
-      entityType: "tenant",
-      entityId: tenantId,
-      metadata: updateData,
-    });
+    // Log audit only if we have a valid user ID
+    if (req.internalUser?.id) {
+      await db.insert(internalAuditLogs).values({
+        actorInternalUserId: req.internalUser.id,
+        actionType: "TENANT_UPDATE",
+        tenantId,
+        entityType: "tenant",
+        entityId: tenantId,
+        metadata: updateData,
+      });
+    }
 
     res.json({ success: true });
   } catch (error: any) {
+    console.error("[PATCH /tenants/:tenantId] Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
