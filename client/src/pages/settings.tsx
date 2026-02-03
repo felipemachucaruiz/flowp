@@ -111,7 +111,6 @@ const tableSchema = z.object({
 });
 
 const ebillingSchema = z.object({
-  isEnabled: z.boolean().default(false),
   autoSubmitSales: z.boolean().default(true),
 });
 
@@ -1062,7 +1061,6 @@ function EBillingSettings() {
   const queryClientInstance = useQueryClient();
 
   const { data: billingConfig, isLoading } = useQuery<{
-    isEnabled: boolean;
     prefix: string;
     currentNumber: number | null;
     endingNumber: number | null;
@@ -1075,7 +1073,6 @@ function EBillingSettings() {
   const form = useForm<z.infer<typeof ebillingSchema>>({
     resolver: zodResolver(ebillingSchema),
     defaultValues: {
-      isEnabled: false,
       autoSubmitSales: true,
     },
   });
@@ -1083,7 +1080,6 @@ function EBillingSettings() {
   useEffect(() => {
     if (billingConfig) {
       form.reset({
-        isEnabled: billingConfig.isEnabled ?? false,
         autoSubmitSales: billingConfig.autoSubmitSales ?? true,
       });
     }
@@ -1137,30 +1133,6 @@ function EBillingSettings() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="isEnabled"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">
-                      {t("ebilling.enable") || "Enable Electronic Billing"}
-                    </FormLabel>
-                    <FormDescription>
-                      {t("ebilling.enable_desc") || "Submit sales automatically to DIAN via MATIAS"}
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                      data-testid="switch-ebilling-enabled"
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-
             {billingConfig?.currentNumber && (
               <div className="rounded-lg border p-4 bg-muted/50">
                 <div className="flex items-center justify-between">
