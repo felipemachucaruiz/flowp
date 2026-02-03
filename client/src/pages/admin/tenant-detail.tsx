@@ -335,6 +335,25 @@ export default function AdminTenantDetail() {
                 </Button>
               </div>
 
+              <div className="flex items-center justify-between rounded-lg border p-4 mb-4">
+                <div>
+                  <p className="font-medium">Enable Integration</p>
+                  <p className="text-sm text-muted-foreground">
+                    Toggle to enable or disable MATIAS integration for this tenant
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={matiasConfig.isEnabled}
+                    onChange={(e) => setMatiasConfig(prev => ({ ...prev, isEnabled: e.target.checked }))}
+                    data-testid="toggle-matias-enabled"
+                  />
+                  <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+
               <div className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email / Username</Label>
