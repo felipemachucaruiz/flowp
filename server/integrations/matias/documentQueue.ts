@@ -453,6 +453,11 @@ export async function processDocument(documentId: string): Promise<boolean> {
           }
         }
         
+        // Fallback: Generate QR URL from CUFE if we have CUFE but no QR code
+        if (cufe && !qrCode) {
+          qrCode = `https://catalogo-vpfe.dian.gov.co/User/SearchDocument?DocumentKey=${cufe}`;
+        }
+        
         if (cufe) {
           await db.update(matiasDocumentQueue)
             .set({
@@ -660,8 +665,13 @@ export async function submitDocumentSync(params: {
 
     if (response.success && response.data) {
       const cufe = response.data.cufe || response.data.uuid;
-      const qrCode = response.data.qr_code;
+      let qrCode = response.data.qr_code;
       const trackId = response.data.track_id;
+
+      // Fallback: Generate QR URL from CUFE if we have CUFE but no QR code
+      if (cufe && !qrCode) {
+        qrCode = `https://catalogo-vpfe.dian.gov.co/User/SearchDocument?DocumentKey=${cufe}`;
+      }
 
       await db.update(matiasDocumentQueue)
         .set({
@@ -729,6 +739,11 @@ export async function submitDocumentSync(params: {
             cufe = cufe || statusResult.data.cufe || statusResult.data.cude;
             qrCode = qrCode || statusResult.data.qr_code;
           }
+        }
+        
+        // Fallback: Generate QR URL from CUFE if we have CUFE but no QR code
+        if (cufe && !qrCode) {
+          qrCode = `https://catalogo-vpfe.dian.gov.co/User/SearchDocument?DocumentKey=${cufe}`;
         }
         
         if (cufe) {
