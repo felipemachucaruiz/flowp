@@ -760,6 +760,15 @@ function PrintBridgeSettings() {
   );
 }
 
+// Official DIAN Tax Types
+const DIAN_TAX_TYPES = [
+  { id: 1, code: "01", name: "IVA", description: "Impuesto al Valor Agregado", defaultRates: ["19", "5", "0"] },
+  { id: 2, code: "03", name: "Consumo", description: "Impuesto al Consumo", defaultRates: ["8", "4", "0"] },
+  { id: 3, code: "04", name: "Timbre", description: "Impuesto de Timbre", defaultRates: ["0"] },
+  { id: 4, code: "08", name: "Bolsa", description: "Impuesto a Bolsas Plásticas", defaultRates: ["8"] },
+  { id: 5, code: "07", name: "Bebidas", description: "Impuesto a Bebidas Azucaradas", defaultRates: ["8"] },
+];
+
 // Tax Add Form Component
 function TaxAddForm({
   onSave,
@@ -772,9 +781,24 @@ function TaxAddForm({
   isPending: boolean;
   t: (key: string) => string;
 }) {
+  const [selectedTaxType, setSelectedTaxType] = useState("");
   const [name, setName] = useState("");
   const [rate, setRate] = useState("");
   const [isActive, setIsActive] = useState(true);
+
+  const handleTaxTypeChange = (value: string) => {
+    setSelectedTaxType(value);
+    if (value === "custom") {
+      setName("");
+      setRate("");
+    } else {
+      const taxType = DIAN_TAX_TYPES.find(t => t.code === value);
+      if (taxType) {
+        setName(`${taxType.name} - ${taxType.description}`);
+        setRate(taxType.defaultRates[0]);
+      }
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -783,8 +807,26 @@ function TaxAddForm({
     }
   };
 
+  const selectedType = DIAN_TAX_TYPES.find(t => t.code === selectedTaxType);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="text-sm font-medium">{t("taxes.type") || "Tipo de Impuesto DIAN"}</label>
+        <Select value={selectedTaxType} onValueChange={handleTaxTypeChange}>
+          <SelectTrigger data-testid="select-tax-type">
+            <SelectValue placeholder={t("taxes.select_type") || "Seleccionar tipo de impuesto..."} />
+          </SelectTrigger>
+          <SelectContent>
+            {DIAN_TAX_TYPES.map((taxType) => (
+              <SelectItem key={taxType.code} value={taxType.code}>
+                {taxType.code} - {taxType.name} ({taxType.description})
+              </SelectItem>
+            ))}
+            <SelectItem value="custom">{t("taxes.custom") || "Personalizado"}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="text-sm font-medium">{t("taxes.name")}</label>
@@ -797,16 +839,29 @@ function TaxAddForm({
         </div>
         <div>
           <label className="text-sm font-medium">{t("taxes.rate")}</label>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            max="100"
-            value={rate}
-            onChange={(e) => setRate(e.target.value)}
-            placeholder={t("taxes.rate_placeholder")}
-            data-testid="input-tax-rate"
-          />
+          {selectedType && selectedType.defaultRates.length > 1 ? (
+            <Select value={rate} onValueChange={setRate}>
+              <SelectTrigger data-testid="select-tax-rate">
+                <SelectValue placeholder={t("taxes.rate_placeholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {selectedType.defaultRates.map((r) => (
+                  <SelectItem key={r} value={r}>{r}%</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              max="100"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              placeholder={t("taxes.rate_placeholder")}
+              data-testid="input-tax-rate"
+            />
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2">
