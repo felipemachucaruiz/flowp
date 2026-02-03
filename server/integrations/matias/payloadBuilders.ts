@@ -10,6 +10,8 @@ import {
 } from "@shared/schema";
 import { eq, inArray } from "drizzle-orm";
 import { 
+  MATIAS_MEANS_PAYMENT,
+  MATIAS_PAYMENT_METHOD,
   MATIAS_PAYMENT_METHODS, 
   MATIAS_DOCUMENT_TYPES,
   type MatiasPayload,
@@ -29,23 +31,30 @@ function roundTo2(num: number): number {
   return Math.round(num * 100) / 100;
 }
 
-function getPaymentMethodId(method: string | null): number {
+// Returns means_payment_id (Medio de Pago - instrumento específico)
+function getMeansPaymentId(method: string | null): number {
   switch ((method || "cash").toLowerCase()) {
     case "cash":
-      return MATIAS_PAYMENT_METHODS.CASH;
+      return MATIAS_MEANS_PAYMENT.CASH;         // 10
     case "card":
     case "credit_card":
-      return MATIAS_PAYMENT_METHODS.CREDIT_CARD;
+      return MATIAS_MEANS_PAYMENT.CREDIT_CARD;  // 41
     case "debit_card":
-      return MATIAS_PAYMENT_METHODS.DEBIT_CARD;
+      return MATIAS_MEANS_PAYMENT.DEBIT_CARD;   // 40
     case "transfer":
-      return MATIAS_PAYMENT_METHODS.TRANSFER;
-    case "split":
-    case "mixed":
-      return MATIAS_PAYMENT_METHODS.MIXED;
+      return MATIAS_MEANS_PAYMENT.TRANSFER;     // 42
+    case "check":
+      return MATIAS_MEANS_PAYMENT.CHECK;        // 02
     default:
-      return MATIAS_PAYMENT_METHODS.CASH;
+      return MATIAS_MEANS_PAYMENT.CASH;         // 10
   }
+}
+
+// Returns payment_method_id (Método de Pago - categoría general)
+function getPaymentMethodId(isMixed: boolean, isCredit: boolean = false): number {
+  if (isMixed) return MATIAS_PAYMENT_METHOD.MIXED;     // 3
+  if (isCredit) return MATIAS_PAYMENT_METHOD.CREDITO;  // 2
+  return MATIAS_PAYMENT_METHOD.CONTADO;                // 1
 }
 
 // MATIAS API ID Type mapping (type_document_identification_id)
@@ -123,12 +132,12 @@ export async function buildPosPayload(
     where: eq(payments.orderId, orderId),
   });
 
-  let paymentMethodId: number = MATIAS_PAYMENT_METHODS.CASH;
-  if (orderPayments.length === 1) {
-    paymentMethodId = getPaymentMethodId(orderPayments[0].method);
-  } else if (orderPayments.length > 1) {
-    paymentMethodId = MATIAS_PAYMENT_METHODS.MIXED;
-  }
+  // Determine payment IDs based on MATIAS API structure
+  const isMixedPayment = orderPayments.length > 1;
+  const paymentMethodId = getPaymentMethodId(isMixedPayment);  // Método de Pago (1=Contado, 2=Crédito, 3=Mixto)
+  const meansPaymentId = orderPayments.length === 1 
+    ? getMeansPaymentId(orderPayments[0].method)  // Medio de Pago (10=Efectivo, 41=TC, etc.)
+    : MATIAS_MEANS_PAYMENT.CASH;  // Default for mixed
 
   let customer = null;
   if (order.customerId) {
@@ -217,13 +226,13 @@ export async function buildPosPayload(
     },
     customer: customerData,
     payment_form: {
-      payment_form_id: 1,
-      payment_method_id: paymentMethodId,
+      payment_form_id: 1,                  // 1=Contado, 2=Crédito
+      payment_method_id: meansPaymentId,   // Medio de Pago (10=Efectivo, 41=TC, etc.)
     },
     payments: [{
-      payment_form_id: 1,
-      payment_method_id: 1,
-      means_payment_id: paymentMethodId,
+      payment_form_id: 1,                  // 1=Contado
+      payment_method_id: paymentMethodId,  // Método de Pago (1=Contado, 2=Crédito, 3=Mixto)
+      means_payment_id: meansPaymentId,    // Medio de Pago (10=Efectivo, 41=TC, etc.)
       value_paid: totalWithTax,
     }],
     legal_monetary_totals: {

@@ -21,30 +21,34 @@ export interface MatiasAuthResponse {
   success?: boolean;
 }
 
-// DIAN 7.1 Forma de Pago (means_payment_id)
-// 1 = Efectivo (Pago en efectivo)
-// 2 = Cheque (Pago con cheque)
-// 3 = Tarjeta Débito (Tarjeta de débito)
-// 4 = Tarjeta Crédito (Tarjeta de crédito)
-// 5 = Transferencia (Transferencia bancaria)
-// 6 = Concepto (Otras formas de pago)
-// 7 = Compensación (Compensación/Trueque)
-// 8 = Moneda (Pago en otra moneda)
-// 9 = Cheque Postdatado (Cheque para fecha futura)
-// 10 = Letra (Letra de cambio)
-export const MATIAS_PAYMENT_METHODS = {
-  CASH: 1,
+// MATIAS API Medio de Pago (means_payment_id)
+// Instrumento específico de pago
+// 10 = Efectivo
+// 41 = Tarjeta de crédito
+// 40 = Tarjeta de débito
+// 02 = Cheque
+// 42 = Transferencia bancaria
+export const MATIAS_MEANS_PAYMENT = {
+  CASH: 10,
+  CREDIT_CARD: 41,
+  DEBIT_CARD: 40,
   CHECK: 2,
-  DEBIT_CARD: 3,
-  CREDIT_CARD: 4,
-  TRANSFER: 5,
-  OTHER: 6,
-  COMPENSATION: 7,
-  FOREIGN_CURRENCY: 8,
-  POSTDATED_CHECK: 9,
-  BILL_OF_EXCHANGE: 10,
-  MIXED: 6, // Use "Other" for mixed payments
+  TRANSFER: 42,
 } as const;
+
+// MATIAS API Método de Pago (payment_method_id)
+// Categoría general de pago
+// 01 = Contado
+// 02 = Crédito
+// 03 = Mixto
+export const MATIAS_PAYMENT_METHOD = {
+  CONTADO: 1,
+  CREDITO: 2,
+  MIXED: 3,
+} as const;
+
+// Combined for backward compatibility
+export const MATIAS_PAYMENT_METHODS = MATIAS_MEANS_PAYMENT;
 
 // MATIAS API v2 Document Type IDs
 // IMPORTANT: Always use ID (API), never Code (DIAN)
