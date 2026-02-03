@@ -114,6 +114,7 @@ export class MatiasClient {
       // MATIAS API: Auth endpoint is /auth/login on the API domain
       const authEndpoint = `${this.authUrl}/auth/login`;
       console.log(`[MATIAS] Authenticating with ${authEndpoint}`);
+      console.log(`[MATIAS] Email: ${this.email}, Password length: ${this.password?.length || 0}`);
       
       const authPayload: MatiasAuthRequest = {
         email: this.email,
