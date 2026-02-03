@@ -24,16 +24,22 @@ export default function ElectronicBillingPage() {
   
   const tenantId = tenant?.id || user?.tenantId || "";
 
+  const getAuthHeaders = () => {
+    const headers: Record<string, string> = { "x-tenant-id": tenantId };
+    if (user?.id) headers["x-user-id"] = user.id;
+    return headers;
+  };
+
   const { data: statusData, isLoading: statusLoading } = useQuery({
     queryKey: ["/api/tenant/ebilling/status", tenantId],
     queryFn: async () => {
       const res = await fetch("/api/tenant/ebilling/status", {
-        headers: { "x-tenant-id": tenantId },
+        headers: getAuthHeaders(),
       });
       if (!res.ok) return null;
       return res.json();
     },
-    enabled: !!tenantId,
+    enabled: !!tenantId && !!user?.id,
   });
 
   const { data: documentsData, isLoading: docsLoading, refetch } = useQuery({
@@ -44,12 +50,12 @@ export default function ElectronicBillingPage() {
       if (statusFilter) params.append("status", statusFilter);
       if (kindFilter) params.append("kind", kindFilter);
       const res = await fetch(`/api/tenant/ebilling/documents?${params.toString()}`, {
-        headers: { "x-tenant-id": tenantId },
+        headers: getAuthHeaders(),
       });
       if (!res.ok) return { documents: [], stats: {} };
       return res.json();
     },
-    enabled: !!tenantId,
+    enabled: !!tenantId && !!user?.id,
   });
 
   const formatDate = (dateStr: string | null) => {
