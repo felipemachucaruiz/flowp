@@ -424,14 +424,17 @@ export async function processDocument(documentId: string): Promise<boolean> {
 
       return true;
     } else {
-      // Check if document was "already validated" - meaning it exists in DIAN
-      const isAlreadyValidated = response.message?.includes("ya se encuentra validado");
+      // Check if document was "already validated" or "processed by DIAN" - meaning it exists in DIAN
+      // MATIAS returns success=false in these cases but the data is valid
+      const responseData = (response as any).data || response;
+      const isAlreadyValidated = response.message?.includes("ya se encuentra validado") ||
+        response.message?.includes("Solicitud procesada por la DIAN") ||
+        responseData?.is_valid === 1;
       
       if (isAlreadyValidated) {
-        console.log(`[MATIAS] Document ${doc.prefix}${doc.documentNumber} already validated. Extracting existing CUFE/QR...`);
+        console.log(`[MATIAS] Document ${doc.prefix}${doc.documentNumber} already validated/processed. Extracting existing CUFE/QR...`);
         
         // MATIAS returns the existing document data even when success=false for "already validated"
-        const responseData = (response as any).data || response;
         const jsonData = responseData?.jsonData;
         let cufe = jsonData?.cufe || responseData?.uuid || responseData?.XmlDocumentKey;
         let qrCode = jsonData?.qr || jsonData?.qrDian;
@@ -699,14 +702,17 @@ export async function submitDocumentSync(params: {
         trackId,
       };
     } else {
-      // Check if document was "already validated" - meaning it exists in DIAN
-      const isAlreadyValidated = response.message?.includes("ya se encuentra validado");
+      // Check if document was "already validated" or "processed by DIAN" - meaning it exists in DIAN
+      // MATIAS returns success=false in these cases but the data is valid
+      const responseData = (response as any).data || response;
+      const isAlreadyValidated = response.message?.includes("ya se encuentra validado") ||
+        response.message?.includes("Solicitud procesada por la DIAN") ||
+        responseData?.is_valid === 1;
       
       if (isAlreadyValidated) {
-        console.log(`[MATIAS] Document ${prefix}${documentNumber} already validated. Extracting existing CUFE/QR...`);
+        console.log(`[MATIAS] Document ${prefix}${documentNumber} already validated/processed. Extracting existing CUFE/QR...`);
         
         // MATIAS returns the existing document data even when success=false for "already validated"
-        const responseData = (response as any).data || response;
         const jsonData = responseData?.jsonData;
         let cufe = jsonData?.cufe || responseData?.uuid || responseData?.XmlDocumentKey;
         let qrCode = jsonData?.qr || jsonData?.qrDian;
