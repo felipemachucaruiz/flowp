@@ -470,6 +470,9 @@ async function buildReceipt(data) {
     if (data.customerInfo.address) {
       commands.push.apply(commands, Buffer.from(data.customerInfo.address + '\n'));
     }
+    if (data.customerInfo.loyaltyPoints != null && data.customerInfo.loyaltyPoints > 0) {
+      commands.push.apply(commands, Buffer.from('Puntos: ' + data.customerInfo.loyaltyPoints.toLocaleString() + '\n'));
+    }
   } else if (data.customer) {
     // Fallback to simple customer name
     commands.push.apply(commands, Buffer.from('Customer: ' + data.customer + '\n'));
