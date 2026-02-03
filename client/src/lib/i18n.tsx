@@ -5046,7 +5046,13 @@ export function I18nProvider({ children, initialLanguage }: { children: ReactNod
   });
 
   // Update language when initialLanguage prop changes (e.g., after tenant settings update)
+  // Only apply tenant language if user explicitly hasn't chosen a different language
+  // Don't override browser-detected language with "en" fallback
   useEffect(() => {
+    // Skip if initialLanguage is just the "en" fallback (means no tenant)
+    if (initialLanguage === "en") return;
+    
+    // Only apply tenant's language preference if it differs from current
     if (initialLanguage && initialLanguage in translations && initialLanguage !== language) {
       setLanguageState(initialLanguage as Language);
     }
