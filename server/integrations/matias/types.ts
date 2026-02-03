@@ -21,15 +21,29 @@ export interface MatiasAuthResponse {
   success?: boolean;
 }
 
-// MATIAS Payment Method Codes
+// DIAN 7.1 Forma de Pago (means_payment_id)
+// 1 = Efectivo (Pago en efectivo)
+// 2 = Cheque (Pago con cheque)
+// 3 = Tarjeta Débito (Tarjeta de débito)
+// 4 = Tarjeta Crédito (Tarjeta de crédito)
+// 5 = Transferencia (Transferencia bancaria)
+// 6 = Concepto (Otras formas de pago)
+// 7 = Compensación (Compensación/Trueque)
+// 8 = Moneda (Pago en otra moneda)
+// 9 = Cheque Postdatado (Cheque para fecha futura)
+// 10 = Letra (Letra de cambio)
 export const MATIAS_PAYMENT_METHODS = {
-  CASH: 10,
-  CREDIT_CARD: 48,
-  DEBIT_CARD: 49,
-  TRANSFER: 31,
-  CHECK: 20,
-  CREDIT: 30,
-  MIXED: 1,
+  CASH: 1,
+  CHECK: 2,
+  DEBIT_CARD: 3,
+  CREDIT_CARD: 4,
+  TRANSFER: 5,
+  OTHER: 6,
+  COMPENSATION: 7,
+  FOREIGN_CURRENCY: 8,
+  POSTDATED_CHECK: 9,
+  BILL_OF_EXCHANGE: 10,
+  MIXED: 6, // Use "Other" for mixed payments
 } as const;
 
 // MATIAS Document Type IDs (Official DIAN codes)
