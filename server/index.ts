@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { processPendingDocuments } from "./integrations/matias/documentQueue";
 
 const app = express();
 const httpServer = createServer(app);
@@ -98,6 +99,17 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      
+      // Start background job to process MATIAS electronic billing queue
+      const MATIAS_QUEUE_INTERVAL = 30000; // Process queue every 30 seconds
+      setInterval(async () => {
+        try {
+          await processPendingDocuments();
+        } catch (err) {
+          console.error("[MATIAS Queue] Error processing documents:", err);
+        }
+      }, MATIAS_QUEUE_INTERVAL);
+      log("MATIAS document queue processor started (30s interval)", "matias");
     },
   );
 })();
