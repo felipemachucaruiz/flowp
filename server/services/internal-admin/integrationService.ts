@@ -25,6 +25,7 @@ export async function getIntegrationStatus(tenantId: string) {
     isConfigured: true,
     status: config.isEnabled ? "configured" : "disabled",
     baseUrl: config.baseUrl,
+    email: config.email,
     hasPassword: config.hasPassword,
     hasToken: config.hasToken,
     defaultResolutionNumber: config.defaultResolutionNumber,
