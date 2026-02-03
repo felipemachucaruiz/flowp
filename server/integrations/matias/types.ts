@@ -9,8 +9,16 @@ export interface MatiasAuthRequest {
 
 export interface MatiasAuthResponse {
   access_token: string;
-  token_type: string;
+  token_type?: string;
   expires_in?: number;
+  expires_at?: string;
+  user?: {
+    id: number;
+    email: string;
+    name: string;
+  };
+  message?: string;
+  success?: boolean;
 }
 
 // MATIAS Payment Method Codes

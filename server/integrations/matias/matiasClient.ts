@@ -153,8 +153,15 @@ export class MatiasClient {
       }
       this.accessToken = data.access_token;
       
-      const expiresIn = data.expires_in || 31536000;
-      this.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
+      // Parse expiration - MATIAS returns expires_at as date string or expires_in as seconds
+      if (data.expires_at) {
+        this.tokenExpiresAt = new Date(data.expires_at);
+      } else if (data.expires_in) {
+        this.tokenExpiresAt = new Date(Date.now() + data.expires_in * 1000);
+      } else {
+        // Default to 1 year
+        this.tokenExpiresAt = new Date(Date.now() + 31536000 * 1000);
+      }
 
       // Save token to per-tenant configuration
       await db
