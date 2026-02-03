@@ -111,7 +111,10 @@ export class MatiasClient {
 
   private async authenticate(): Promise<boolean> {
     try {
-      console.log(`[MATIAS] Authenticating with ${this.authUrl}/auth/login`);
+      // MATIAS API: The auth URL should point to the API endpoint, not the frontend
+      // Try /api/auth/login first, then /auth/login
+      const authEndpoint = `${this.authUrl}/api/auth/login`;
+      console.log(`[MATIAS] Authenticating with ${authEndpoint}`);
       
       const authPayload: MatiasAuthRequest = {
         email: this.email,
@@ -119,7 +122,7 @@ export class MatiasClient {
         remember_me: 0,
       };
 
-      const response = await fetch(`${this.authUrl}/auth/login`, {
+      const response = await fetch(authEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
