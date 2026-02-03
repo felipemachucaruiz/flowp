@@ -2205,11 +2205,12 @@ export async function registerRoutes(
           })
           .where(eq(orders.id, order.id));
 
-        // Return order with CUFE and QR code for receipt
+        // Return order with CUFE, QR code, and prefix for receipt
         res.json({
           ...order,
           cufe: matiasResult.cufe,
           qrCode: matiasResult.qrCode,
+          prefix: matiasResult.prefix,
           trackId: matiasResult.trackId,
         });
       } else {

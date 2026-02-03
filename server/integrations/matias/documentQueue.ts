@@ -707,6 +707,7 @@ export async function submitDocumentSync(params: {
         success: true,
         documentId: doc.id,
         documentNumber,
+        prefix,
         cufe,
         qrCode,
         trackId,
@@ -764,6 +765,7 @@ export async function submitDocumentSync(params: {
             success: true,
             documentId: doc.id,
             documentNumber,
+            prefix,
             cufe,
             qrCode,
           };
