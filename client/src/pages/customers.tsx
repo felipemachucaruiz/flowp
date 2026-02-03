@@ -18,6 +18,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Customer, Order, LoyaltyTransaction, LoyaltyReward, Product } from "@shared/schema";
+import { DIAN_COUNTRIES } from "@shared/dianCountries";
 import {
   Search,
   User,
@@ -60,6 +61,7 @@ export default function CustomersPage() {
     email: "",
     phone: "",
     address: "",
+    countryCode: "169",
     idType: "",
     idNumber: "",
     notes: "",
@@ -134,6 +136,7 @@ export default function CustomersPage() {
       email: "",
       phone: "",
       address: "",
+      countryCode: "169",
       idType: "",
       idNumber: "",
       notes: "",
@@ -169,6 +172,7 @@ export default function CustomersPage() {
       email: customer.email || "",
       phone: customer.phone || "",
       address: customer.address || "",
+      countryCode: customer.countryCode || "169",
       idType: customer.idType || "",
       idNumber: customer.idNumber || "",
       notes: customer.notes || "",
@@ -526,6 +530,7 @@ export default function CustomersPage() {
                                 phone: selectedCustomer.phone || "",
                                 email: selectedCustomer.email || "",
                                 address: selectedCustomer.address || "",
+                                countryCode: selectedCustomer.countryCode || "169",
                                 idType: selectedCustomer.idType || "",
                                 idNumber: selectedCustomer.idNumber || "",
                                 notes: notesText,
@@ -706,6 +711,26 @@ export default function CustomersPage() {
                   data-testid="input-customer-address"
                 />
               </div>
+              <div>
+                <Label>{t("customers.country")}</Label>
+                <Select
+                  value={customerForm.countryCode}
+                  onValueChange={(value) => setCustomerForm({ ...customerForm, countryCode: value })}
+                >
+                  <SelectTrigger data-testid="select-customer-country">
+                    <SelectValue placeholder={t("customers.select_country")} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    {DIAN_COUNTRIES.map((country) => (
+                      <SelectItem key={country.code} value={country.code}>
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>{t("customers.default_discount")}</Label>
                 <Input

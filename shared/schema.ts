@@ -232,6 +232,7 @@ export const customers = pgTable("customers", {
   email: text("email"),
   phone: text("phone"),
   address: text("address"),
+  countryCode: varchar("country_code", { length: 3 }).default("169"),
   idType: customerIdTypeEnum("id_type"),
   idNumber: text("id_number"),
   notes: text("notes"),

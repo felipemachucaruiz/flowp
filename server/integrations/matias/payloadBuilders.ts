@@ -174,6 +174,7 @@ export async function buildPosPayload(
     type_liability_id: 117,
     municipality_id: 149,
     type_regime_id: 2,
+    country_id: parseInt(customer?.countryCode || "169", 10),
   };
 
   const payload: MatiasPayload = {
@@ -278,6 +279,7 @@ export async function buildPosCreditNotePayload(
     type_liability_id: 117,
     municipality_id: 149,
     type_regime_id: 2,
+    country_id: parseInt(customer?.countryCode || "169", 10),
   };
 
   const invoiceLines = [{
