@@ -4,10 +4,10 @@ import { eq, and, or } from "drizzle-orm";
 import crypto from "crypto";
 
 // MATIAS API v2 URLs
-// Auth and API share the same base domain, different paths
-const MATIAS_BASE_URL = "https://api-v2.matias-api.com";
-const MATIAS_AUTH_URL = MATIAS_BASE_URL; // Auth endpoint: /auth/login
-const MATIAS_API_URL = `${MATIAS_BASE_URL}/api/ubl2.1`; // Document submission endpoint
+// Both auth and document submission are under /api/ubl2.1
+const MATIAS_API_BASE = "https://api-v2.matias-api.com/api/ubl2.1";
+const MATIAS_AUTH_URL = MATIAS_API_BASE; // Auth endpoint: /auth/login under this base
+const MATIAS_API_URL = MATIAS_API_BASE; // Document submission endpoint
 import type {
   MatiasAuthRequest,
   MatiasAuthResponse,
@@ -87,10 +87,8 @@ export class MatiasClient {
       return false;
     }
 
-    // Use tenant's API URL if configured, otherwise use default
-    if (tenantConfig.baseUrl) {
-      this.apiUrl = tenantConfig.baseUrl;
-    }
+    // API URL is hardcoded - no longer configurable per tenant
+    // Auth and API endpoints use the standard MATIAS v2 URLs
 
     // Check for cached per-tenant token
     if (tenantConfig.accessTokenEncrypted && tenantConfig.tokenExpiresAt) {
