@@ -53,8 +53,8 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 - **@capacitor-community/bluetooth-le**: For Bluetooth Low Energy thermal printing on native mobile apps.
 - **@zxing/library**: Web fallback for barcode scanning.
 - **MATIAS API v2**: External service for DIAN electronic billing compliance in Colombia.
-  - **Auth URL**: `https://auth-v2.matias-api.com` (for `/auth/login` authentication)
-  - **API URL**: `https://api-v2.matias-api.com/api/ubl2.1` (for document submission)
+  - **Base URL**: `https://api-v2.matias-api.com/api/ubl2.1` (for both auth and document submission)
+  - **Auth endpoint**: `/auth/login` (under the base URL - official docs incorrectly say auth-v2 domain)
   - **Documentation**: https://docs.matias-api.com/docs/intro/
 - **Electron**: Framework for building cross-platform desktop applications.
 - **Capacitor**: Framework for building native mobile applications from web technologies.
