@@ -85,10 +85,17 @@ export default function ElectronicBillingPage() {
       REJECTED: <XCircle className="h-3 w-3 mr-1" />,
       FAILED: <AlertTriangle className="h-3 w-3 mr-1" />,
     };
+    const labels: Record<string, string> = {
+      ACCEPTED: t("ebilling.status.accepted"),
+      PENDING: t("ebilling.status.pending"),
+      SENT: t("ebilling.status.sent"),
+      REJECTED: t("ebilling.status.rejected"),
+      FAILED: t("ebilling.status.failed"),
+    };
     return (
       <Badge variant={variants[status] || "outline"} className="flex items-center w-fit">
         {icons[status]}
-        {status}
+        {labels[status] || status}
       </Badge>
     );
   };

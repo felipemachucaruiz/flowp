@@ -10,6 +10,7 @@ import { queryClient } from "@/lib/queryClient";
 import { adminFetch } from "@/lib/admin-fetch";
 import { FileText, Search, RefreshCw, Download, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useI18n } from "@/lib/i18n";
 
 export default function AdminDocuments() {
   const [search, setSearch] = useState("");
@@ -17,6 +18,7 @@ export default function AdminDocuments() {
   const [kindFilter, setKindFilter] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const { toast } = useToast();
+  const { t } = useI18n();
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/internal-admin/ebilling/documents", { search, status: statusFilter, kind: kindFilter }],
@@ -48,7 +50,14 @@ export default function AdminDocuments() {
       REJECTED: "destructive",
       FAILED: "destructive",
     };
-    return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
+    const labels: Record<string, string> = {
+      ACCEPTED: t("ebilling.status.accepted"),
+      PENDING: t("ebilling.status.pending"),
+      SENT: t("ebilling.status.sent"),
+      REJECTED: t("ebilling.status.rejected"),
+      FAILED: t("ebilling.status.failed"),
+    };
+    return <Badge variant={variants[status] || "outline"}>{labels[status] || status}</Badge>;
   };
 
   return (
