@@ -104,26 +104,29 @@ export const matiasAllowanceChargeSchema = z.object({
 
 // Tax total per line or document
 export const matiasTaxTotalSchema = z.object({
-  tax_id: z.number(),
+  tax_id: z.union([z.string(), z.number()]),
   tax_amount: z.number(),
   taxable_amount: z.number(),
   percent: z.number(),
 });
 
-// Line item
+// Line item - MATIAS API v2 field names
 export const matiasLineSchema = z.object({
-  unit_measure_id: z.number(),
-  invoiced_quantity: z.number(),
-  line_extension_amount: z.number(),
+  invoiced_quantity: z.union([z.string(), z.number()]),
+  quantity_units_id: z.union([z.string(), z.number()]).optional(),
+  unit_measure_id: z.number().optional(),
+  line_extension_amount: z.union([z.string(), z.number()]),
   free_of_charge_indicator: z.boolean().optional(),
   tax_totals: z.array(matiasTaxTotalSchema).optional(),
   allowance_charges: z.array(matiasAllowanceChargeSchema).optional(),
   description: z.string(),
   notes: z.string().optional(),
   code: z.string(),
-  type_item_identification_id: z.number(),
-  price_amount: z.number(),
-  base_quantity: z.number(),
+  type_item_identifications_id: z.union([z.string(), z.number()]).optional(),
+  type_item_identification_id: z.number().optional(),
+  reference_price_id: z.union([z.string(), z.number()]).optional(),
+  price_amount: z.union([z.string(), z.number()]),
+  base_quantity: z.union([z.string(), z.number()]),
 });
 
 // Payment
@@ -137,27 +140,32 @@ export const matiasPaymentSchema = z.object({
 
 // Legal monetary totals
 export const matiasLegalMonetaryTotalsSchema = z.object({
-  line_extension_amount: z.number(),
-  tax_exclusive_amount: z.number(),
-  tax_inclusive_amount: z.number(),
+  line_extension_amount: z.union([z.string(), z.number()]),
+  tax_exclusive_amount: z.union([z.string(), z.number()]),
+  tax_inclusive_amount: z.union([z.string(), z.number()]),
   allowance_total_amount: z.number().optional(),
   charge_total_amount: z.number().optional(),
-  payable_amount: z.number(),
+  payable_amount: z.union([z.string(), z.number()]),
 });
 
-// Customer/Accounting
+// Customer/Accounting - MATIAS API v2 field names
+// IMPORTANT: Use identity_document_id, city_id, tax_regime_id, tax_level_id
 export const matiasCustomerSchema = z.object({
-  identification_number: z.string(),
+  dni: z.string(),
+  company_name: z.string().optional(),
   name: z.string().optional(),
+  mobile: z.string().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
   email: z.string().optional(),
+  postal_code: z.string().optional(),
   merchant_registration: z.string().optional(),
-  type_document_identification_id: z.number().optional(),
+  country_id: z.union([z.string(), z.number()]).optional(),
+  city_id: z.union([z.string(), z.number()]).optional(),
+  identity_document_id: z.union([z.string(), z.number()]).optional(),
   type_organization_id: z.number().optional(),
-  type_liability_id: z.number().optional(),
-  municipality_id: z.number().optional(),
-  type_regime_id: z.number().optional(),
+  tax_regime_id: z.number().optional(),
+  tax_level_id: z.number().optional(),
 });
 
 // Point of Sale info
@@ -203,23 +211,27 @@ export const matiasDiscrepancyResponseSchema = z.object({
 
 // Payment with amount
 export const matiasPaymentWithAmountSchema = z.object({
-  payment_form_id: z.number(),
+  payment_form_id: z.number().optional(),
   payment_method_id: z.number(),
   means_payment_id: z.number().optional(),
-  value_paid: z.number().optional(),
+  value_paid: z.union([z.string(), z.number()]).optional(),
   payment_amount: z.number().optional(),
   payment_due_date: z.string().optional(),
   duration_measure: z.string().optional(),
 });
 
-// Full POS Document Payload
+// Full Document Payload - MATIAS API v2
+// Supports type_document_id: 7 (Factura de Venta), 20 (POS), etc.
 export const matiasPosPayloadSchema = z.object({
   type_document_id: z.union([z.number(), z.string()]),
   type_currency_id: z.number().optional(),  // ISO 4217: 170=COP, 840=USD, 978=EUR
   resolution_number: z.string(),
   prefix: z.string(),
-  number: z.number(),
-  operation_type_id: z.number().optional(),
+  number: z.number().optional(),
+  document_number: z.union([z.string(), z.number()]).optional(),
+  operation_type_id: z.number().optional(),  // 1 = Standard operation
+  graphic_representation: z.number().optional(),  // 0 = No, 1 = Yes
+  send_email: z.number().optional(),  // 0 = No, 1 = Yes
   date: z.string().optional(),
   time: z.string().optional(),
   notes: z.string().optional(),
@@ -233,8 +245,8 @@ export const matiasPosPayloadSchema = z.object({
   payments: z.array(matiasPaymentWithAmountSchema).optional(),
   legal_monetary_totals: matiasLegalMonetaryTotalsSchema,
   tax_totals: z.array(matiasTaxTotalSchema).optional(),
-  invoice_lines: z.array(matiasLineSchema),
-  lines: z.array(matiasLineSchema).optional(),
+  invoice_lines: z.array(matiasLineSchema).optional(),
+  lines: z.array(matiasLineSchema),  // Required - use 'lines' instead of 'invoice_lines'
   point_of_sale: matiasPointOfSaleSchema.optional(),
   software_manufacturer: matiasSoftwareManufacturerSchema.optional(),
   document_signature: matiasDocumentSignatureSchema.optional(),

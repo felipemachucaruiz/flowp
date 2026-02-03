@@ -197,84 +197,88 @@ export async function buildPosPayload(
   // total_factura = total_base + total_impuestos
   const totalWithTax = roundTo2(lineExtensionAmount + totalTax);
 
+  // MATIAS API v2 Customer fields:
+  // - identity_document_id (not type_document_identification_id)
+  // - city_id (not municipality_id)
+  // - tax_regime_id (not type_regime_id)
+  // - tax_level_id (not type_liability_id)
   const customerData = {
-    identification_number: customer?.idNumber || customer?.phone || "222222222222",
     dni: customer?.idNumber || customer?.phone || "222222222222",
-    name: customer?.name || "Consumidor Final",
-    company_name: customer?.name || "Consumidor Final",
+    company_name: customer?.name || "CONSUMIDOR FINAL",
+    name: customer?.name || "CONSUMIDOR FINAL",
+    mobile: customer?.phone || undefined,
     phone: customer?.phone || undefined,
-    address: customer?.address || undefined,
-    email: customer?.email || undefined,
-    type_document_identification_id: customer ? mapCustomerIdType(customer.idType) : 6, // 6 = Consumidor Final
+    address: customer?.address || "Sin direccion",
+    email: customer?.email || "noreply@flowp.com",
+    postal_code: "110111",
+    country_id: String(customer?.countryCode || "45"),  // 45 = Colombia
+    city_id: String(customer?.municipalityId || "836"),  // city_id instead of municipality_id
+    identity_document_id: String(customer ? mapCustomerIdType(customer.idType) : 6),  // identity_document_id
     type_organization_id: customer?.organizationTypeId || 2,
-    type_liability_id: customer?.taxLiabilityId || 117,
-    municipality_id: customer?.municipalityId || 1,
-    type_regime_id: customer?.taxRegimeId || 2,
-    country_id: parseInt(customer?.countryCode || "169", 10),
+    tax_regime_id: customer?.taxRegimeId || 2,  // tax_regime_id instead of type_regime_id
+    tax_level_id: customer?.taxLiabilityId || 5,  // tax_level_id instead of type_liability_id
   };
 
+  // Build lines array with MATIAS API v2 field names
+  const lines = items.map((item, index) => {
+    const product = productMap.get(item.productId);
+    const qty = Number(item.quantity);
+    const unitPrice = Number(item.unitPrice);
+    const lineTotal = roundTo2(qty * unitPrice);
+    const taxAmount = taxRate > 0 ? roundTo2(lineTotal * (taxRate / 100)) : 0;
+
+    return {
+      invoiced_quantity: String(qty),
+      quantity_units_id: "1093",  // Unidad estándar
+      line_extension_amount: String(lineTotal.toFixed(2)),
+      free_of_charge_indicator: false,
+      description: product?.name || `Item ${index + 1}`,
+      code: product?.sku || item.productId || `ITEM-${index + 1}`,
+      type_item_identifications_id: "4",
+      reference_price_id: "1",
+      price_amount: String(unitPrice),
+      base_quantity: String(qty),
+      tax_totals: taxRate > 0 ? [{
+        tax_id: "1",
+        tax_amount: taxAmount,
+        taxable_amount: lineTotal,
+        percent: taxRate,
+      }] : [],
+    };
+  });
+
   const payload: MatiasPayload = {
-    type_document_id: MATIAS_DOCUMENT_TYPES.POS,
-    type_currency_id: MATIAS_CURRENCY.COP,  // 170 = Peso Colombiano
+    type_document_id: MATIAS_DOCUMENT_TYPES.INVOICE,  // Use 7 (Factura de Venta)
     resolution_number: resolutionNumber,
     prefix: prefix,
-    number: documentNumber,
-    date: formatDate(now),
-    time: formatTime(now),
-    notes: order.notes || undefined,
-    order_reference: {
-      id_order: String(order.orderNumber),
-      issue_date: formatDate(now),
-    },
+    document_number: String(documentNumber),  // MATIAS uses document_number as string
+    operation_type_id: 1,  // 1 = Standard operation
+    graphic_representation: 0,  // 0 = No graphic
+    send_email: 0,  // 0 = Don't send email
     customer: customerData,
-    payment_form: {
-      payment_form_id: 1,                  // 1=Contado, 2=Crédito
-      payment_method_id: meansPaymentId,   // Medio de Pago (10=Efectivo, 41=TC, etc.)
-    },
-    payments: [{
-      payment_form_id: 1,                  // 1=Contado
-      payment_method_id: paymentMethodId,  // Método de Pago (1=Contado, 2=Crédito, 3=Mixto)
-      means_payment_id: meansPaymentId,    // Medio de Pago (10=Efectivo, 41=TC, etc.)
-      value_paid: totalWithTax,
-    }],
+    lines: lines,  // Use 'lines' field (not 'invoice_lines')
     legal_monetary_totals: {
-      line_extension_amount: lineExtensionAmount,
-      tax_exclusive_amount: lineExtensionAmount,
-      tax_inclusive_amount: totalWithTax,
+      line_extension_amount: String(lineExtensionAmount.toFixed(2)),
+      tax_exclusive_amount: String(lineExtensionAmount.toFixed(2)),
+      tax_inclusive_amount: String(totalWithTax.toFixed(2)),
       payable_amount: totalWithTax,
     },
     tax_totals: taxRate > 0 ? [{
-      tax_id: 1,
+      tax_id: "1",
       tax_amount: totalTax,
       taxable_amount: lineExtensionAmount,
       percent: taxRate,
     }] : [{
-      tax_id: 1,
+      tax_id: "1",
       tax_amount: 0,
       taxable_amount: lineExtensionAmount,
       percent: 0,
     }],
-    invoice_lines: invoiceLines,
-    lines: invoiceLines,
-    // Required POS fields (type_document_id = 20)
-    point_of_sale: {
-      cashier_term: matiasConfig.posTerminalNumber || "CAJA01",
-      cashier_type: matiasConfig.posCashierType || "POS",
-      cashier_name: "Cajero",
-      sales_code: matiasConfig.posSalesCode || "0001",
-      terminal_number: matiasConfig.posTerminalNumber || "001",
-      address: matiasConfig.posAddress || tenant.address || "Dirección Principal",
-      sub_total: lineExtensionAmount,
-    },
-    software_manufacturer: {
-      software_id: matiasConfig.softwareId || "flowp-pos",
-      software_pin: matiasConfig.softwarePin || "",
-      software_name: "Flowp POS",
-      manufacturer_name: matiasConfig.manufacturerName || "Flowp",
-      manufacturer_nit: matiasConfig.manufacturerNit || "901234567",
-      owner_name: tenant.name || "Flowp",
-      company_name: tenant.name || "Flowp",
-    },
+    payments: [{
+      payment_method_id: paymentMethodId,
+      means_payment_id: meansPaymentId,
+      value_paid: String(totalWithTax.toFixed(2)),
+    }],
   };
 
   return payload;
@@ -322,49 +326,49 @@ export async function buildPosCreditNotePayload(
     });
   }
 
-  const customerData = {
-    identification_number: customer?.idNumber || customer?.phone || "222222222222",
-    dni: customer?.idNumber || customer?.phone || "222222222222",
-    name: customer?.name || "Consumidor Final",
-    company_name: customer?.name || "Consumidor Final",
-    phone: customer?.phone || undefined,
-    address: customer?.address || undefined,
-    email: customer?.email || undefined,
-    type_document_identification_id: customer ? mapCustomerIdType(customer.idType) : 6, // 6 = Consumidor Final
-    type_organization_id: customer?.organizationTypeId || 2,
-    type_liability_id: customer?.taxLiabilityId || 117,
-    municipality_id: customer?.municipalityId || 1,
-    type_regime_id: customer?.taxRegimeId || 2,
-    country_id: parseInt(customer?.countryCode || "169", 10),
-  };
-
-  const invoiceLines = [{
-    unit_measure_id: 70,
-    invoiced_quantity: 1,
-    line_extension_amount: lineTotal,
+  // MATIAS API v2 lines format
+  const lines = [{
+    invoiced_quantity: "1",
+    quantity_units_id: "1093",
+    line_extension_amount: String(lineTotal.toFixed(2)),
     free_of_charge_indicator: false,
+    description: `Nota crédito - ${refundReason}`,
+    code: `NC-${orderId.slice(0, 8)}`,
+    type_item_identifications_id: "4",
+    reference_price_id: "1",
+    price_amount: String(lineTotal),
+    base_quantity: "1",
     tax_totals: taxRate > 0 ? [{
-      tax_id: 1,
+      tax_id: "1",
       tax_amount: taxAmount,
       taxable_amount: lineTotal,
       percent: taxRate,
     }] : [],
-    description: `Nota crédito - ${refundReason}`,
-    code: `NC-${orderId.slice(0, 8)}`,
-    type_item_identification_id: 4,
-    price_amount: lineTotal,
-    base_quantity: 1,
   }];
 
   const payload: MatiasNotePayload = {
     type_document_id: MATIAS_DOCUMENT_TYPES.CREDIT_NOTE,
     resolution_number: resolutionNumber,
     prefix: prefix,
-    number: documentNumber,
-    date: formatDate(now),
-    time: formatTime(now),
-    notes: refundReason,
-    customer: customerData,
+    document_number: String(documentNumber),
+    operation_type_id: 1,
+    graphic_representation: 0,
+    send_email: 0,
+    customer: {
+      dni: customer?.idNumber || customer?.phone || "222222222222",
+      company_name: customer?.name || "CONSUMIDOR FINAL",
+      name: customer?.name || "CONSUMIDOR FINAL",
+      mobile: customer?.phone || undefined,
+      address: customer?.address || "Sin direccion",
+      email: customer?.email || "noreply@flowp.com",
+      postal_code: "110111",
+      country_id: String(customer?.countryCode || "45"),
+      city_id: String(customer?.municipalityId || "836"),
+      identity_document_id: String(customer ? mapCustomerIdType(customer.idType) : 6),
+      type_organization_id: customer?.organizationTypeId || 2,
+      tax_regime_id: customer?.taxRegimeId || 2,
+      tax_level_id: customer?.taxLiabilityId || 5,
+    },
     billing_reference: {
       number: originalNumber,
       uuid: originalCufe,
@@ -375,31 +379,24 @@ export async function buildPosCreditNotePayload(
       correction_concept_id: correctionConceptId,
       description: refundReason,
     },
+    lines: lines,
     legal_monetary_totals: {
-      line_extension_amount: lineTotal,
-      tax_exclusive_amount: lineTotal,
-      tax_inclusive_amount: refundAmount,
+      line_extension_amount: String(lineTotal.toFixed(2)),
+      tax_exclusive_amount: String(lineTotal.toFixed(2)),
+      tax_inclusive_amount: String(refundAmount.toFixed(2)),
       payable_amount: refundAmount,
     },
     tax_totals: taxRate > 0 ? [{
-      tax_id: 1,
+      tax_id: "1",
       tax_amount: taxAmount,
       taxable_amount: lineTotal,
       percent: taxRate,
     }] : undefined,
-    invoice_lines: invoiceLines,
-    point_of_sale: {
-      cashier_term: matiasConfig.posTerminalNumber || "CAJA01",
-      cashier_type: matiasConfig.posCashierType || "POS",
-      sales_code: matiasConfig.posSalesCode || "0001",
-      address: matiasConfig.posAddress || tenant.address || "Main Store",
-    },
-    software_manufacturer: matiasConfig.softwareId ? {
-      software_id: matiasConfig.softwareId,
-      software_pin: matiasConfig.softwarePin || "",
-      manufacturer_name: matiasConfig.manufacturerName || "Flowp",
-      manufacturer_nit: matiasConfig.manufacturerNit || "",
-    } : undefined,
+    payments: [{
+      payment_method_id: 1,
+      means_payment_id: 10,
+      value_paid: String(refundAmount.toFixed(2)),
+    }],
   };
 
   return payload;
