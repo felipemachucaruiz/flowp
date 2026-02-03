@@ -400,7 +400,7 @@ export async function processDocument(documentId: string): Promise<boolean> {
         .set({
           status: "ACCEPTED",
           trackId: response.data.track_id,
-          cufe: response.data.cufe || response.data.uuid,
+          cufe: response.data.cufe,
           qrCode: response.data.qr_code,
           responseJson: response,
           acceptedAt: new Date(),
@@ -436,7 +436,7 @@ export async function processDocument(documentId: string): Promise<boolean> {
         
         // MATIAS returns the existing document data even when success=false for "already validated"
         const jsonData = responseData?.jsonData;
-        let cufe = jsonData?.cufe || responseData?.uuid || responseData?.XmlDocumentKey;
+        let cufe = jsonData?.cufe || responseData?.XmlDocumentKey;
         let qrCode = jsonData?.qr || jsonData?.qrDian;
         
         // If not in response, try fetching from status API
@@ -664,7 +664,7 @@ export async function submitDocumentSync(params: {
     }
 
     if (response.success && response.data) {
-      const cufe = response.data.cufe || response.data.uuid;
+      const cufe = response.data.cufe;
       let qrCode = response.data.qr_code;
       const trackId = response.data.track_id;
 
@@ -725,7 +725,7 @@ export async function submitDocumentSync(params: {
         
         // MATIAS returns the existing document data even when success=false for "already validated"
         const jsonData = responseData?.jsonData;
-        let cufe = jsonData?.cufe || responseData?.uuid || responseData?.XmlDocumentKey;
+        let cufe = jsonData?.cufe || responseData?.XmlDocumentKey;
         let qrCode = jsonData?.qr || jsonData?.qrDian;
         
         // If not in response, try fetching from status API
