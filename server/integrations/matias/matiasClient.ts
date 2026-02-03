@@ -4,8 +4,10 @@ import { eq, and, or } from "drizzle-orm";
 import crypto from "crypto";
 
 // MATIAS API v2 URLs
-const MATIAS_AUTH_URL = "https://auth-v2.matias-api.com";
-const MATIAS_API_URL = "https://api-v2.matias-api.com/api/ubl2.1";
+// Auth and API share the same base domain, different paths
+const MATIAS_BASE_URL = "https://api-v2.matias-api.com";
+const MATIAS_AUTH_URL = MATIAS_BASE_URL; // Auth endpoint: /auth/login
+const MATIAS_API_URL = `${MATIAS_BASE_URL}/api/ubl2.1`; // Document submission endpoint
 import type {
   MatiasAuthRequest,
   MatiasAuthResponse,
@@ -111,9 +113,8 @@ export class MatiasClient {
 
   private async authenticate(): Promise<boolean> {
     try {
-      // MATIAS API: The auth URL should point to the API endpoint, not the frontend
-      // Try /api/auth/login first, then /auth/login
-      const authEndpoint = `${this.authUrl}/api/auth/login`;
+      // MATIAS API: Auth endpoint is /auth/login on the API domain
+      const authEndpoint = `${this.authUrl}/auth/login`;
       console.log(`[MATIAS] Authenticating with ${authEndpoint}`);
       
       const authPayload: MatiasAuthRequest = {
