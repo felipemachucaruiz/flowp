@@ -11,7 +11,7 @@ export const orderStatusEnum = pgEnum("order_status", ["pending", "in_progress",
 export const kitchenTicketStatusEnum = pgEnum("kitchen_ticket_status", ["new", "preparing", "ready", "served"]);
 export const stockMovementTypeEnum = pgEnum("stock_movement_type", ["sale", "return", "purchase", "adjustment", "waste", "transfer"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "split"]);
-export const customerIdTypeEnum = pgEnum("customer_id_type", ["pasaporte", "cedula_ciudadania", "cedula_extranjeria", "nit"]);
+export const customerIdTypeEnum = pgEnum("customer_id_type", ["pasaporte", "cedula_ciudadania", "cedula_extranjeria", "nit", "tarjeta_identidad", "registro_civil", "consumidor_final"]);
 
 // Purchase order enums
 export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft", "ordered", "partial", "received", "cancelled"]);

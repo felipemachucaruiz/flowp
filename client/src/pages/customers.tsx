@@ -212,16 +212,13 @@ export default function CustomersPage() {
   };
 
   const idTypeLabels: Record<string, string> = {
-    cc: "CC - Cédula de Ciudadanía",
-    ce: "CE - Cédula de Extranjería",
-    nit: "NIT - Número de Identificación Tributaria",
-    ti: "TI - Tarjeta de Identidad",
-    pp: "PP - Pasaporte",
-    nure: "NURE - Número Único de Registro Económico",
-    // Legacy mappings for backward compatibility
     cedula_ciudadania: "CC - Cédula de Ciudadanía",
     cedula_extranjeria: "CE - Cédula de Extranjería",
+    nit: "NIT - Número de Identificación Tributaria",
+    tarjeta_identidad: "TI - Tarjeta de Identidad",
     pasaporte: "PP - Pasaporte",
+    consumidor_final: "Consumidor Final",
+    registro_civil: "RC - Registro Civil",
   };
 
   return (
@@ -715,12 +712,12 @@ export default function CustomersPage() {
                     <SelectValue placeholder={t("customers.select_type")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cc">CC - Cédula de Ciudadanía</SelectItem>
-                    <SelectItem value="ce">CE - Cédula de Extranjería</SelectItem>
+                    <SelectItem value="cedula_ciudadania">CC - Cédula de Ciudadanía</SelectItem>
+                    <SelectItem value="cedula_extranjeria">CE - Cédula de Extranjería</SelectItem>
                     <SelectItem value="nit">NIT - Número de Identificación Tributaria</SelectItem>
-                    <SelectItem value="ti">TI - Tarjeta de Identidad</SelectItem>
-                    <SelectItem value="pp">PP - Pasaporte</SelectItem>
-                    <SelectItem value="nure">NURE - Número Único de Registro Económico</SelectItem>
+                    <SelectItem value="tarjeta_identidad">TI - Tarjeta de Identidad</SelectItem>
+                    <SelectItem value="pasaporte">PP - Pasaporte</SelectItem>
+                    <SelectItem value="consumidor_final">Consumidor Final</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
