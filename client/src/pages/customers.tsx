@@ -755,24 +755,26 @@ export default function CustomersPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>{t("customers.municipality")}</Label>
-                <Select
-                  value={customerForm.municipalityId}
-                  onValueChange={(value) => setCustomerForm({ ...customerForm, municipalityId: value })}
-                >
-                  <SelectTrigger data-testid="select-customer-municipality">
-                    <SelectValue placeholder={t("customers.select_municipality")} />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {DIAN_MUNICIPALITIES.map((municipality) => (
-                      <SelectItem key={municipality.code} value={String(municipality.code)}>
-                        {municipality.name}, {municipality.department}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {customerForm.countryCode === "169" && (
+                <div>
+                  <Label>{t("customers.municipality")}</Label>
+                  <Select
+                    value={customerForm.municipalityId}
+                    onValueChange={(value) => setCustomerForm({ ...customerForm, municipalityId: value })}
+                  >
+                    <SelectTrigger data-testid="select-customer-municipality">
+                      <SelectValue placeholder={t("customers.select_municipality")} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {DIAN_MUNICIPALITIES.map((municipality) => (
+                        <SelectItem key={municipality.code} value={String(municipality.code)}>
+                          {municipality.name}, {municipality.department}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <Label>{t("customers.organization_type")}</Label>
                 <Select
