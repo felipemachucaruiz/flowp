@@ -46,17 +46,26 @@ export const MATIAS_PAYMENT_METHODS = {
   MIXED: 6, // Use "Other" for mixed payments
 } as const;
 
-// MATIAS API v2 Document Type IDs (MATIAS internal codes, different from DIAN standard)
-// These are MATIAS API specific values, not DIAN standard codes
-// DIAN 91 (POS) = MATIAS 20
-// DIAN 01 (Invoice) = MATIAS 1
+// MATIAS API v2 Document Type IDs
+// IMPORTANT: Always use ID (API), never Code (DIAN)
+// ID (API) | Code (DIAN) | Tipo
+// 7        | 01          | Factura de Venta
+// 8        | 02          | Factura de Exportación
+// 9        | 03          | Factura de Contingencia Tipo 03
+// 10       | 04          | Factura de Contingencia Tipo 04
+// 11       | 05          | Documento Soporte
+// 20       | 20          | Documento Equivalente POS
+// 5        | 91          | Nota Crédito (genera CUDE)
+// 4        | 92          | Nota Débito (genera CUDE)
 export const MATIAS_DOCUMENT_TYPES = {
-  INVOICE: 1,         // Factura Electrónica (DIAN 01)
-  CREDIT_NOTE: 91,    // Nota Crédito (MATIAS internal)
-  DEBIT_NOTE: 92,     // Nota Débito (MATIAS internal)
-  POS: 20,            // Factura POS (MATIAS 20, maps to DIAN 91)
-  POS_CREDIT_NOTE: 94,
-  POS_DEBIT_NOTE: 95,
+  INVOICE: 7,             // Factura de Venta (DIAN 01)
+  EXPORT_INVOICE: 8,      // Factura de Exportación (DIAN 02)
+  CONTINGENCY_03: 9,      // Factura de Contingencia Tipo 03
+  CONTINGENCY_04: 10,     // Factura de Contingencia Tipo 04
+  SUPPORT_DOCUMENT: 11,   // Documento Soporte (DIAN 05)
+  POS: 20,                // Documento Equivalente POS (DIAN 20)
+  CREDIT_NOTE: 5,         // Nota Crédito (DIAN 91)
+  DEBIT_NOTE: 4,          // Nota Débito (DIAN 92)
 } as const;
 
 // MATIAS Tax Codes

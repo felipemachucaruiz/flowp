@@ -48,32 +48,35 @@ function getPaymentMethodId(method: string | null): number {
   }
 }
 
-// Official DIAN ID Type mapping
-// 1 = CC (Cédula de Ciudadanía)
-// 2 = CE (Cédula de Extranjería)
-// 3 = NIT (Número de Identificación Tributaria)
-// 4 = TI (Tarjeta de Identidad)
-// 5 = PP (Pasaporte)
-// 10 = NURE (Número Único de Registro Económico)
+// MATIAS API ID Type mapping (type_document_identification_id)
+// IMPORTANT: Always use MATIAS API codes, not DIAN codes
+// Código | Tipo
+// 1      | Cédula de Ciudadanía
+// 2      | NIT
+// 3      | Pasaporte
+// 4      | Documento de Extranjería
+// 5      | Tarjeta de Identidad
+// 6      | Consumidor Final
 function mapCustomerIdType(idType: string | null): number {
   switch (idType?.toLowerCase()) {
     case "cc":
     case "cedula_ciudadania":
       return 1;
-    case "ce":
-    case "cedula_extranjeria":
-      return 2;
     case "nit":
-      return 3;
-    case "ti":
-    case "tarjeta_identidad":
-      return 4;
+      return 2;
     case "pp":
     case "pasaporte":
     case "passport":
+      return 3;
+    case "ce":
+    case "cedula_extranjeria":
+      return 4;
+    case "ti":
+    case "tarjeta_identidad":
       return 5;
-    case "nure":
-      return 10;
+    case "cf":
+    case "consumidor_final":
+      return 6;
     default:
       return 1; // Default to CC
   }
@@ -324,7 +327,7 @@ export async function buildPosCreditNotePayload(
   }];
 
   const payload: MatiasNotePayload = {
-    type_document_id: MATIAS_DOCUMENT_TYPES.POS_CREDIT_NOTE,
+    type_document_id: MATIAS_DOCUMENT_TYPES.CREDIT_NOTE,
     resolution_number: resolutionNumber,
     prefix: prefix,
     number: documentNumber,
