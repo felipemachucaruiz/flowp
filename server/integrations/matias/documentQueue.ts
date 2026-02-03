@@ -181,21 +181,37 @@ export async function getNextDocumentNumber(
     } | undefined;
 
     if (!sequence) {
-      const client = await getMatiasClient(tenantId);
+      // Get the MATIAS config to check for startingNumber override
+      const matiasConfig = await db.query.tenantIntegrationsMatias.findFirst({
+        where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+      });
+      
       let startNumber = 1;
       
-      if (client) {
-        const lastDoc = await client.getLastDocument({ resolution: resolutionNumber, prefix });
-        if (lastDoc) {
-          startNumber = lastDoc.number + 1;
+      // If startingNumber is configured in MATIAS config, use it (mandatory override)
+      if (matiasConfig?.startingNumber && matiasConfig.startingNumber > 0) {
+        startNumber = matiasConfig.startingNumber;
+        console.log(`[MATIAS] Using configured starting number: ${startNumber}`);
+      } else {
+        // Fallback: try to get last document from MATIAS API
+        const client = await getMatiasClient(tenantId);
+        if (client) {
+          const lastDoc = await client.getLastDocument({ resolution: resolutionNumber, prefix });
+          if (lastDoc) {
+            startNumber = lastDoc.number + 1;
+          }
         }
       }
+
+      // Also store the ending number for range validation
+      const rangeEnd = matiasConfig?.endingNumber || null;
 
       await tx.insert(electronicDocumentSequences).values({
         tenantId,
         resolutionNumber,
         prefix,
         currentNumber: startNumber,
+        rangeEnd,
       });
 
       return startNumber;

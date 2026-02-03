@@ -135,6 +135,7 @@ export async function buildPosPayload(
 
     return {
       unit_measure_id: 70,
+      quantity_units_id: 70,
       invoiced_quantity: qty,
       line_extension_amount: lineTotal,
       free_of_charge_indicator: false,
@@ -148,6 +149,7 @@ export async function buildPosPayload(
       notes: item.notes || undefined,
       code: product?.sku || item.productId || `ITEM-${index + 1}`,
       type_item_identification_id: 4,
+      type_item_identifications_id: 4,
       price_amount: unitPrice,
       base_quantity: 1,
     };
@@ -193,8 +195,9 @@ export async function buildPosPayload(
     },
     payments: [{
       payment_form_id: 1,
-      payment_method_id: paymentMethodId,
-      payment_amount: totalWithTax,
+      payment_method_id: 10,
+      means_payment_id: paymentMethodId,
+      value_paid: totalWithTax,
     }],
     legal_monetary_totals: {
       line_extension_amount: lineExtensionAmount,
