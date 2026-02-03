@@ -37,6 +37,7 @@ import {
   Truck,
   Gift,
   AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -178,6 +179,12 @@ export function AppSidebar() {
       url: "/sales-history",
       icon: Receipt,
       page: "sales-history",
+    },
+    {
+      title: t("nav.ebilling") || "E-Billing",
+      url: "/electronic-billing",
+      icon: FileText,
+      page: "electronic-billing",
     },
     {
       title: t("nav.settings"),

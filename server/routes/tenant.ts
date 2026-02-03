@@ -3,9 +3,10 @@ import { db } from "../db";
 import { 
   tenants, users, locations, registers, 
   electronicDocuments, supportTickets, ticketComments,
-  subscriptions, invoices, auditLogs, orders, tenantIntegrationsMatias
+  subscriptions, invoices, auditLogs, orders, tenantIntegrationsMatias,
+  matiasDocumentQueue, matiasDocumentFiles
 } from "@shared/schema";
-import { eq, desc, sql, and, count, sum, gte } from "drizzle-orm";
+import { eq, desc, sql, and, count, sum, gte, like, or, ilike } from "drizzle-orm";
 import { requireTenant, requirePermission, enforceTenantIsolation } from "../middleware/rbac";
 
 const router = Router();
@@ -503,6 +504,160 @@ router.put("/ebilling-config", requirePermission('manage_settings'), async (req:
   } catch (error) {
     console.error("Update e-billing config error:", error);
     res.status(500).json({ error: "Failed to update e-billing configuration" });
+  }
+});
+
+// E-Billing Documents - Tenant can view their own documents
+router.get("/ebilling/documents", async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const { status, kind, query, limit = "50", offset = "0" } = req.query;
+
+    let conditions = [eq(matiasDocumentQueue.tenantId, tenantId)];
+
+    if (status && typeof status === "string") {
+      conditions.push(sql`${matiasDocumentQueue.status} = ${status}`);
+    }
+
+    if (kind && typeof kind === "string") {
+      conditions.push(sql`${matiasDocumentQueue.kind} = ${kind}`);
+    }
+
+    if (query && typeof query === "string") {
+      conditions.push(
+        or(
+          ilike(matiasDocumentQueue.orderNumber, `%${query}%`),
+          sql`CAST(${matiasDocumentQueue.documentNumber} AS TEXT) LIKE ${`%${query}%`}`
+        ) as any
+      );
+    }
+
+    const documents = await db
+      .select()
+      .from(matiasDocumentQueue)
+      .where(and(...conditions))
+      .orderBy(desc(matiasDocumentQueue.createdAt))
+      .limit(parseInt(limit as string))
+      .offset(parseInt(offset as string));
+
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(matiasDocumentQueue)
+      .where(and(...conditions));
+
+    // Get stats
+    const [stats] = await db
+      .select({
+        total: count(),
+        accepted: sql<number>`COUNT(*) FILTER (WHERE status = 'ACCEPTED')`,
+        pending: sql<number>`COUNT(*) FILTER (WHERE status = 'PENDING' OR status = 'SENT')`,
+        rejected: sql<number>`COUNT(*) FILTER (WHERE status = 'REJECTED')`,
+        failed: sql<number>`COUNT(*) FILTER (WHERE status = 'FAILED')`,
+      })
+      .from(matiasDocumentQueue)
+      .where(eq(matiasDocumentQueue.tenantId, tenantId));
+
+    res.json({
+      documents,
+      total,
+      stats: {
+        total: stats?.total || 0,
+        accepted: stats?.accepted || 0,
+        pending: stats?.pending || 0,
+        rejected: stats?.rejected || 0,
+        failed: stats?.failed || 0,
+      },
+    });
+  } catch (error) {
+    console.error("Get e-billing documents error:", error);
+    res.status(500).json({ error: "Failed to get documents" });
+  }
+});
+
+router.get("/ebilling/documents/:id", async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const { id } = req.params;
+
+    const [document] = await db
+      .select()
+      .from(matiasDocumentQueue)
+      .where(and(
+        eq(matiasDocumentQueue.id, id),
+        eq(matiasDocumentQueue.tenantId, tenantId)
+      ));
+
+    if (!document) {
+      return res.status(404).json({ error: "Document not found" });
+    }
+
+    // Get attached files
+    const files = await db
+      .select()
+      .from(matiasDocumentFiles)
+      .where(eq(matiasDocumentFiles.documentId, id));
+
+    res.json({ ...document, files });
+  } catch (error) {
+    console.error("Get document detail error:", error);
+    res.status(500).json({ error: "Failed to get document" });
+  }
+});
+
+router.get("/ebilling/status", async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const config = await db.query.tenantIntegrationsMatias.findFirst({
+      where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+    });
+
+    const isConfigured = config?.isEnabled && config?.email && config?.passwordEncrypted;
+
+    // Get monthly stats
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [monthlyStats] = await db
+      .select({
+        total: count(),
+        accepted: sql<number>`COUNT(*) FILTER (WHERE status = 'ACCEPTED')`,
+      })
+      .from(matiasDocumentQueue)
+      .where(and(
+        eq(matiasDocumentQueue.tenantId, tenantId),
+        gte(matiasDocumentQueue.createdAt, startOfMonth)
+      ));
+
+    const successRate = monthlyStats?.total && monthlyStats.total > 0
+      ? Math.round((monthlyStats.accepted / monthlyStats.total) * 100) + "%"
+      : "N/A";
+
+    res.json({
+      configured: !!isConfigured,
+      documentsThisMonth: monthlyStats?.total || 0,
+      acceptedThisMonth: monthlyStats?.accepted || 0,
+      successRate,
+      resolution: config?.defaultResolutionNumber || null,
+      prefix: config?.defaultPrefix || null,
+      currentNumber: config?.currentNumber || null,
+      endingNumber: config?.endingNumber || null,
+    });
+  } catch (error) {
+    console.error("Get e-billing status error:", error);
+    res.status(500).json({ error: "Failed to get status" });
   }
 });
 

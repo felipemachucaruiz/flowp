@@ -130,6 +130,7 @@ export function canAccessPage(role: UserRole | string | undefined, page: string)
     'loyalty-rewards': ['loyalty.view', 'loyalty.manage'],
     reports: ['reports.view_operational', 'reports.view_all', 'reports.view_stock'],
     'sales-history': ['sales_history.view_own', 'sales_history.view_all'],
+    'electronic-billing': ['settings.view'],
     settings: ['settings.view', 'settings.edit_operational', 'settings.edit_all'],
     tables: ['tables.view'],
     kitchen: ['kitchen.view'],

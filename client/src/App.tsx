@@ -33,6 +33,7 @@ import SalesHistoryPage from "@/pages/sales-history";
 import CustomersPage from "@/pages/customers";
 import LoyaltyRewardsPage from "@/pages/loyalty-rewards";
 import SettingsPage from "@/pages/settings";
+import ElectronicBillingPage from "@/pages/electronic-billing";
 
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminTenants from "@/pages/admin/tenants";
@@ -264,6 +265,9 @@ function TenantRouter() {
         </Route>
         <Route path="/settings">
           <ProtectedRoute component={SettingsPage} />
+        </Route>
+        <Route path="/electronic-billing">
+          <ProtectedRoute component={ElectronicBillingPage} />
         </Route>
         <Route component={NotFound} />
       </Switch>
