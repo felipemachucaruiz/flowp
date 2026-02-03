@@ -418,15 +418,70 @@ async function buildReceipt(data) {
     }
   }
   
+  // Translations based on language
+  var lang = data.language || 'en';
+  var t = {
+    en: {
+      tel: 'Tel',
+      taxId: 'Tax ID',
+      order: 'Order',
+      date: 'Date',
+      cashier: 'Cashier',
+      customer: 'Customer',
+      subtotal: 'Subtotal',
+      tax: 'Tax',
+      discount: 'Discount',
+      total: 'TOTAL',
+      paid: 'Paid',
+      cash: 'Cash',
+      change: 'Change',
+      points: 'Points'
+    },
+    es: {
+      tel: 'Tel',
+      taxId: 'NIT',
+      order: 'Orden',
+      date: 'Fecha',
+      cashier: 'Cajero',
+      customer: 'Cliente',
+      subtotal: 'Subtotal',
+      tax: 'IVA',
+      discount: 'Descuento',
+      total: 'TOTAL',
+      paid: 'Pagado',
+      cash: 'Efectivo',
+      change: 'Cambio',
+      points: 'Puntos'
+    },
+    pt: {
+      tel: 'Tel',
+      taxId: 'CNPJ',
+      order: 'Pedido',
+      date: 'Data',
+      cashier: 'Caixa',
+      customer: 'Cliente',
+      subtotal: 'Subtotal',
+      tax: 'Imposto',
+      discount: 'Desconto',
+      total: 'TOTAL',
+      paid: 'Pago',
+      cash: 'Dinheiro',
+      change: 'Troco',
+      points: 'Pontos'
+    }
+  };
+  var tr = t[lang] || t.en;
+  
   // Address and phone
   if (data.address) {
     commands.push.apply(commands, Buffer.from(data.address + '\n'));
   }
   if (data.phone) {
-    commands.push.apply(commands, Buffer.from('Tel: ' + data.phone + '\n'));
+    commands.push.apply(commands, Buffer.from(tr.tel + ': ' + data.phone + '\n'));
   }
   if (data.taxId) {
-    commands.push.apply(commands, Buffer.from('Tax ID: ' + data.taxId + '\n'));
+    var taxIdLabel = data.taxIdLabel || tr.taxId;
+    commands.push.apply(commands, Buffer.from(taxIdLabel + ': ' + data.taxId + '\n'));
   }
   
   commands.push(0x0A);
@@ -436,19 +491,19 @@ async function buildReceipt(data) {
   
   // Order info
   if (data.orderNumber) {
-    commands.push.apply(commands, Buffer.from('Order: ' + data.orderNumber + '\n'));
+    commands.push.apply(commands, Buffer.from(tr.order + ': ' + data.orderNumber + '\n'));
   }
   if (data.date) {
-    commands.push.apply(commands, Buffer.from('Date: ' + data.date + '\n'));
+    commands.push.apply(commands, Buffer.from(tr.date + ': ' + data.date + '\n'));
   }
   if (data.cashier) {
-    commands.push.apply(commands, Buffer.from('Cashier: ' + data.cashier + '\n'));
+    commands.push.apply(commands, Buffer.from(tr.cashier + ': ' + data.cashier + '\n'));
   }
   
   // Customer info section (detailed for e-billing)
   if (data.customerInfo) {
     commands.push.apply(commands, Buffer.from('--------------------------------\n'));
-    commands.push.apply(commands, Buffer.from('CLIENTE / CUSTOMER:\n'));
+    commands.push.apply(commands, Buffer.from(tr.customer.toUpperCase() + ':\n'));
     
     if (data.customerInfo.name) {
       commands.push.apply(commands, Buffer.from(data.customerInfo.name + '\n'));
@@ -471,11 +526,11 @@ async function buildReceipt(data) {
       commands.push.apply(commands, Buffer.from(data.customerInfo.address + '\n'));
     }
     if (data.customerInfo.loyaltyPoints != null && data.customerInfo.loyaltyPoints > 0) {
-      commands.push.apply(commands, Buffer.from('Puntos: ' + data.customerInfo.loyaltyPoints.toLocaleString() + '\n'));
+      commands.push.apply(commands, Buffer.from(tr.points + ': ' + data.customerInfo.loyaltyPoints.toLocaleString() + '\n'));
     }
   } else if (data.customer) {
     // Fallback to simple customer name
-    commands.push.apply(commands, Buffer.from('Customer: ' + data.customer + '\n'));
+    commands.push.apply(commands, Buffer.from(tr.customer + ': ' + data.customer + '\n'));
   }
   
   // Separator
@@ -521,30 +576,30 @@ async function buildReceipt(data) {
   commands.push(0x1B, 0x61, 0x02);
   
   if (data.subtotal !== undefined) {
-    commands.push.apply(commands, Buffer.from('Subtotal: ' + currencySymbol + formatNumber(data.subtotal) + '\n'));
+    commands.push.apply(commands, Buffer.from(tr.subtotal + ': ' + currencySymbol + formatNumber(data.subtotal) + '\n'));
   }
   
   // Support both 'tax' and 'taxAmount' field names
   var taxAmount = data.tax !== undefined ? data.tax : data.taxAmount;
   if (taxAmount !== undefined && taxAmount > 0) {
-    var taxLabel = 'Tax';
+    var taxLabel = tr.tax;
     if (data.taxRate) {
-      taxLabel = 'Tax (' + data.taxRate + '%)';
+      taxLabel = tr.tax + ' (' + data.taxRate + '%)';
     }
     commands.push.apply(commands, Buffer.from(taxLabel + ': ' + currencySymbol + formatNumber(taxAmount) + '\n'));
   }
   
   if (data.discount && data.discount > 0) {
-    var discountLabel = 'Discount';
+    var discountLabel = tr.discount;
     if (data.discountPercent) {
-      discountLabel = 'Discount (' + data.discountPercent + '%)';
+      discountLabel = tr.discount + ' (' + data.discountPercent + '%)';
     }
     commands.push.apply(commands, Buffer.from(discountLabel + ': -' + currencySymbol + formatNumber(data.discount) + '\n'));
   }
   
   // Total - emphasized
   commands.push(0x1B, 0x21, 0x30);
-  commands.push.apply(commands, Buffer.from('TOTAL: ' + currencySymbol + formatNumber(data.total || 0) + '\n'));
+  commands.push.apply(commands, Buffer.from(tr.total + ': ' + currencySymbol + formatNumber(data.total || 0) + '\n'));
   commands.push(0x1B, 0x21, 0x00);
   
   // Payment info - support payments array
@@ -556,14 +611,14 @@ async function buildReceipt(data) {
       commands.push.apply(commands, Buffer.from(payType + ': ' + currencySymbol + formatNumber(payment.amount) + '\n'));
     }
   } else if (data.paymentMethod) {
-    commands.push.apply(commands, Buffer.from('Paid: ' + data.paymentMethod + '\n'));
+    commands.push.apply(commands, Buffer.from(tr.paid + ': ' + data.paymentMethod + '\n'));
   }
   
   if (data.cashReceived) {
-    commands.push.apply(commands, Buffer.from('Cash: ' + currencySymbol + formatNumber(data.cashReceived) + '\n'));
+    commands.push.apply(commands, Buffer.from(tr.cash + ': ' + currencySymbol + formatNumber(data.cashReceived) + '\n'));
   }
   if (data.change && data.change > 0) {
-    commands.push.apply(commands, Buffer.from('Change: ' + currencySymbol + formatNumber(data.change) + '\n'));
+    commands.push.apply(commands, Buffer.from(tr.change + ': ' + currencySymbol + formatNumber(data.change) + '\n'));
   }
   
   // Center for footer
