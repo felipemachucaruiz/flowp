@@ -126,14 +126,20 @@ export const matiasPointOfSaleSchema = z.object({
   cashier_type: z.string(),
   sales_code: z.string(),
   address: z.string(),
+  terminal_number: z.string().optional(),
+  cashier_name: z.string().optional(),
+  sub_total: z.number().optional(),
 });
 
 // Software manufacturer
 export const matiasSoftwareManufacturerSchema = z.object({
   software_id: z.string(),
   software_pin: z.string(),
+  software_name: z.string().optional(),
   manufacturer_name: z.string(),
   manufacturer_nit: z.string(),
+  owner_name: z.string().optional(),
+  company_name: z.string().optional(),
 });
 
 // Document signature
@@ -155,6 +161,15 @@ export const matiasDiscrepancyResponseSchema = z.object({
   description: z.string(),
 });
 
+// Payment with amount
+export const matiasPaymentWithAmountSchema = z.object({
+  payment_form_id: z.number(),
+  payment_method_id: z.number(),
+  payment_amount: z.number().optional(),
+  payment_due_date: z.string().optional(),
+  duration_measure: z.string().optional(),
+});
+
 // Full POS Document Payload
 export const matiasPosPayloadSchema = z.object({
   type_document_id: z.number(),
@@ -172,9 +187,11 @@ export const matiasPosPayloadSchema = z.object({
   customer: matiasCustomerSchema,
   payment_form: matiasPaymentSchema.optional(),
   payment_forms: z.array(matiasPaymentSchema).optional(),
+  payments: z.array(matiasPaymentWithAmountSchema).optional(),
   legal_monetary_totals: matiasLegalMonetaryTotalsSchema,
   tax_totals: z.array(matiasTaxTotalSchema).optional(),
   invoice_lines: z.array(matiasLineSchema),
+  lines: z.array(matiasLineSchema).optional(),
   point_of_sale: matiasPointOfSaleSchema.optional(),
   software_manufacturer: matiasSoftwareManufacturerSchema.optional(),
   document_signature: matiasDocumentSignatureSchema.optional(),

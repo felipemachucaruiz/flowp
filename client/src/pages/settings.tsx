@@ -112,29 +112,7 @@ const tableSchema = z.object({
 
 const ebillingSchema = z.object({
   isEnabled: z.boolean().default(false),
-  resolutionNumber: z.string().optional(),
-  prefix: z.string().optional(),
-  startingNumber: z.coerce.number().int().min(1).optional().or(z.literal("")),
-  endingNumber: z.coerce.number().int().min(1).optional().or(z.literal("")),
   autoSubmitSales: z.boolean().default(true),
-}).refine((data) => {
-  if (data.isEnabled) {
-    const hasResolution = !!data.resolutionNumber;
-    const hasPrefix = !!data.prefix;
-    const hasStarting = typeof data.startingNumber === 'number' && data.startingNumber > 0;
-    const hasEnding = typeof data.endingNumber === 'number' && data.endingNumber > 0;
-    return hasResolution && hasPrefix && hasStarting && hasEnding;
-  }
-  return true;
-}, {
-  message: "Resolution, prefix, starting number, and ending number are required when e-billing is enabled",
-}).refine((data) => {
-  if (typeof data.startingNumber === 'number' && typeof data.endingNumber === 'number') {
-    return data.endingNumber >= data.startingNumber;
-  }
-  return true;
-}, {
-  message: "Ending number must be greater than or equal to starting number",
 });
 
 const CURRENCIES = [
@@ -1030,11 +1008,9 @@ function EBillingSettings() {
 
   const { data: billingConfig, isLoading } = useQuery<{
     isEnabled: boolean;
-    resolutionNumber: string;
     prefix: string;
-    startingNumber: number | null;
-    endingNumber: number | null;
     currentNumber: number | null;
+    endingNumber: number | null;
     autoSubmitSales: boolean;
   }>({
     queryKey: ['/api/tenant/ebilling-config'],
@@ -1045,10 +1021,6 @@ function EBillingSettings() {
     resolver: zodResolver(ebillingSchema),
     defaultValues: {
       isEnabled: false,
-      resolutionNumber: "",
-      prefix: "",
-      startingNumber: undefined,
-      endingNumber: undefined,
       autoSubmitSales: true,
     },
   });
@@ -1057,10 +1029,6 @@ function EBillingSettings() {
     if (billingConfig) {
       form.reset({
         isEnabled: billingConfig.isEnabled ?? false,
-        resolutionNumber: billingConfig.resolutionNumber || "",
-        prefix: billingConfig.prefix || "",
-        startingNumber: billingConfig.startingNumber ?? undefined,
-        endingNumber: billingConfig.endingNumber ?? undefined,
         autoSubmitSales: billingConfig.autoSubmitSales ?? true,
       });
     }
@@ -1137,98 +1105,6 @@ function EBillingSettings() {
                 </FormItem>
               )}
             />
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="resolutionNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("ebilling.resolution") || "Resolution Number"}</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="18764074347312"
-                        data-testid="input-resolution-number"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("ebilling.resolution_desc") || "DIAN authorization resolution number"}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="prefix"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("ebilling.prefix") || "Invoice Prefix"}</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="FV"
-                        data-testid="input-prefix"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("ebilling.prefix_desc") || "Prefix for invoice numbers (e.g., FV, FC)"}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="startingNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("ebilling.starting_number") || "Starting Number"}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value ?? ""}
-                        placeholder="1"
-                        data-testid="input-starting-number"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("ebilling.starting_number_desc") || "First authorized invoice number"}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="endingNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("ebilling.ending_number") || "Ending Number"}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value ?? ""}
-                        placeholder="5000"
-                        data-testid="input-ending-number"
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t("ebilling.ending_number_desc") || "Last authorized invoice number"}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
             {billingConfig?.currentNumber && (
               <div className="rounded-lg border p-4 bg-muted/50">

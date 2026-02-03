@@ -161,7 +161,9 @@ export async function buildPosPayload(
 
   const customerData = {
     identification_number: customer?.idNumber || customer?.phone || "222222222222",
+    dni: customer?.idNumber || customer?.phone || "222222222222",
     name: customer?.name || "Consumidor Final",
+    company_name: customer?.name || "Consumidor Final",
     phone: customer?.phone || undefined,
     address: customer?.address || undefined,
     email: customer?.email || undefined,
@@ -189,6 +191,11 @@ export async function buildPosPayload(
       payment_form_id: 1,
       payment_method_id: paymentMethodId,
     },
+    payments: [{
+      payment_form_id: 1,
+      payment_method_id: paymentMethodId,
+      payment_amount: totalWithTax,
+    }],
     legal_monetary_totals: {
       line_extension_amount: lineExtensionAmount,
       tax_exclusive_amount: lineExtensionAmount,
@@ -202,18 +209,25 @@ export async function buildPosPayload(
       percent: taxRate,
     }] : undefined,
     invoice_lines: invoiceLines,
+    lines: invoiceLines,
     point_of_sale: {
       cashier_term: matiasConfig.posTerminalNumber || "CAJA01",
       cashier_type: matiasConfig.posCashierType || "POS",
       sales_code: matiasConfig.posSalesCode || "0001",
       address: matiasConfig.posAddress || tenant.address || "Main Store",
+      terminal_number: matiasConfig.posTerminalNumber || "001",
+      cashier_name: "Cajero",
+      sub_total: lineExtensionAmount,
     },
-    software_manufacturer: matiasConfig.softwareId ? {
-      software_id: matiasConfig.softwareId,
+    software_manufacturer: {
+      software_id: matiasConfig.softwareId || "flowp-pos",
       software_pin: matiasConfig.softwarePin || "",
+      software_name: "Flowp POS",
       manufacturer_name: matiasConfig.manufacturerName || "Flowp",
-      manufacturer_nit: matiasConfig.manufacturerNit || "",
-    } : undefined,
+      manufacturer_nit: matiasConfig.manufacturerNit || "901234567",
+      owner_name: tenant.name || "Flowp",
+      company_name: tenant.name || "Flowp",
+    },
   };
 
   return payload;
@@ -263,7 +277,9 @@ export async function buildPosCreditNotePayload(
 
   const customerData = {
     identification_number: customer?.idNumber || customer?.phone || "222222222222",
+    dni: customer?.idNumber || customer?.phone || "222222222222",
     name: customer?.name || "Consumidor Final",
+    company_name: customer?.name || "Consumidor Final",
     phone: customer?.phone || undefined,
     address: customer?.address || undefined,
     email: customer?.email || undefined,
