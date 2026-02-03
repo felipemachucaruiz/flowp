@@ -9,6 +9,13 @@ import crypto from "crypto";
 const MATIAS_API_BASE = "https://api-v2.matias-api.com/api/ubl2.1";
 const MATIAS_AUTH_URL = MATIAS_API_BASE; // Auth endpoint: /auth/login under this base
 const MATIAS_API_URL = MATIAS_API_BASE; // Document submission endpoint
+
+// In-memory token cache for faster repeated calls (avoids DB reads)
+interface CachedToken {
+  accessToken: string;
+  expiresAt: Date;
+}
+const tokenCache = new Map<string, CachedToken>();
 import type {
   MatiasAuthRequest,
   MatiasAuthResponse,
@@ -64,6 +71,15 @@ export class MatiasClient {
   }
 
   async initialize(): Promise<boolean> {
+    // Check in-memory cache first for fastest access
+    const cachedToken = tokenCache.get(this.tenantId);
+    if (cachedToken && cachedToken.expiresAt > new Date()) {
+      this.accessToken = cachedToken.accessToken;
+      this.tokenExpiresAt = cachedToken.expiresAt;
+      console.log(`[MATIAS] Using in-memory cached token for tenant ${this.tenantId}`);
+      return true;
+    }
+
     // Get per-tenant MATIAS configuration
     const tenantConfig = await db.query.tenantIntegrationsMatias.findFirst({
       where: eq(tenantIntegrationsMatias.tenantId, this.tenantId),
@@ -91,7 +107,7 @@ export class MatiasClient {
     // API URL is hardcoded - no longer configurable per tenant
     // Auth and API endpoints use the standard MATIAS v2 URLs
 
-    // Check for cached per-tenant token
+    // Check for cached per-tenant token in DB
     if (tenantConfig.accessTokenEncrypted && tenantConfig.tokenExpiresAt) {
       const expiresAt = new Date(tenantConfig.tokenExpiresAt);
       const now = new Date();
@@ -99,7 +115,12 @@ export class MatiasClient {
         try {
           this.accessToken = decrypt(tenantConfig.accessTokenEncrypted);
           this.tokenExpiresAt = expiresAt;
-          console.log(`[MATIAS] Using cached token for tenant ${this.tenantId}`);
+          // Store in memory for faster subsequent calls
+          tokenCache.set(this.tenantId, {
+            accessToken: this.accessToken,
+            expiresAt: this.tokenExpiresAt,
+          });
+          console.log(`[MATIAS] Using DB cached token for tenant ${this.tenantId}, copied to memory`);
           return true;
         } catch {
           // Token decrypt failed, need to re-authenticate
@@ -166,7 +187,13 @@ export class MatiasClient {
         this.tokenExpiresAt = new Date(Date.now() + 31536000 * 1000);
       }
 
-      // Save token to per-tenant configuration
+      // Save token to in-memory cache for fastest access
+      tokenCache.set(this.tenantId, {
+        accessToken: this.accessToken,
+        expiresAt: this.tokenExpiresAt!,
+      });
+
+      // Save token to per-tenant configuration (persist across restarts)
       await db
         .update(tenantIntegrationsMatias)
         .set({
@@ -176,7 +203,7 @@ export class MatiasClient {
         })
         .where(eq(tenantIntegrationsMatias.tenantId, this.tenantId));
 
-      console.log(`[MATIAS] Authentication successful for tenant ${this.tenantId}, token cached`);
+      console.log(`[MATIAS] Authentication successful for tenant ${this.tenantId}, token cached in memory and DB`);
       return true;
     } catch (error) {
       console.error("[MATIAS] Auth error:", error);
