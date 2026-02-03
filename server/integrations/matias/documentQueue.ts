@@ -5,11 +5,92 @@ import {
   electronicDocumentSequences,
   tenantIntegrationsMatias,
   tenantEbillingUsage,
+  tenantEbillingSubscriptions,
+  ebillingPackages,
 } from "@shared/schema";
-import { eq, and, sql, lte } from "drizzle-orm";
+import { eq, and, sql, lte, gte } from "drizzle-orm";
 import { getMatiasClient } from "./matiasClient";
 import { buildPosPayload, buildPosCreditNotePayload } from "./payloadBuilders";
 import type { MatiasPayload, MatiasNotePayload } from "./types";
+
+interface QuotaCheckResult {
+  allowed: boolean;
+  reason?: string;
+  remaining?: number;
+  limit?: number;
+  used?: number;
+  overagePolicy?: string;
+}
+
+async function checkDocumentQuota(tenantId: string): Promise<QuotaCheckResult> {
+  const now = new Date();
+  
+  // Find active subscription for tenant
+  const subscription = await db.query.tenantEbillingSubscriptions.findFirst({
+    where: and(
+      eq(tenantEbillingSubscriptions.tenantId, tenantId),
+      eq(tenantEbillingSubscriptions.status, "active"),
+      lte(tenantEbillingSubscriptions.cycleStart, now),
+      gte(tenantEbillingSubscriptions.cycleEnd, now),
+    ),
+  });
+
+  // No active subscription - check if MATIAS integration is enabled anyway (for trial/demo)
+  if (!subscription) {
+    // Allow documents if no subscription system is in place (graceful fallback)
+    console.log(`[Quota] No active e-billing subscription for tenant ${tenantId}, allowing (no subscription required)`);
+    return { allowed: true, reason: "no_subscription_required" };
+  }
+
+  // Get package details
+  const pkg = await db.query.ebillingPackages.findFirst({
+    where: eq(ebillingPackages.id, subscription.packageId),
+  });
+
+  if (!pkg) {
+    console.log(`[Quota] Package not found for subscription, blocking`);
+    return { allowed: false, reason: "package_not_found" };
+  }
+
+  const monthlyLimit = subscription.documentsIncludedSnapshot || pkg.includedDocuments;
+
+  // Get current month usage
+  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const usage = await db.query.tenantEbillingUsage.findFirst({
+    where: and(
+      eq(tenantEbillingUsage.tenantId, tenantId),
+      eq(tenantEbillingUsage.periodStart, periodStart),
+    ),
+  });
+
+  const totalUsed = usage 
+    ? (usage.usedPos || 0) + (usage.usedInvoice || 0) + 
+      (usage.usedNotes || 0) + (usage.usedSupportDocs || 0)
+    : 0;
+
+  const remaining = monthlyLimit - totalUsed;
+
+  if (remaining > 0) {
+    return { allowed: true, remaining, limit: monthlyLimit, used: totalUsed };
+  }
+
+  // Check overage policy
+  if (subscription.overagePolicy === "allow_and_charge" && subscription.overagePricePerDocUsdCents) {
+    console.log(`[Quota] Quota exceeded but overage charging allowed for tenant ${tenantId}`);
+    return { allowed: true, remaining: 0, limit: monthlyLimit, used: totalUsed, overagePolicy: "allow_and_charge" };
+  }
+
+  // Block policy or no overage pricing set
+  console.log(`[Quota] Document quota exceeded for tenant ${tenantId}: ${totalUsed}/${monthlyLimit}`);
+  return { 
+    allowed: false, 
+    reason: "quota_exceeded", 
+    remaining: 0, 
+    limit: monthlyLimit, 
+    used: totalUsed,
+    overagePolicy: subscription.overagePolicy || "block",
+  };
+}
 
 async function incrementDocumentUsage(tenantId: string, documentKind: string): Promise<void> {
   try {
@@ -24,34 +105,50 @@ async function incrementDocumentUsage(tenantId: string, documentKind: string): P
     });
 
     const columnMap: Record<string, string> = {
-      POS: "documents_pos_invoice",
-      INVOICE: "documents_pos_invoice",
-      POS_CREDIT_NOTE: "documents_credit_note",
-      POS_DEBIT_NOTE: "documents_debit_note",
-      SUPPORT_DOC: "documents_support_doc",
-      SUPPORT_ADJUSTMENT: "documents_support_doc",
+      POS: "used_pos",
+      INVOICE: "used_invoice",
+      POS_CREDIT_NOTE: "used_notes",
+      POS_DEBIT_NOTE: "used_notes",
+      SUPPORT_DOC: "used_support_docs",
+      SUPPORT_ADJUSTMENT: "used_support_docs",
     };
-    const column = columnMap[documentKind] || "documents_pos_invoice";
+    const column = columnMap[documentKind] || "used_pos";
 
     if (existing) {
       await db.execute(sql`
         UPDATE tenant_ebilling_usage
-        SET ${sql.raw(column)} = ${sql.raw(column)} + 1, updated_at = NOW()
+        SET ${sql.raw(column)} = COALESCE(${sql.raw(column)}, 0) + 1,
+            used_total = COALESCE(used_total, 0) + 1,
+            updated_at = NOW()
         WHERE id = ${existing.id}
       `);
     } else {
+      // Need subscriptionId - get from tenant's active subscription
+      const subscription = await db.query.tenantEbillingSubscriptions.findFirst({
+        where: eq(tenantEbillingSubscriptions.tenantId, tenantId),
+      });
+      
+      if (!subscription) {
+        console.log(`[Metering] No subscription found for tenant ${tenantId}, skipping usage tracking`);
+        return;
+      }
+
+      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
       const usageValues: any = {
         tenantId,
+        subscriptionId: subscription.id,
         periodStart,
-        documentsPosInvoice: 0,
-        documentsCreditNote: 0,
-        documentsDebitNote: 0,
-        documentsSupportDoc: 0,
+        periodEnd,
+        usedPos: 0,
+        usedInvoice: 0,
+        usedNotes: 0,
+        usedSupportDocs: 0,
+        usedTotal: 1,
       };
-      if (column === "documents_pos_invoice") usageValues.documentsPosInvoice = 1;
-      if (column === "documents_credit_note") usageValues.documentsCreditNote = 1;
-      if (column === "documents_debit_note") usageValues.documentsDebitNote = 1;
-      if (column === "documents_support_doc") usageValues.documentsSupportDoc = 1;
+      if (column === "used_pos") usageValues.usedPos = 1;
+      if (column === "used_invoice") usageValues.usedInvoice = 1;
+      if (column === "used_notes") usageValues.usedNotes = 1;
+      if (column === "used_support_docs") usageValues.usedSupportDocs = 1;
 
       await db.insert(tenantEbillingUsage).values(usageValues);
     }
@@ -133,6 +230,13 @@ export async function queueDocument(params: {
 
   if (!config || !config.isEnabled) {
     console.log("MATIAS not enabled for tenant:", params.tenantId);
+    return null;
+  }
+
+  // Check document quota before queueing
+  const quotaCheck = await checkDocumentQuota(params.tenantId);
+  if (!quotaCheck.allowed) {
+    console.log(`[MATIAS] Document blocked due to quota: ${quotaCheck.reason} (${quotaCheck.used}/${quotaCheck.limit})`);
     return null;
   }
 
