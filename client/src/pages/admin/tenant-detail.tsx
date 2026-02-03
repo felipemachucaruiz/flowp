@@ -24,6 +24,8 @@ export default function AdminTenantDetail() {
     password: "",
     defaultResolutionNumber: "",
     defaultPrefix: "",
+    startingNumber: "",
+    endingNumber: "",
     isEnabled: true,
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -53,6 +55,8 @@ export default function AdminTenantDetail() {
         email: integrationData.integration.email || "",
         defaultResolutionNumber: integrationData.integration.defaultResolutionNumber || "",
         defaultPrefix: integrationData.integration.defaultPrefix || "",
+        startingNumber: integrationData.integration.startingNumber?.toString() || "",
+        endingNumber: integrationData.integration.endingNumber?.toString() || "",
         isEnabled: integrationData.integration.status === "configured",
       }));
     }
@@ -393,6 +397,34 @@ export default function AdminTenantDetail() {
                       onChange={(e) => setMatiasConfig(prev => ({ ...prev, defaultPrefix: e.target.value }))}
                       data-testid="input-matias-prefix"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="startingNumber">Número Inicial</Label>
+                    <Input
+                      id="startingNumber"
+                      type="number"
+                      placeholder="1"
+                      value={matiasConfig.startingNumber}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, startingNumber: e.target.value }))}
+                      data-testid="input-matias-starting-number"
+                    />
+                    <p className="text-xs text-muted-foreground">Primer número de factura autorizado</p>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="endingNumber">Número Final</Label>
+                    <Input
+                      id="endingNumber"
+                      type="number"
+                      placeholder="5000"
+                      value={matiasConfig.endingNumber}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, endingNumber: e.target.value }))}
+                      data-testid="input-matias-ending-number"
+                    />
+                    <p className="text-xs text-muted-foreground">Último número de factura autorizado</p>
                   </div>
                 </div>
 

@@ -405,6 +405,8 @@ export async function saveMatiasConfig(
     password: string;
     defaultResolutionNumber?: string;
     defaultPrefix?: string;
+    startingNumber?: number | null;
+    endingNumber?: number | null;
     posTerminalNumber?: string;
     posSalesCode?: string;
     posCashierType?: string;
@@ -433,6 +435,8 @@ export async function saveMatiasConfig(
           passwordEncrypted: encryptedPassword,
           defaultResolutionNumber: config.defaultResolutionNumber,
           defaultPrefix: config.defaultPrefix,
+          startingNumber: config.startingNumber,
+          endingNumber: config.endingNumber,
           posTerminalNumber: config.posTerminalNumber,
           posSalesCode: config.posSalesCode,
           posCashierType: config.posCashierType,
@@ -456,6 +460,8 @@ export async function saveMatiasConfig(
         passwordEncrypted: encryptedPassword,
         defaultResolutionNumber: config.defaultResolutionNumber,
         defaultPrefix: config.defaultPrefix,
+        startingNumber: config.startingNumber,
+        endingNumber: config.endingNumber,
         posTerminalNumber: config.posTerminalNumber,
         posSalesCode: config.posSalesCode,
         posCashierType: config.posCashierType,

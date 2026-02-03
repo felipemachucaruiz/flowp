@@ -189,7 +189,12 @@ internalAdminRouter.post("/tenants/:tenantId/ebilling/integration/test", require
 internalAdminRouter.post("/tenants/:tenantId/ebilling/integration/update", requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
     const tenantId = req.params.tenantId as string;
-    const result = await integrationService.updateIntegrationConfig(tenantId, req.body, req.internalUser?.id);
+    const data = {
+      ...req.body,
+      startingNumber: req.body.startingNumber ? parseInt(req.body.startingNumber, 10) : null,
+      endingNumber: req.body.endingNumber ? parseInt(req.body.endingNumber, 10) : null,
+    };
+    const result = await integrationService.updateIntegrationConfig(tenantId, data, req.internalUser?.id);
     res.json(result);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

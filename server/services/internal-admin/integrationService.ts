@@ -30,6 +30,8 @@ export async function getIntegrationStatus(tenantId: string) {
     hasToken: config.hasToken,
     defaultResolutionNumber: config.defaultResolutionNumber,
     defaultPrefix: config.defaultPrefix,
+    startingNumber: config.startingNumber,
+    endingNumber: config.endingNumber,
   };
 }
 
@@ -101,6 +103,8 @@ export async function updateIntegrationConfig(
     password: string;
     defaultResolutionNumber?: string;
     defaultPrefix?: string;
+    startingNumber?: number | null;
+    endingNumber?: number | null;
     isEnabled?: boolean;
   },
   actorInternalUserId?: string | null
