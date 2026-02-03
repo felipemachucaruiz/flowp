@@ -46,7 +46,6 @@ import AdminDocuments from "@/pages/admin/documents";
 import AdminPackages from "@/pages/admin/packages";
 import AdminAlerts from "@/pages/admin/alerts";
 import AdminAudit from "@/pages/admin/audit";
-import AdminMatiasConfig from "@/pages/admin/matias-config";
 import OnboardingPage from "@/pages/onboarding";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
@@ -194,9 +193,6 @@ function AdminRouter() {
         </Route>
         <Route path="/admin/audit">
           <AdminRoute component={AdminAudit} />
-        </Route>
-        <Route path="/admin/matias-config">
-          <AdminRoute component={AdminMatiasConfig} />
         </Route>
         <Route path="/admin/email-settings">
           <AdminRoute component={AdminEmailSettings} />

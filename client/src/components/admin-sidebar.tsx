@@ -25,7 +25,6 @@ import {
   Package,
   AlertTriangle,
   ClipboardList,
-  Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -89,11 +88,6 @@ export function AdminSidebar() {
       title: t("admin.email_settings"),
       url: "/admin/email-settings",
       icon: Mail,
-    },
-    {
-      title: "MATIAS Config",
-      url: "/admin/matias-config",
-      icon: Wrench,
     },
     {
       title: "Audit Log",
