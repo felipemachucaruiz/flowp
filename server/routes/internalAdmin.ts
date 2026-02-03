@@ -4,7 +4,8 @@ import * as ebillingService from "../services/internal-admin/ebillingService";
 import * as documentOpsService from "../services/internal-admin/documentOpsService";
 import * as integrationService from "../services/internal-admin/integrationService";
 import { db } from "../db";
-import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig } from "@shared/schema";
+import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users } from "@shared/schema";
+import bcrypt from "bcryptjs";
 import { eq, like, or, desc, and } from "drizzle-orm";
 import crypto from "crypto";
 import https from "https";
@@ -457,6 +458,79 @@ internalAdminRouter.post("/tenants/:tenantId/unsuspend", requireRole(["superadmi
       entityType: "tenant",
       entityId: tenantId,
       metadata: {},
+    });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update tenant (status, feature flags)
+internalAdminRouter.patch("/tenants/:tenantId", requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.params.tenantId as string;
+    const { status, featureFlags } = req.body;
+
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (featureFlags) updateData.featureFlags = featureFlags;
+
+    await db.update(tenants).set(updateData).where(eq(tenants.id, tenantId));
+
+    await db.insert(internalAuditLogs).values({
+      actorInternalUserId: req.internalUser!.id,
+      actionType: "TENANT_UPDATE",
+      tenantId,
+      entityType: "tenant",
+      entityId: tenantId,
+      metadata: updateData,
+    });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get tenant users
+internalAdminRouter.get("/tenants/:tenantId/users", requireRole(["superadmin", "supportagent"]), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.params.tenantId as string;
+    
+    const tenantUsers = await db.select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      username: users.username,
+      role: users.role,
+    }).from(users).where(eq(users.tenantId, tenantId));
+
+    res.json(tenantUsers);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset user password
+internalAdminRouter.post("/tenants/:tenantId/users/:userId/reset-password", requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    const { tenantId, userId } = req.params;
+    const { newPassword } = req.body;
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    await db.update(users).set({ password: hashedPassword }).where(
+      and(eq(users.id, userId), eq(users.tenantId, tenantId))
+    );
+
+    await db.insert(internalAuditLogs).values({
+      actorInternalUserId: req.internalUser!.id,
+      actionType: "TENANT_UPDATE" as const,
+      tenantId,
+      entityType: "user",
+      entityId: userId,
+      metadata: { action: "password_reset" },
     });
 
     res.json({ success: true });

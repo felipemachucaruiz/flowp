@@ -38,7 +38,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { adminFetch } from "@/lib/admin-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
 
@@ -86,20 +87,35 @@ export default function AdminTenants() {
   ];
 
   const { data: tenants, isLoading } = useQuery<Tenant[]>({
-    queryKey: ["/api/internal/tenants"],
+    queryKey: ["/api/internal-admin/tenants"],
+    queryFn: async () => {
+      const res = await adminFetch("/api/internal-admin/tenants");
+      if (!res.ok) throw new Error("Failed to fetch tenants");
+      return res.json();
+    },
   });
 
   const { data: tenantUsers } = useQuery<TenantUser[]>({
-    queryKey: ["/api/internal/tenants", selectedTenant?.id, "users"],
+    queryKey: ["/api/internal-admin/tenants", selectedTenant?.id, "users"],
+    queryFn: async () => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${selectedTenant?.id}/users`);
+      if (!res.ok) throw new Error("Failed to fetch users");
+      return res.json();
+    },
     enabled: !!selectedTenant && showPasswordDialog,
   });
 
   const suspendMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      return apiRequest("POST", `/api/internal/tenants/${id}/suspend`, { reason });
+      const res = await adminFetch(`/api/internal-admin/tenants/${id}/suspend`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
+      if (!res.ok) throw new Error("Failed to suspend tenant");
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/internal/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/tenants"] });
       toast({ title: t("admin.tenant_suspended") });
     },
     onError: () => {
@@ -109,10 +125,14 @@ export default function AdminTenants() {
 
   const unsuspendMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("POST", `/api/internal/tenants/${id}/unsuspend`);
+      const res = await adminFetch(`/api/internal-admin/tenants/${id}/unsuspend`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to unsuspend tenant");
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/internal/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/tenants"] });
       toast({ title: t("admin.tenant_unsuspended") });
     },
     onError: () => {
@@ -122,10 +142,15 @@ export default function AdminTenants() {
 
   const updateTenantMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: { status?: string; featureFlags?: string[] } }) => {
-      return apiRequest("PATCH", `/api/internal/tenants/${id}`, data);
+      const res = await adminFetch(`/api/internal-admin/tenants/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update tenant");
+      return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/internal/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/tenants"] });
       toast({ title: t("admin.tenant_updated") });
       setShowFeaturesDialog(false);
     },
@@ -136,7 +161,12 @@ export default function AdminTenants() {
 
   const resetPasswordMutation = useMutation({
     mutationFn: async ({ tenantId, userId, newPassword }: { tenantId: string; userId: string; newPassword: string }) => {
-      return apiRequest("POST", `/api/internal/tenants/${tenantId}/users/${userId}/reset-password`, { newPassword });
+      const res = await adminFetch(`/api/internal-admin/tenants/${tenantId}/users/${userId}/reset-password`, {
+        method: "POST",
+        body: JSON.stringify({ newPassword }),
+      });
+      if (!res.ok) throw new Error("Failed to reset password");
+      return res.json();
     },
     onSuccess: () => {
       toast({ title: t("admin.password_reset") });
