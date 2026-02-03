@@ -11,6 +11,7 @@ interface AuthContextType {
   logout: () => void;
   setTenant: (tenant: Tenant) => void;
   refreshTenant: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -28,11 +29,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const storedIsInternal = localStorage.getItem("pos_is_internal");
     
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
       if (storedTenant) {
         setTenant(JSON.parse(storedTenant));
       }
       setIsInternal(storedIsInternal === "true");
+      
+      // Refresh user data from server to get latest role and info
+      const refreshUserFromServer = async () => {
+        try {
+          const headers: Record<string, string> = {};
+          if (storedTenant) {
+            headers["x-tenant-id"] = JSON.parse(storedTenant).id;
+          }
+          const response = await fetch(`/api/auth/me?userId=${parsedUser.id}`, { headers });
+          if (response.ok) {
+            const updatedUser = await response.json();
+            setUser(updatedUser);
+            localStorage.setItem("pos_user", JSON.stringify(updatedUser));
+          }
+        } catch (error) {
+          console.error("Failed to refresh user on mount:", error);
+        }
+      };
+      refreshUserFromServer();
     }
     setIsLoading(false);
   }, []);
@@ -112,8 +133,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshUser = async () => {
+    if (!user) return;
+    try {
+      const headers: Record<string, string> = {};
+      if (tenant) {
+        headers["x-tenant-id"] = tenant.id;
+      }
+      const response = await fetch(`/api/auth/me?userId=${user.id}`, { headers });
+      if (response.ok) {
+        const updatedUser = await response.json();
+        setUser(updatedUser);
+        localStorage.setItem("pos_user", JSON.stringify(updatedUser));
+      }
+    } catch (error) {
+      console.error("Failed to refresh user:", error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, tenant, isLoading, isInternal, login, logout, setTenant, refreshTenant }}>
+    <AuthContext.Provider value={{ user, tenant, isLoading, isInternal, login, logout, setTenant, refreshTenant, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
