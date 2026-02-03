@@ -471,6 +471,8 @@ internalAdminRouter.patch("/tenants/:tenantId", requireRole(["superadmin"]), asy
   try {
     const tenantId = req.params.tenantId as string;
     const { status, featureFlags } = req.body;
+    console.log("[PATCH /tenants/:tenantId] Request body:", JSON.stringify(req.body));
+    console.log("[PATCH /tenants/:tenantId] tenantId:", tenantId, "status:", status, "featureFlags:", featureFlags);
 
     // Validate tenant exists
     const tenant = await db.query.tenants.findFirst({
@@ -503,7 +505,7 @@ internalAdminRouter.patch("/tenants/:tenantId", requireRole(["superadmin"]), asy
     res.json({ success: true });
   } catch (error: any) {
     console.error("[PATCH /tenants/:tenantId] Error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message || "Unknown error", details: String(error) });
   }
 });
 

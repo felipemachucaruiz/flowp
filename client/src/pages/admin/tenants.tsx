@@ -147,7 +147,10 @@ export default function AdminTenants() {
         method: "PATCH",
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to update tenant");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.details || `Failed to update tenant (${res.status})`);
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -155,8 +158,8 @@ export default function AdminTenants() {
       toast({ title: t("admin.tenant_updated") });
       setShowFeaturesDialog(false);
     },
-    onError: () => {
-      toast({ title: t("admin.tenant_updated_error"), variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: t("admin.tenant_updated_error"), description: error.message, variant: "destructive" });
     },
   });
 
