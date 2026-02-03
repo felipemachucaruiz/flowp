@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:ext="urn:oasis:names:specification:ubl:schema:xsd:CommonExtensionComponents-2" xmlns:sts="http://www.dian.gov.co/contratos/facturaelectronica/v1/Structures" xmlns:xades="http://uri.etsi.org/01903/v1.3.2#" xmlns:xades141="http://uri.etsi.org/01903/v1.4.1#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2     http://docs.oasis-open.org/ubl/os-UBL-2.1/xsd/maindoc/UBL-Invoice-2.1.xsd">
+  <ext:UBLExtensions>
+    <ext:UBLExtension>
+      <ext:ExtensionContent>
+        <sts:DianExtensions>
+          <sts:InvoiceControl>
+            <sts:InvoiceAuthorization>18764074347312</sts:InvoiceAuthorization>
+            <sts:AuthorizationPeriod>
+              <cbc:StartDate>2024-07-04</cbc:StartDate>
+              <cbc:EndDate>2026-07-04</cbc:EndDate>
+            </sts:AuthorizationPeriod>
+            <sts:AuthorizedInvoices>
+              <sts:Prefix>LZT</sts:Prefix>
+              <sts:From>1</sts:From>
+              <sts:To>10000</sts:To>
+            </sts:AuthorizedInvoices>
+          </sts:InvoiceControl>
+          <sts:InvoiceSource>
+            <cbc:IdentificationCode listAgencyID="6" listAgencyName="United Nations Economic Commission for Europe" listSchemeURI="urn:oasis:names:specification:ubl:codelist:gc:CountryIdentificationCode-2.1">CO</cbc:IdentificationCode>
+          </sts:InvoiceSource>
+          <sts:SoftwareProvider>
+            <sts:ProviderID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="2" schemeName="31">901091403</sts:ProviderID>
+            <sts:SoftwareID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)">d8d2dcfd-f235-455d-a7ea-9c52672c9765</sts:SoftwareID>
+          </sts:SoftwareProvider>
+          <sts:SoftwareSecurityCode schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)">c4724c86c05203b2be71b4bb5c84ca4e847392ce2e046841f42628977cb6f462d52a0019fea0712639ef0041b65e5502</sts:SoftwareSecurityCode>
+          <sts:AuthorizationProvider>
+            <sts:AuthorizationProviderID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="4" schemeName="31">800197268</sts:AuthorizationProviderID>
+          </sts:AuthorizationProvider>
+          <sts:QRCode>https://catalogo-vpfe.dian.gov.co/document/searchqr?documentkey=870629ed2412b7672e71ace066a52e599a6a0856d88c9c042ae5d919e4213628bca1e4bc5f1db5c11f6b81c7cd638c56</sts:QRCode>
+        </sts:DianExtensions>
+      </ext:ExtensionContent>
+    </ext:UBLExtension>
+    <ext:UBLExtension>
+      <ext:ExtensionContent><ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="MATIAS-API-0FA11BA7E3C838A91EE37C7E0502888D7D7A6D99"><ds:SignedInfo><ds:CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/><ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/><ds:Reference Id="REF-2573434C628F4C13CB57DBE32EF0049F6A7C2F27" URI=""><ds:Transforms><ds:Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/></ds:Transforms><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>GHsw+9PjG7iB45WpSvyBE/3etbqkO2KxPmPAwKWLRF0=</ds:DigestValue></ds:Reference><ds:Reference URI="#KEY-INFO-ABF141FB9493F62629003FA2D6EBD7F96883705E"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>f62AHYprnBW7ffu0uIH3ApzArcCkeEPC1++oBXZxI2g=</ds:DigestValue></ds:Reference><ds:Reference Type="http://uri.etsi.org/01903#SignedProperties" URI="#SIGNED-PROPS-DC9CDABCD6B1D4ABE3FF89590BDD75F98EBFC3EB"><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>WsaAHo5mzFa1cBxUQnmP6xeH79+jPuHD88HHcDuovQ8=</ds:DigestValue></ds:Reference></ds:SignedInfo><ds:SignatureValue Id="SIG-VALUE-7F79F00BC024CDC9E997D82D7C67E6CCDE76ECE4">cnVzUhyd1WZ3hSEiDrDHUJgrfvLvghrRr/HPf+N6tyDB2iigjR5ku2zPzzv8T5H57O178//5jSvRiWfnehryRUPdrF1m3w5ofLoaU4g8Nl/LwxUd0U/rP3wyJUs9847YSXMr3i6bHVcVmYYH/vOxdpFCrlktDoS1nf0bIFbPO7aFUZppGFdBYV9oJzYYu4IjWycXd/5/gyVtesg9/YtiDl4kO0lrRsvq1vlsiPnXWhMwH5oy18OSV5xW4Kz7pyoiH0B5EsRjugRuh4pz5qEuvFriuzDz9rqMMmuaHAQRLVrPwuuMfmI89ee8+zPwZIm0BZyB8+jjYgKhEkTETHtyMA==</ds:SignatureValue><ds:KeyInfo Id="KEY-INFO-ABF141FB9493F62629003FA2D6EBD7F96883705E"><ds:X509Data><ds:X509Certificate>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</ds:X509Certificate></ds:X509Data></ds:KeyInfo><ds:Object><xades:QualifyingProperties Target="#MATIAS-API-0FA11BA7E3C838A91EE37C7E0502888D7D7A6D99"><xades:SignedProperties Id="SIGNED-PROPS-DC9CDABCD6B1D4ABE3FF89590BDD75F98EBFC3EB"><xades:SignedSignatureProperties><xades:SigningTime>2026-02-02T16:50:01.758-05:00</xades:SigningTime><xades:SigningCertificate><xades:Cert><xades:CertDigest><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>spRNxL09EvSmRjrc2ih/vYuX1w/U8XId+8RW3JMeVsg=</ds:DigestValue></xades:CertDigest><xades:IssuerSerial><ds:X509IssuerName>C=CO,L=BOGOTA D.C.,O=CAMERFIRMA COLOMBIA SAS,OU=Certificados Para Firma Electronica Camerfirma Colombia,serialNumber=901312112-4,CN=SUBCA CAMERFIRMA COLOMBIA SAS</ds:X509IssuerName><ds:X509SerialNumber>5263524200754149266</ds:X509SerialNumber></xades:IssuerSerial></xades:Cert></xades:SigningCertificate><xades:SignaturePolicyIdentifier><xades:SignaturePolicyId><xades:SigPolicyId><xades:Identifier>https://facturaelectronica.dian.gov.co/politicadefirma/v2/politicadefirmav2.pdf</xades:Identifier></xades:SigPolicyId><xades:SigPolicyHash><ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><ds:DigestValue>dMoMvtcG5aIzgYo0tIsSQeVJBDnUnfSOfBpxXrmor0Y=</ds:DigestValue></xades:SigPolicyHash></xades:SignaturePolicyId></xades:SignaturePolicyIdentifier><xades:SignerRole><xades:ClaimedRoles><xades:ClaimedRole>supplier</xades:ClaimedRole></xades:ClaimedRoles></xades:SignerRole></xades:SignedSignatureProperties></xades:SignedProperties></xades:QualifyingProperties></ds:Object></ds:Signature></ext:ExtensionContent>
+    </ext:UBLExtension>
+  </ext:UBLExtensions>
+  <cbc:UBLVersionID>UBL 2.1</cbc:UBLVersionID>
+  <cbc:CustomizationID>10</cbc:CustomizationID>
+  <cbc:ProfileID>DIAN 2.1: Factura Electrónica de Venta</cbc:ProfileID>
+  <cbc:ProfileExecutionID>1</cbc:ProfileExecutionID>
+  <cbc:ID>LZT3096</cbc:ID>
+  <cbc:UUID schemeID="1" schemeName="CUFE-SHA384">870629ed2412b7672e71ace066a52e599a6a0856d88c9c042ae5d919e4213628bca1e4bc5f1db5c11f6b81c7cd638c56</cbc:UUID>
+  <cbc:IssueDate>2026-02-02</cbc:IssueDate>
+  <cbc:IssueTime>12:35:21-05:00</cbc:IssueTime>
+  <cbc:InvoiceTypeCode>01</cbc:InvoiceTypeCode>
+  <cbc:Note>SUSCRIPCION TBUSCO EN LA NUBE</cbc:Note>
+  <cbc:DocumentCurrencyCode>COP</cbc:DocumentCurrencyCode>
+  <cbc:LineCountNumeric>1</cbc:LineCountNumeric>
+  <cac:AccountingSupplierParty>
+    <cbc:AdditionalAccountID>1</cbc:AdditionalAccountID>
+    <cac:Party>
+      <cac:PartyIdentification>
+        <cbc:ID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="2" schemeName="31">901091403</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>LOPEZSOFT S.A.S.</cbc:Name>
+      </cac:PartyName>
+      <cac:PhysicalLocation>
+        <cac:Address>
+          <cbc:ID>66170</cbc:ID>
+          <cbc:CityName>Dosquebradas</cbc:CityName>
+          <cbc:PostalZone>610111</cbc:PostalZone>
+          <cbc:CountrySubentity>Risaralda</cbc:CountrySubentity>
+          <cbc:CountrySubentityCode>66</cbc:CountrySubentityCode>
+          <cac:AddressLine>
+            <cbc:Line>Calle 64 # 1631 Apto 201 barrio La Capilla</cbc:Line>
+          </cac:AddressLine>
+          <cac:Country>
+            <cbc:IdentificationCode>CO</cbc:IdentificationCode>
+            <cbc:Name languageID="es">Colombia</cbc:Name>
+          </cac:Country>
+        </cac:Address>
+      </cac:PhysicalLocation>
+      <cac:PartyTaxScheme>
+        <cbc:RegistrationName>LOPEZSOFT S.A.S.</cbc:RegistrationName>
+        <cbc:CompanyID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="2" schemeName="31">901091403</cbc:CompanyID>
+        <cbc:TaxLevelCode listName="48">O-47</cbc:TaxLevelCode>
+        <cac:RegistrationAddress>
+          <cbc:ID>66170</cbc:ID>
+          <cbc:CityName>Dosquebradas</cbc:CityName>
+          <cbc:CountrySubentity>Risaralda</cbc:CountrySubentity>
+          <cbc:CountrySubentityCode>66</cbc:CountrySubentityCode>
+          <cac:AddressLine>
+            <cbc:Line>Calle 64 # 1631 Apto 201 barrio La Capilla</cbc:Line>
+          </cac:AddressLine>
+          <cac:Country>
+            <cbc:IdentificationCode>CO</cbc:IdentificationCode>
+            <cbc:Name languageID="es">Colombia</cbc:Name>
+          </cac:Country>
+        </cac:RegistrationAddress>
+        <cac:TaxScheme>
+          <cbc:ID>01</cbc:ID>
+          <cbc:Name>IVA</cbc:Name>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>LOPEZSOFT S.A.S.</cbc:RegistrationName>
+        <cbc:CompanyID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="2" schemeName="31">901091403</cbc:CompanyID>
+        <cac:CorporateRegistrationScheme>
+          <cbc:ID>LZT</cbc:ID>
+          <cbc:Name>156722</cbc:Name>
+        </cac:CorporateRegistrationScheme>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Telephone>310 843 5431</cbc:Telephone>
+        <cbc:ElectronicMail>gerencia@lopezsoft.net.co</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingSupplierParty>
+  <cac:AccountingCustomerParty>
+    <cbc:AdditionalAccountID>2</cbc:AdditionalAccountID>
+    <cac:Party>
+      <cac:PartyIdentification>
+        <cbc:ID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="5" schemeName="42">4916871</cbc:ID>
+      </cac:PartyIdentification>
+      <cac:PartyName>
+        <cbc:Name>Arlindo Caballero Gonzalez</cbc:Name>
+      </cac:PartyName>
+      <cac:PhysicalLocation>
+        <cac:Address>
+          <cac:AddressLine>
+            <cbc:Line>Paraguay</cbc:Line>
+          </cac:AddressLine>
+          <cac:Country>
+            <cbc:IdentificationCode>PY</cbc:IdentificationCode>
+            <cbc:Name languageID="es">Paraguay</cbc:Name>
+          </cac:Country>
+        </cac:Address>
+      </cac:PhysicalLocation>
+      <cac:PartyTaxScheme>
+        <cbc:RegistrationName>Arlindo Caballero Gonzalez</cbc:RegistrationName>
+        <cbc:CompanyID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="5" schemeName="42">4916871</cbc:CompanyID>
+        <cbc:TaxLevelCode listName="49">R-99-PN</cbc:TaxLevelCode>
+        <cac:TaxScheme>
+          <cbc:ID>01</cbc:ID>
+          <cbc:Name>IVA</cbc:Name>
+        </cac:TaxScheme>
+      </cac:PartyTaxScheme>
+      <cac:PartyLegalEntity>
+        <cbc:RegistrationName>Arlindo Caballero Gonzalez</cbc:RegistrationName>
+        <cbc:CompanyID schemeAgencyID="195" schemeAgencyName="CO, DIAN (Dirección de Impuestos y Aduanas Nacionales)" schemeID="5" schemeName="42">4916871</cbc:CompanyID>
+        <cac:CorporateRegistrationScheme>
+          <cbc:ID>LZT</cbc:ID>
+          <cbc:Name/>
+        </cac:CorporateRegistrationScheme>
+      </cac:PartyLegalEntity>
+      <cac:Contact>
+        <cbc:Telephone>0000000</cbc:Telephone>
+        <cbc:ElectronicMail>arlindocaballero91@gmail.com</cbc:ElectronicMail>
+      </cac:Contact>
+    </cac:Party>
+  </cac:AccountingCustomerParty>
+  <cac:PaymentMeans>
+    <cbc:ID>1</cbc:ID>
+    <cbc:PaymentMeansCode>10</cbc:PaymentMeansCode>
+    <cbc:PaymentID>1</cbc:PaymentID>
+  </cac:PaymentMeans>
+  <cac:TaxTotal>
+    <cbc:TaxAmount currencyID="COP">0.00</cbc:TaxAmount>
+    <cac:TaxSubtotal>
+      <cbc:TaxableAmount currencyID="COP">200.00</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="COP">0.00</cbc:TaxAmount>
+      <cac:TaxCategory>
+        <cbc:Percent>0.00</cbc:Percent>
+        <cac:TaxScheme>
+          <cbc:ID>01</cbc:ID>
+          <cbc:Name>IVA</cbc:Name>
+        </cac:TaxScheme>
+      </cac:TaxCategory>
+    </cac:TaxSubtotal>
+  </cac:TaxTotal>
+  <cac:LegalMonetaryTotal>
+    <cbc:LineExtensionAmount currencyID="COP">200.00</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="COP">200.00</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="COP">200.00</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="COP">200.00</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:InvoicedQuantity unitCode="2K">1.00</cbc:InvoicedQuantity>
+    <cbc:LineExtensionAmount currencyID="COP">200.00</cbc:LineExtensionAmount>
+    <cbc:FreeOfChargeIndicator>false</cbc:FreeOfChargeIndicator>
+    <cac:TaxTotal>
+      <cbc:TaxAmount currencyID="COP">0.00</cbc:TaxAmount>
+      <cac:TaxSubtotal>
+        <cbc:TaxableAmount currencyID="COP">200.00</cbc:TaxableAmount>
+        <cbc:TaxAmount currencyID="COP">0.00</cbc:TaxAmount>
+        <cac:TaxCategory>
+          <cbc:Percent>0.00</cbc:Percent>
+          <cac:TaxScheme>
+            <cbc:ID>01</cbc:ID>
+            <cbc:Name>IVA</cbc:Name>
+          </cac:TaxScheme>
+        </cac:TaxCategory>
+      </cac:TaxSubtotal>
+    </cac:TaxTotal>
+    <cac:Item>
+      <cbc:Description>SUSCRIPCION TBUSCO EN LA NUBE</cbc:Description>
+      <cac:StandardItemIdentification>
+        <cbc:ID schemeID="999" schemeName="EAN13" schemeAgencyID="">08</cbc:ID>
+      </cac:StandardItemIdentification>
+    </cac:Item>
+    <cac:Price>
+      <cbc:PriceAmount currencyID="COP">200.00</cbc:PriceAmount>
+      <cbc:BaseQuantity unitCode="2K">1.00</cbc:BaseQuantity>
+    </cac:Price>
+  </cac:InvoiceLine>
+</Invoice>
