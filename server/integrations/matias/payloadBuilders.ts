@@ -195,7 +195,7 @@ export async function buildPosPayload(
     },
     payments: [{
       payment_form_id: 1,
-      payment_method_id: 10,
+      payment_method_id: 1,
       means_payment_id: paymentMethodId,
       value_paid: totalWithTax,
     }],
