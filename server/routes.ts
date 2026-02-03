@@ -9,7 +9,7 @@ import archiver from "archiver";
 import { storage } from "./storage";
 import { emailService } from "./email";
 import { db } from "./db";
-import { orders } from "@shared/schema";
+import { orders, tenantIntegrationsMatias } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import {
   insertTenantSchema,
@@ -3980,6 +3980,83 @@ export async function registerRoutes(
       res.json(updated);
     } catch (error) {
       res.status(400).json({ message: "Failed to update settings" });
+    }
+  });
+
+  // ===== E-BILLING CONFIG ROUTES =====
+
+  // Get e-billing config for tenant
+  app.get("/api/tenant/ebilling-config", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const config = await db.query.tenantIntegrationsMatias.findFirst({
+        where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+      });
+
+      if (!config) {
+        // Return default config if none exists
+        return res.json({
+          isEnabled: false,
+          prefix: "",
+          currentNumber: null,
+          endingNumber: null,
+          autoSubmitSales: true,
+        });
+      }
+
+      res.json({
+        isEnabled: config.isEnabled ?? false,
+        prefix: config.defaultPrefix || "",
+        currentNumber: config.currentNumber || null,
+        endingNumber: config.endingNumber || null,
+        autoSubmitSales: config.autoSubmitSales ?? true,
+      });
+    } catch (error) {
+      console.error("E-billing config fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch e-billing config" });
+    }
+  });
+
+  // Update e-billing config for tenant
+  app.put("/api/tenant/ebilling-config", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { isEnabled, autoSubmitSales } = req.body;
+
+      const existing = await db.query.tenantIntegrationsMatias.findFirst({
+        where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+      });
+
+      if (!existing) {
+        // Create new config if none exists
+        await db.insert(tenantIntegrationsMatias).values({
+          tenantId,
+          isEnabled: isEnabled ?? false,
+          autoSubmitSales: autoSubmitSales ?? true,
+        });
+      } else {
+        // Update existing config
+        await db.update(tenantIntegrationsMatias)
+          .set({
+            isEnabled: isEnabled !== undefined ? isEnabled : existing.isEnabled,
+            autoSubmitSales: autoSubmitSales !== undefined ? autoSubmitSales : existing.autoSubmitSales,
+            updatedAt: new Date(),
+          })
+          .where(eq(tenantIntegrationsMatias.tenantId, tenantId));
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("E-billing config update error:", error);
+      res.status(500).json({ message: "Failed to update e-billing config" });
     }
   });
 
