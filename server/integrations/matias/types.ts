@@ -32,17 +32,22 @@ export const MATIAS_PAYMENT_METHODS = {
   MIXED: 1,
 } as const;
 
-// MATIAS Document Type IDs (DIAN codes)
-// Invoice types use 2-digit format: 01, not 1
+// MATIAS Document Type IDs (Official DIAN codes)
+// 01 = FE (Factura Electrónica)
+// 02 = NC (Nota Crédito Electrónica)
+// 03 = ND (Nota Débito Electrónica)
+// 04 = FCam (Factura Cambio de Régimen)
+// 05 = FProv (Factura por Importación)
+// 91 = POS (Factura POS)
 export const MATIAS_DOCUMENT_TYPES = {
-  INVOICE: "01",
-  CREDIT_NOTE: "91",
-  DEBIT_NOTE: "92",
-  POS: 20,
-  POS_CREDIT_NOTE: "94",
-  POS_DEBIT_NOTE: "95",
-  SUPPORT_DOC: "05",
-  SUPPORT_ADJUSTMENT: "95",
+  INVOICE: 1,
+  CREDIT_NOTE: 2,
+  DEBIT_NOTE: 3,
+  REGIME_CHANGE: 4,
+  IMPORT_INVOICE: 5,
+  POS: 91,
+  POS_CREDIT_NOTE: 2,
+  POS_DEBIT_NOTE: 3,
 } as const;
 
 // MATIAS Tax Codes
