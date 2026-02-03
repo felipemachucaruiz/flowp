@@ -32,16 +32,17 @@ export const MATIAS_PAYMENT_METHODS = {
   MIXED: 1,
 } as const;
 
-// MATIAS Document Type IDs
+// MATIAS Document Type IDs (DIAN codes)
+// Invoice types use 2-digit format: 01, not 1
 export const MATIAS_DOCUMENT_TYPES = {
-  INVOICE: 1,
-  CREDIT_NOTE: 91,
-  DEBIT_NOTE: 92,
+  INVOICE: "01",
+  CREDIT_NOTE: "91",
+  DEBIT_NOTE: "92",
   POS: 20,
-  POS_CREDIT_NOTE: 94,
-  POS_DEBIT_NOTE: 93,
-  SUPPORT_DOC: 11,
-  SUPPORT_ADJUSTMENT: 15,
+  POS_CREDIT_NOTE: "94",
+  POS_DEBIT_NOTE: "95",
+  SUPPORT_DOC: "05",
+  SUPPORT_ADJUSTMENT: "95",
 } as const;
 
 // MATIAS Tax Codes
@@ -175,7 +176,7 @@ export const matiasPaymentWithAmountSchema = z.object({
 
 // Full POS Document Payload
 export const matiasPosPayloadSchema = z.object({
-  type_document_id: z.number(),
+  type_document_id: z.union([z.number(), z.string()]),
   resolution_number: z.string(),
   prefix: z.string(),
   number: z.number(),
