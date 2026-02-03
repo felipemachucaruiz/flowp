@@ -71,6 +71,7 @@ interface CustomerInfo {
   idType?: string | null;
   phone?: string | null;
   email?: string | null;
+  loyaltyPoints?: number | null;
 }
 
 interface ReceiptData {
@@ -464,6 +465,7 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
       ${data.customerInfo.idNumber ? `<div>${data.customerInfo.idType === "nit" ? "NIT" : data.customerInfo.idType === "cedula_ciudadania" ? "CC" : "ID"}: ${data.customerInfo.idNumber}</div>` : ""}
       ${data.customerInfo.phone ? `<div>${lang === "es" ? "Tel" : "Phone"}: ${data.customerInfo.phone}</div>` : ""}
       ${data.customerInfo.email ? `<div>${data.customerInfo.email}</div>` : ""}
+      ${data.customerInfo.loyaltyPoints != null ? `<div style="margin-top: 3px;">${lang === "es" ? "Puntos de fidelidad" : lang === "pt" ? "Pontos de fidelidade" : "Loyalty Points"}: ${data.customerInfo.loyaltyPoints.toLocaleString()}</div>` : ""}
     </div>
     ` : ""}
     

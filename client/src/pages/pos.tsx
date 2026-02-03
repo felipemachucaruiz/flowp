@@ -579,6 +579,7 @@ export default function POSPage() {
             idType: receiptData.customer.idType,
             phone: receiptData.customer.phone,
             email: receiptData.customer.email,
+            loyaltyPoints: receiptData.customer.loyaltyPoints,
           } : undefined,
           electronicBilling: response.cufe ? {
             cufe: response.cufe,
