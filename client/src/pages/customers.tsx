@@ -196,10 +196,17 @@ export default function CustomersPage() {
   };
 
   const handleSaveCustomer = () => {
+    const formData = {
+      ...customerForm,
+      municipalityId: parseInt(customerForm.municipalityId, 10),
+      organizationTypeId: parseInt(customerForm.organizationTypeId, 10),
+      taxRegimeId: parseInt(customerForm.taxRegimeId, 10),
+      taxLiabilityId: parseInt(customerForm.taxLiabilityId, 10),
+    };
     if (editingCustomer) {
-      updateCustomerMutation.mutate({ ...customerForm, id: editingCustomer.id });
+      updateCustomerMutation.mutate({ ...formData, id: editingCustomer.id });
     } else {
-      createCustomerMutation.mutate(customerForm);
+      createCustomerMutation.mutate(formData);
     }
   };
 
@@ -538,17 +545,16 @@ export default function CustomersPage() {
                             size="sm"
                             onClick={() => {
                               updateCustomerMutation.mutate({
-                                ...customerForm,
                                 id: selectedCustomer.id,
                                 name: selectedCustomer.name,
                                 phone: selectedCustomer.phone || "",
                                 email: selectedCustomer.email || "",
                                 address: selectedCustomer.address || "",
                                 countryCode: selectedCustomer.countryCode || "169",
-                                municipalityId: String(selectedCustomer.municipalityId || 1),
-                                organizationTypeId: String(selectedCustomer.organizationTypeId || 2),
-                                taxRegimeId: String(selectedCustomer.taxRegimeId || 2),
-                                taxLiabilityId: String(selectedCustomer.taxLiabilityId || 117),
+                                municipalityId: selectedCustomer.municipalityId || 1,
+                                organizationTypeId: selectedCustomer.organizationTypeId || 2,
+                                taxRegimeId: selectedCustomer.taxRegimeId || 2,
+                                taxLiabilityId: selectedCustomer.taxLiabilityId || 117,
                                 idType: selectedCustomer.idType || "",
                                 idNumber: selectedCustomer.idNumber || "",
                                 notes: notesText,
