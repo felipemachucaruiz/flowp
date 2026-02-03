@@ -80,6 +80,17 @@ export const MATIAS_TAX_CODES = {
   NO_TAX: "ZY",
 } as const;
 
+// MATIAS Currency Codes (ISO 4217)
+// type_currency_id
+// 170 = COP (Peso Colombiano)
+// 840 = USD (Dólar estadounidense)
+// 978 = EUR (Euro)
+export const MATIAS_CURRENCY = {
+  COP: 170,
+  USD: 840,
+  EUR: 978,
+} as const;
+
 // Zod Schemas for MATIAS Payloads
 
 // Line item allowance/charge
@@ -204,6 +215,7 @@ export const matiasPaymentWithAmountSchema = z.object({
 // Full POS Document Payload
 export const matiasPosPayloadSchema = z.object({
   type_document_id: z.union([z.number(), z.string()]),
+  type_currency_id: z.number().optional(),  // ISO 4217: 170=COP, 840=USD, 978=EUR
   resolution_number: z.string(),
   prefix: z.string(),
   number: z.number(),

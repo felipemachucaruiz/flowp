@@ -14,6 +14,7 @@ import {
   MATIAS_PAYMENT_METHOD,
   MATIAS_PAYMENT_METHODS, 
   MATIAS_DOCUMENT_TYPES,
+  MATIAS_CURRENCY,
   type MatiasPayload,
   type MatiasNotePayload,
   type MatiasSupportDocPayload,
@@ -214,6 +215,7 @@ export async function buildPosPayload(
 
   const payload: MatiasPayload = {
     type_document_id: MATIAS_DOCUMENT_TYPES.POS,
+    type_currency_id: MATIAS_CURRENCY.COP,  // 170 = Peso Colombiano
     resolution_number: resolutionNumber,
     prefix: prefix,
     number: documentNumber,
