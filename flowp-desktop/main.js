@@ -152,18 +152,37 @@ function createWindow() {
   ];
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const urlOrigin = new URL(url).origin;
-    if (!allowedOrigins.some(origin => url.startsWith(origin))) {
-      console.log('Blocked navigation to:', url);
+    // Block special protocols that shouldn't navigate
+    if (url.startsWith('about:') || url.startsWith('javascript:')) {
+      console.log('Blocked special protocol navigation:', url);
+      event.preventDefault();
+      return;
+    }
+    
+    try {
+      if (!allowedOrigins.some(origin => url.startsWith(origin))) {
+        console.log('Blocked navigation to:', url);
+        event.preventDefault();
+      }
+    } catch (e) {
+      console.log('Invalid URL, blocking:', url);
       event.preventDefault();
     }
   });
 
   // Restrict new window creation
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    const urlOrigin = new URL(url).origin;
-    if (allowedOrigins.some(origin => url.startsWith(origin))) {
-      shell.openExternal(url);
+    // Block special protocols
+    if (url.startsWith('about:') || url.startsWith('javascript:') || url.startsWith('data:')) {
+      return { action: 'deny' };
+    }
+    
+    try {
+      if (allowedOrigins.some(origin => url.startsWith(origin))) {
+        shell.openExternal(url);
+      }
+    } catch (e) {
+      console.log('Invalid URL for external open:', url);
     }
     return { action: 'deny' };
   });
