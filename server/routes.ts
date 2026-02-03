@@ -766,7 +766,12 @@ export async function registerRoutes(
       if (!tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      const data = insertProductSchema.parse({ ...req.body, tenantId });
+      // Convert empty categoryId to null to avoid foreign key constraint errors
+      const body = { ...req.body, tenantId };
+      if (body.categoryId === "" || body.categoryId === undefined) {
+        body.categoryId = null;
+      }
+      const data = insertProductSchema.parse(body);
       const product = await storage.createProduct(data);
       res.json(product);
     } catch (error: any) {
@@ -802,6 +807,10 @@ export async function registerRoutes(
       }
       if (updateData.price === '') {
         delete updateData.price; // Don't update price if empty
+      }
+      // Convert empty categoryId to null to avoid foreign key constraint errors
+      if (updateData.categoryId === '' || updateData.categoryId === undefined) {
+        updateData.categoryId = null;
       }
       const product = await storage.updateProduct(id, updateData);
       res.json(product);
