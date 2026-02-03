@@ -428,31 +428,41 @@ export async function processDocument(documentId: string): Promise<boolean> {
       const isAlreadyValidated = response.message?.includes("ya se encuentra validado");
       
       if (isAlreadyValidated) {
-        console.log(`[MATIAS] Document ${doc.prefix}${doc.documentNumber} already validated. Fetching existing CUFE/QR...`);
+        console.log(`[MATIAS] Document ${doc.prefix}${doc.documentNumber} already validated. Extracting existing CUFE/QR...`);
         
-        // Query MATIAS status API to get existing document data
-        const statusResult = await client.getStatus({
-          resolution: doc.resolutionNumber || undefined,
-          prefix: doc.prefix || undefined,
-          number: doc.documentNumber || undefined,
-        });
+        // MATIAS returns the existing document data even when success=false for "already validated"
+        const responseData = (response as any).data || response;
+        const jsonData = responseData?.jsonData;
+        let cufe = jsonData?.cufe || responseData?.uuid || responseData?.XmlDocumentKey;
+        let qrCode = jsonData?.qr || jsonData?.qrDian;
         
-        if (statusResult?.success && statusResult.data) {
-          const cufe = statusResult.data.cufe || statusResult.data.cude;
-          const qrCode = statusResult.data.qr_code;
+        // If not in response, try fetching from status API
+        if (!cufe || !qrCode) {
+          const statusResult = await client.getStatus({
+            resolution: doc.resolutionNumber || undefined,
+            prefix: doc.prefix || undefined,
+            number: doc.documentNumber || undefined,
+          });
           
+          if (statusResult?.success && statusResult.data) {
+            cufe = cufe || statusResult.data.cufe || statusResult.data.cude;
+            qrCode = qrCode || statusResult.data.qr_code;
+          }
+        }
+        
+        if (cufe) {
           await db.update(matiasDocumentQueue)
             .set({
               status: "ACCEPTED",
               cufe,
               qrCode,
-              responseJson: { ...response, fetchedStatus: statusResult },
+              responseJson: response,
               acceptedAt: new Date(),
               updatedAt: new Date(),
             })
             .where(eq(matiasDocumentQueue.id, documentId));
           
-          console.log(`[MATIAS] Fetched existing document. CUFE: ${cufe?.substring(0, 20)}...`);
+          console.log(`[MATIAS] Document already validated. CUFE: ${cufe?.substring(0, 20)}...`);
           await incrementDocumentUsage(doc.tenantId, doc.kind);
           return true;
         }
@@ -693,31 +703,41 @@ export async function submitDocumentSync(params: {
       const isAlreadyValidated = response.message?.includes("ya se encuentra validado");
       
       if (isAlreadyValidated) {
-        console.log(`[MATIAS] Document ${prefix}${documentNumber} already validated. Fetching existing CUFE/QR...`);
+        console.log(`[MATIAS] Document ${prefix}${documentNumber} already validated. Extracting existing CUFE/QR...`);
         
-        // Query MATIAS status API to get existing document data
-        const statusResult = await client.getStatus({
-          resolution: resolutionNumber,
-          prefix: prefix,
-          number: documentNumber,
-        });
+        // MATIAS returns the existing document data even when success=false for "already validated"
+        const responseData = (response as any).data || response;
+        const jsonData = responseData?.jsonData;
+        let cufe = jsonData?.cufe || responseData?.uuid || responseData?.XmlDocumentKey;
+        let qrCode = jsonData?.qr || jsonData?.qrDian;
         
-        if (statusResult?.success && statusResult.data) {
-          const cufe = statusResult.data.cufe || statusResult.data.cude;
-          const qrCode = statusResult.data.qr_code;
+        // If not in response, try fetching from status API
+        if (!cufe || !qrCode) {
+          const statusResult = await client.getStatus({
+            resolution: resolutionNumber,
+            prefix: prefix,
+            number: documentNumber,
+          });
           
+          if (statusResult?.success && statusResult.data) {
+            cufe = cufe || statusResult.data.cufe || statusResult.data.cude;
+            qrCode = qrCode || statusResult.data.qr_code;
+          }
+        }
+        
+        if (cufe) {
           await db.update(matiasDocumentQueue)
             .set({
               status: "ACCEPTED",
               cufe,
               qrCode,
-              responseJson: { ...response, fetchedStatus: statusResult },
+              responseJson: response,
               acceptedAt: new Date(),
               updatedAt: new Date(),
             })
             .where(eq(matiasDocumentQueue.id, doc.id));
           
-          console.log(`[MATIAS] Fetched existing document. CUFE: ${cufe?.substring(0, 20)}...`);
+          console.log(`[MATIAS] Document already validated. CUFE: ${cufe?.substring(0, 20)}...`);
           
           return {
             success: true,
