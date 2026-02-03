@@ -37,11 +37,25 @@ export async function getIntegrationStatus(tenantId: string) {
 
 export async function testConnection(tenantId: string, actorInternalUserId?: string | null) {
   try {
+    console.log(`[IntegrationService] Testing MATIAS connection for tenant ${tenantId}`);
+    
+    // Check if tenant has config
+    const config = await db.query.tenantIntegrationsMatias.findFirst({
+      where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+    });
+    console.log(`[IntegrationService] Tenant config: ${config ? `found (enabled: ${config.isEnabled}, hasEmail: ${!!config.email}, hasPassword: ${!!config.passwordEncrypted})` : 'not found'}`);
+    
     const client = await getMatiasClient(tenantId);
     if (!client) {
+      const reason = !config ? "No configuration found" 
+        : !config.isEnabled ? "Integration disabled"
+        : !config.email ? "Email not configured"
+        : !config.passwordEncrypted ? "Password not configured"
+        : "Authentication failed";
+      console.log(`[IntegrationService] MATIAS client not created: ${reason}`);
       return {
         success: false,
-        message: "MATIAS integration not configured or disabled",
+        message: `MATIAS integration not configured or disabled (${reason})`,
       };
     }
 
