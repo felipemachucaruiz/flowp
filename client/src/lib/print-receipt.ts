@@ -1,6 +1,21 @@
 import type { Tenant } from "@shared/schema";
 import { printBridge } from "./print-bridge";
 import { renderCouponContent, getCouponPlainText } from "@/components/coupon-editor";
+import QRCode from "qrcode";
+
+// Generate QR code as data URL for embedding in receipts
+async function generateQRCodeDataURL(data: string): Promise<string> {
+  try {
+    return await QRCode.toDataURL(data, {
+      width: 200,
+      margin: 1,
+      errorCorrectionLevel: "M",
+    });
+  } catch (error) {
+    console.error("Failed to generate QR code:", error);
+    return "";
+  }
+}
 
 interface CouponLine {
   text: string;
@@ -158,10 +173,18 @@ export async function printReceipt(tenant: Tenant | null, data: ReceiptData) {
     return;
   }
 
-  printReceiptBrowser(tenant, data);
+  await printReceiptBrowser(tenant, data);
 }
 
-function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
+async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
+  // Generate QR code data URL if electronic billing info exists
+  let qrCodeDataUrl = "";
+  if (data.electronicBilling?.qrCode) {
+    qrCodeDataUrl = await generateQRCodeDataURL(data.electronicBilling.qrCode);
+  } else if (data.electronicBilling?.cufe) {
+    // Fallback: generate QR from CUFE if no qrCode URL provided
+    qrCodeDataUrl = await generateQRCodeDataURL(data.electronicBilling.cufe);
+  }
   const lang = tenant?.language || "en";
   
   // Get font and logo settings from tenant
@@ -464,15 +487,11 @@ function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
           ${lang === "es" ? "Doc" : "Doc"}: ${data.electronicBilling.prefix}${data.electronicBilling.documentNumber}
         </div>
       ` : ""}
-      ${data.electronicBilling.qrCode ? `
+      ${qrCodeDataUrl ? `
         <div style="margin: 10px auto; text-align: center;">
-          <img src="${data.electronicBilling.qrCode}" alt="QR Code" style="width: 35mm; height: 35mm; image-rendering: pixelated;" />
+          <img src="${qrCodeDataUrl}" alt="QR Code DIAN" style="width: 35mm; height: 35mm; image-rendering: pixelated;" />
         </div>
-      ` : `
-        <div style="margin: 10px auto; text-align: center;">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(data.electronicBilling.cufe)}" alt="QR CUFE" style="width: 35mm; height: 35mm;" />
-        </div>
-      `}
+      ` : ""}
       <div style="font-size: ${Math.round(fontSize * 0.7)}px; word-break: break-all; margin-top: 5px; line-height: 1.3;">
         <strong>CUFE:</strong><br/>
         ${data.electronicBilling.cufe}
