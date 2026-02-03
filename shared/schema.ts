@@ -313,6 +313,10 @@ export const orders = pgTable("orders", {
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   completedAt: timestamp("completed_at"),
+  // DIAN/MATIAS E-Billing Data
+  cufe: text("cufe"),  // Código Único de Factura Electrónica
+  qrCode: text("qr_code"),  // QR code for receipt printing
+  trackId: text("track_id"),  // MATIAS tracking ID
 });
 
 // Order Items
