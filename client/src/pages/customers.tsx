@@ -198,10 +198,11 @@ export default function CustomersPage() {
   const handleSaveCustomer = () => {
     const formData = {
       ...customerForm,
-      municipalityId: parseInt(customerForm.municipalityId, 10),
-      organizationTypeId: parseInt(customerForm.organizationTypeId, 10),
-      taxRegimeId: parseInt(customerForm.taxRegimeId, 10),
-      taxLiabilityId: parseInt(customerForm.taxLiabilityId, 10),
+      municipalityId: parseInt(customerForm.municipalityId, 10) || 1,
+      organizationTypeId: parseInt(customerForm.organizationTypeId, 10) || 2,
+      taxRegimeId: parseInt(customerForm.taxRegimeId, 10) || 2,
+      taxLiabilityId: parseInt(customerForm.taxLiabilityId, 10) || 117,
+      defaultDiscount: customerForm.defaultDiscount || "0",
     };
     if (editingCustomer) {
       updateCustomerMutation.mutate({ ...formData, id: editingCustomer.id });
