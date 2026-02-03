@@ -60,11 +60,6 @@ export function AdminSidebar() {
       icon: Users,
     },
     {
-      title: t("admin.ebilling"),
-      url: "/admin/ebilling",
-      icon: FileText,
-    },
-    {
       title: "Documents",
       url: "/admin/documents",
       icon: FileText,

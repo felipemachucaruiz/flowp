@@ -40,7 +40,6 @@ import AdminTenants from "@/pages/admin/tenants";
 import AdminTenantDetail from "@/pages/admin/tenant-detail";
 import AdminUsers from "@/pages/admin/users";
 import AdminBilling from "@/pages/admin/billing";
-import AdminEbilling from "@/pages/admin/ebilling";
 import AdminEmailSettings from "@/pages/admin/email-settings";
 import AdminDocuments from "@/pages/admin/documents";
 import AdminPackages from "@/pages/admin/packages";
@@ -178,9 +177,6 @@ function AdminRouter() {
         </Route>
         <Route path="/admin/billing">
           <AdminRoute component={AdminBilling} />
-        </Route>
-        <Route path="/admin/ebilling">
-          <AdminRoute component={AdminEbilling} />
         </Route>
         <Route path="/admin/documents">
           <AdminRoute component={AdminDocuments} />
