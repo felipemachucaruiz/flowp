@@ -507,8 +507,8 @@ router.put("/ebilling-config", requirePermission('manage_settings'), async (req:
   }
 });
 
-// E-Billing Documents - Tenant can view their own documents
-router.get("/ebilling/documents", async (req: Request, res: Response) => {
+// E-Billing Documents - Tenant can view their own documents (requires settings.view permission)
+router.get("/ebilling/documents", requirePermission("settings.view"), async (req: Request, res: Response) => {
   try {
     const tenantId = req.targetTenantId;
     if (!tenantId) {
@@ -578,7 +578,7 @@ router.get("/ebilling/documents", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/ebilling/documents/:id", async (req: Request, res: Response) => {
+router.get("/ebilling/documents/:id", requirePermission("settings.view"), async (req: Request, res: Response) => {
   try {
     const tenantId = req.targetTenantId;
     if (!tenantId) {
@@ -612,7 +612,7 @@ router.get("/ebilling/documents/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/ebilling/status", async (req: Request, res: Response) => {
+router.get("/ebilling/status", requirePermission("settings.view"), async (req: Request, res: Response) => {
   try {
     const tenantId = req.targetTenantId;
     if (!tenantId) {
