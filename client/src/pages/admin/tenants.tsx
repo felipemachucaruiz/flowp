@@ -91,7 +91,8 @@ export default function AdminTenants() {
     queryFn: async () => {
       const res = await adminFetch("/api/internal-admin/tenants");
       if (!res.ok) throw new Error("Failed to fetch tenants");
-      return res.json();
+      const data = await res.json();
+      return data.tenants || [];
     },
   });
 
