@@ -1,4 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -273,10 +274,12 @@ export default function AdminTenants() {
               {filteredTenants?.map((tenant) => (
                 <TableRow key={tenant.id} data-testid={`row-tenant-${tenant.id}`}>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
-                      {tenant.name}
-                    </div>
+                    <Link href={`/admin/tenants/${tenant.id}`}>
+                      <div className="flex items-center gap-2 hover:underline cursor-pointer">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        {tenant.name}
+                      </div>
+                    </Link>
                   </TableCell>
                   <TableCell>{getTypeBadge(tenant.type)}</TableCell>
                   <TableCell>{getStatusBadge(tenant.status)}</TableCell>
