@@ -1154,8 +1154,9 @@ export async function registerRoutes(
       
       const customer = await storage.updateCustomer(id, updateData);
       res.json(customer);
-    } catch (error) {
-      res.status(400).json({ message: "Failed to update customer" });
+    } catch (error: any) {
+      console.error("[customers] Update failed:", error);
+      res.status(400).json({ message: "Failed to update customer", error: error?.message });
     }
   });
 
