@@ -555,6 +555,77 @@ async function buildReceipt(data) {
     commands.push.apply(commands, Buffer.from(data.thankYouMessage + '\n'));
   }
   
+  // Electronic Billing section (DIAN - Colombia)
+  if (data.electronicBilling && data.electronicBilling.cufe) {
+    commands.push(0x0A);
+    
+    // Separator
+    commands.push(0x1B, 0x61, 0x01); // Center
+    commands.push.apply(commands, Buffer.from('--------------------------------\n'));
+    
+    // Electronic Invoice header - emphasized
+    commands.push(0x1B, 0x21, 0x30); // Double height/width
+    var invoiceLabel = data.language === 'es' ? 'FACTURA ELECTRONICA' : 
+                       data.language === 'pt' ? 'FATURA ELETRONICA' : 'ELECTRONIC INVOICE';
+    if (data.electronicBilling.prefix && data.electronicBilling.documentNumber) {
+      invoiceLabel += ' #:';
+    }
+    commands.push.apply(commands, Buffer.from(invoiceLabel + '\n'));
+    commands.push(0x1B, 0x21, 0x00); // Normal
+    
+    // Invoice number (prefix + number)
+    if (data.electronicBilling.prefix && data.electronicBilling.documentNumber) {
+      commands.push(0x1B, 0x21, 0x10); // Double width
+      commands.push.apply(commands, Buffer.from(data.electronicBilling.prefix + data.electronicBilling.documentNumber + '\n'));
+      commands.push(0x1B, 0x21, 0x00); // Normal
+    }
+    
+    commands.push(0x0A);
+    
+    // QR Code - print as bitmap if available
+    if (data.electronicBilling.qrCode && Jimp) {
+      try {
+        // Generate QR code using the qrcode library if available, otherwise skip
+        var QRCode = null;
+        try {
+          QRCode = require('qrcode');
+        } catch (e) {
+          console.log('QRCode library not available');
+        }
+        
+        if (QRCode) {
+          // Generate QR code as data URL
+          var qrDataUrl = await QRCode.toDataURL(data.electronicBilling.qrCode, {
+            width: 200,
+            margin: 1,
+            errorCorrectionLevel: 'M'
+          });
+          
+          // Convert to ESC/POS bitmap (200px width for thermal printer)
+          var qrBuffer = await imageToEscPos(qrDataUrl, 200);
+          commands.push.apply(commands, qrBuffer);
+          commands.push(0x0A);
+        }
+      } catch (e) {
+        console.error('QR code generation error:', e.message);
+      }
+    }
+    
+    // CUFE - small font, word-wrapped
+    commands.push(0x1B, 0x4D, 0x01); // Select font B (smaller)
+    commands.push.apply(commands, Buffer.from('CUFE:\n'));
+    
+    // Split CUFE into chunks of 32 characters for thermal paper width
+    var cufe = data.electronicBilling.cufe;
+    var chunkSize = 32;
+    for (var i = 0; i < cufe.length; i += chunkSize) {
+      commands.push.apply(commands, Buffer.from(cufe.substring(i, i + chunkSize) + '\n'));
+    }
+    
+    commands.push(0x1B, 0x4D, 0x00); // Back to font A (normal)
+    commands.push(0x0A);
+  }
+  
   // Coupon section
   if (data.couponEnabled && data.couponLines && data.couponLines.length > 0) {
     commands.push(0x0A);
@@ -602,6 +673,18 @@ async function buildReceipt(data) {
     commands.push(0x1B, 0x61, 0x01); // Center
     commands.push.apply(commands, Buffer.from('- - - - - - - - - - - - - - - -\n'));
   }
+  
+  // FLOWP Promotional Footer - always print at the end
+  commands.push(0x0A);
+  commands.push(0x1B, 0x61, 0x01); // Center
+  commands.push.apply(commands, Buffer.from('--------------------------------\n'));
+  commands.push(0x1B, 0x4D, 0x01); // Smaller font
+  commands.push.apply(commands, Buffer.from('Controla todo tu flujo con FLOWP.app\n'));
+  commands.push.apply(commands, Buffer.from('Activa tu prueba gratis por 30 dias.\n'));
+  commands.push(0x1B, 0x45, 0x01); // Bold on
+  commands.push.apply(commands, Buffer.from('Software Cloud para tiendas, FLOWP\n'));
+  commands.push(0x1B, 0x45, 0x00); // Bold off
+  commands.push(0x1B, 0x4D, 0x00); // Back to normal font
   
   // Feed and cut
   commands.push(0x0A, 0x0A, 0x0A);

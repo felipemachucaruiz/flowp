@@ -178,15 +178,6 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
 }
 
 export async function printReceipt(tenant: Tenant | null, data: ReceiptData) {
-  // When electronic billing data is present, always use browser-based printing
-  // because ESC/POS thermal printing via PrintBridge/Electron doesn't render
-  // QR codes, CUFE, and footer sections properly
-  if (data.electronicBilling?.cufe) {
-    console.log('[PrintReceipt] Electronic billing detected, using browser print for full receipt');
-    await printReceiptBrowser(tenant, data);
-    return;
-  }
-
   const useBridge = await tryPrintBridge(tenant, data);
   if (useBridge) {
     return;
