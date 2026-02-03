@@ -58,7 +58,7 @@ function getPaymentMethodId(isMixed: boolean, isCredit: boolean = false): number
   return MATIAS_PAYMENT_METHOD.CONTADO;                // 1
 }
 
-// MATIAS API ID Type mapping (type_document_identification_id)
+// MATIAS API ID Type mapping (identity_document_id)
 // IMPORTANT: Always use MATIAS API codes, not DIAN codes
 // Código | Tipo
 // 1      | Cédula de Ciudadanía
@@ -89,6 +89,33 @@ function mapCustomerIdType(idType: string | null): number {
       return 6;
     default:
       return 1; // Default to CC
+  }
+}
+
+// MATIAS API v2 tax_level_id mapping
+// Maps old type_liability_id values to new tax_level_id (1-5)
+// Código | Nivel de Responsabilidad
+// 1      | Gran Contribuyente
+// 2      | Autorretenedor  
+// 3      | Agente de Retención IVA
+// 4      | Régimen Simple de Tributación
+// 5      | No responsable de IVA (most common for consumers)
+function mapTaxLevelId(oldLiabilityId: number | null | undefined): number {
+  // If already in valid range 1-5, use it
+  if (oldLiabilityId && oldLiabilityId >= 1 && oldLiabilityId <= 5) {
+    return oldLiabilityId;
+  }
+  // Map old DIAN type_liability_id codes to new tax_level_id
+  switch (oldLiabilityId) {
+    case 117: // Old "Autorretenedor" or similar
+    case 49:  // O-49 Autorretenedor  
+      return 2;
+    case 3:   // Agente de retención
+      return 3;
+    case 48:  // R-99-PN No Aplica
+      return 5; // No responsable de IVA
+    default:
+      return 5; // Default: No responsable de IVA (most common for POS consumers)
   }
 }
 
@@ -201,7 +228,7 @@ export async function buildPosPayload(
   // - identity_document_id (not type_document_identification_id)
   // - city_id (not municipality_id)
   // - tax_regime_id (not type_regime_id)
-  // - tax_level_id (not type_liability_id)
+  // - tax_level_id (not type_liability_id) - must be 1-5
   const customerData = {
     dni: customer?.idNumber || customer?.phone || "222222222222",
     company_name: customer?.name || "CONSUMIDOR FINAL",
@@ -211,12 +238,12 @@ export async function buildPosPayload(
     address: customer?.address || "Sin direccion",
     email: customer?.email || "noreply@flowp.com",
     postal_code: "110111",
-    country_id: String(customer?.countryCode || "45"),  // 45 = Colombia
-    city_id: String(customer?.municipalityId || "836"),  // city_id instead of municipality_id
-    identity_document_id: String(customer ? mapCustomerIdType(customer.idType) : 6),  // identity_document_id
-    type_organization_id: customer?.organizationTypeId || 2,
-    tax_regime_id: customer?.taxRegimeId || 2,  // tax_regime_id instead of type_regime_id
-    tax_level_id: customer?.taxLiabilityId || 5,  // tax_level_id instead of type_liability_id
+    country_id: String(customer?.countryCode || 45),  // 45 = Colombia in MATIAS v2
+    city_id: String(customer?.municipalityId || 149),  // 149 = Medellín default
+    identity_document_id: String(customer ? mapCustomerIdType(customer.idType) : 6),  // 6 = Consumidor Final
+    type_organization_id: customer?.organizationTypeId || 2,  // 2 = Persona Natural
+    tax_regime_id: customer?.taxRegimeId || 2,  // 2 = No responsable de IVA
+    tax_level_id: mapTaxLevelId(customer?.taxLiabilityId),  // Maps old values to 1-5 range
   };
 
   // Build lines array with MATIAS API v2 field names
