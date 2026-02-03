@@ -90,20 +90,26 @@ export async function updateIntegrationConfig(
     defaultPrefix?: string;
     isEnabled?: boolean;
   },
-  actorInternalUserId: string
+  actorInternalUserId?: string | null
 ) {
   const result = await saveMatiasConfig(tenantId, data);
 
-  await db.insert(internalAuditLogs).values({
-    actorInternalUserId,
-    actionType: "TENANT_UPDATE",
-    tenantId,
-    entityType: "integration",
-    entityId: tenantId,
-    metadata: { 
-      updatedFields: Object.keys(data).filter(k => k !== "password"),
-    },
-  });
+  if (actorInternalUserId) {
+    try {
+      await db.insert(internalAuditLogs).values({
+        actorInternalUserId,
+        actionType: "TENANT_UPDATE",
+        tenantId,
+        entityType: "integration",
+        entityId: tenantId,
+        metadata: { 
+          updatedFields: Object.keys(data).filter(k => k !== "password"),
+        },
+      });
+    } catch (auditError) {
+      console.warn("[IntegrationService] Failed to log audit event:", auditError);
+    }
+  }
 
   return result;
 }
