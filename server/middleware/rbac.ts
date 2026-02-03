@@ -3,6 +3,56 @@ import { db } from "../db";
 import { users, userPortalRoles, portalRoles, rolePermissions, portalPermissions } from "@shared/schema";
 import { eq, and, inArray } from "drizzle-orm";
 
+// Role-based permissions mapping for regular tenant users
+const ROLE_PERMISSIONS: Record<string, string[]> = {
+  owner: [
+    'pos.view', 'pos.process_sale', 'pos.apply_discounts', 'pos.void_items', 'pos.hold_orders', 'pos.open_drawer',
+    'products.view', 'products.create', 'products.edit', 'products.delete',
+    'inventory.view', 'inventory.adjust', 'inventory.receive',
+    'customers.view', 'customers.create', 'customers.edit', 'customers.delete',
+    'orders.view', 'orders.refund',
+    'reports.view', 'reports.export',
+    'settings.view', 'settings.edit_operational', 'settings.edit_all',
+    'users.view', 'users.create', 'users.edit', 'users.delete',
+    'restaurant.view', 'restaurant.manage_tables', 'restaurant.manage_floor',
+  ],
+  admin: [
+    'pos.view', 'pos.process_sale', 'pos.apply_discounts', 'pos.void_items', 'pos.hold_orders', 'pos.open_drawer',
+    'products.view', 'products.create', 'products.edit', 'products.delete',
+    'inventory.view', 'inventory.adjust', 'inventory.receive',
+    'customers.view', 'customers.create', 'customers.edit', 'customers.delete',
+    'orders.view', 'orders.refund',
+    'reports.view', 'reports.export',
+    'settings.view', 'settings.edit_operational',
+    'users.view', 'users.create', 'users.edit',
+    'restaurant.view', 'restaurant.manage_tables', 'restaurant.manage_floor',
+  ],
+  manager: [
+    'pos.view', 'pos.process_sale', 'pos.apply_discounts', 'pos.void_items', 'pos.hold_orders', 'pos.open_drawer',
+    'products.view', 'products.create', 'products.edit',
+    'inventory.view', 'inventory.adjust', 'inventory.receive',
+    'customers.view', 'customers.create', 'customers.edit',
+    'orders.view', 'orders.refund',
+    'reports.view',
+    'settings.view',
+    'restaurant.view', 'restaurant.manage_tables',
+  ],
+  cashier: [
+    'pos.view', 'pos.process_sale', 'pos.apply_discounts', 'pos.hold_orders',
+    'products.view',
+    'customers.view', 'customers.create',
+    'orders.view',
+    'restaurant.view',
+  ],
+  kitchen: [
+    'restaurant.view',
+  ],
+  inventory: [
+    'products.view',
+    'inventory.view', 'inventory.adjust', 'inventory.receive',
+  ],
+};
+
 export interface PortalSession {
   userId: string;
   tenantId: string | null;
@@ -69,11 +119,16 @@ export async function loadPortalSession(req: Request, res: Response, next: NextF
       permissions = perms.map(p => `${p.resource}:${p.action}`);
     }
 
+    // Add role-based permissions for regular tenant users (based on user.role field)
+    if (user.role && ROLE_PERMISSIONS[user.role]) {
+      permissions = [...permissions, ...ROLE_PERMISSIONS[user.role]];
+    }
+
     req.portalSession = {
       userId: user.id,
       tenantId: user.tenantId || null,
       isInternal: user.isInternal || false,
-      roles: userRoles.map(r => r.roleName),
+      roles: [...userRoles.map(r => r.roleName), user.role || ''].filter(Boolean),
       permissions: Array.from(new Set(permissions)),
     };
 
