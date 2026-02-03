@@ -71,6 +71,7 @@ interface CustomerInfo {
   idType?: string | null;
   phone?: string | null;
   email?: string | null;
+  address?: string | null;
   loyaltyPoints?: number | null;
 }
 
@@ -138,6 +139,15 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
       date: formattedDate,
       cashier: data.cashier,
       customer: data.customer,
+      customerInfo: data.customerInfo ? {
+        name: data.customerInfo.name || undefined,
+        idType: data.customerInfo.idType || undefined,
+        idNumber: data.customerInfo.idNumber || undefined,
+        phone: data.customerInfo.phone || undefined,
+        email: data.customerInfo.email || undefined,
+        address: data.customerInfo.address || undefined,
+        loyaltyPoints: data.customerInfo.loyaltyPoints ?? undefined,
+      } : undefined,
       items: data.items.map(item => ({
         name: item.name,
         quantity: item.quantity,

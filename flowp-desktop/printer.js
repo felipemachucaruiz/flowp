@@ -444,7 +444,34 @@ async function buildReceipt(data) {
   if (data.cashier) {
     commands.push.apply(commands, Buffer.from('Cashier: ' + data.cashier + '\n'));
   }
-  if (data.customer) {
+  
+  // Customer info section (detailed for e-billing)
+  if (data.customerInfo) {
+    commands.push.apply(commands, Buffer.from('--------------------------------\n'));
+    commands.push.apply(commands, Buffer.from('CLIENTE / CUSTOMER:\n'));
+    
+    if (data.customerInfo.name) {
+      commands.push.apply(commands, Buffer.from(data.customerInfo.name + '\n'));
+    }
+    if (data.customerInfo.idNumber) {
+      var idLabel = 'ID';
+      if (data.customerInfo.idType === 'nit') idLabel = 'NIT';
+      else if (data.customerInfo.idType === 'cedula_ciudadania') idLabel = 'CC';
+      else if (data.customerInfo.idType === 'cedula_extranjeria') idLabel = 'CE';
+      else if (data.customerInfo.idType === 'pasaporte') idLabel = 'PAS';
+      commands.push.apply(commands, Buffer.from(idLabel + ': ' + data.customerInfo.idNumber + '\n'));
+    }
+    if (data.customerInfo.phone) {
+      commands.push.apply(commands, Buffer.from('Tel: ' + data.customerInfo.phone + '\n'));
+    }
+    if (data.customerInfo.email) {
+      commands.push.apply(commands, Buffer.from(data.customerInfo.email + '\n'));
+    }
+    if (data.customerInfo.address) {
+      commands.push.apply(commands, Buffer.from(data.customerInfo.address + '\n'));
+    }
+  } else if (data.customer) {
+    // Fallback to simple customer name
     commands.push.apply(commands, Buffer.from('Customer: ' + data.customer + '\n'));
   }
   

@@ -40,6 +40,16 @@ interface PrinterInfo {
   name: string;
 }
 
+interface CustomerInfo {
+  name?: string;
+  idType?: string;
+  idNumber?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  loyaltyPoints?: number;
+}
+
 interface ReceiptData {
   language?: string;
   businessName?: string;
@@ -52,6 +62,7 @@ interface ReceiptData {
   date?: string;
   cashier?: string;
   customer?: string;
+  customerInfo?: CustomerInfo;
   fontSize?: number;
   fontFamily?: string;
   logoSize?: number;
