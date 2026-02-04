@@ -810,13 +810,15 @@ export default function SalesHistoryPage() {
             <Button variant="outline" onClick={() => setReturnDialogOpen(false)}>
               {t("common.cancel")}
             </Button>
-            <Button
-              onClick={handleProcessReturn}
-              disabled={returnMutation.isPending || returnableItems.every(i => i.returnQuantity === 0)}
-              data-testid="button-confirm-return"
-            >
-              {returnMutation.isPending ? t("common.processing") : t("returns.confirm_return")}
-            </Button>
+            {returnableItems.length > 0 && (
+              <Button
+                onClick={handleProcessReturn}
+                disabled={returnMutation.isPending || returnableItems.every(i => i.returnQuantity === 0)}
+                data-testid="button-confirm-return"
+              >
+                {returnMutation.isPending ? t("common.processing") : t("returns.confirm_return")}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
