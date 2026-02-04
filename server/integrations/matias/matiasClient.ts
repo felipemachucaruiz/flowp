@@ -435,6 +435,8 @@ export async function saveMatiasConfig(
     defaultPrefix?: string;
     creditNoteResolutionNumber?: string;
     creditNotePrefix?: string;
+    creditNoteStartingNumber?: number | null;
+    creditNoteEndingNumber?: number | null;
     startingNumber?: number | null;
     endingNumber?: number | null;
     posTerminalNumber?: string;
@@ -475,6 +477,8 @@ export async function saveMatiasConfig(
           defaultPrefix: config.defaultPrefix,
           creditNoteResolutionNumber: config.creditNoteResolutionNumber,
           creditNotePrefix: config.creditNotePrefix,
+          creditNoteStartingNumber: config.creditNoteStartingNumber,
+          creditNoteEndingNumber: config.creditNoteEndingNumber,
           startingNumber: config.startingNumber,
           endingNumber: config.endingNumber,
           posTerminalNumber: config.posTerminalNumber,
@@ -502,6 +506,8 @@ export async function saveMatiasConfig(
         defaultPrefix: config.defaultPrefix,
         creditNoteResolutionNumber: config.creditNoteResolutionNumber,
         creditNotePrefix: config.creditNotePrefix,
+        creditNoteStartingNumber: config.creditNoteStartingNumber,
+        creditNoteEndingNumber: config.creditNoteEndingNumber,
         startingNumber: config.startingNumber,
         endingNumber: config.endingNumber,
         posTerminalNumber: config.posTerminalNumber,

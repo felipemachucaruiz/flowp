@@ -34,6 +34,8 @@ export async function getIntegrationStatus(tenantId: string) {
     creditNotePrefix: config.creditNotePrefix,
     startingNumber: config.startingNumber,
     endingNumber: config.endingNumber,
+    creditNoteStartingNumber: config.creditNoteStartingNumber,
+    creditNoteEndingNumber: config.creditNoteEndingNumber,
   };
 }
 
@@ -123,6 +125,8 @@ export async function updateIntegrationConfig(
     creditNotePrefix?: string;
     startingNumber?: number | null;
     endingNumber?: number | null;
+    creditNoteStartingNumber?: number | null;
+    creditNoteEndingNumber?: number | null;
     isEnabled?: boolean;
   },
   actorInternalUserId?: string | null

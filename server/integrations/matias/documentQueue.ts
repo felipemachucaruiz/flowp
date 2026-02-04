@@ -165,6 +165,7 @@ export async function getNextDocumentNumber(
   tenantId: string,
   resolutionNumber: string,
   prefix: string,
+  isCreditNote: boolean = false,
 ): Promise<number> {
   return await db.transaction(async (tx) => {
     // Use SELECT ... FOR UPDATE to acquire row-level lock and prevent race conditions
@@ -189,24 +190,32 @@ export async function getNextDocumentNumber(
       });
       
       let startNumber = 1;
+      let rangeEnd: number | null = null;
       
-      // If startingNumber is configured in MATIAS config, use it (mandatory override)
-      if (matiasConfig?.startingNumber && matiasConfig.startingNumber > 0) {
-        startNumber = matiasConfig.startingNumber;
-        console.log(`[MATIAS] Using configured starting number: ${startNumber}`);
+      // Use credit note-specific numbers if this is a credit note
+      if (isCreditNote) {
+        if (matiasConfig?.creditNoteStartingNumber && matiasConfig.creditNoteStartingNumber > 0) {
+          startNumber = matiasConfig.creditNoteStartingNumber;
+          console.log(`[MATIAS] Using configured credit note starting number: ${startNumber}`);
+        }
+        rangeEnd = matiasConfig?.creditNoteEndingNumber || null;
       } else {
-        // Fallback: try to get last document from MATIAS API
-        const client = await getMatiasClient(tenantId);
-        if (client) {
-          const lastDoc = await client.getLastDocument({ resolution: resolutionNumber, prefix });
-          if (lastDoc) {
-            startNumber = lastDoc.number + 1;
+        // If startingNumber is configured in MATIAS config, use it (mandatory override)
+        if (matiasConfig?.startingNumber && matiasConfig.startingNumber > 0) {
+          startNumber = matiasConfig.startingNumber;
+          console.log(`[MATIAS] Using configured starting number: ${startNumber}`);
+        } else {
+          // Fallback: try to get last document from MATIAS API
+          const client = await getMatiasClient(tenantId);
+          if (client) {
+            const lastDoc = await client.getLastDocument({ resolution: resolutionNumber, prefix });
+            if (lastDoc) {
+              startNumber = lastDoc.number + 1;
+            }
           }
         }
+        rangeEnd = matiasConfig?.endingNumber || null;
       }
-
-      // Also store the ending number for range validation
-      const rangeEnd = matiasConfig?.endingNumber || null;
 
       await tx.insert(electronicDocumentSequences).values({
         tenantId,
@@ -330,10 +339,12 @@ export async function queueCreditNote(params: {
   }
 
   try {
+    // Use credit note-specific numbering sequence
     const documentNumber = await getNextDocumentNumber(
       params.tenantId,
       resolutionNumber,
       prefix,
+      true, // isCreditNote = true
     );
 
     // Store credit note metadata in the queue record

@@ -1252,6 +1252,9 @@ export const tenantIntegrationsMatias = pgTable("tenant_integrations_matias", {
   // Credit Note Resolution/Numbering
   creditNoteResolutionNumber: text("credit_note_resolution_number"),
   creditNotePrefix: text("credit_note_prefix"),
+  creditNoteStartingNumber: integer("credit_note_starting_number"),
+  creditNoteEndingNumber: integer("credit_note_ending_number"),
+  creditNoteCurrentNumber: integer("credit_note_current_number"),
   
   // POS Configuration
   posTerminalNumber: text("pos_terminal_number"),

@@ -29,6 +29,8 @@ export default function AdminTenantDetail() {
     creditNotePrefix: "",
     startingNumber: "",
     endingNumber: "",
+    creditNoteStartingNumber: "",
+    creditNoteEndingNumber: "",
     isEnabled: true,
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -70,6 +72,8 @@ export default function AdminTenantDetail() {
         creditNotePrefix: integrationData.integration.creditNotePrefix || "",
         startingNumber: integrationData.integration.startingNumber?.toString() || "",
         endingNumber: integrationData.integration.endingNumber?.toString() || "",
+        creditNoteStartingNumber: integrationData.integration.creditNoteStartingNumber?.toString() || "",
+        creditNoteEndingNumber: integrationData.integration.creditNoteEndingNumber?.toString() || "",
         isEnabled: integrationData.integration.status === "configured",
       }));
     }
@@ -460,7 +464,7 @@ export default function AdminTenantDetail() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="startingNumber">Número Inicial</Label>
+                    <Label htmlFor="startingNumber">Número Inicial (Factura)</Label>
                     <Input
                       id="startingNumber"
                       type="number"
@@ -473,7 +477,7 @@ export default function AdminTenantDetail() {
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="endingNumber">Número Final</Label>
+                    <Label htmlFor="endingNumber">Número Final (Factura)</Label>
                     <Input
                       id="endingNumber"
                       type="number"
@@ -483,6 +487,34 @@ export default function AdminTenantDetail() {
                       data-testid="input-matias-ending-number"
                     />
                     <p className="text-xs text-muted-foreground">Último número de factura autorizado</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="creditNoteStartingNumber">Número Inicial (Nota Crédito)</Label>
+                    <Input
+                      id="creditNoteStartingNumber"
+                      type="number"
+                      placeholder="1"
+                      value={matiasConfig.creditNoteStartingNumber}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, creditNoteStartingNumber: e.target.value }))}
+                      data-testid="input-matias-cn-starting-number"
+                    />
+                    <p className="text-xs text-muted-foreground">Primer número de nota crédito autorizado</p>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="creditNoteEndingNumber">Número Final (Nota Crédito)</Label>
+                    <Input
+                      id="creditNoteEndingNumber"
+                      type="number"
+                      placeholder="1000"
+                      value={matiasConfig.creditNoteEndingNumber}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, creditNoteEndingNumber: e.target.value }))}
+                      data-testid="input-matias-cn-ending-number"
+                    />
+                    <p className="text-xs text-muted-foreground">Último número de nota crédito autorizado</p>
                   </div>
                 </div>
 
