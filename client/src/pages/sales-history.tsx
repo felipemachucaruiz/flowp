@@ -34,6 +34,7 @@ import {
   RotateCcw,
   Minus,
   Plus,
+  FileText,
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -82,6 +83,14 @@ export default function SalesHistoryPage() {
   const [refundMethod, setRefundMethod] = useState<string>("cash");
   const [restockItems, setRestockItems] = useState(true);
   const [isLoadingReturnable, setIsLoadingReturnable] = useState(false);
+
+  // Credit Note state
+  const [creditNoteDialogOpen, setCreditNoteDialogOpen] = useState(false);
+  const [creditNoteOrder, setCreditNoteOrder] = useState<OrderWithItems | null>(null);
+  const [creditNoteReason, setCreditNoteReason] = useState("");
+  const [creditNoteConcept, setCreditNoteConcept] = useState<string>("devolucion");
+  const [creditNoteRestockItems, setCreditNoteRestockItems] = useState(true);
+  const [isSubmittingCreditNote, setIsSubmittingCreditNote] = useState(false);
 
   const canProcessReturns = isOwner || isAdmin || isManager;
 
@@ -265,6 +274,51 @@ export default function SalesHistoryPage() {
     }, 0);
     const tax = subtotal * taxRate;
     return subtotal + tax;
+  };
+
+  // Credit Note functions
+  const openCreditNoteDialog = (order: OrderWithItems) => {
+    setCreditNoteOrder(order);
+    setCreditNoteReason("");
+    setCreditNoteConcept("devolucion");
+    setCreditNoteRestockItems(true);
+    setCreditNoteDialogOpen(true);
+  };
+
+  const handleSubmitCreditNote = async () => {
+    if (!creditNoteOrder || !tenant) return;
+    
+    setIsSubmittingCreditNote(true);
+    try {
+      const response = await apiRequest("POST", "/api/credit-notes", {
+        orderId: creditNoteOrder.id,
+        refundReason: creditNoteReason || "Nota Crédito",
+        correctionConcept: creditNoteConcept,
+        restockItems: creditNoteRestockItems,
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast({ 
+          title: t("creditNote.success"),
+          description: result.cude ? `CUDE: ${result.cude.slice(0, 20)}...` : undefined,
+        });
+        setCreditNoteDialogOpen(false);
+        setCreditNoteOrder(null);
+        queryClient.invalidateQueries({ queryKey: ["/api/orders/history"] });
+      } else {
+        toast({ 
+          title: t("creditNote.error"), 
+          description: result.warning || result.message,
+          variant: "destructive" 
+        });
+      }
+    } catch (error) {
+      toast({ title: t("creditNote.error"), variant: "destructive" });
+    } finally {
+      setIsSubmittingCreditNote(false);
+    }
   };
 
   const filteredOrders = orders?.filter((order) => {
@@ -539,6 +593,20 @@ export default function SalesHistoryPage() {
                             {t("returns.process_return")}
                           </Button>
                         )}
+                        {canProcessReturns && order.status === "completed" && order.cufe && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openCreditNoteDialog(order);
+                            }}
+                            data-testid={`button-credit-note-${order.id}`}
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            {t("creditNote.create")}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -694,6 +762,96 @@ export default function SalesHistoryPage() {
               data-testid="button-confirm-return"
             >
               {returnMutation.isPending ? t("common.processing") : t("returns.confirm_return")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={creditNoteDialogOpen} onOpenChange={setCreditNoteDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              {t("creditNote.title")} - #{creditNoteOrder?.orderNumber}
+            </DialogTitle>
+          </DialogHeader>
+
+          {creditNoteOrder && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted rounded-lg">
+                <div className="flex justify-between text-sm">
+                  <span>{t("creditNote.original_invoice")}</span>
+                  <span className="font-mono">{creditNoteOrder.cufe?.slice(0, 20)}...</span>
+                </div>
+                <div className="flex justify-between text-sm mt-1">
+                  <span>{t("creditNote.amount")}</span>
+                  <span className="font-bold">{formatCurrency(creditNoteOrder.total)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="credit-note-concept">{t("creditNote.correction_concept")}</Label>
+                <Select value={creditNoteConcept} onValueChange={setCreditNoteConcept}>
+                  <SelectTrigger id="credit-note-concept" data-testid="select-credit-note-concept">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="devolucion">{t("creditNote.concept_devolucion")}</SelectItem>
+                    <SelectItem value="anulacion">{t("creditNote.concept_anulacion")}</SelectItem>
+                    <SelectItem value="descuento">{t("creditNote.concept_descuento")}</SelectItem>
+                    <SelectItem value="ajuste_precio">{t("creditNote.concept_ajuste_precio")}</SelectItem>
+                    <SelectItem value="otros">{t("creditNote.concept_otros")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="credit-note-reason">{t("creditNote.reason")}</Label>
+                <Textarea
+                  id="credit-note-reason"
+                  value={creditNoteReason}
+                  onChange={(e) => setCreditNoteReason(e.target.value)}
+                  placeholder={t("creditNote.reason_placeholder")}
+                  rows={2}
+                  data-testid="textarea-credit-note-reason"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="credit-note-restock"
+                  checked={creditNoteRestockItems}
+                  onCheckedChange={(checked) => setCreditNoteRestockItems(checked as boolean)}
+                  data-testid="checkbox-credit-note-restock"
+                />
+                <Label htmlFor="credit-note-restock" className="text-sm cursor-pointer">
+                  {t("returns.restock_items")}
+                </Label>
+              </div>
+
+              <Separator />
+
+              <div className="flex justify-between items-center font-bold">
+                <span>{t("creditNote.refund_total")}</span>
+                <span className="text-lg">{formatCurrency(creditNoteOrder.total)}</span>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {t("creditNote.dian_notice")}
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCreditNoteDialogOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={handleSubmitCreditNote}
+              disabled={isSubmittingCreditNote}
+              data-testid="button-confirm-credit-note"
+            >
+              {isSubmittingCreditNote ? t("common.processing") : t("creditNote.submit")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -7,6 +7,7 @@ import {
   tenantEbillingUsage,
   tenantEbillingSubscriptions,
   ebillingPackages,
+  returns,
 } from "@shared/schema";
 import { eq, and, sql, lte, gte } from "drizzle-orm";
 import { getMatiasClient } from "./matiasClient";
@@ -290,6 +291,82 @@ export async function queueDocument(params: {
   }
 }
 
+// Credit note-specific queue function
+export async function queueCreditNote(params: {
+  tenantId: string;
+  returnId: string;
+  orderId: string;
+  refundAmount: number;
+  refundReason: string;
+  originalCufe: string;
+  originalNumber: string;
+  originalDate: string;
+  correctionConceptId: number;
+}): Promise<{ id: string; documentNumber: number } | null> {
+  const config = await db.query.tenantIntegrationsMatias.findFirst({
+    where: eq(tenantIntegrationsMatias.tenantId, params.tenantId),
+  });
+
+  if (!config || !config.isEnabled) {
+    console.log("MATIAS not enabled for tenant:", params.tenantId);
+    return null;
+  }
+
+  // Check document quota before queueing
+  const quotaCheck = await checkDocumentQuota(params.tenantId);
+  if (!quotaCheck.allowed) {
+    console.log(`[MATIAS] Credit note blocked due to quota: ${quotaCheck.reason}`);
+    return null;
+  }
+
+  // For credit notes, use credit note resolution if available, otherwise fallback to default
+  const resolutionNumber = config.creditNoteResolutionNumber || config.defaultResolutionNumber || "";
+  const prefix = config.creditNotePrefix || config.defaultPrefix || "";
+
+  if (!resolutionNumber) {
+    console.log("No resolution number configured for credit notes, tenant:", params.tenantId);
+    return null;
+  }
+
+  try {
+    const documentNumber = await getNextDocumentNumber(
+      params.tenantId,
+      resolutionNumber,
+      prefix,
+    );
+
+    // Store credit note metadata in the queue record
+    const creditNoteData = {
+      returnId: params.returnId,
+      orderId: params.orderId,
+      refundAmount: params.refundAmount,
+      refundReason: params.refundReason,
+      originalCufe: params.originalCufe,
+      originalNumber: params.originalNumber,
+      originalDate: params.originalDate,
+      correctionConceptId: params.correctionConceptId,
+    };
+
+    const [doc] = await db.insert(matiasDocumentQueue).values({
+      tenantId: params.tenantId,
+      kind: "POS_CREDIT_NOTE",
+      sourceType: "refund",
+      sourceId: params.returnId,
+      resolutionNumber,
+      prefix,
+      documentNumber,
+      orderNumber: `NC-${documentNumber}`,
+      status: "PENDING",
+      requestJson: creditNoteData,  // Store credit note specific data
+    }).returning();
+
+    return { id: doc.id, documentNumber };
+  } catch (error: any) {
+    console.error("Error queueing credit note:", error);
+    return null;
+  }
+}
+
 export async function processPendingDocuments(): Promise<void> {
   const pendingDocs = await db.query.matiasDocumentQueue.findMany({
     where: and(
@@ -348,6 +425,30 @@ export async function processDocument(documentId: string): Promise<boolean> {
         );
         break;
       case "POS_CREDIT_NOTE":
+        // Credit note data is stored in requestJson when queued
+        const cnData = doc.requestJson as {
+          orderId: string;
+          refundAmount: number;
+          refundReason: string;
+          originalCufe: string;
+          originalNumber: string;
+          originalDate: string;
+          correctionConceptId: number;
+        };
+        if (cnData) {
+          payload = await buildPosCreditNotePayload(
+            cnData.orderId,
+            cnData.refundAmount,
+            cnData.refundReason,
+            doc.resolutionNumber!,
+            doc.prefix!,
+            doc.documentNumber!,
+            cnData.originalCufe,
+            cnData.originalNumber,
+            cnData.originalDate,
+            cnData.correctionConceptId,
+          );
+        }
         break;
       case "POS_DEBIT_NOTE":
         break;
@@ -409,6 +510,18 @@ export async function processDocument(documentId: string): Promise<boolean> {
         .where(eq(matiasDocumentQueue.id, documentId));
 
       await incrementDocumentUsage(doc.tenantId, doc.kind);
+
+      // Update returns table if this is a credit note
+      if (doc.kind === "POS_CREDIT_NOTE" && doc.sourceId) {
+        await db.update(returns)
+          .set({
+            cude: response.data.cufe,  // Credit notes have CUDE, not CUFE
+            qrCode: response.data.qr_code,
+            trackId: response.data.track_id,
+            creditNoteStatus: "accepted",
+          })
+          .where(eq(returns.id, doc.sourceId));
+      }
 
       if (response.data.track_id) {
         const pdfBuffer = await client.downloadPdf(response.data.track_id);
@@ -560,6 +673,7 @@ export async function submitDocumentSync(params: {
   success: boolean;
   documentId?: string;
   documentNumber?: number;
+  prefix?: string;
   cufe?: string;
   qrCode?: string;
   trackId?: string;

@@ -2470,6 +2470,178 @@ export async function registerRoutes(
     }
   });
 
+  // ===== CREDIT NOTE (NOTA CREDITO) ROUTES =====
+
+  // Create credit note from a completed order with CUFE
+  app.post("/api/credit-notes", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId || !userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { orderId, refundAmount, refundReason, correctionConcept, restockItems, items } = req.body;
+
+      if (!orderId) {
+        return res.status(400).json({ message: "Order ID is required" });
+      }
+
+      // Get the order and verify it has a CUFE
+      const order = await storage.getOrder(orderId);
+      if (!order || order.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      if (!order.cufe) {
+        return res.status(400).json({ message: "Order does not have a CUFE. Only invoiced orders can have credit notes." });
+      }
+
+      // Get order items for validation
+      const orderItems = await storage.getOrderItems(orderId);
+      
+      // Calculate amounts based on items or use provided refundAmount
+      let subtotal = 0;
+      const itemsToProcess = items || orderItems.map(i => ({ 
+        orderItemId: i.id, 
+        productId: i.productId,
+        quantity: i.quantity, 
+        unitPrice: i.unitPrice 
+      }));
+
+      for (const item of itemsToProcess) {
+        subtotal += parseFloat(item.unitPrice) * item.quantity;
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      const taxRate = parseFloat(tenant?.taxRate || "0") / 100;
+      const taxAmount = subtotal * taxRate;
+      const total = refundAmount || (subtotal + taxAmount);
+
+      // Map correction concept to DIAN code
+      const correctionConceptMap: Record<string, number> = {
+        devolucion: 1,
+        anulacion: 2,
+        descuento: 3,
+        ajuste_precio: 4,
+        otros: 5,
+      };
+      const correctionConceptId = correctionConceptMap[correctionConcept || "devolucion"] || 1;
+
+      // Create return record
+      const returnNumber = await storage.getNextReturnNumber(tenantId);
+      const returnData = await storage.createReturn({
+        tenantId,
+        orderId,
+        returnNumber,
+        userId,
+        customerId: order.customerId,
+        status: "completed",
+        reason: "customer_changed_mind",
+        reasonNotes: refundReason || "Nota Crédito",
+        subtotal: subtotal.toFixed(2),
+        taxAmount: taxAmount.toFixed(2),
+        total: total.toFixed(2),
+        refundMethod: "cash",
+        restockItems: restockItems !== false,
+        // DIAN Credit Note fields
+        correctionConcept: correctionConcept || "devolucion",
+        originalCufe: order.cufe,
+        originalNumber: order.orderNumber?.toString() || "",
+        originalDate: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        creditNoteStatus: "pending",
+      });
+
+      // Create return items
+      for (const item of itemsToProcess) {
+        await storage.createReturnItem({
+          returnId: returnData.id,
+          orderItemId: item.orderItemId,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          taxAmount: (parseFloat(item.unitPrice) * item.quantity * taxRate).toFixed(2),
+        });
+
+        // Restock items if needed
+        if (restockItems !== false) {
+          await storage.createStockMovement({
+            tenantId,
+            productId: item.productId,
+            type: "return",
+            quantity: item.quantity,
+            referenceId: returnData.id,
+            notes: `Credit note #${returnNumber}`,
+            userId,
+          });
+        }
+      }
+
+      // Queue credit note for MATIAS submission
+      const { queueCreditNote, processDocument } = await import("./integrations/matias/documentQueue");
+      
+      const queueResult = await queueCreditNote({
+        tenantId,
+        returnId: returnData.id,
+        orderId,
+        refundAmount: total,
+        refundReason: refundReason || "Nota Crédito",
+        originalCufe: order.cufe,
+        originalNumber: order.orderNumber?.toString() || "",
+        originalDate: order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        correctionConceptId,
+      });
+
+      if (queueResult) {
+        // Process immediately for synchronous response
+        const processResult = await processDocument(queueResult.id);
+        
+        // Fetch updated return with CUDE
+        const updatedReturn = await storage.getReturn(returnData.id);
+        
+        res.json({
+          success: true,
+          return: updatedReturn,
+          documentId: queueResult.id,
+          documentNumber: queueResult.documentNumber,
+          cude: updatedReturn?.cude,
+          qrCode: updatedReturn?.qrCode,
+        });
+      } else {
+        // MATIAS not enabled or quota exceeded - still create return but without e-billing
+        res.json({
+          success: true,
+          return: returnData,
+          warning: "Credit note created but not submitted to DIAN (e-billing not configured or quota exceeded)",
+        });
+      }
+    } catch (error) {
+      console.error("Create credit note error:", error);
+      res.status(500).json({ message: "Failed to create credit note" });
+    }
+  });
+
+  // Get orders eligible for credit notes (completed orders with CUFE)
+  app.get("/api/credit-notes/eligible-orders", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json([]);
+      }
+
+      // Get completed orders with CUFE for this tenant
+      const orders = await storage.getOrdersByTenant(tenantId);
+      const eligibleOrders = orders.filter(order => 
+        order.status === "completed" && order.cufe
+      );
+
+      res.json(eligibleOrders);
+    } catch (error) {
+      console.error("Get eligible orders error:", error);
+      res.status(500).json({ message: "Failed to get eligible orders" });
+    }
+  });
+
   // ===== KITCHEN TICKETS ROUTES =====
 
   app.get("/api/kitchen/tickets", async (req: Request, res: Response) => {

@@ -364,6 +364,9 @@ export const payments = pgTable("payments", {
 export const returnStatusEnum = pgEnum("return_status", ["pending", "approved", "completed", "rejected"]);
 export const returnReasonEnum = pgEnum("return_reason", ["defective", "wrong_item", "customer_changed_mind", "damaged", "expired", "other"]);
 
+// DIAN Correction Concepts for Credit Notes
+export const correctionConceptEnum = pgEnum("correction_concept", ["devolucion", "anulacion", "descuento", "ajuste_precio", "otros"]);
+
 export const returns = pgTable("returns", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
@@ -380,6 +383,15 @@ export const returns = pgTable("returns", {
   refundMethod: paymentMethodEnum("refund_method").notNull(),
   restockItems: boolean("restock_items").default(true),
   createdAt: timestamp("created_at").defaultNow(),
+  // DIAN Credit Note fields
+  cude: text("cude"),  // Código Único de Documento Electrónico (for credit notes)
+  qrCode: text("qr_code"),
+  trackId: text("track_id"),
+  correctionConcept: correctionConceptEnum("correction_concept").default("devolucion"),
+  originalCufe: text("original_cufe"),  // CUFE of the original invoice
+  originalNumber: text("original_number"),  // Number of the original invoice
+  originalDate: text("original_date"),  // Date of the original invoice
+  creditNoteStatus: text("credit_note_status").default("pending"),  // pending, sent, accepted, rejected
 });
 
 export const returnItems = pgTable("return_items", {
@@ -1234,6 +1246,10 @@ export const tenantIntegrationsMatias = pgTable("tenant_integrations_matias", {
   startingNumber: integer("starting_number"),
   endingNumber: integer("ending_number"),
   currentNumber: integer("current_number"),
+  
+  // Credit Note Resolution/Numbering
+  creditNoteResolutionNumber: text("credit_note_resolution_number"),
+  creditNotePrefix: text("credit_note_prefix"),
   
   // POS Configuration
   posTerminalNumber: text("pos_terminal_number"),

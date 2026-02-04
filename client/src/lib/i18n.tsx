@@ -1031,6 +1031,25 @@ const translations = {
     "returns.refund_total": "Refund Total",
     "returns.confirm_return": "Confirm Return",
     
+    // Credit Note (Nota Crédito)
+    "creditNote.title": "Credit Note",
+    "creditNote.create": "Credit Note",
+    "creditNote.original_invoice": "Original Invoice (CUFE)",
+    "creditNote.amount": "Amount",
+    "creditNote.correction_concept": "Correction Concept",
+    "creditNote.concept_devolucion": "Return (Devolución)",
+    "creditNote.concept_anulacion": "Cancellation (Anulación)",
+    "creditNote.concept_descuento": "Discount",
+    "creditNote.concept_ajuste_precio": "Price Adjustment",
+    "creditNote.concept_otros": "Other",
+    "creditNote.reason": "Reason for credit note",
+    "creditNote.reason_placeholder": "Describe the reason for this credit note...",
+    "creditNote.refund_total": "Credit Note Total",
+    "creditNote.submit": "Submit Credit Note",
+    "creditNote.success": "Credit note submitted to DIAN",
+    "creditNote.error": "Failed to create credit note",
+    "creditNote.dian_notice": "This credit note will be submitted to DIAN and linked to the original invoice.",
+    
     // Login
     "login.title": "Sign In",
     "login.subtitle": "Sign in to your account to continue",
@@ -2689,6 +2708,25 @@ const translations = {
     "returns.refund_total": "Total del Reembolso",
     "returns.confirm_return": "Confirmar Devolución",
     
+    // Credit Note (Nota Crédito)
+    "creditNote.title": "Nota Crédito",
+    "creditNote.create": "Nota Crédito",
+    "creditNote.original_invoice": "Factura Original (CUFE)",
+    "creditNote.amount": "Monto",
+    "creditNote.correction_concept": "Concepto de Corrección",
+    "creditNote.concept_devolucion": "Devolución",
+    "creditNote.concept_anulacion": "Anulación",
+    "creditNote.concept_descuento": "Descuento",
+    "creditNote.concept_ajuste_precio": "Ajuste de Precio",
+    "creditNote.concept_otros": "Otros",
+    "creditNote.reason": "Razón de la nota crédito",
+    "creditNote.reason_placeholder": "Describa la razón de esta nota crédito...",
+    "creditNote.refund_total": "Total Nota Crédito",
+    "creditNote.submit": "Enviar Nota Crédito",
+    "creditNote.success": "Nota crédito enviada a la DIAN",
+    "creditNote.error": "Error al crear la nota crédito",
+    "creditNote.dian_notice": "Esta nota crédito será enviada a la DIAN y vinculada a la factura original.",
+    
     // Login
     "login.title": "Iniciar Sesión",
     "login.subtitle": "Inicia sesión en tu cuenta para continuar",
@@ -4343,6 +4381,25 @@ const translations = {
     "returns.restock_items": "Repor itens devolvidos ao estoque",
     "returns.refund_total": "Total do Reembolso",
     "returns.confirm_return": "Confirmar Devolução",
+    
+    // Credit Note (Nota de Crédito)
+    "creditNote.title": "Nota de Crédito",
+    "creditNote.create": "Nota de Crédito",
+    "creditNote.original_invoice": "Fatura Original (CUFE)",
+    "creditNote.amount": "Valor",
+    "creditNote.correction_concept": "Conceito de Correção",
+    "creditNote.concept_devolucion": "Devolução",
+    "creditNote.concept_anulacion": "Anulação",
+    "creditNote.concept_descuento": "Desconto",
+    "creditNote.concept_ajuste_precio": "Ajuste de Preço",
+    "creditNote.concept_otros": "Outros",
+    "creditNote.reason": "Motivo da nota de crédito",
+    "creditNote.reason_placeholder": "Descreva o motivo desta nota de crédito...",
+    "creditNote.refund_total": "Total da Nota de Crédito",
+    "creditNote.submit": "Enviar Nota de Crédito",
+    "creditNote.success": "Nota de crédito enviada ao DIAN",
+    "creditNote.error": "Erro ao criar nota de crédito",
+    "creditNote.dian_notice": "Esta nota de crédito será enviada ao DIAN e vinculada à fatura original.",
     
     // Login
     "login.title": "Entrar",
