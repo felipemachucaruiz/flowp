@@ -464,6 +464,11 @@ export default function SalesHistoryPage() {
                         <Badge variant={order.status === "completed" ? "default" : "secondary"} className="text-xs">
                           {t(`sales.status_${order.status || "pending"}` as any)}
                         </Badge>
+                        {order.creditNoteStatus && order.creditNoteStatus !== "none" && (
+                          <Badge variant="destructive" className="text-xs">
+                            {t("creditNote.badge")}
+                          </Badge>
+                        )}
                         {order.customer && (
                           <span className="text-sm font-medium">{order.customer.name}</span>
                         )}
@@ -506,6 +511,11 @@ export default function SalesHistoryPage() {
                           <Badge variant={order.status === "completed" ? "default" : "secondary"}>
                             {t(`sales.status_${order.status || "pending"}` as any)}
                           </Badge>
+                          {order.creditNoteStatus && order.creditNoteStatus !== "none" && (
+                            <Badge variant="destructive">
+                              {t("creditNote.badge")}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <Clock className="w-3 h-3" />
@@ -603,7 +613,7 @@ export default function SalesHistoryPage() {
                             {t("returns.process_return")}
                           </Button>
                         )}
-                        {canProcessReturns && order.status === "completed" && order.cufe && (
+                        {canProcessReturns && order.status === "completed" && order.cufe && !order.creditNoteStatus && (
                           <Button
                             variant="outline"
                             size="sm"

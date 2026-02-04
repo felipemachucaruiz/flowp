@@ -1049,6 +1049,7 @@ const translations = {
     "creditNote.success": "Credit note submitted to DIAN",
     "creditNote.error": "Failed to create credit note",
     "creditNote.dian_notice": "This credit note will be submitted to DIAN and linked to the original invoice.",
+    "creditNote.badge": "Credit Note",
     
     // Login
     "login.title": "Sign In",
@@ -2726,6 +2727,7 @@ const translations = {
     "creditNote.success": "Nota crédito enviada a la DIAN",
     "creditNote.error": "Error al crear la nota crédito",
     "creditNote.dian_notice": "Esta nota crédito será enviada a la DIAN y vinculada a la factura original.",
+    "creditNote.badge": "Nota Crédito",
     
     // Login
     "login.title": "Iniciar Sesión",
@@ -4400,6 +4402,7 @@ const translations = {
     "creditNote.success": "Nota de crédito enviada ao DIAN",
     "creditNote.error": "Erro ao criar nota de crédito",
     "creditNote.dian_notice": "Esta nota de crédito será enviada ao DIAN e vinculada à fatura original.",
+    "creditNote.badge": "Nota de Crédito",
     
     // Login
     "login.title": "Entrar",
