@@ -4193,7 +4193,7 @@ export async function registerRoutes(
         receiptShowLogo, receiptHeaderText, receiptFooterText, 
         receiptShowAddress, receiptShowPhone, receiptTaxId, receiptLogo, onboardingComplete,
         receiptLogoSize, receiptFontSize, receiptFontFamily,
-        couponEnabled, couponText, openCashDrawer
+        couponEnabled, couponText, openCashDrawer, allowZeroStockSales
       } = req.body;
       
       const updated = await storage.updateTenant(tenantId, {
@@ -4220,6 +4220,7 @@ export async function registerRoutes(
         couponEnabled: couponEnabled !== undefined ? couponEnabled : undefined,
         couponText: couponText !== undefined ? couponText : undefined,
         openCashDrawer: openCashDrawer !== undefined ? openCashDrawer : undefined,
+        allowZeroStockSales: allowZeroStockSales !== undefined ? allowZeroStockSales : undefined,
       });
       
       if (!updated) {
