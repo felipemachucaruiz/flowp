@@ -30,6 +30,8 @@ export async function getIntegrationStatus(tenantId: string) {
     hasToken: config.hasToken,
     defaultResolutionNumber: config.defaultResolutionNumber,
     defaultPrefix: config.defaultPrefix,
+    creditNoteResolutionNumber: config.creditNoteResolutionNumber,
+    creditNotePrefix: config.creditNotePrefix,
     startingNumber: config.startingNumber,
     endingNumber: config.endingNumber,
   };
@@ -117,6 +119,8 @@ export async function updateIntegrationConfig(
     password: string;
     defaultResolutionNumber?: string;
     defaultPrefix?: string;
+    creditNoteResolutionNumber?: string;
+    creditNotePrefix?: string;
     startingNumber?: number | null;
     endingNumber?: number | null;
     isEnabled?: boolean;

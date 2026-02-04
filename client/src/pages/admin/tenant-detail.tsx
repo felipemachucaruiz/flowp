@@ -25,6 +25,8 @@ export default function AdminTenantDetail() {
     password: "",
     defaultResolutionNumber: "",
     defaultPrefix: "",
+    creditNoteResolutionNumber: "",
+    creditNotePrefix: "",
     startingNumber: "",
     endingNumber: "",
     isEnabled: true,
@@ -64,6 +66,8 @@ export default function AdminTenantDetail() {
         email: integrationData.integration.email || "",
         defaultResolutionNumber: integrationData.integration.defaultResolutionNumber || "",
         defaultPrefix: integrationData.integration.defaultPrefix || "",
+        creditNoteResolutionNumber: integrationData.integration.creditNoteResolutionNumber || "",
+        creditNotePrefix: integrationData.integration.creditNotePrefix || "",
         startingNumber: integrationData.integration.startingNumber?.toString() || "",
         endingNumber: integrationData.integration.endingNumber?.toString() || "",
         isEnabled: integrationData.integration.status === "configured",
@@ -425,6 +429,32 @@ export default function AdminTenantDetail() {
                       onChange={(e) => setMatiasConfig(prev => ({ ...prev, defaultPrefix: e.target.value }))}
                       data-testid="input-matias-prefix"
                     />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="creditNoteResolutionNumber">Nota Crédito Resolution</Label>
+                    <Input
+                      id="creditNoteResolutionNumber"
+                      placeholder="18760000002"
+                      value={matiasConfig.creditNoteResolutionNumber}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, creditNoteResolutionNumber: e.target.value }))}
+                      data-testid="input-matias-credit-note-resolution"
+                    />
+                    <p className="text-xs text-muted-foreground">Resolución DIAN para notas crédito</p>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="creditNotePrefix">Nota Crédito Prefix</Label>
+                    <Input
+                      id="creditNotePrefix"
+                      placeholder="NC"
+                      value={matiasConfig.creditNotePrefix}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, creditNotePrefix: e.target.value }))}
+                      data-testid="input-matias-credit-note-prefix"
+                    />
+                    <p className="text-xs text-muted-foreground">Prefijo para notas crédito (ej: NC)</p>
                   </div>
                 </div>
 
