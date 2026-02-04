@@ -2464,6 +2464,7 @@ export async function registerRoutes(
       }
 
       // Create credit note if requested and order has CUFE
+      console.log(`[Returns] Credit note check - createCreditNote: ${createCreditNote}, order.cufe: ${order.cufe}`);
       if (createCreditNote && order.cufe) {
         try {
           const { queueCreditNote } = await import("./integrations/matias");
@@ -2473,7 +2474,9 @@ export async function registerRoutes(
           const originalNumber = originalDoc?.documentNumber?.toString() || order.orderNumber?.toString() || "";
           const originalDate = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
           
-          await queueCreditNote({
+          console.log(`[Returns] Queueing credit note - originalNumber: ${originalNumber}, originalDate: ${originalDate}`);
+          
+          const queueResult = await queueCreditNote({
             tenantId,
             returnId: returnData.id,
             orderId,
@@ -2485,19 +2488,27 @@ export async function registerRoutes(
             correctionConceptId: 1, // 1 = Devolución
           });
           
-          // Update return with credit note status
-          await storage.updateReturn(returnData.id, {
-            creditNoteStatus: "pending",
-            originalCufe: order.cufe,
-            originalNumber,
-            originalDate,
-          });
+          console.log(`[Returns] queueCreditNote result:`, queueResult);
           
-          console.log(`[Returns] Credit note queued for return #${returnNumber}`);
+          if (queueResult) {
+            // Update return with credit note status
+            await storage.updateReturn(returnData.id, {
+              creditNoteStatus: "pending",
+              originalCufe: order.cufe,
+              originalNumber,
+              originalDate,
+            });
+            
+            console.log(`[Returns] Credit note queued for return #${returnNumber}`);
+          } else {
+            console.log(`[Returns] queueCreditNote returned null - check MATIAS config or quota`);
+          }
         } catch (creditNoteError) {
           console.error("[Returns] Failed to create credit note:", creditNoteError);
           // Don't fail the return if credit note fails
         }
+      } else {
+        console.log(`[Returns] Skipping credit note - createCreditNote: ${createCreditNote}, order.cufe: ${order.cufe ? 'present' : 'missing'}`);
       }
 
       // Update order status to reflect it has returns
