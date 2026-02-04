@@ -456,6 +456,11 @@ export default function SalesHistoryPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold">{t("sales.order_number")}{order.orderNumber}</span>
+                        {order.cufe && order.prefix && (
+                          <Badge variant="outline" className="text-xs font-mono">
+                            {order.prefix}{order.documentNumber || order.orderNumber}
+                          </Badge>
+                        )}
                         <Badge variant={order.status === "completed" ? "default" : "secondary"} className="text-xs">
                           {t(`sales.status_${order.status || "pending"}` as any)}
                         </Badge>
@@ -493,6 +498,11 @@ export default function SalesHistoryPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-semibold">{t("sales.order_number")}{order.orderNumber}</span>
+                          {order.cufe && order.prefix && (
+                            <Badge variant="outline" className="font-mono">
+                              {order.prefix}{order.documentNumber || order.orderNumber}
+                            </Badge>
+                          )}
                           <Badge variant={order.status === "completed" ? "default" : "secondary"}>
                             {t(`sales.status_${order.status || "pending"}` as any)}
                           </Badge>

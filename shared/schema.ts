@@ -317,6 +317,8 @@ export const orders = pgTable("orders", {
   cufe: text("cufe"),  // Código Único de Factura Electrónica
   qrCode: text("qr_code"),  // QR code for receipt printing
   trackId: text("track_id"),  // MATIAS tracking ID
+  prefix: text("prefix"),  // DIAN resolution prefix (e.g., "SETT")
+  documentNumber: integer("document_number"),  // DIAN sequential number
 });
 
 // Order Items

@@ -6,7 +6,7 @@ import {
   systemSettings, passwordResetTokens, emailTemplates, emailLogs, notifications,
   suppliers, purchaseOrders, purchaseOrderItems, supplierIngredients, supplierProducts,
   ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
-  saleIngredientConsumptions, ingredientAlerts,
+  saleIngredientConsumptions, ingredientAlerts, matiasDocumentQueue,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
   type Category, type InsertCategory, type Product, type InsertProduct,
@@ -564,8 +564,31 @@ export class DatabaseStorage implements IStorage {
           customer = cust || null;
         }
         
+        // Get billing info from document queue if order has CUFE but missing prefix/documentNumber
+        let prefix = order.prefix;
+        let documentNumber = order.documentNumber;
+        if (order.cufe && (!prefix || !documentNumber)) {
+          const [billingDoc] = await db
+            .select({
+              prefix: matiasDocumentQueue.prefix,
+              documentNumber: matiasDocumentQueue.documentNumber,
+            })
+            .from(matiasDocumentQueue)
+            .where(and(
+              eq(matiasDocumentQueue.sourceId, order.id),
+              eq(matiasDocumentQueue.status, "ACCEPTED")
+            ))
+            .limit(1);
+          if (billingDoc) {
+            prefix = billingDoc.prefix;
+            documentNumber = billingDoc.documentNumber;
+          }
+        }
+        
         return {
           ...order,
+          prefix,
+          documentNumber,
           items,
           payments: orderPayments,
           customer,
