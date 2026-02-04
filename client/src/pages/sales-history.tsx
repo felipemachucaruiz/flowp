@@ -52,6 +52,7 @@ interface OrderWithItems extends Order {
     method: string;
     amount: string;
   }[];
+  creditNoteStatus?: string | null;
 }
 
 interface ReturnableItem {
@@ -465,9 +466,16 @@ export default function SalesHistoryPage() {
                           {t(`sales.status_${order.status || "pending"}` as any)}
                         </Badge>
                         {order.creditNoteStatus && order.creditNoteStatus !== "none" && (
-                          <Badge variant="destructive" className="text-xs">
-                            {t("creditNote.badge")}
-                          </Badge>
+                          <div className="flex items-center gap-1">
+                            <Badge variant="destructive" className="text-xs">
+                              {t("creditNote.badge")}
+                            </Badge>
+                            {order.prefix && order.documentNumber && (
+                              <span className="text-xs text-muted-foreground font-mono">
+                                (Ref: {order.prefix}{order.documentNumber})
+                              </span>
+                            )}
+                          </div>
                         )}
                         {order.customer && (
                           <span className="text-sm font-medium">{order.customer.name}</span>
@@ -512,9 +520,16 @@ export default function SalesHistoryPage() {
                             {t(`sales.status_${order.status || "pending"}` as any)}
                           </Badge>
                           {order.creditNoteStatus && order.creditNoteStatus !== "none" && (
-                            <Badge variant="destructive">
-                              {t("creditNote.badge")}
-                            </Badge>
+                            <div className="flex items-center gap-1">
+                              <Badge variant="destructive">
+                                {t("creditNote.badge")}
+                              </Badge>
+                              {order.prefix && order.documentNumber && (
+                                <span className="text-xs text-muted-foreground font-mono">
+                                  (Ref: {order.prefix}{order.documentNumber})
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
