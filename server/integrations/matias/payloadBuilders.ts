@@ -7,8 +7,9 @@ import {
   products,
   payments,
   tenantIntegrationsMatias,
+  matiasDocumentQueue,
 } from "@shared/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
 import { 
   MATIAS_MEANS_PAYMENT,
   MATIAS_PAYMENT_METHOD,
@@ -339,6 +340,18 @@ export async function buildPosCreditNotePayload(
     where: eq(tenantIntegrationsMatias.tenantId, order.tenantId),
   });
 
+  // Get the original invoice prefix from the POS document queue record
+  const originalPosDoc = await db.query.matiasDocumentQueue.findFirst({
+    where: and(
+      eq(matiasDocumentQueue.sourceId, orderId),
+      eq(matiasDocumentQueue.kind, "POS"),
+    ),
+  });
+  
+  // Combine original invoice prefix + number for the full reference (e.g., "LZT281")
+  const originalInvoicePrefix = originalPosDoc?.prefix || matiasConfig?.defaultPrefix || "";
+  const fullOriginalReference = `${originalInvoicePrefix}${originalNumber}`;
+
   if (!matiasConfig) return null;
 
   const now = new Date();
@@ -397,13 +410,13 @@ export async function buildPosCreditNotePayload(
       tax_level_id: mapTaxLevelId(customer?.taxLiabilityId),
     },
     billing_reference: {
-      number: originalNumber,
+      number: fullOriginalReference,  // Full reference with prefix (e.g., "LZT281")
       uuid: originalCufe,
       date: originalDate,  // MATIAS expects 'date' not 'issue_date'
       scheme_name: "CUFE-SHA384",
     },
     discrepancy_response: {
-      reference_id: originalNumber,  // Original invoice number (e.g., "FVP1")
+      reference_id: fullOriginalReference,  // Full reference with prefix (e.g., "LZT281")
       response_id: "2",              // Response type per MATIAS example
       correction_concept_id: correctionConceptId,
       description: refundReason,

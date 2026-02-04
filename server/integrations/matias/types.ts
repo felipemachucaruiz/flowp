@@ -199,12 +199,14 @@ export const matiasDocumentSignatureSchema = z.object({
 export const matiasBillingReferenceSchema = z.object({
   number: z.string(),
   uuid: z.string(),
-  issue_date: z.string(),
+  date: z.string(),  // MATIAS API uses 'date' not 'issue_date'
   scheme_name: z.string().optional(),
 });
 
 // Discrepancy response (for credit/debit notes)
 export const matiasDiscrepancyResponseSchema = z.object({
+  reference_id: z.string(),  // Full reference with prefix (e.g., "LZT281")
+  response_id: z.string(),   // Response type (e.g., "2")
   correction_concept_id: z.number(),
   description: z.string(),
 });
