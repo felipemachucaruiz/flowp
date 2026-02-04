@@ -529,6 +529,24 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
         ${data.electronicBilling.cufe}
       </div>
     </div>
+    ` : data.electronicBilling?.documentNumber ? `
+    <div class="electronic-billing-pending" style="margin: 15px 0; padding: 10px 0; border-top: 1px dashed #000; text-align: center;">
+      <div style="font-weight: bold; margin-bottom: 8px; font-size: ${Math.round(fontSize * 0.9)}px;">
+        ${lang === "es" ? "FACTURA ELECTRÓNICA PENDIENTE" : lang === "pt" ? "FATURA ELETRÔNICA PENDENTE" : "ELECTRONIC INVOICE PENDING"}
+      </div>
+      ${data.electronicBilling.prefix && data.electronicBilling.documentNumber ? `
+        <div style="font-size: ${Math.round(fontSize * 0.85)}px; margin-bottom: 8px;">
+          #: ${data.electronicBilling.prefix}${data.electronicBilling.documentNumber}
+        </div>
+      ` : ""}
+      <div style="font-size: ${Math.round(fontSize * 0.75)}px; padding: 8px; background: #f5f5f5; border-radius: 4px; line-height: 1.4;">
+        ${lang === "es" 
+          ? "Conexión DIAN no disponible. El documento será enviado automáticamente cuando se restablezca la conexión." 
+          : lang === "pt" 
+            ? "Conexão DIAN indisponível. O documento será enviado automaticamente quando a conexão for restabelecida."
+            : "DIAN connection unavailable. Document will be sent automatically when connection is restored."}
+      </div>
+    </div>
     ` : ""}
     
     <div class="footer">
