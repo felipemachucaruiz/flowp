@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Building2, FileText, Package, AlertTriangle, CheckCircle, XCircle, Settings, Wifi, WifiOff, Loader2 } from "lucide-react";
+import { ArrowLeft, Building2, FileText, Package, AlertTriangle, CheckCircle, XCircle, Settings, Wifi, WifiOff, Loader2, Clock, RefreshCw } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { adminFetch } from "@/lib/admin-fetch";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +45,14 @@ export default function AdminTenantDetail() {
       const res = await adminFetch(`/api/internal-admin/tenants/${tenantId}/ebilling/integration`);
       const data = await res.json();
       return data;
+    },
+  });
+
+  const { data: documentsData, isLoading: documentsLoading } = useQuery({
+    queryKey: ["/api/internal-admin/ebilling/documents", tenantId],
+    queryFn: async () => {
+      const res = await adminFetch(`/api/internal-admin/ebilling/documents?tenantId=${tenantId}&limit=20`);
+      return res.json();
     },
   });
 
@@ -468,9 +477,77 @@ export default function AdminTenantDetail() {
           <Card>
             <CardHeader>
               <CardTitle>Recent Documents</CardTitle>
+              <CardDescription>Electronic billing documents for this tenant</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">View all documents in the Documents page</p>
+              {documentsLoading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : !documentsData?.documents?.length ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No documents found for this tenant</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>CUFE</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {documentsData.documents.map((doc: any) => (
+                      <TableRow key={doc.id}>
+                        <TableCell className="font-medium">
+                          {doc.prefix}{doc.documentNumber}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {doc.kind === "POS" ? "POS Invoice" : 
+                             doc.kind === "INVOICE" ? "Invoice" :
+                             doc.kind === "POS_CREDIT_NOTE" ? "Credit Note" :
+                             doc.kind === "POS_DEBIT_NOTE" ? "Debit Note" :
+                             doc.kind === "SUPPORT_DOC" ? "Support Doc" : doc.kind}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {doc.status === "SUCCESS" ? (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Success
+                            </Badge>
+                          ) : doc.status === "PENDING" ? (
+                            <Badge variant="secondary">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Pending
+                            </Badge>
+                          ) : doc.status === "RETRY" ? (
+                            <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Retry
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive">
+                              <XCircle className="h-3 w-3 mr-1" />
+                              {doc.status}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(doc.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs max-w-[200px] truncate">
+                          {doc.cufe ? doc.cufe.slice(0, 20) + "..." : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
