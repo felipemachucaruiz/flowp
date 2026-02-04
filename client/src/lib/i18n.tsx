@@ -999,6 +999,7 @@ const translations = {
     "sales.status_completed": "Completed",
     "sales.status_pending": "Pending",
     "sales.status_cancelled": "Cancelled",
+    "sales.status_returned": "Returned",
     "sales.status_in_progress": "In Progress",
     "sales.status_held": "Held",
     "sales.subtotal": "Subtotal",
@@ -1028,6 +1029,7 @@ const translations = {
     "returns.notes_placeholder": "Optional notes about this return...",
     "returns.refund_method": "Refund method",
     "returns.restock_items": "Restock returned items to inventory",
+    "returns.create_credit_note": "Create credit note (Nota Crédito)",
     "returns.refund_total": "Refund Total",
     "returns.confirm_return": "Confirm Return",
     
@@ -2677,6 +2679,7 @@ const translations = {
     "sales.status_completed": "Completado",
     "sales.status_pending": "Pendiente",
     "sales.status_cancelled": "Cancelado",
+    "sales.status_returned": "Devuelto",
     "sales.status_in_progress": "En Progreso",
     "sales.status_held": "En Espera",
     "sales.subtotal": "Subtotal",
@@ -2706,6 +2709,7 @@ const translations = {
     "returns.notes_placeholder": "Notas opcionales sobre esta devolución...",
     "returns.refund_method": "Método de reembolso",
     "returns.restock_items": "Reponer artículos devueltos al inventario",
+    "returns.create_credit_note": "Crear nota crédito",
     "returns.refund_total": "Total del Reembolso",
     "returns.confirm_return": "Confirmar Devolución",
     
@@ -4352,6 +4356,7 @@ const translations = {
     "sales.status_completed": "Concluído",
     "sales.status_pending": "Pendente",
     "sales.status_cancelled": "Cancelado",
+    "sales.status_returned": "Devolvido",
     "sales.status_in_progress": "Em Andamento",
     "sales.status_held": "Em Espera",
     "sales.subtotal": "Subtotal",
@@ -4381,6 +4386,7 @@ const translations = {
     "returns.notes_placeholder": "Notas opcionais sobre esta devolução...",
     "returns.refund_method": "Método de reembolso",
     "returns.restock_items": "Repor itens devolvidos ao estoque",
+    "returns.create_credit_note": "Criar nota de crédito",
     "returns.refund_total": "Total do Reembolso",
     "returns.confirm_return": "Confirmar Devolução",
     

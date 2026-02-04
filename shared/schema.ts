@@ -319,6 +319,8 @@ export const orders = pgTable("orders", {
   trackId: text("track_id"),  // MATIAS tracking ID
   prefix: text("prefix"),  // DIAN resolution prefix (e.g., "SETT")
   documentNumber: integer("document_number"),  // DIAN sequential number
+  // Returns tracking
+  hasReturns: boolean("has_returns").default(false),  // True if order has any returns
 });
 
 // Order Items

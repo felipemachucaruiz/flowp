@@ -2371,7 +2371,7 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const { orderId, reason, reasonNotes, refundMethod, restockItems, items } = req.body;
+      const { orderId, reason, reasonNotes, refundMethod, restockItems, items, createCreditNote } = req.body;
 
       if (!orderId || !items || items.length === 0) {
         return res.status(400).json({ message: "Order ID and items are required" });
@@ -2462,6 +2462,46 @@ export async function registerRoutes(
       if (owner?.email && ownerPrefs?.refundAlerts) {
         console.log(`Refund alert would be sent to ${owner.email} for return #${returnNumber}`);
       }
+
+      // Create credit note if requested and order has CUFE
+      if (createCreditNote && order.cufe) {
+        try {
+          const { queueCreditNote } = await import("./integrations/matias");
+          
+          // Get the original document number from the MATIAS queue
+          const originalDoc = await storage.getMatiasDocumentBySourceId(orderId);
+          const originalNumber = originalDoc?.documentNumber?.toString() || order.orderNumber?.toString() || "";
+          const originalDate = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+          
+          await queueCreditNote({
+            tenantId,
+            returnId: returnData.id,
+            orderId,
+            refundAmount: total,
+            refundReason: reasonNotes || reason || "Devolución",
+            originalCufe: order.cufe,
+            originalNumber,
+            originalDate,
+            correctionConceptId: 1, // 1 = Devolución
+          });
+          
+          // Update return with credit note status
+          await storage.updateReturn(returnData.id, {
+            creditNoteStatus: "pending",
+            originalCufe: order.cufe,
+            originalNumber,
+            originalDate,
+          });
+          
+          console.log(`[Returns] Credit note queued for return #${returnNumber}`);
+        } catch (creditNoteError) {
+          console.error("[Returns] Failed to create credit note:", creditNoteError);
+          // Don't fail the return if credit note fails
+        }
+      }
+
+      // Update order status to reflect it has returns
+      await storage.updateOrder(orderId, { hasReturns: true });
 
       res.json(returnData);
     } catch (error) {

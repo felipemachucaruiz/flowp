@@ -53,6 +53,7 @@ interface OrderWithItems extends Order {
     amount: string;
   }[];
   creditNoteStatus?: string | null;
+  hasReturns?: boolean | null;
 }
 
 interface ReturnableItem {
@@ -81,6 +82,7 @@ export default function SalesHistoryPage() {
   const [returnableItems, setReturnableItems] = useState<ReturnableItem[]>([]);
   const [returnReason, setReturnReason] = useState<string>("customer_changed_mind");
   const [returnNotes, setReturnNotes] = useState("");
+  const [createCreditNoteWithReturn, setCreateCreditNoteWithReturn] = useState(false);
   const [refundMethod, setRefundMethod] = useState<string>("cash");
   const [restockItems, setRestockItems] = useState(true);
   const [isLoadingReturnable, setIsLoadingReturnable] = useState(false);
@@ -228,6 +230,7 @@ export default function SalesHistoryPage() {
       refundMethod: string;
       restockItems: boolean;
       items: { orderItemId: string; quantity: number }[];
+      createCreditNote?: boolean;
     }) => {
       return apiRequest("POST", "/api/returns", data);
     },
@@ -236,6 +239,7 @@ export default function SalesHistoryPage() {
       setReturnDialogOpen(false);
       setReturnOrder(null);
       setReturnableItems([]);
+      setCreateCreditNoteWithReturn(false);
       queryClient.invalidateQueries({ queryKey: ["/api/orders/history"] });
     },
     onError: () => {
@@ -265,6 +269,7 @@ export default function SalesHistoryPage() {
       refundMethod,
       restockItems,
       items: itemsToReturn,
+      createCreditNote: createCreditNoteWithReturn && !!returnOrder.cufe,
     });
   };
 
@@ -462,8 +467,8 @@ export default function SalesHistoryPage() {
                             {order.prefix}{order.documentNumber || order.orderNumber}
                           </Badge>
                         )}
-                        <Badge variant={order.status === "completed" ? "default" : "secondary"} className="text-xs">
-                          {t(`sales.status_${order.status || "pending"}` as any)}
+                        <Badge variant={order.hasReturns ? "outline" : order.status === "completed" ? "default" : "secondary"} className="text-xs">
+                          {order.hasReturns ? t("sales.status_returned") : t(`sales.status_${order.status || "pending"}` as any)}
                         </Badge>
                         {order.creditNoteStatus && order.creditNoteStatus !== "none" && (
                           <div className="flex items-center gap-1">
@@ -516,8 +521,8 @@ export default function SalesHistoryPage() {
                               {order.prefix}{order.documentNumber || order.orderNumber}
                             </Badge>
                           )}
-                          <Badge variant={order.status === "completed" ? "default" : "secondary"}>
-                            {t(`sales.status_${order.status || "pending"}` as any)}
+                          <Badge variant={order.hasReturns ? "outline" : order.status === "completed" ? "default" : "secondary"}>
+                            {order.hasReturns ? t("sales.status_returned") : t(`sales.status_${order.status || "pending"}` as any)}
                           </Badge>
                           {order.creditNoteStatus && order.creditNoteStatus !== "none" && (
                             <div className="flex items-center gap-1">
@@ -777,6 +782,20 @@ export default function SalesHistoryPage() {
                   {t("returns.restock_items")}
                 </Label>
               </div>
+
+              {returnOrder?.cufe && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="create-credit-note"
+                    checked={createCreditNoteWithReturn}
+                    onCheckedChange={(checked) => setCreateCreditNoteWithReturn(checked as boolean)}
+                    data-testid="checkbox-create-credit-note"
+                  />
+                  <Label htmlFor="create-credit-note" className="text-sm cursor-pointer">
+                    {t("returns.create_credit_note")}
+                  </Label>
+                </div>
+              )}
 
               <Separator />
 
