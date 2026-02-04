@@ -38,14 +38,20 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 - **API Endpoints**: Structured for authentication, products, orders, restaurant-specific actions, inventory, and reports. Internal Admin APIs are also provided.
 - **Environment Variables**: Essential for database connection (`DATABASE_URL`) and session encryption (`SESSION_SECRET`).
 
+## Implemented Features
+
+### Nota Crédito (Credit Note) - IMPLEMENTED
+- Create credit notes from completed orders with valid CUFE
+- type_document_id: 5 (MATIAS API)
+- Requires billing_reference with `uuid`, `number`, `date`, `scheme_name: "CUFE-SHA384"`
+- Requires discrepancy_response with `reference_id: "1"`, `response_id: "1"`, `correction_concept_id` (1-5), `description`
+- DIAN Correction Concepts: 1=Devolución, 2=Anulación, 3=Descuento, 4=Ajuste precio, 5=Otros
+- Flow: Select order → Specify amount + reason → Submit to MATIAS → Receive CUDE
+- Supports full and partial refunds
+- **IMPORTANT**: Credit notes require a separate DIAN resolution registered specifically for Nota Crédito. Configure `credit_note_resolution_number` and `credit_note_prefix` in the MATIAS integration settings (Admin > Tenants > MATIAS tab).
+
 ## Planned Features (TODO)
-- **Nota Crédito (Credit Note) Implementation**:
-  - Create credit notes from completed orders with valid CUFE
-  - type_document_id: 5 (MATIAS API)
-  - Requires billing_reference (original CUFE, number, date)
-  - DIAN Correction Concepts: 1=Devolución, 2=Anulación, 3=Descuento, 4=Ajuste precio, 5=Otros
-  - Flow: Select order → Specify amount + reason → Submit to MATIAS → Receive CUDE
-  - Support full and partial refunds
+- None currently
 
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data.

@@ -394,15 +394,17 @@ export async function buildPosCreditNotePayload(
       identity_document_id: String(customer ? mapCustomerIdType(customer.idType) : 6),
       type_organization_id: customer?.organizationTypeId || 2,
       tax_regime_id: customer?.taxRegimeId || 2,
-      tax_level_id: customer?.taxLiabilityId || 5,
+      tax_level_id: mapTaxLevelId(customer?.taxLiabilityId),
     },
     billing_reference: {
       number: originalNumber,
       uuid: originalCufe,
-      issue_date: originalDate,
+      date: originalDate,  // MATIAS expects 'date' not 'issue_date'
       scheme_name: "CUFE-SHA384",
     },
     discrepancy_response: {
+      reference_id: "1",  // Required by MATIAS - references billing_reference
+      response_id: "1",   // Required by MATIAS - matches reference_id
       correction_concept_id: correctionConceptId,
       description: refundReason,
     },

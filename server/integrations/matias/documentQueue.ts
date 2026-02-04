@@ -12,6 +12,7 @@ import {
 import { eq, and, sql, lte, gte } from "drizzle-orm";
 import { getMatiasClient } from "./matiasClient";
 import { buildPosPayload, buildPosCreditNotePayload } from "./payloadBuilders";
+import { MATIAS_DOCUMENT_TYPES } from "./types";
 import type { MatiasPayload, MatiasNotePayload } from "./types";
 
 interface QuotaCheckResult {
@@ -425,29 +426,36 @@ export async function processDocument(documentId: string): Promise<boolean> {
         );
         break;
       case "POS_CREDIT_NOTE":
-        // Credit note data is stored in requestJson when queued
-        const cnData = doc.requestJson as {
-          orderId: string;
-          refundAmount: number;
-          refundReason: string;
-          originalCufe: string;
-          originalNumber: string;
-          originalDate: string;
-          correctionConceptId: number;
-        };
-        if (cnData) {
-          payload = await buildPosCreditNotePayload(
-            cnData.orderId,
-            cnData.refundAmount,
-            cnData.refundReason,
-            doc.resolutionNumber!,
-            doc.prefix!,
-            doc.documentNumber!,
-            cnData.originalCufe,
-            cnData.originalNumber,
-            cnData.originalDate,
-            cnData.correctionConceptId,
-          );
+        // Check if requestJson already contains a built payload (from a previous attempt)
+        const existingPayload = doc.requestJson as any;
+        if (existingPayload?.type_document_id === MATIAS_DOCUMENT_TYPES.CREDIT_NOTE && existingPayload?.billing_reference) {
+          // Use the already-built payload from previous attempt
+          payload = existingPayload as MatiasNotePayload;
+        } else {
+          // Credit note data is stored in requestJson when first queued
+          const cnData = doc.requestJson as {
+            orderId: string;
+            refundAmount: number;
+            refundReason: string;
+            originalCufe: string;
+            originalNumber: string;
+            originalDate: string;
+            correctionConceptId: number;
+          };
+          if (cnData?.orderId) {
+            payload = await buildPosCreditNotePayload(
+              cnData.orderId,
+              cnData.refundAmount,
+              cnData.refundReason,
+              doc.resolutionNumber!,
+              doc.prefix!,
+              doc.documentNumber!,
+              cnData.originalCufe,
+              cnData.originalNumber,
+              cnData.originalDate,
+              cnData.correctionConceptId,
+            );
+          }
         }
         break;
       case "POS_DEBIT_NOTE":
