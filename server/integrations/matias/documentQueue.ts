@@ -516,12 +516,19 @@ export async function processDocument(documentId: string): Promise<boolean> {
     }
 
     if (response.success && response.data) {
+      // MATIAS returns the actual DIAN CUFE/CUDE in XmlDocumentKey (96-char SHA-384 hash)
+      // Not in 'cufe' field - that doesn't exist. 'uuid' is MATIAS internal ID, NOT the DIAN CUFE.
+      const dianCufe = response.data.XmlDocumentKey || response.data.response?.XmlDocumentKey;
+      const qrCode = response.data.qr?.qrDian;
+      
+      console.log(`[MATIAS] Document accepted. MATIAS UUID: ${response.data.uuid}, DIAN CUFE: ${dianCufe?.substring(0, 30)}...`);
+      
       await db.update(matiasDocumentQueue)
         .set({
           status: "ACCEPTED",
           trackId: response.data.track_id,
-          cufe: response.data.cufe,
-          qrCode: response.data.qr_code,
+          cufe: dianCufe,  // Store the actual DIAN CUFE, not MATIAS UUID
+          qrCode: qrCode,
           responseJson: response,
           acceptedAt: new Date(),
           updatedAt: new Date(),
@@ -534,8 +541,8 @@ export async function processDocument(documentId: string): Promise<boolean> {
       if (doc.kind === "POS_CREDIT_NOTE" && doc.sourceId) {
         await db.update(returns)
           .set({
-            cude: response.data.cufe,  // Credit notes have CUDE, not CUFE
-            qrCode: response.data.qr_code,
+            cude: dianCufe,  // Credit notes have CUDE (same format as CUFE)
+            qrCode: qrCode,
             trackId: response.data.track_id,
             creditNoteStatus: "accepted",
           })
@@ -797,14 +804,18 @@ export async function submitDocumentSync(params: {
     }
 
     if (response.success && response.data) {
-      const cufe = response.data.cufe;
-      let qrCode = response.data.qr_code;
+      // MATIAS returns the actual DIAN CUFE/CUDE in XmlDocumentKey (96-char SHA-384 hash)
+      // Not in 'cufe' field - that doesn't exist. 'uuid' is MATIAS internal ID, NOT the DIAN CUFE.
+      const cufe = response.data.XmlDocumentKey || response.data.response?.XmlDocumentKey;
+      let qrCode = response.data.qr?.qrDian;
       const trackId = response.data.track_id;
 
       // Fallback: Generate QR URL from CUFE if we have CUFE but no QR code
       if (cufe && !qrCode) {
         qrCode = `https://catalogo-vpfe.dian.gov.co/User/SearchDocument?DocumentKey=${cufe}`;
       }
+
+      console.log(`[MATIAS SYNC] Document accepted. MATIAS UUID: ${response.data.uuid}, DIAN CUFE: ${cufe?.substring(0, 30)}...`);
 
       await db.update(matiasDocumentQueue)
         .set({
@@ -857,9 +868,10 @@ export async function submitDocumentSync(params: {
         console.log(`[MATIAS] Document ${prefix}${documentNumber} already validated/processed. Extracting existing CUFE/QR...`);
         
         // MATIAS returns the existing document data even when success=false for "already validated"
+        // XmlDocumentKey contains the actual DIAN CUFE, not the 'cufe' field
         const jsonData = responseData?.jsonData;
-        let cufe = jsonData?.cufe || responseData?.XmlDocumentKey;
-        let qrCode = jsonData?.qr || jsonData?.qrDian;
+        let cufe = responseData?.XmlDocumentKey || jsonData?.XmlDocumentKey;
+        let qrCode = responseData?.qr?.qrDian || jsonData?.qr?.qrDian;
         
         // If not in response, try fetching from status API
         if (!cufe || !qrCode) {

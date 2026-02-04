@@ -283,15 +283,25 @@ export const matiasSupportAdjustmentPayloadSchema = matiasSupportDocPayloadSchem
 });
 
 // API Response types
+// MATIAS API returns XmlDocumentKey (the actual DIAN CUFE/CUDE) not 'cufe'
 export interface MatiasDocumentResponse {
   success: boolean;
   message?: string;
   data?: {
     number: number;
-    uuid: string;
-    cufe?: string;
-    cude?: string;
-    qr_code?: string;
+    uuid: string;                    // MATIAS internal ID (NOT the DIAN CUFE)
+    XmlDocumentKey?: string;         // Actual DIAN CUFE/CUDE (96-char SHA-384 hash)
+    qr?: {
+      url?: string;
+      data?: string;
+      qrDian?: string;               // DIAN QR code URL
+    };
+    response?: {
+      XmlDocumentKey?: string;       // Also available here in some responses
+      IsValid?: string;
+      StatusCode?: string;
+      StatusMessage?: string;
+    };
     track_id?: string;
   };
   errors?: Record<string, string[]>;
