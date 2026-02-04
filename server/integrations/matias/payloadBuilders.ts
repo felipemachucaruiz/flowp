@@ -403,8 +403,8 @@ export async function buildPosCreditNotePayload(
       scheme_name: "CUFE-SHA384",
     },
     discrepancy_response: {
-      reference_id: "1",  // Required by MATIAS - references billing_reference
-      response_id: "1",   // Required by MATIAS - matches reference_id
+      reference_id: originalNumber,  // Original invoice number (e.g., "FVP1")
+      response_id: "2",              // Response type per MATIAS example
       correction_concept_id: correctionConceptId,
       description: refundReason,
     },
