@@ -378,7 +378,7 @@ export async function buildPosCreditNotePayload(
     resolution_number: resolutionNumber,
     prefix: prefix,
     document_number: String(documentNumber),
-    operation_type_id: 1,
+    operation_type_id: 12,  // 12 = Credit note with invoice reference
     graphic_representation: 0,
     send_email: 0,
     customer: {
