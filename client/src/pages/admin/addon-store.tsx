@@ -58,6 +58,7 @@ const INTEGRATION_KEY_OPTIONS = [
 export default function AdminAddonStore() {
   const [editingAddon, setEditingAddon] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [useCustomKey, setUseCustomKey] = useState(false);
   const { toast } = useToast();
 
   const { data, isLoading } = useQuery({
@@ -130,6 +131,7 @@ export default function AdminAddonStore() {
 
   const handleOpenCreate = () => {
     setEditingAddon(null);
+    setUseCustomKey(false);
     form.reset({
       addonKey: "",
       name: "",
@@ -148,6 +150,8 @@ export default function AdminAddonStore() {
 
   const handleOpenEdit = (addon: any) => {
     setEditingAddon(addon);
+    const isKnownKey = INTEGRATION_KEY_OPTIONS.some(opt => opt.value === addon.addonKey);
+    setUseCustomKey(!isKnownKey);
     form.reset({
       addonKey: addon.addonKey,
       name: addon.name,
@@ -310,38 +314,69 @@ export default function AdminAddonStore() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Integration Type</Label>
-                <Controller
-                  name="addonKey"
-                  control={form.control}
-                  render={({ field }) => (
-                    <Select 
-                      value={field.value} 
-                      onValueChange={(val) => {
-                        field.onChange(val);
-                        const selected = INTEGRATION_KEY_OPTIONS.find(opt => opt.value === val);
-                        if (selected && !editingAddon) {
-                          form.setValue("name", selected.label);
-                          form.setValue("description", selected.description);
-                        }
-                      }}
+                {useCustomKey || editingAddon ? (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="e.g., my_custom_addon"
+                      {...form.register("addonKey")}
                       disabled={!!editingAddon}
-                    >
-                      <SelectTrigger data-testid="select-addon-key">
-                        <SelectValue placeholder="Select integration..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {INTEGRATION_KEY_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            <div className="flex flex-col">
-                              <span>{opt.label}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                <p className="text-xs text-muted-foreground">Integration ID (cannot be changed after creation)</p>
+                      data-testid="input-addon-key-custom"
+                    />
+                    {!editingAddon && (
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-auto px-2 text-xs"
+                        onClick={() => setUseCustomKey(false)}
+                      >
+                        Use predefined integration
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <Controller
+                    name="addonKey"
+                    control={form.control}
+                    render={({ field }) => (
+                      <div className="space-y-2">
+                        <Select 
+                          value={field.value} 
+                          onValueChange={(val) => {
+                            if (val === "__custom__") {
+                              setUseCustomKey(true);
+                              field.onChange("");
+                            } else {
+                              field.onChange(val);
+                              const selected = INTEGRATION_KEY_OPTIONS.find(opt => opt.value === val);
+                              if (selected) {
+                                form.setValue("name", selected.label);
+                                form.setValue("description", selected.description);
+                              }
+                            }
+                          }}
+                        >
+                          <SelectTrigger data-testid="select-addon-key">
+                            <SelectValue placeholder="Select integration..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {INTEGRATION_KEY_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="__custom__" className="text-muted-foreground">
+                              + Custom integration...
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  />
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {editingAddon ? "Cannot be changed after creation" : "Select or create a custom integration key"}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Display Name</Label>
