@@ -265,9 +265,11 @@ export default function AdminAddonStore() {
   };
 
   const formatPrice = (cents: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("es-CO", {
       style: "currency",
-      currency: "USD",
+      currency: "COP",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format(cents / 100);
   };
 

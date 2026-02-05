@@ -1209,7 +1209,7 @@ function AddonsSettings() {
                           {isIncludedInTier ? (
                             <Badge variant="secondary">{t("settings.addon_included_in_plan")}</Badge>
                           ) : addon.monthlyPrice ? (
-                            `$${(addon.monthlyPrice / 100).toFixed(2)}${t("settings.addon_per_month")}`
+                            `${new Intl.NumberFormat(tenant?.currency === "COP" ? "es-CO" : "en-US", { style: "currency", currency: tenant?.currency || "COP", minimumFractionDigits: ["COP","CLP","JPY","KRW"].includes(tenant?.currency || "COP") ? 0 : 2, maximumFractionDigits: ["COP","CLP","JPY","KRW"].includes(tenant?.currency || "COP") ? 0 : 2 }).format(addon.monthlyPrice / 100)}${t("settings.addon_per_month")}`
                           ) : (
                             t("settings.addon_free")
                           )}
