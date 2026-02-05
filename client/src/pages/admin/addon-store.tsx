@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { adminFetch } from "@/lib/admin-fetch";
-import { Puzzle, Plus, Edit, DollarSign, Tag, Zap, ShoppingBag, MessageCircle, Package, Upload, X, Loader2 } from "lucide-react";
+import { Puzzle, Plus, Edit, DollarSign, Tag, Zap, ShoppingBag, MessageCircle, Package, Upload, X, Loader2, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useForm, Controller } from "react-hook-form";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -144,6 +144,7 @@ export default function AdminAddonStore() {
   const [editingAddon, setEditingAddon] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [useCustomKey, setUseCustomKey] = useState(false);
+  const [deletingAddon, setDeletingAddon] = useState<any>(null);
   const { toast } = useToast();
   const { t } = useI18n();
 
@@ -213,6 +214,27 @@ export default function AdminAddonStore() {
     },
     onError: (error: any) => {
       toast({ title: "Failed to update add-on", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (addonKey: string) => {
+      const response = await adminFetch(`/api/internal-admin/addon-store/${addonKey}`, {
+        method: "DELETE",
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to delete add-on");
+      }
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/addon-store"] });
+      toast({ title: t("admin.addon_deleted" as TranslationKey) });
+      setDeletingAddon(null);
+    },
+    onError: (error: any) => {
+      toast({ title: t("admin.addon_delete_error" as TranslationKey), description: error.message, variant: "destructive" });
     },
   });
 
@@ -331,14 +353,24 @@ export default function AdminAddonStore() {
                     </div>
                   </div>
                 </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => handleOpenEdit(addon)}
-                  data-testid={`button-edit-addon-${addon.addonKey}`}
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => handleOpenEdit(addon)}
+                    data-testid={`button-edit-addon-${addon.addonKey}`}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setDeletingAddon(addon)}
+                    data-testid={`button-delete-addon-${addon.addonKey}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -668,6 +700,34 @@ export default function AdminAddonStore() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deletingAddon} onOpenChange={(open) => { if (!open) setDeletingAddon(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("admin.addon_delete_confirm_title" as TranslationKey)}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {t("admin.addon_delete_confirm_description" as TranslationKey)} <span className="font-semibold">{deletingAddon?.name}</span>?
+          </p>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeletingAddon(null)}
+              data-testid="button-cancel-delete-addon"
+            >
+              {t("common.cancel" as TranslationKey)}
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => deleteMutation.mutate(deletingAddon?.addonKey)}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete-addon"
+            >
+              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("common.delete" as TranslationKey)}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
