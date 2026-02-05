@@ -829,7 +829,7 @@ internalAdminRouter.get("/tenants/:tenantId/addons", internalAuth, async (req: R
 });
 
 // Add or update an add-on for a tenant
-internalAdminRouter.post("/tenants/:tenantId/addons", internalAuth, requireRole(["SuperAdmin", "BillingOps"]), async (req: Request, res: Response) => {
+internalAdminRouter.post("/tenants/:tenantId/addons", internalAuth, requireRole(["superadmin", "billingops"]), async (req: Request, res: Response) => {
   try {
     const { tenantId } = req.params;
     const { addonType, status, monthlyPrice, trialEndsAt } = req.body;
@@ -877,7 +877,7 @@ internalAdminRouter.post("/tenants/:tenantId/addons", internalAuth, requireRole(
 });
 
 // Cancel an add-on
-internalAdminRouter.delete("/tenants/:tenantId/addons/:addonType", internalAuth, requireRole(["SuperAdmin", "BillingOps"]), async (req: Request, res: Response) => {
+internalAdminRouter.delete("/tenants/:tenantId/addons/:addonType", internalAuth, requireRole(["superadmin", "billingops"]), async (req: Request, res: Response) => {
   try {
     const { tenantId, addonType } = req.params;
     
@@ -951,7 +951,7 @@ internalAdminRouter.get("/addon-store/:addonKey", internalAuth, async (req: Requ
 });
 
 // Create addon definition
-internalAdminRouter.post("/addon-store", internalAuth, requireRole(["SuperAdmin"]), async (req: Request, res: Response) => {
+internalAdminRouter.post("/addon-store", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
     const { 
       addonKey, name, description, icon, category,
@@ -994,7 +994,7 @@ internalAdminRouter.post("/addon-store", internalAuth, requireRole(["SuperAdmin"
 });
 
 // Update addon definition
-internalAdminRouter.patch("/addon-store/:addonKey", internalAuth, requireRole(["SuperAdmin"]), async (req: Request, res: Response) => {
+internalAdminRouter.patch("/addon-store/:addonKey", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
     const { addonKey } = req.params;
     const updates = req.body;
@@ -1021,7 +1021,7 @@ internalAdminRouter.patch("/addon-store/:addonKey", internalAuth, requireRole(["
 });
 
 // Delete addon definition (soft delete - sets isActive to false)
-internalAdminRouter.delete("/addon-store/:addonKey", internalAuth, requireRole(["SuperAdmin"]), async (req: Request, res: Response) => {
+internalAdminRouter.delete("/addon-store/:addonKey", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
     const { addonKey } = req.params;
     
