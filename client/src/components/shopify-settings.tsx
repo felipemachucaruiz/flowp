@@ -634,6 +634,7 @@ export function ShopifySettings() {
                         <Switch
                           checked={field.value}
                           onCheckedChange={field.onChange}
+                          data-testid="switch-form-sync-inventory"
                         />
                       </FormControl>
                     </FormItem>
@@ -655,6 +656,7 @@ export function ShopifySettings() {
                         <Switch
                           checked={field.value}
                           onCheckedChange={field.onChange}
+                          data-testid="switch-form-sync-prices"
                         />
                       </FormControl>
                     </FormItem>
@@ -676,6 +678,7 @@ export function ShopifySettings() {
                         <Switch
                           checked={field.value}
                           onCheckedChange={field.onChange}
+                          data-testid="switch-form-generate-dian"
                         />
                       </FormControl>
                     </FormItem>
@@ -688,6 +691,7 @@ export function ShopifySettings() {
                   type="button" 
                   variant="outline" 
                   onClick={() => setShowConfigDialog(false)}
+                  data-testid="button-cancel-shopify-config"
                 >
                   {t("common.cancel")}
                 </Button>
