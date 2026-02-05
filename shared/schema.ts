@@ -11,6 +11,7 @@ export const orderStatusEnum = pgEnum("order_status", ["pending", "in_progress",
 export const kitchenTicketStatusEnum = pgEnum("kitchen_ticket_status", ["new", "preparing", "ready", "served"]);
 export const stockMovementTypeEnum = pgEnum("stock_movement_type", ["sale", "return", "purchase", "adjustment", "waste", "transfer"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["cash", "card", "split"]);
+export const orderChannelEnum = pgEnum("order_channel", ["pos", "shopify", "manual"]);
 export const customerIdTypeEnum = pgEnum("customer_id_type", ["pasaporte", "cedula_ciudadania", "cedula_extranjeria", "nit", "tarjeta_identidad", "registro_civil", "consumidor_final"]);
 
 // Purchase order enums
@@ -321,6 +322,9 @@ export const orders = pgTable("orders", {
   documentNumber: integer("document_number"),  // DIAN sequential number
   // Returns tracking
   hasReturns: boolean("has_returns").default(false),  // True if order has any returns
+  // Sales channel tracking
+  channel: orderChannelEnum("channel").default("pos"),  // Order source: pos, shopify, manual
+  externalOrderId: varchar("external_order_id"),  // External system order ID (e.g., Shopify order ID)
 });
 
 // Order Items
@@ -1559,3 +1563,217 @@ export const insertEbillingAlertSchema = createInsertSchema(ebillingAlerts).omit
 });
 export type EbillingAlert = typeof ebillingAlerts.$inferSelect;
 export type InsertEbillingAlert = z.infer<typeof insertEbillingAlertSchema>;
+
+// ============================================================
+// SHOPIFY INTEGRATION (Paid Add-on)
+// ============================================================
+
+// Shopify order status enum
+export const shopifyOrderStatusEnum = pgEnum("shopify_order_status", [
+  "pending",       // Received webhook, not yet processed
+  "processing",    // Currently being imported
+  "completed",     // Successfully imported to Flowp
+  "failed",        // Failed to import (will retry)
+  "skipped"        // Skipped (e.g., duplicate)
+]);
+
+// Shopify sync direction enum
+export const shopifySyncDirectionEnum = pgEnum("shopify_sync_direction", [
+  "shopify_to_flowp",  // Orders coming from Shopify
+  "flowp_to_shopify"   // Inventory/price push to Shopify
+]);
+
+// Tenant Shopify Integration Configuration
+export const tenantShopifyIntegrations = pgTable("tenant_shopify_integrations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id).unique(),
+  
+  // Shopify Store Config
+  shopDomain: text("shop_domain").notNull(),  // e.g., "mystore.myshopify.com"
+  accessTokenEncrypted: text("access_token_encrypted").notNull(),
+  webhookSecret: text("webhook_secret"),  // For HMAC signature verification
+  
+  // Shopify Location (for inventory sync)
+  shopifyLocationId: text("shopify_location_id"),
+  
+  // Feature toggles
+  isActive: boolean("is_active").default(true),
+  syncInventory: boolean("sync_inventory").default(true),  // Push inventory to Shopify
+  syncPrices: boolean("sync_prices").default(true),  // Push price changes to Shopify
+  autoImportOrders: boolean("auto_import_orders").default(true),  // Auto-import orders
+  generateDianDocuments: boolean("generate_dian_documents").default(true),  // Generate DIAN docs for Shopify orders
+  
+  // Default DIAN document type for Shopify orders
+  defaultDocumentTypeId: integer("default_document_type_id").default(20),  // 20 = POS Electrónico
+  
+  // Webhook registration status
+  ordersWebhookId: text("orders_webhook_id"),
+  refundsWebhookId: text("refunds_webhook_id"),
+  
+  // Status & errors
+  lastWebhookAt: timestamp("last_webhook_at"),
+  lastSyncAt: timestamp("last_sync_at"),
+  lastError: text("last_error"),
+  errorCount: integer("error_count").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTenantShopifyIntegrationSchema = createInsertSchema(tenantShopifyIntegrations).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true,
+  lastWebhookAt: true,
+  lastSyncAt: true
+});
+export type TenantShopifyIntegration = typeof tenantShopifyIntegrations.$inferSelect;
+export type InsertTenantShopifyIntegration = z.infer<typeof insertTenantShopifyIntegrationSchema>;
+
+// Shopify Orders (tracking table for imported orders)
+export const shopifyOrders = pgTable("shopify_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  
+  // Shopify identifiers
+  shopifyOrderId: text("shopify_order_id").notNull(),  // Shopify's internal order ID
+  shopifyOrderNumber: text("shopify_order_number"),  // Human-readable order number (e.g., #1001)
+  shopifyOrderName: text("shopify_order_name"),  // Name shown in Shopify admin (e.g., "#1001")
+  
+  // Flowp reference
+  flowpOrderId: varchar("flowp_order_id").references(() => orders.id),
+  
+  // Processing status
+  status: shopifyOrderStatusEnum("status").default("pending"),
+  errorMessage: text("error_message"),
+  retryCount: integer("retry_count").default(0),
+  
+  // Original payload (for debugging/retry)
+  payloadJson: jsonb("payload_json"),
+  
+  // Financial totals from Shopify
+  subtotalPrice: decimal("subtotal_price", { precision: 12, scale: 2 }),
+  totalTax: decimal("total_tax", { precision: 12, scale: 2 }),
+  totalDiscounts: decimal("total_discounts", { precision: 12, scale: 2 }),
+  totalPrice: decimal("total_price", { precision: 12, scale: 2 }),
+  currency: text("currency").default("COP"),
+  
+  // Customer info from Shopify
+  customerEmail: text("customer_email"),
+  customerPhone: text("customer_phone"),
+  
+  // DIAN document reference
+  dianDocumentId: varchar("dian_document_id").references(() => matiasDocumentQueue.id),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  processedAt: timestamp("processed_at"),
+});
+
+export const insertShopifyOrderSchema = createInsertSchema(shopifyOrders).omit({ 
+  id: true, 
+  createdAt: true,
+  processedAt: true
+});
+export type ShopifyOrder = typeof shopifyOrders.$inferSelect;
+export type InsertShopifyOrder = z.infer<typeof insertShopifyOrderSchema>;
+
+// Shopify Webhook Logs (for debugging and idempotency)
+export const shopifyWebhookLogs = pgTable("shopify_webhook_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id),
+  
+  // Webhook details
+  topic: text("topic").notNull(),  // e.g., "orders/create", "orders/paid", "refunds/create"
+  shopifyEventId: text("shopify_event_id"),  // X-Shopify-Event-Id header (for idempotency)
+  shopifyWebhookId: text("shopify_webhook_id"),  // X-Shopify-Webhook-Id header
+  shopDomain: text("shop_domain"),  // X-Shopify-Shop-Domain header
+  
+  // Payload
+  payloadJson: jsonb("payload_json"),
+  
+  // Processing
+  processed: boolean("processed").default(false),
+  processedAt: timestamp("processed_at"),
+  errorMessage: text("error_message"),
+  
+  // Signature verification
+  signatureValid: boolean("signature_valid"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertShopifyWebhookLogSchema = createInsertSchema(shopifyWebhookLogs).omit({ 
+  id: true, 
+  createdAt: true,
+  processedAt: true
+});
+export type ShopifyWebhookLog = typeof shopifyWebhookLogs.$inferSelect;
+export type InsertShopifyWebhookLog = z.infer<typeof insertShopifyWebhookLogSchema>;
+
+// Shopify Product Mapping (links Shopify variants to Flowp products)
+export const shopifyProductMap = pgTable("shopify_product_map", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  
+  // Shopify identifiers
+  shopifyProductId: text("shopify_product_id").notNull(),
+  shopifyVariantId: text("shopify_variant_id").notNull(),
+  shopifyTitle: text("shopify_title"),
+  shopifyVariantTitle: text("shopify_variant_title"),
+  shopifySku: text("shopify_sku"),
+  
+  // Flowp product reference
+  flowpProductId: varchar("flowp_product_id").references(() => products.id),
+  
+  // Mapping status
+  autoMatched: boolean("auto_matched").default(false),  // True if matched automatically by SKU
+  isActive: boolean("is_active").default(true),
+  
+  // Last sync state
+  lastInventorySync: timestamp("last_inventory_sync"),
+  lastPriceSync: timestamp("last_price_sync"),
+  shopifyInventoryItemId: text("shopify_inventory_item_id"),  // For inventory API calls
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertShopifyProductMapSchema = createInsertSchema(shopifyProductMap).omit({ 
+  id: true, 
+  createdAt: true, 
+  updatedAt: true,
+  lastInventorySync: true,
+  lastPriceSync: true
+});
+export type ShopifyProductMap = typeof shopifyProductMap.$inferSelect;
+export type InsertShopifyProductMap = z.infer<typeof insertShopifyProductMapSchema>;
+
+// Shopify Sync Logs (for inventory/price push operations)
+export const shopifySyncLogs = pgTable("shopify_sync_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  
+  // Sync details
+  direction: shopifySyncDirectionEnum("direction").notNull(),
+  entityType: text("entity_type").notNull(),  // "inventory", "price", "product"
+  flowpProductId: varchar("flowp_product_id").references(() => products.id),
+  shopifyVariantId: text("shopify_variant_id"),
+  
+  // Values
+  previousValue: text("previous_value"),
+  newValue: text("new_value"),
+  
+  // Status
+  success: boolean("success").default(false),
+  errorMessage: text("error_message"),
+  shopifyResponse: jsonb("shopify_response"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertShopifySyncLogSchema = createInsertSchema(shopifySyncLogs).omit({ 
+  id: true, 
+  createdAt: true 
+});
+export type ShopifySyncLog = typeof shopifySyncLogs.$inferSelect;
+export type InsertShopifySyncLog = z.infer<typeof insertShopifySyncLogSchema>;

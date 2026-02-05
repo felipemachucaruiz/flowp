@@ -50,8 +50,23 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 - Supports full and partial refunds
 - **IMPORTANT**: Credit notes require a separate DIAN resolution registered specifically for Nota Crédito. Configure `credit_note_resolution_number` and `credit_note_prefix` in the MATIAS integration settings (Admin > Tenants > MATIAS tab).
 
+### Shopify Integration - IMPLEMENTED
+- **Paid add-on** for tenants who also sell on Shopify
+- **Order Flow**: Shopify orders import to Flowp via webhooks (orders/create, orders/updated)
+- **Refund Handling**: Shopify refunds auto-create Flowp returns with credit notes to DIAN
+- **Inventory Sync**: Flowp → Shopify (Flowp is source of truth)
+- **Price Sync**: Flowp → Shopify (automatic when product price changes)
+- **Product Mapping**: Auto-match by SKU, manual override supported
+- **Webhook Verification**: HMAC-SHA256 signature validation
+- **Idempotency**: Prevents duplicate order imports via shopify_event_id tracking
+- **Encrypted Credentials**: Same encryption pattern as MATIAS (AES-256-GCM)
+- **Database Tables**: tenant_shopify_integrations, shopify_orders, shopify_webhook_logs, shopify_product_map, shopify_sync_logs
+- **API Routes**: `/api/shopify/*` - status, config, webhooks, mappings, sync, orders
+
 ## Planned Features (TODO)
-- None currently
+- Shopify OAuth flow UI
+- Tenant settings UI for Shopify configuration
+- WhatsApp/Gupshup notifications integration
 
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data.

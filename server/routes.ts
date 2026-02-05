@@ -27,6 +27,7 @@ import internalRoutes from "./routes/internal";
 import tenantRoutes from "./routes/tenant";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { matiasRouter } from "./integrations/matias/routes";
+import { shopifyRouter } from "./integrations/shopify/routes";
 import { internalAdminRouter } from "./routes/internalAdmin";
 import { generateInternalToken } from "./middleware/internalAuth";
 
@@ -77,6 +78,9 @@ export async function registerRoutes(
 
   // ===== MATIAS / DIAN ELECTRONIC BILLING ROUTES =====
   app.use("/api/billing/matias", matiasRouter);
+
+  // ===== SHOPIFY INTEGRATION ROUTES =====
+  app.use("/api/shopify", shopifyRouter);
 
   // ===== INTERNAL ADMIN CONSOLE ROUTES =====
   app.use("/api/internal-admin", internalAdminRouter);
