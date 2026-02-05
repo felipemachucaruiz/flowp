@@ -32,7 +32,8 @@ import {
 
 const shopifyConfigSchema = z.object({
   shopDomain: z.string().min(1, "Shop domain is required").regex(/^[a-z0-9-]+\.myshopify\.com$/, "Invalid Shopify domain format (e.g., my-store.myshopify.com)"),
-  accessToken: z.string().min(1, "Access token is required"),
+  clientId: z.string().min(1, "Client ID is required"),
+  clientSecret: z.string().min(1, "Client Secret is required"),
   syncInventory: z.boolean().default(true),
   syncPrices: z.boolean().default(true),
   generateDianDocuments: z.boolean().default(true),
@@ -131,7 +132,8 @@ export function ShopifySettings() {
     resolver: zodResolver(shopifyConfigSchema),
     defaultValues: {
       shopDomain: "",
-      accessToken: "",
+      clientId: "",
+      clientSecret: "",
       syncInventory: true,
       syncPrices: true,
       generateDianDocuments: true,
@@ -141,22 +143,22 @@ export function ShopifySettings() {
 
   const saveConfigMutation = useMutation({
     mutationFn: async (data: ShopifyConfigFormData) => {
-      const res = await apiRequest("POST", "/api/shopify/config", data);
+      const res = await apiRequest("POST", "/api/shopify/oauth/authorize", {
+        shopDomain: data.shopDomain,
+        clientId: data.clientId,
+        clientSecret: data.clientSecret,
+      });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shopify/status"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/shopify/locations"] });
-      setShowConfigDialog(false);
-      toast({
-        title: "Configuration saved",
-        description: "Shopify integration has been configured successfully.",
-      });
+    onSuccess: (data: { authUrl: string }) => {
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      }
     },
     onError: (error: any) => {
       toast({
         title: t("common.error"),
-        description: error.message || "Failed to save configuration",
+        description: error.message || "Failed to start OAuth flow",
         variant: "destructive",
       });
     },
@@ -598,20 +600,41 @@ export function ShopifySettings() {
 
               <FormField
                 control={configForm.control}
-                name="accessToken"
+                name="clientId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("shopify.access_token")}</FormLabel>
+                    <FormLabel>{t("shopify.client_id")}</FormLabel>
+                    <FormControl>
+                      <Input 
+                        {...field} 
+                        placeholder="shpca_..."
+                        data-testid="input-client-id"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("shopify.client_id_help")}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={configForm.control}
+                name="clientSecret"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("shopify.client_secret")}</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
                         type="password"
-                        placeholder="shpat_..."
-                        data-testid="input-access-token"
+                        placeholder="shpcs_..."
+                        data-testid="input-client-secret"
                       />
                     </FormControl>
                     <FormDescription>
-                      {t("shopify.access_token_help")}
+                      {t("shopify.client_secret_help")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
