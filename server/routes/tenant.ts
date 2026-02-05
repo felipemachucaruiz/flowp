@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import { z } from "zod";
 import { db } from "../db";
 import { 
   tenants, users, locations, registers, 
@@ -666,14 +667,24 @@ router.get("/ebilling/status", requirePermission("settings.view"), async (req: R
 // CUSTOMER ADD-ONS MANAGEMENT
 // ==========================================
 
-// Helper middleware to check if user is owner
+// Helper middleware to check if user is owner (uses portalSession)
 const requireOwnerRole = (req: Request, res: Response, next: Function) => {
-  const user = req.user as any;
-  if (!user || user.role !== "owner") {
+  if (!req.portalSession) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  if (!req.portalSession.roles.includes("owner")) {
     return res.status(403).json({ error: "Owner access required" });
   }
   next();
 };
+
+// Zod schema for add-on activation
+const activateAddonSchema = z.object({
+  withTrial: z.boolean().optional().default(false),
+});
+
+// Validate addon key format
+const addonKeySchema = z.string().regex(/^[a-z0-9_]+$/, "Invalid add-on key format");
 
 // Get available add-ons and tenant's active add-ons (owner only)
 router.get("/addons", requireOwnerRole, async (req: Request, res: Response) => {
@@ -714,17 +725,22 @@ router.post("/addons/:addonKey", requireOwnerRole, async (req: Request, res: Res
     const tenantId = req.targetTenantId;
     const { addonKey } = req.params;
     
-    // Validate request body
-    const withTrial = req.body.withTrial === true;
-    
     if (!tenantId) {
       return res.status(400).json({ error: "Tenant ID required" });
     }
     
-    // Validate addonKey format (alphanumeric and underscores only)
-    if (!/^[a-z0-9_]+$/.test(addonKey)) {
+    // Validate addonKey format with Zod
+    const keyResult = addonKeySchema.safeParse(addonKey);
+    if (!keyResult.success) {
       return res.status(400).json({ error: "Invalid add-on key format" });
     }
+    
+    // Validate request body with Zod
+    const bodyResult = activateAddonSchema.safeParse(req.body);
+    if (!bodyResult.success) {
+      return res.status(400).json({ error: "Invalid request body" });
+    }
+    const { withTrial } = bodyResult.data;
 
     // Get add-on definition
     const addonDef = await db.query.addonDefinitions.findFirst({
@@ -818,8 +834,9 @@ router.delete("/addons/:addonKey", requireOwnerRole, async (req: Request, res: R
       return res.status(400).json({ error: "Tenant ID required" });
     }
     
-    // Validate addonKey format
-    if (!/^[a-z0-9_]+$/.test(addonKey)) {
+    // Validate addonKey format with Zod
+    const keyResult = addonKeySchema.safeParse(addonKey);
+    if (!keyResult.success) {
       return res.status(400).json({ error: "Invalid add-on key format" });
     }
 
