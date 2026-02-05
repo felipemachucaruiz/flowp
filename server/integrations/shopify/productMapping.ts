@@ -49,14 +49,25 @@ export async function autoMapProductsBySku(tenantId: string): Promise<ProductMap
         continue;
       }
 
-      // Try to find matching Flowp product by SKU
-      const flowpProduct = await db.query.products.findFirst({
+      // Try to find matching Flowp product by SKU first
+      let flowpProduct = await db.query.products.findFirst({
         where: and(
           eq(products.tenantId, tenantId),
           eq(products.sku, variant.sku),
           eq(products.isActive, true)
         ),
       });
+
+      // If no SKU match, try matching by barcode
+      if (!flowpProduct) {
+        flowpProduct = await db.query.products.findFirst({
+          where: and(
+            eq(products.tenantId, tenantId),
+            eq(products.barcode, variant.sku),
+            eq(products.isActive, true)
+          ),
+        });
+      }
 
       if (!flowpProduct) {
         unmapped.push({
