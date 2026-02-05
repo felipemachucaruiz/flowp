@@ -1091,10 +1091,7 @@ function AddonsSettings() {
 
   const activateMutation = useMutation({
     mutationFn: async ({ addonKey, withTrial }: { addonKey: string; withTrial: boolean }) => {
-      const res = await apiRequest(`/api/tenant/addons/${addonKey}`, {
-        method: "POST",
-        body: JSON.stringify({ withTrial }),
-      });
+      const res = await apiRequest("POST", `/api/tenant/addons/${addonKey}`, { withTrial });
       return res.json();
     },
     onSuccess: (data) => {
@@ -1109,9 +1106,7 @@ function AddonsSettings() {
 
   const deactivateMutation = useMutation({
     mutationFn: async (addonKey: string) => {
-      const res = await apiRequest(`/api/tenant/addons/${addonKey}`, {
-        method: "DELETE",
-      });
+      const res = await apiRequest("DELETE", `/api/tenant/addons/${addonKey}`);
       return res.json();
     },
     onSuccess: (data) => {
