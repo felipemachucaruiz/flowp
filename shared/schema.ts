@@ -1590,7 +1590,15 @@ export const tenantShopifyIntegrations = pgTable("tenant_shopify_integrations", 
   
   // Shopify Store Config
   shopDomain: text("shop_domain").notNull(),  // e.g., "mystore.myshopify.com"
-  accessTokenEncrypted: text("access_token_encrypted").notNull(),
+  
+  // OAuth Credentials (encrypted)
+  clientIdEncrypted: text("client_id_encrypted"),  // Encrypted OAuth client ID
+  clientSecretEncrypted: text("client_secret_encrypted"),  // Encrypted OAuth client secret
+  accessTokenEncrypted: text("access_token_encrypted"),  // Encrypted access token (from OAuth or legacy)
+  refreshTokenEncrypted: text("refresh_token_encrypted"),  // Encrypted refresh token for token rotation
+  tokenExpiresAt: timestamp("token_expires_at"),  // When the access token expires
+  tokenScope: text("token_scope"),  // OAuth scopes granted
+  
   webhookSecret: text("webhook_secret"),  // For HMAC signature verification
   
   // Shopify Location (for inventory sync)
