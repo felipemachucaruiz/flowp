@@ -99,17 +99,17 @@ shopifyRouter.get("/oauth/callback", async (req: Request, res: Response) => {
 
     if (oauthError) {
       console.error(`[Shopify OAuth] Error from Shopify: ${oauthError} - ${error_description}`);
-      return res.redirect(`/settings?shopify_error=${encodeURIComponent(String(error_description || oauthError))}`);
+      return res.redirect(`/settings/shopify?shopify_error=${encodeURIComponent(String(error_description || oauthError))}`);
     }
 
     if (!code || !state || !shop) {
-      return res.redirect("/settings?shopify_error=missing_parameters");
+      return res.redirect("/settings/shopify?shopify_error=missing_parameters");
     }
 
     const oauthState = validateOAuthState(String(state));
     if (!oauthState) {
       console.error("[Shopify OAuth] Invalid or expired state");
-      return res.redirect("/settings?shopify_error=invalid_state");
+      return res.redirect("/settings/shopify?shopify_error=invalid_state");
     }
 
     const { tenantId } = oauthState;
@@ -121,7 +121,7 @@ shopifyRouter.get("/oauth/callback", async (req: Request, res: Response) => {
 
     if (!config || !config.clientIdEncrypted || !config.clientSecretEncrypted) {
       console.error("[Shopify OAuth] Missing stored credentials");
-      return res.redirect("/settings?shopify_error=missing_credentials");
+      return res.redirect("/settings/shopify?shopify_error=missing_credentials");
     }
 
     // Import decrypt here to avoid circular dependency
@@ -139,7 +139,7 @@ shopifyRouter.get("/oauth/callback", async (req: Request, res: Response) => {
     
     if (!verifyOAuthCallback(queryParams, clientSecret)) {
       console.error("[Shopify OAuth] HMAC verification failed");
-      return res.redirect("/settings?shopify_error=invalid_signature");
+      return res.redirect("/settings/shopify?shopify_error=invalid_signature");
     }
 
     // Exchange code for token
@@ -162,10 +162,10 @@ shopifyRouter.get("/oauth/callback", async (req: Request, res: Response) => {
     );
 
     console.log(`[Shopify OAuth] Successfully connected for tenant ${tenantId}`);
-    return res.redirect("/settings?shopify_success=true");
+    return res.redirect("/settings/shopify?shopify_success=true");
   } catch (error: any) {
     console.error("[Shopify OAuth] Callback error:", error);
-    return res.redirect(`/settings?shopify_error=${encodeURIComponent(error.message)}`);
+    return res.redirect(`/settings/shopify?shopify_error=${encodeURIComponent(error.message)}`);
   }
 });
 

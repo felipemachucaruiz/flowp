@@ -1196,7 +1196,19 @@ export default function SettingsPage() {
   const { tenant, refreshTenant } = useAuth();
   const { t, formatDate } = useI18n();
   const { can, isOwner, isAdmin } = usePermissions();
-  const [activeTab, setActiveTab] = useState("business");
+  
+  // Determine initial tab from URL path and query params
+  const getInitialTab = () => {
+    if (typeof window !== "undefined") {
+      // Check if on /settings/shopify route
+      if (window.location.pathname === "/settings/shopify") {
+        return "shopify";
+      }
+    }
+    return "business";
+  };
+  
+  const [activeTab, setActiveTab] = useState(getInitialTab);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [showProductDialog, setShowProductDialog] = useState(false);
   const [showFloorDialog, setShowFloorDialog] = useState(false);
@@ -1208,6 +1220,32 @@ export default function SettingsPage() {
   const [productImagePath, setProductImagePath] = useState<string>("");
   const [businessLogoPath, setBusinessLogoPath] = useState<string>(tenant?.logo || "");
   const [receiptLogoPath, setReceiptLogoPath] = useState<string>(tenant?.receiptLogo || "");
+  
+  // Handle Shopify OAuth callback query params
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const shopifySuccess = params.get("shopify_success");
+      const shopifyError = params.get("shopify_error");
+      
+      if (shopifySuccess === "true") {
+        toast({
+          title: t("settings.shopify.connectionSuccess"),
+          description: t("settings.shopify.connectionSuccessDesc"),
+        });
+        // Clean up URL
+        window.history.replaceState({}, "", window.location.pathname);
+      } else if (shopifyError) {
+        toast({
+          title: t("settings.shopify.connectionFailed"),
+          description: shopifyError,
+          variant: "destructive",
+        });
+        // Clean up URL
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    }
+  }, [toast, t]);
 
   // Sync logo paths when tenant data loads/changes
   useEffect(() => {

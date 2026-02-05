@@ -258,6 +258,9 @@ function TenantRouter() {
         <Route path="/settings">
           <ProtectedRoute component={SettingsPage} />
         </Route>
+        <Route path="/settings/shopify">
+          <ProtectedRoute component={SettingsPage} />
+        </Route>
         <Route path="/electronic-billing">
           <ProtectedRoute component={ElectronicBillingPage} />
         </Route>
