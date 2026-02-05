@@ -179,7 +179,10 @@ shopifyRouter.get("/status", async (req: Request, res: Response) => {
   try {
     const config = await getShopifyConfig(tenantId);
     
-    if (!config) {
+    // Check if config exists and has valid credentials
+    const isConfigured = config && config.accessTokenEncrypted && config.isActive;
+    
+    if (!config || !isConfigured) {
       return res.json({
         configured: false,
         isActive: false,
@@ -532,9 +535,17 @@ shopifyRouter.delete("/disconnect", async (req: Request, res: Response) => {
   }
 
   try {
+    // Fully clear credentials and deactivate
     await db.update(tenantShopifyIntegrations)
       .set({
         isActive: false,
+        accessTokenEncrypted: null,
+        clientIdEncrypted: null,
+        clientSecretEncrypted: null,
+        refreshTokenEncrypted: null,
+        tokenScope: null,
+        tokenExpiresAt: null,
+        webhookSecret: null,
         updatedAt: new Date(),
       })
       .where(eq(tenantShopifyIntegrations.tenantId, tenantId));
