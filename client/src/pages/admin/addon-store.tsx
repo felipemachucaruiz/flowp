@@ -148,8 +148,8 @@ export default function AdminAddonStore() {
   const { t } = useI18n();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["/internal/api/addon-store"],
-    queryFn: () => adminFetch("/internal/api/addon-store").then(r => r.json()),
+    queryKey: ["/api/internal-admin/addon-store"],
+    queryFn: () => adminFetch("/api/internal-admin/addon-store").then(r => r.json()),
   });
 
   const form = useForm<AddonFormData>({
@@ -171,7 +171,7 @@ export default function AdminAddonStore() {
 
   const createMutation = useMutation({
     mutationFn: async (formData: AddonFormData) => {
-      const response = await adminFetch("/internal/api/addon-store", {
+      const response = await adminFetch("/api/internal-admin/addon-store", {
         method: "POST",
         body: JSON.stringify(formData),
       });
@@ -182,7 +182,7 @@ export default function AdminAddonStore() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/internal/api/addon-store"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/addon-store"] });
       toast({ title: "Add-on created successfully" });
       setIsDialogOpen(false);
       form.reset();
@@ -194,7 +194,7 @@ export default function AdminAddonStore() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ addonKey, data }: { addonKey: string; data: Partial<AddonFormData> }) => {
-      const response = await adminFetch(`/internal/api/addon-store/${addonKey}`, {
+      const response = await adminFetch(`/api/internal-admin/addon-store/${addonKey}`, {
         method: "PATCH",
         body: JSON.stringify(data),
       });
@@ -205,7 +205,7 @@ export default function AdminAddonStore() {
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/internal/api/addon-store"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/addon-store"] });
       toast({ title: "Add-on updated successfully" });
       setIsDialogOpen(false);
       setEditingAddon(null);
