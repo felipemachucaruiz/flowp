@@ -15,7 +15,7 @@ import { Puzzle, Plus, Edit, DollarSign, Tag, Zap, ShoppingBag, MessageCircle, P
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useForm, Controller } from "react-hook-form";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useTranslation } from "@/lib/i18n";
+import { useI18n, TranslationKey } from "@/lib/i18n";
 import { useUpload } from "@/hooks/use-upload";
 
 interface AddonFormData {
@@ -58,7 +58,7 @@ const INTEGRATION_KEY_OPTIONS = [
   { value: "priority_support", label: "Priority Support", description: "24/7 priority customer support" },
 ];
 
-function LogoUploader({ value, onChange, t }: { value: string; onChange: (url: string) => void; t: (key: string) => string }) {
+function LogoUploader({ value, onChange, t }: { value: string; onChange: (url: string) => void; t: (key: TranslationKey) => string }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { uploadFile, isUploading } = useUpload({
     onSuccess: (response) => {
@@ -145,7 +145,7 @@ export default function AdminAddonStore() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [useCustomKey, setUseCustomKey] = useState(false);
   const { toast } = useToast();
-  const { t } = useTranslation();
+  const { t } = useI18n();
 
   const { data, isLoading } = useQuery({
     queryKey: ["/internal/api/addon-store"],
