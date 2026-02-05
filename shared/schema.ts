@@ -1803,6 +1803,7 @@ export const addonDefinitions = pgTable("addon_definitions", {
   name: text("name").notNull(),  // "Shopify Integration"
   description: text("description"),  // Longer description for UI
   icon: text("icon"),  // Lucide icon name, e.g., "ShoppingBag"
+  logoUrl: text("logo_url"),  // Optional custom logo URL for the add-on
   category: text("category").default("integration"),  // "integration", "feature", "premium"
   
   // Pricing (in cents)

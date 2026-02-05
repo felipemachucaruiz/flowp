@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,17 +11,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { adminFetch } from "@/lib/admin-fetch";
-import { Puzzle, Plus, Edit, DollarSign, Tag, Zap, ShoppingBag, MessageCircle, Package } from "lucide-react";
+import { Puzzle, Plus, Edit, DollarSign, Tag, Zap, ShoppingBag, MessageCircle, Package, Upload, X, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useForm, Controller } from "react-hook-form";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useTranslation } from "@/lib/i18n";
+import { useUpload } from "@/hooks/use-upload";
 
 interface AddonFormData {
   addonKey: string;
   name: string;
   description: string;
   icon: string;
+  logoUrl: string;
   category: string;
   monthlyPrice: number;
   yearlyPrice?: number;
@@ -56,6 +58,88 @@ const INTEGRATION_KEY_OPTIONS = [
   { value: "priority_support", label: "Priority Support", description: "24/7 priority customer support" },
 ];
 
+function LogoUploader({ value, onChange, t }: { value: string; onChange: (url: string) => void; t: (key: string) => string }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadFile, isUploading } = useUpload({
+    onSuccess: (response) => {
+      const publicUrl = `/api/uploads/public/${response.objectPath.split('/').pop()}`;
+      onChange(publicUrl);
+    },
+  });
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        return;
+      }
+      await uploadFile(file);
+    }
+  };
+
+  const handleRemove = () => {
+    onChange("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+        data-testid="input-addon-logo-file"
+      />
+      
+      {value ? (
+        <div className="flex items-center gap-3 p-3 border rounded-md bg-muted/50">
+          <img 
+            src={value} 
+            alt="Logo" 
+            className="h-12 w-12 object-contain rounded"
+            onError={(e) => (e.currentTarget.src = "")}
+          />
+          <div className="flex-1 truncate text-sm">{value.split('/').pop()}</div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleRemove}
+            data-testid="button-remove-addon-logo"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          data-testid="button-upload-addon-logo"
+        >
+          {isUploading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              {t("common.uploading")}
+            </>
+          ) : (
+            <>
+              <Upload className="h-4 w-4 mr-2" />
+              {t("admin.addon_upload_logo")}
+            </>
+          )}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export default function AdminAddonStore() {
   const [editingAddon, setEditingAddon] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -74,6 +158,7 @@ export default function AdminAddonStore() {
       name: "",
       description: "",
       icon: "Puzzle",
+      logoUrl: "",
       category: "integration",
       monthlyPrice: 0,
       yearlyPrice: undefined,
@@ -159,6 +244,7 @@ export default function AdminAddonStore() {
       name: addon.name,
       description: addon.description || "",
       icon: addon.icon || "Puzzle",
+      logoUrl: addon.logoUrl || "",
       category: addon.category || "integration",
       monthlyPrice: addon.monthlyPrice || 0,
       yearlyPrice: addon.yearlyPrice,
@@ -400,6 +486,22 @@ export default function AdminAddonStore() {
                 rows={2}
                 data-testid="input-addon-description"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("admin.addon_logo")}</Label>
+              <Controller
+                name="logoUrl"
+                control={form.control}
+                render={({ field }) => (
+                  <LogoUploader
+                    value={field.value}
+                    onChange={field.onChange}
+                    t={t}
+                  />
+                )}
+              />
+              <p className="text-xs text-muted-foreground">{t("admin.addon_logo_hint")}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

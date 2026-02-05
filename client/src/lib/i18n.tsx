@@ -1804,6 +1804,9 @@ const translations = {
     "admin.addon_status_expired": "Expired",
     "admin.addon_status_unknown": "Unknown",
     "admin.addon_per_month": "/mo",
+    "admin.addon_logo": "Logo",
+    "admin.addon_logo_hint": "Upload a logo image for this add-on (optional)",
+    "admin.addon_upload_logo": "Upload Logo",
   },
   es: {
     // Navigation
@@ -3603,6 +3606,9 @@ const translations = {
     "admin.addon_status_expired": "Expirado",
     "admin.addon_status_unknown": "Desconocido",
     "admin.addon_per_month": "/mes",
+    "admin.addon_logo": "Logo",
+    "admin.addon_logo_hint": "Sube una imagen de logo para este add-on (opcional)",
+    "admin.addon_upload_logo": "Subir Logo",
   },
   pt: {
     // Navigation
@@ -5332,6 +5338,9 @@ const translations = {
     "admin.addon_status_expired": "Expirado",
     "admin.addon_status_unknown": "Desconhecido",
     "admin.addon_per_month": "/mês",
+    "admin.addon_logo": "Logo",
+    "admin.addon_logo_hint": "Carregue uma imagem de logo para este add-on (opcional)",
+    "admin.addon_upload_logo": "Carregar Logo",
   },
 };
 
