@@ -25,6 +25,7 @@ import {
   Package,
   AlertTriangle,
   ClipboardList,
+  Puzzle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -68,6 +69,11 @@ export function AdminSidebar() {
       title: "Packages",
       url: "/admin/packages",
       icon: Package,
+    },
+    {
+      title: "Add-on Store",
+      url: "/admin/addon-store",
+      icon: Puzzle,
     },
     {
       title: "Alerts",

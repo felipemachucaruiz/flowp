@@ -43,6 +43,7 @@ import AdminBilling from "@/pages/admin/billing";
 import AdminEmailSettings from "@/pages/admin/email-settings";
 import AdminDocuments from "@/pages/admin/documents";
 import AdminPackages from "@/pages/admin/packages";
+import AdminAddonStore from "@/pages/admin/addon-store";
 import AdminAlerts from "@/pages/admin/alerts";
 import AdminAudit from "@/pages/admin/audit";
 import OnboardingPage from "@/pages/onboarding";
@@ -183,6 +184,9 @@ function AdminRouter() {
         </Route>
         <Route path="/admin/packages">
           <AdminRoute component={AdminPackages} />
+        </Route>
+        <Route path="/admin/addon-store">
+          <AdminRoute component={AdminAddonStore} />
         </Route>
         <Route path="/admin/alerts">
           <AdminRoute component={AdminAlerts} />
