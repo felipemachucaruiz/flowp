@@ -1804,7 +1804,6 @@ const translations = {
     "admin.addon_status_expired": "Expired",
     "admin.addon_status_unknown": "Unknown",
     "admin.addon_per_month": "/mo",
-    "common.error": "Error",
   },
   es: {
     // Navigation
@@ -3604,7 +3603,6 @@ const translations = {
     "admin.addon_status_expired": "Expirado",
     "admin.addon_status_unknown": "Desconocido",
     "admin.addon_per_month": "/mes",
-    "common.error": "Error",
   },
   pt: {
     // Navigation
@@ -5334,7 +5332,6 @@ const translations = {
     "admin.addon_status_expired": "Expirado",
     "admin.addon_status_unknown": "Desconhecido",
     "admin.addon_per_month": "/mês",
-    "common.error": "Erro",
   },
 };
 
