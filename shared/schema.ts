@@ -1792,6 +1792,49 @@ export type InsertShopifySyncLog = z.infer<typeof insertShopifySyncLogSchema>;
 
 export const addonStatusEnum = pgEnum("addon_status", ["active", "cancelled", "expired", "trial"]);
 
+// Add-on Definitions (catalog of available add-ons)
+export const addonDefinitions = pgTable("addon_definitions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // Identifier (used in code, e.g., "shopify_integration")
+  addonKey: text("addon_key").notNull().unique(),
+  
+  // Display info
+  name: text("name").notNull(),  // "Shopify Integration"
+  description: text("description"),  // Longer description for UI
+  icon: text("icon"),  // Lucide icon name, e.g., "ShoppingBag"
+  category: text("category").default("integration"),  // "integration", "feature", "premium"
+  
+  // Pricing (in cents)
+  monthlyPrice: integer("monthly_price").default(0),  // 0 = free or included
+  yearlyPrice: integer("yearly_price"),  // Optional yearly discount
+  
+  // Trial settings
+  trialDays: integer("trial_days").default(0),  // 0 = no trial
+  
+  // Which subscription tiers include this add-on for free
+  // e.g., ["pro", "enterprise"] means Pro and Enterprise get it free
+  includedInTiers: jsonb("included_in_tiers").$type<string[]>().default([]),
+  
+  // Feature flags this add-on enables
+  enabledFeatures: jsonb("enabled_features").$type<string[]>().default([]),
+  
+  // Status
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertAddonDefinitionSchema = createInsertSchema(addonDefinitions).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true,
+});
+export type AddonDefinition = typeof addonDefinitions.$inferSelect;
+export type InsertAddonDefinition = z.infer<typeof insertAddonDefinitionSchema>;
+
 export const PAID_ADDONS = {
   SHOPIFY_INTEGRATION: "shopify_integration",
   WHATSAPP_NOTIFICATIONS: "whatsapp_notifications",
