@@ -18,8 +18,142 @@ import {
   importPendingShopifyOrder,
   getShopifyClient,
 } from "./index";
+import {
+  generateOAuthUrl,
+  validateOAuthState,
+  exchangeCodeForToken,
+  saveOAuthCredentials,
+} from "./oauth";
+import { encrypt } from "./shopifyClient";
 
 export const shopifyRouter = Router();
+
+// ==========================================
+// OAuth Flow Endpoints
+// ==========================================
+
+// Start OAuth flow - returns authorization URL
+shopifyRouter.post("/oauth/authorize", async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  if (!tenantId) {
+    return res.status(400).json({ error: "Tenant ID required" });
+  }
+
+  try {
+    const { shopDomain, clientId, clientSecret } = req.body;
+
+    if (!shopDomain || !clientId || !clientSecret) {
+      return res.status(400).json({ 
+        error: "Shop domain, client ID, and client secret are required" 
+      });
+    }
+
+    const host = req.get("host") || "localhost:5000";
+    const protocol = req.secure || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+    const redirectUri = `${protocol}://${host}/api/shopify/oauth/callback`;
+
+    // Store credentials temporarily (will be saved permanently after callback)
+    const existing = await db.query.tenantShopifyIntegrations.findFirst({
+      where: eq(tenantShopifyIntegrations.tenantId, tenantId),
+    });
+
+    const cleanDomain = shopDomain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+
+    if (existing) {
+      await db.update(tenantShopifyIntegrations)
+        .set({
+          shopDomain: cleanDomain,
+          clientIdEncrypted: encrypt(clientId),
+          clientSecretEncrypted: encrypt(clientSecret),
+          updatedAt: new Date(),
+        })
+        .where(eq(tenantShopifyIntegrations.tenantId, tenantId));
+    } else {
+      await db.insert(tenantShopifyIntegrations).values({
+        tenantId,
+        shopDomain: cleanDomain,
+        clientIdEncrypted: encrypt(clientId),
+        clientSecretEncrypted: encrypt(clientSecret),
+        isActive: false,
+      });
+    }
+
+    const authUrl = generateOAuthUrl(tenantId, shopDomain, clientId, redirectUri);
+
+    return res.json({ 
+      success: true, 
+      authUrl,
+      message: "Redirect user to authUrl to complete OAuth flow" 
+    });
+  } catch (error: any) {
+    console.error("[Shopify OAuth] Authorize error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// OAuth callback - exchange code for token
+shopifyRouter.get("/oauth/callback", async (req: Request, res: Response) => {
+  try {
+    const { code, state, shop, error: oauthError, error_description } = req.query;
+
+    if (oauthError) {
+      console.error(`[Shopify OAuth] Error from Shopify: ${oauthError} - ${error_description}`);
+      return res.redirect(`/settings?shopify_error=${encodeURIComponent(String(error_description || oauthError))}`);
+    }
+
+    if (!code || !state || !shop) {
+      return res.redirect("/settings?shopify_error=missing_parameters");
+    }
+
+    const oauthState = validateOAuthState(String(state));
+    if (!oauthState) {
+      console.error("[Shopify OAuth] Invalid or expired state");
+      return res.redirect("/settings?shopify_error=invalid_state");
+    }
+
+    const { tenantId } = oauthState;
+
+    // Get stored credentials
+    const config = await db.query.tenantShopifyIntegrations.findFirst({
+      where: eq(tenantShopifyIntegrations.tenantId, tenantId),
+    });
+
+    if (!config || !config.clientIdEncrypted || !config.clientSecretEncrypted) {
+      console.error("[Shopify OAuth] Missing stored credentials");
+      return res.redirect("/settings?shopify_error=missing_credentials");
+    }
+
+    // Import decrypt here to avoid circular dependency
+    const { decrypt } = await import("./shopifyClient");
+    const clientId = decrypt(config.clientIdEncrypted);
+    const clientSecret = decrypt(config.clientSecretEncrypted);
+
+    // Exchange code for token
+    const tokenResponse = await exchangeCodeForToken(
+      String(shop),
+      clientId,
+      clientSecret,
+      String(code)
+    );
+
+    // Save the credentials
+    await saveOAuthCredentials(
+      tenantId,
+      String(shop),
+      clientId,
+      clientSecret,
+      tokenResponse.accessToken,
+      tokenResponse.scope,
+      tokenResponse.expiresIn
+    );
+
+    console.log(`[Shopify OAuth] Successfully connected for tenant ${tenantId}`);
+    return res.redirect("/settings?shopify_success=true");
+  } catch (error: any) {
+    console.error("[Shopify OAuth] Callback error:", error);
+    return res.redirect(`/settings?shopify_error=${encodeURIComponent(error.message)}`);
+  }
+});
 
 // Get Shopify integration status
 shopifyRouter.get("/status", async (req: Request, res: Response) => {
