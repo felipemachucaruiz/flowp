@@ -15,6 +15,7 @@ import { Puzzle, Plus, Edit, DollarSign, Tag, Zap, ShoppingBag, MessageCircle, P
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useForm, Controller } from "react-hook-form";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useTranslation } from "@/lib/i18n";
 
 interface AddonFormData {
   addonKey: string;
@@ -60,6 +61,7 @@ export default function AdminAddonStore() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [useCustomKey, setUseCustomKey] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const { data, isLoading } = useQuery({
     queryKey: ["/internal/api/addon-store"],
@@ -207,12 +209,12 @@ export default function AdminAddonStore() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold" data-testid="text-addon-store-title">Add-on Store</h2>
-          <p className="text-muted-foreground">Configure available add-ons and their pricing</p>
+          <h2 className="text-2xl font-bold" data-testid="text-addon-store-title">{t("admin.addon_store")}</h2>
+          <p className="text-muted-foreground">{t("admin.addon_store_description")}</p>
         </div>
         <Button onClick={handleOpenCreate} data-testid="button-create-addon">
           <Plus className="h-4 w-4 mr-2" />
-          New Add-on
+          {t("admin.addon_store_new")}
         </Button>
       </div>
 
@@ -294,11 +296,11 @@ export default function AdminAddonStore() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Puzzle className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">No add-ons configured</h3>
-            <p className="text-muted-foreground text-sm mb-4">Create your first add-on to get started</p>
+            <h3 className="text-lg font-medium">{t("admin.addon_store_empty")}</h3>
+            <p className="text-muted-foreground text-sm mb-4">{t("admin.addon_store_empty_description")}</p>
             <Button onClick={handleOpenCreate}>
               <Plus className="h-4 w-4 mr-2" />
-              Create Add-on
+              {t("admin.addon_store_create")}
             </Button>
           </CardContent>
         </Card>
