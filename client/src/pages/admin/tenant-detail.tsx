@@ -9,15 +9,17 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Building2, FileText, Package, AlertTriangle, CheckCircle, XCircle, Settings, Wifi, WifiOff, Loader2, Clock, RefreshCw } from "lucide-react";
+import { ArrowLeft, Building2, FileText, Package, AlertTriangle, CheckCircle, XCircle, Settings, Wifi, WifiOff, Loader2, Clock, RefreshCw, Puzzle, ShoppingBag, MessageSquare, ToggleLeft, Power, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { adminFetch } from "@/lib/admin-fetch";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n";
 
 export default function AdminTenantDetail() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const { toast } = useToast();
+  const { t } = useI18n();
   
   const [matiasConfig, setMatiasConfig] = useState({
     baseUrl: "https://api-v2.matias-api.com",
@@ -56,6 +58,22 @@ export default function AdminTenantDetail() {
     queryKey: ["/api/internal-admin/ebilling/documents", tenantId],
     queryFn: async () => {
       const res = await adminFetch(`/api/internal-admin/ebilling/documents?tenantId=${tenantId}&limit=20`);
+      return res.json();
+    },
+  });
+
+  const { data: addonStoreData } = useQuery({
+    queryKey: ["/api/internal-admin/addon-store"],
+    queryFn: async () => {
+      const res = await adminFetch("/api/internal-admin/addon-store");
+      return res.json();
+    },
+  });
+
+  const { data: tenantAddonsData, refetch: refetchTenantAddons } = useQuery({
+    queryKey: ["/api/internal-admin/tenants", tenantId, "addons"],
+    queryFn: async () => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${tenantId}/addons`);
       return res.json();
     },
   });
@@ -149,6 +167,51 @@ export default function AdminTenantDetail() {
     },
   });
 
+  const activateAddonMutation = useMutation({
+    mutationFn: async ({ addonKey, withTrial }: { addonKey: string; withTrial: boolean }) => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${tenantId}/addons`, {
+        method: "POST",
+        body: JSON.stringify({ addonKey, withTrial }),
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: t("admin.addon_activated") });
+        refetchTenantAddons();
+      } else {
+        toast({ title: t("common.error"), description: data.error, variant: "destructive" });
+      }
+    },
+  });
+
+  const deactivateAddonMutation = useMutation({
+    mutationFn: async (addonId: string) => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${tenantId}/addons/${addonId}`, {
+        method: "DELETE",
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: t("admin.addon_deactivated") });
+        refetchTenantAddons();
+      } else {
+        toast({ title: t("common.error"), description: data.error, variant: "destructive" });
+      }
+    },
+  });
+
+  const getAddonStatusLabel = (status: string) => {
+    switch (status) {
+      case "active": return t("admin.addon_status_active");
+      case "trial": return t("admin.addon_status_trial");
+      case "canceled": return t("admin.addon_status_canceled");
+      case "expired": return t("admin.addon_status_expired");
+      default: return t("admin.addon_status_unknown");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="h-full overflow-y-auto space-y-6 p-6">
@@ -208,6 +271,10 @@ export default function AdminTenantDetail() {
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+          <TabsTrigger value="addons" data-testid="tab-addons">
+            <Puzzle className="h-4 w-4 mr-1" />
+            {t("admin.addons")}
+          </TabsTrigger>
           <TabsTrigger value="ebilling" data-testid="tab-ebilling">E-Billing</TabsTrigger>
           <TabsTrigger value="matias" data-testid="tab-matias">MATIAS</TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
@@ -290,6 +357,171 @@ export default function AdminTenantDetail() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="addons" className="space-y-6">
+          <Tabs defaultValue="store">
+            <TabsList>
+              <TabsTrigger value="store" data-testid="tab-addon-store">
+                <ShoppingBag className="h-4 w-4 mr-1" />
+                {t("admin.addon_store")}
+              </TabsTrigger>
+              <TabsTrigger value="activated" data-testid="tab-addon-activated">
+                <Power className="h-4 w-4 mr-1" />
+                {t("admin.activated_addons")}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="store" className="space-y-4 mt-4">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {addonStoreData?.addons?.filter((addon: any) => addon.isActive).map((addon: any) => {
+                  const isInstalled = tenantAddonsData?.addons?.some(
+                    (ta: any) => ta.addonType === addon.addonKey && (ta.status === "active" || ta.status === "trial")
+                  );
+                  const isIncludedInTier = addon.includedInTiers?.includes(tenant?.subscriptionTier || "basic");
+                  
+                  const IconComponent = addon.icon === "ShoppingBag" ? ShoppingBag : 
+                                        addon.icon === "MessageSquare" ? MessageSquare : Puzzle;
+                  
+                  return (
+                    <Card key={addon.id} className="relative">
+                      {isInstalled && (
+                        <Badge className="absolute top-2 right-2 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          {t("admin.addon_installed")}
+                        </Badge>
+                      )}
+                      <CardHeader>
+                        <div className="flex items-center gap-2">
+                          <IconComponent className="h-5 w-5 text-primary" />
+                          <CardTitle className="text-lg">{addon.name}</CardTitle>
+                        </div>
+                        <CardDescription>{addon.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">{t("admin.addon_price")}</span>
+                          <span className="font-medium">
+                            {isIncludedInTier ? (
+                              <Badge variant="secondary">{t("admin.addon_included_in")} {tenant?.subscriptionTier}</Badge>
+                            ) : addon.monthlyPrice ? (
+                              `$${(addon.monthlyPrice / 100).toFixed(2)}${t("admin.addon_per_month")}`
+                            ) : (
+                              t("admin.addon_free")
+                            )}
+                          </span>
+                        </div>
+                        {addon.trialDays > 0 && !isInstalled && !isIncludedInTier && (
+                          <p className="text-xs text-muted-foreground">
+                            {addon.trialDays} {t("admin.addon_trial_available")}
+                          </p>
+                        )}
+                        {!isInstalled && (
+                          <div className="flex gap-2">
+                            {addon.trialDays > 0 && !isIncludedInTier && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => activateAddonMutation.mutate({ addonKey: addon.addonKey, withTrial: true })}
+                                disabled={activateAddonMutation.isPending}
+                                data-testid={`button-trial-${addon.addonKey}`}
+                              >
+                                {t("admin.addon_start_trial")}
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              onClick={() => activateAddonMutation.mutate({ addonKey: addon.addonKey, withTrial: false })}
+                              disabled={activateAddonMutation.isPending}
+                              data-testid={`button-activate-${addon.addonKey}`}
+                            >
+                              {activateAddonMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                t("admin.addon_activate")
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+                {(!addonStoreData?.addons || addonStoreData.addons.length === 0) && (
+                  <p className="text-muted-foreground col-span-full text-center py-8">
+                    {t("admin.addon_no_available")}
+                  </p>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="activated" className="space-y-4 mt-4">
+              {tenantAddonsData?.addons?.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {tenantAddonsData.addons.map((addon: any) => {
+                    const addonDef = addonStoreData?.addons?.find((a: any) => a.addonKey === addon.addonType);
+                    const IconComponent = addonDef?.icon === "ShoppingBag" ? ShoppingBag : 
+                                          addonDef?.icon === "MessageSquare" ? MessageSquare : Puzzle;
+                    
+                    return (
+                      <Card key={addon.id}>
+                        <CardHeader>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <IconComponent className="h-5 w-5 text-primary" />
+                              <CardTitle className="text-lg">{addonDef?.name || addon.addonType}</CardTitle>
+                            </div>
+                            <Badge variant={addon.status === "active" ? "default" : addon.status === "trial" ? "secondary" : "destructive"}>
+                              {getAddonStatusLabel(addon.status)}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {addon.status === "trial" && addon.trialEndsAt && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Clock className="h-4 w-4" />
+                              {t("admin.addon_trial_ends")}: {new Date(addon.trialEndsAt).toLocaleDateString()}
+                            </div>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {addon.addonType === "shopify_integration" 
+                              ? t("admin.addon_config_hint_shopify")
+                              : addonDef?.description || ""}
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => deactivateAddonMutation.mutate(addon.id)}
+                              disabled={deactivateAddonMutation.isPending}
+                              data-testid={`button-deactivate-${addon.addonType}`}
+                            >
+                              {deactivateAddonMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  {t("admin.addon_deactivate")}
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <Puzzle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>{t("admin.addon_no_activated")}</p>
+                    <p className="text-sm mt-1">{t("admin.addon_browse_store")}</p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="ebilling" className="space-y-6">

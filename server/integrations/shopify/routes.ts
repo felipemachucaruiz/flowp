@@ -89,6 +89,59 @@ async function requireShopifyAddon(req: Request, res: Response, next: NextFuncti
 }
 
 // ==========================================
+// Add-on Status Check (no billing gate - just checks status)
+// ==========================================
+shopifyRouter.get("/addon-status", async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  if (!tenantId) {
+    return res.json({ hasAddon: false });
+  }
+
+  try {
+    // Check for explicit subscription
+    const addon = await db.query.tenantAddons.findFirst({
+      where: and(
+        eq(tenantAddons.tenantId, tenantId),
+        eq(tenantAddons.addonType, PAID_ADDONS.SHOPIFY_INTEGRATION),
+        or(
+          eq(tenantAddons.status, "active"),
+          eq(tenantAddons.status, "trial")
+        )
+      ),
+    });
+
+    if (addon) {
+      // Check if trial has expired
+      if (addon.status === "trial" && addon.trialEndsAt && new Date(addon.trialEndsAt) < new Date()) {
+        return res.json({ hasAddon: false, reason: "trial_expired" });
+      }
+      return res.json({ hasAddon: true, source: "subscription" });
+    }
+
+    // Check if subscription tier includes this add-on
+    const [tenant, addonDef] = await Promise.all([
+      db.query.tenants.findFirst({
+        where: eq(tenants.id, tenantId),
+        columns: { subscriptionTier: true },
+      }),
+      db.query.addonDefinitions.findFirst({
+        where: eq(addonDefinitions.addonKey, PAID_ADDONS.SHOPIFY_INTEGRATION),
+        columns: { includedInTiers: true },
+      }),
+    ]);
+
+    if (tenant && addonDef?.includedInTiers?.includes(tenant.subscriptionTier || "basic")) {
+      return res.json({ hasAddon: true, source: "tier_inclusion" });
+    }
+
+    return res.json({ hasAddon: false });
+  } catch (error: any) {
+    console.error("[Shopify Addon Status Check] Error:", error);
+    return res.json({ hasAddon: false });
+  }
+});
+
+// ==========================================
 // OAuth Flow Endpoints (require Shopify add-on)
 // ==========================================
 

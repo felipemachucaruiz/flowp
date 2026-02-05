@@ -1338,6 +1338,12 @@ export default function SettingsPage() {
     queryKey: ["/api/tax-rates"],
   });
 
+  const { data: shopifyAddonData } = useQuery<{ hasAddon: boolean }>({
+    queryKey: ["/api/shopify/addon-status"],
+    retry: false,
+  });
+  const hasShopifyAddon = shopifyAddonData?.hasAddon === true;
+
   // Tax rates state
   const [isAddingTax, setIsAddingTax] = useState(false);
   const [editingTax, setEditingTax] = useState<TaxRate | null>(null);
@@ -1825,7 +1831,7 @@ export default function SettingsPage() {
                 <span className="sm:hidden">{t("ebilling.short") || "E-Bill"}</span>
               </TabsTrigger>
             )}
-            {isAdmin && (
+            {isAdmin && hasShopifyAddon && (
               <TabsTrigger value="shopify" data-testid="tab-shopify" className="text-xs sm:text-sm">
                 <Store className="w-4 h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">{t("settings.shopify") || "Shopify"}</span>
