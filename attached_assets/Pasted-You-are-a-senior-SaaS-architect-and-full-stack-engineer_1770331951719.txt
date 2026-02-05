@@ -1,0 +1,189 @@
+You are a senior SaaS architect and full-stack engineer.
+
+Build a V2 WhatsApp Integration Add-on for a multi-tenant POS and ERP platform called FLOWP.
+
+The integration must use Gupshup WhatsApp Business API and be designed as a PAID, METERED ADD-ON.
+
+------------------------------------------------
+CORE PRINCIPLES
+------------------------------------------------
+- FLOWP is multi-tenant
+- Each tenant has isolated configuration and usage
+- WhatsApp messages are billed by package
+- Admin (Flowp HQ) controls pricing and quotas
+- Merchants only see their own usage
+
+------------------------------------------------
+TECH STACK
+------------------------------------------------
+Backend: Node.js + Express
+Environment: Replit
+Database: SQLite (preferred) or in-memory (fallback)
+Auth: API keys per tenant
+Webhooks: Public endpoint
+Architecture: Modular services
+
+------------------------------------------------
+DATA MODELS
+------------------------------------------------
+
+Tenant
+- id
+- name
+- status
+
+WhatsAppConfig
+- tenantId
+- enabled
+- gupshupApiKey
+- gupshupAppName
+- senderPhone
+- approvedTemplates[]
+- createdAt
+
+WhatsAppPackage
+- id
+- name
+- messageLimit
+- price
+- active
+
+TenantWhatsAppSubscription
+- tenantId
+- packageId
+- messagesUsed
+- renewalDate
+- status
+
+WhatsAppMessageLog
+- id
+- tenantId
+- direction (inbound | outbound)
+- phone
+- messageType (receipt | alert | manual | command)
+- status (sent | delivered | failed)
+- providerMessageId
+- createdAt
+
+------------------------------------------------
+FEATURES TO IMPLEMENT
+------------------------------------------------
+
+1) FLOWP ADMIN (HQ) CONTROLS
+Create endpoints to:
+- Create WhatsApp packages
+- Define message limits and prices
+- Enable / disable WhatsApp globally
+
+Endpoints:
+POST /admin/whatsapp/packages
+GET  /admin/whatsapp/packages
+PATCH /admin/whatsapp/packages/:id
+
+------------------------------------------------
+
+2) TENANT WHATSAPP CONFIGURATION
+Merchants can:
+- Enable WhatsApp add-on
+- Select a package
+- Configure Gupshup credentials
+- Select approved templates
+
+Endpoints:
+POST /tenants/:tenantId/whatsapp/config
+GET  /tenants/:tenantId/whatsapp/config
+
+------------------------------------------------
+
+3) USAGE METERING & LIMITS
+Before sending a message:
+- Validate tenant subscription
+- Check remaining message quota
+- Block sending if limit exceeded
+- Log usage
+
+Auto-increment messagesUsed per message sent.
+
+------------------------------------------------
+
+4) SEND WHATSAPP RECEIPTS
+Endpoint:
+POST /whatsapp/send-receipt
+
+Payload:
+{
+  tenantId,
+  customerPhone,
+  customerName,
+  receiptUrl,
+  totalAmount,
+  currency
+}
+
+Rules:
+- Use approved template
+- Deduct 1 message from quota
+- Log outbound message
+
+------------------------------------------------
+
+5) AUTOMATED BUSINESS NOTIFICATIONS
+Support system-triggered messages:
+- Low inventory alerts
+- Daily sales summary
+- Expiring products warning
+
+Each notification:
+- Uses templates
+- Counts toward quota
+
+------------------------------------------------
+
+6) INBOUND WHATSAPP COMMANDS
+Webhook:
+POST /webhooks/gupshup
+
+Supported commands:
+- "RECIBO" → ask for invoice number
+- "HORARIO" → return business hours
+- "AYUDA" → return support info
+
+Unknown messages:
+- Send fallback template
+
+------------------------------------------------
+
+7) MESSAGE STATUS CALLBACKS
+Process delivery status updates from Gupshup:
+- Sent
+- Delivered
+- Failed
+
+Update logs accordingly.
+
+------------------------------------------------
+
+8) SECURITY & MULTI-TENANCY
+- Validate tenantId on every request
+- Never share data between tenants
+- Store secrets securely
+- Rate limit inbound webhooks
+
+------------------------------------------------
+DELIVERABLES
+------------------------------------------------
+- Express server
+- Modular services:
+  - gupshup.service.js
+  - whatsapp.controller.js
+  - billing.service.js
+  - webhook.controller.js
+- SQLite schema
+- Sample env variables
+- README with:
+  - Setup steps
+  - Gupshup configuration
+  - Message flow diagrams
+
+Write clean, scalable, production-grade code.
+Add comments and clear folder structure.
