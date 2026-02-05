@@ -204,8 +204,8 @@ export default function AdminAddonStore() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold" data-testid="text-addon-store-title">Add-on Store</h2>
           <p className="text-muted-foreground">Configure available add-ons and their pricing</p>
