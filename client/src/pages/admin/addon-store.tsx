@@ -44,6 +44,17 @@ const CATEGORY_OPTIONS = [
   { value: "premium", label: "Premium" },
 ];
 
+const INTEGRATION_KEY_OPTIONS = [
+  { value: "shopify_integration", label: "Shopify Integration", description: "Sync inventory and orders with Shopify" },
+  { value: "whatsapp_notifications", label: "WhatsApp Notifications", description: "Send notifications via WhatsApp/Gupshup" },
+  { value: "advanced_reporting", label: "Advanced Reporting", description: "Extended analytics and reports" },
+  { value: "multi_location", label: "Multi-Location", description: "Manage multiple store locations" },
+  { value: "loyalty_program", label: "Loyalty Program", description: "Customer loyalty and rewards" },
+  { value: "api_access", label: "API Access", description: "External API access for integrations" },
+  { value: "custom_branding", label: "Custom Branding", description: "White-label and custom branding" },
+  { value: "priority_support", label: "Priority Support", description: "24/7 priority customer support" },
+];
+
 export default function AdminAddonStore() {
   const [editingAddon, setEditingAddon] = useState<any>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -298,15 +309,39 @@ export default function AdminAddonStore() {
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="addonKey">Add-on Key</Label>
-                <Input
-                  id="addonKey"
-                  placeholder="e.g., shopify_integration"
-                  {...form.register("addonKey")}
-                  disabled={!!editingAddon}
-                  data-testid="input-addon-key"
+                <Label>Integration Type</Label>
+                <Controller
+                  name="addonKey"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Select 
+                      value={field.value} 
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        const selected = INTEGRATION_KEY_OPTIONS.find(opt => opt.value === val);
+                        if (selected && !editingAddon) {
+                          form.setValue("name", selected.label);
+                          form.setValue("description", selected.description);
+                        }
+                      }}
+                      disabled={!!editingAddon}
+                    >
+                      <SelectTrigger data-testid="select-addon-key">
+                        <SelectValue placeholder="Select integration..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INTEGRATION_KEY_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            <div className="flex flex-col">
+                              <span>{opt.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                 />
-                <p className="text-xs text-muted-foreground">Used in code, cannot be changed</p>
+                <p className="text-xs text-muted-foreground">Integration ID (cannot be changed after creation)</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="name">Display Name</Label>
