@@ -270,7 +270,7 @@ export function ShopifySettings() {
             </div>
             <div>
               <CardTitle className="flex items-center gap-2">
-                Shopify Integration
+                {t("shopify.title")}
                 {status?.configured && (
                   <Badge variant={status.isActive ? "default" : "secondary"}>
                     {status.isActive ? t("common.active") : t("common.inactive")}
@@ -279,8 +279,8 @@ export function ShopifySettings() {
               </CardTitle>
               <CardDescription>
                 {status?.configured 
-                  ? (status.shopName || "Connected to your Shopify store")
-                  : "Connect your Shopify store to sync orders and inventory"}
+                  ? (status.shopName || t("shopify.connected_desc"))
+                  : t("shopify.not_configured")}
               </CardDescription>
             </div>
           </div>
@@ -303,7 +303,7 @@ export function ShopifySettings() {
               data-testid="button-connect-shopify"
             >
               <Link2 className="w-4 h-4 mr-2" />
-              Connect Shopify
+              {t("shopify.connect")}
             </Button>
           )}
         </CardHeader>
@@ -313,19 +313,19 @@ export function ShopifySettings() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-3 bg-muted rounded-lg">
                 <div className="text-2xl font-bold">{status.stats.totalOrders}</div>
-                <div className="text-sm text-muted-foreground">{t("orders.total")}</div>
+                <div className="text-sm text-muted-foreground">{t("shopify.total_orders")}</div>
               </div>
               <div className="text-center p-3 bg-green-500/10 rounded-lg">
                 <div className="text-2xl font-bold text-green-600">{status.stats.completedOrders}</div>
-                <div className="text-sm text-muted-foreground">{t("orders.completed")}</div>
+                <div className="text-sm text-muted-foreground">{t("shopify.completed")}</div>
               </div>
               <div className="text-center p-3 bg-yellow-500/10 rounded-lg">
                 <div className="text-2xl font-bold text-yellow-600">{status.stats.pendingOrders}</div>
-                <div className="text-sm text-muted-foreground">{t("orders.pending")}</div>
+                <div className="text-sm text-muted-foreground">{t("shopify.pending")}</div>
               </div>
               <div className="text-center p-3 bg-red-500/10 rounded-lg">
                 <div className="text-2xl font-bold text-red-600">{status.stats.failedOrders}</div>
-                <div className="text-sm text-muted-foreground">{t("common.failed")}</div>
+                <div className="text-sm text-muted-foreground">{t("shopify.failed")}</div>
               </div>
             </div>
           </CardContent>
@@ -337,10 +337,10 @@ export function ShopifySettings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ArrowRightLeft className="w-5 h-5" />
-              Sync Settings
+              {t("shopify.sync_settings")}
             </CardTitle>
             <CardDescription>
-              Configure what data syncs between Flowp and Shopify
+              {t("shopify.sync_settings_desc")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -348,10 +348,10 @@ export function ShopifySettings() {
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2 font-medium">
                   <Package className="w-4 h-4" />
-                  Sync Inventory
+                  {t("shopify.sync_inventory")}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Push stock levels from Flowp to Shopify
+                  {t("shopify.sync_inventory_desc")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -382,10 +382,10 @@ export function ShopifySettings() {
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2 font-medium">
                   <DollarSign className="w-4 h-4" />
-                  Sync Prices
+                  {t("shopify.sync_prices")}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Push price changes from Flowp to Shopify
+                  {t("shopify.sync_prices_desc")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -416,10 +416,10 @@ export function ShopifySettings() {
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2 font-medium">
                   <ShoppingBag className="w-4 h-4" />
-                  Generate DIAN Documents
+                  {t("shopify.generate_dian")}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Automatically create electronic invoices for Shopify orders
+                  {t("shopify.generate_dian_desc")}
                 </p>
               </div>
               <Switch
@@ -433,13 +433,13 @@ export function ShopifySettings() {
               <>
                 <Separator />
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Shopify Location</label>
+                  <label className="text-sm font-medium">{t("shopify.location")}</label>
                   <Select
                     defaultValue=""
                     onValueChange={(value) => updateSettingsMutation.mutate({ shopifyLocationId: value })}
                   >
                     <SelectTrigger data-testid="select-shopify-location">
-                      <SelectValue placeholder="Select location" />
+                      <SelectValue placeholder={t("shopify.select_location")} />
                     </SelectTrigger>
                     <SelectContent>
                       {locations.locations.map((loc) => (
@@ -450,7 +450,7 @@ export function ShopifySettings() {
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Select the Shopify location for inventory sync
+                    {t("shopify.location_desc")}
                   </p>
                 </div>
               </>
@@ -465,10 +465,10 @@ export function ShopifySettings() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Package className="w-5 h-5" />
-                Product Mappings
+                {t("shopify.product_mappings")}
               </CardTitle>
               <CardDescription>
-                Link Shopify products to Flowp products for sync
+                {t("shopify.product_mappings_desc")}
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -484,7 +484,7 @@ export function ShopifySettings() {
                 ) : (
                   <RefreshCw className="w-4 h-4 mr-2" />
                 )}
-                Auto-Map by SKU
+                {t("shopify.auto_map")}
               </Button>
               <Button
                 variant="outline"
@@ -498,7 +498,7 @@ export function ShopifySettings() {
           </CardHeader>
           <CardContent>
             <div className="text-sm text-muted-foreground">
-              {mappings?.mappings?.length || 0} products mapped
+              {mappings?.mappings?.length || 0} {t("shopify.products_mapped_count")}
             </div>
           </CardContent>
         </Card>
@@ -510,10 +510,10 @@ export function ShopifySettings() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5" />
-                Recent Shopify Orders
+                {t("shopify.recent_orders")}
               </CardTitle>
               <CardDescription>
-                Orders imported from Shopify
+                {t("shopify.recent_orders_desc")}
               </CardDescription>
             </div>
             <Button
@@ -555,7 +555,7 @@ export function ShopifySettings() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No orders imported yet
+                {t("shopify.no_orders")}
               </p>
             )}
           </CardContent>
@@ -567,10 +567,10 @@ export function ShopifySettings() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <ShoppingBag className="w-5 h-5" />
-              Connect Shopify Store
+              {t("shopify.connect_title")}
             </DialogTitle>
             <DialogDescription>
-              Enter your Shopify store credentials to enable integration
+              {t("shopify.connect_desc")}
             </DialogDescription>
           </DialogHeader>
           <Form {...configForm}>
@@ -580,7 +580,7 @@ export function ShopifySettings() {
                 name="shopDomain"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Shop Domain</FormLabel>
+                    <FormLabel>{t("shopify.shop_domain")}</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
@@ -589,7 +589,7 @@ export function ShopifySettings() {
                       />
                     </FormControl>
                     <FormDescription>
-                      Your Shopify store domain
+                      {t("shopify.shop_domain_help")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -601,7 +601,7 @@ export function ShopifySettings() {
                 name="accessToken"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Access Token</FormLabel>
+                    <FormLabel>{t("shopify.access_token")}</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
@@ -611,7 +611,7 @@ export function ShopifySettings() {
                       />
                     </FormControl>
                     <FormDescription>
-                      Admin API access token from Shopify
+                      {t("shopify.access_token_help")}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -625,9 +625,9 @@ export function ShopifySettings() {
                   render={({ field }) => (
                     <FormItem className="flex items-center justify-between rounded-lg border p-3">
                       <div className="space-y-0.5">
-                        <FormLabel>Sync Inventory</FormLabel>
+                        <FormLabel>{t("shopify.sync_inventory")}</FormLabel>
                         <FormDescription className="text-xs">
-                          Push stock levels from Flowp to Shopify
+                          {t("shopify.sync_inventory_desc")}
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -647,9 +647,9 @@ export function ShopifySettings() {
                   render={({ field }) => (
                     <FormItem className="flex items-center justify-between rounded-lg border p-3">
                       <div className="space-y-0.5">
-                        <FormLabel>Sync Prices</FormLabel>
+                        <FormLabel>{t("shopify.sync_prices")}</FormLabel>
                         <FormDescription className="text-xs">
-                          Push price changes from Flowp to Shopify
+                          {t("shopify.sync_prices_desc")}
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -669,9 +669,9 @@ export function ShopifySettings() {
                   render={({ field }) => (
                     <FormItem className="flex items-center justify-between rounded-lg border p-3">
                       <div className="space-y-0.5">
-                        <FormLabel>Generate DIAN Documents</FormLabel>
+                        <FormLabel>{t("shopify.generate_dian")}</FormLabel>
                         <FormDescription className="text-xs">
-                          Create electronic invoices for Shopify orders
+                          {t("shopify.generate_dian_desc")}
                         </FormDescription>
                       </div>
                       <FormControl>
@@ -712,16 +712,16 @@ export function ShopifySettings() {
       <Dialog open={showMappingsDialog} onOpenChange={setShowMappingsDialog}>
         <DialogContent className="sm:max-w-[800px] max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Product Mappings</DialogTitle>
+            <DialogTitle>{t("shopify.product_mappings")}</DialogTitle>
           </DialogHeader>
           <ScrollArea className="h-[500px]">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Shopify Product</TableHead>
-                  <TableHead>Flowp Product</TableHead>
+                  <TableHead>{t("shopify.shopify_product")}</TableHead>
+                  <TableHead>{t("shopify.flowp_product")}</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
-                  <TableHead>Last Sync</TableHead>
+                  <TableHead>{t("shopify.last_sync")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -747,12 +747,12 @@ export function ShopifySettings() {
                           )}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground italic">Not mapped</span>
+                        <span className="text-muted-foreground italic">{t("shopify.not_mapped")}</span>
                       )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={mapping.isActive ? "default" : "secondary"}>
-                        {mapping.autoMatched ? "Auto" : "Manual"}
+                        {mapping.autoMatched ? t("shopify.auto") : t("shopify.manual")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -765,7 +765,7 @@ export function ShopifySettings() {
                 {(!mappings?.mappings || mappings.mappings.length === 0) && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      No product mappings found
+                      {t("shopify.no_mappings")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -778,15 +778,15 @@ export function ShopifySettings() {
       <Dialog open={showOrdersDialog} onOpenChange={setShowOrdersDialog}>
         <DialogContent className="sm:max-w-[800px] max-h-[80vh]">
           <DialogHeader>
-            <DialogTitle>Shopify Orders</DialogTitle>
+            <DialogTitle>{t("shopify.shopify_orders")}</DialogTitle>
           </DialogHeader>
           <ScrollArea className="h-[500px]">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Order</TableHead>
-                  <TableHead>{t("common.customer")}</TableHead>
-                  <TableHead>{t("common.total")}</TableHead>
+                  <TableHead>{t("shopify.order_name")}</TableHead>
+                  <TableHead>{t("shopify.customer")}</TableHead>
+                  <TableHead>{t("shopify.total")}</TableHead>
                   <TableHead>{t("common.status")}</TableHead>
                   <TableHead>{t("common.date")}</TableHead>
                 </TableRow>
@@ -816,7 +816,7 @@ export function ShopifySettings() {
                 {(!orders?.orders || orders.orders.length === 0) && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      No orders imported yet
+                      {t("shopify.no_orders")}
                     </TableCell>
                   </TableRow>
                 )}
