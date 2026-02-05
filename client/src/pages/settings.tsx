@@ -48,6 +48,7 @@ import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/pri
 import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw, Smartphone, Bell } from "lucide-react";
 import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 import { EmailTemplateEditor } from "@/components/email-template-editor";
+import { ShopifySettings } from "@/components/shopify-settings";
 
 const businessSettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
@@ -1786,6 +1787,13 @@ export default function SettingsPage() {
                 <span className="sm:hidden">{t("ebilling.short") || "E-Bill"}</span>
               </TabsTrigger>
             )}
+            {isAdmin && (
+              <TabsTrigger value="shopify" data-testid="tab-shopify" className="text-xs sm:text-sm">
+                <Store className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.shopify") || "Shopify"}</span>
+                <span className="sm:hidden">{t("shopify.short") || "Shop"}</span>
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
 
@@ -3249,6 +3257,11 @@ export default function SettingsPage() {
         {/* E-Billing Settings */}
         <TabsContent value="ebilling" className="mt-6 space-y-6">
           <EBillingSettings />
+        </TabsContent>
+
+        {/* Shopify Integration */}
+        <TabsContent value="shopify" className="mt-6 space-y-6">
+          <ShopifySettings />
         </TabsContent>
       </Tabs>
 
