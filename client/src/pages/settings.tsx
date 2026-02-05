@@ -42,6 +42,9 @@ import {
   Receipt,
   Mail,
   FileDigit,
+  Puzzle,
+  ShoppingBag,
+  MessageSquare,
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
@@ -1055,6 +1058,234 @@ function EmailNotificationPreferences() {
   );
 }
 
+function AddonsSettings() {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const { tenant } = useAuth();
+  const queryClientInstance = useQueryClient();
+
+  const { data: addonsData, isLoading, refetch } = useQuery<{
+    availableAddons: Array<{
+      id: string;
+      addonKey: string;
+      name: string;
+      description: string | null;
+      icon: string | null;
+      category: string | null;
+      monthlyPrice: number | null;
+      trialDays: number | null;
+      includedInTiers: string[];
+    }>;
+    activeAddons: Array<{
+      id: string;
+      addonType: string;
+      status: string;
+      trialEndsAt: string | null;
+      monthlyPrice: number | null;
+    }>;
+    subscriptionTier: string;
+  }>({
+    queryKey: ['/api/tenant/addons'],
+    enabled: !!tenant,
+  });
+
+  const activateMutation = useMutation({
+    mutationFn: async ({ addonKey, withTrial }: { addonKey: string; withTrial: boolean }) => {
+      const res = await apiRequest(`/api/tenant/addons/${addonKey}`, {
+        method: "POST",
+        body: JSON.stringify({ withTrial }),
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: t("settings.addon_activated") });
+        refetch();
+      } else {
+        toast({ title: t("common.error"), description: data.error, variant: "destructive" });
+      }
+    },
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: async (addonKey: string) => {
+      const res = await apiRequest(`/api/tenant/addons/${addonKey}`, {
+        method: "DELETE",
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({ title: t("settings.addon_deactivated") });
+        refetch();
+      } else {
+        toast({ title: t("common.error"), description: data.error, variant: "destructive" });
+      }
+    },
+  });
+
+  const getAddonStatusLabel = (status: string) => {
+    switch (status) {
+      case "active": return t("settings.addon_status_active");
+      case "trial": return t("settings.addon_status_trial");
+      case "cancelled": return t("settings.addon_status_cancelled");
+      case "expired": return t("settings.addon_status_expired");
+      default: return t("settings.addon_status_unknown");
+    }
+  };
+
+  const getIconComponent = (iconName: string | null) => {
+    switch (iconName) {
+      case "ShoppingBag": return ShoppingBag;
+      case "MessageSquare": return MessageSquare;
+      default: return Puzzle;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const availableAddons = addonsData?.availableAddons || [];
+  const activeAddons = addonsData?.activeAddons || [];
+  const subscriptionTier = addonsData?.subscriptionTier || "basic";
+
+  const isAddonActive = (addonKey: string) => {
+    const addon = activeAddons.find(a => a.addonType === addonKey);
+    return addon && addon.status !== "cancelled" && addon.status !== "expired";
+  };
+
+  const getActiveAddon = (addonKey: string) => {
+    return activeAddons.find(a => a.addonType === addonKey);
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("settings.addons_title")}</CardTitle>
+          <CardDescription>{t("settings.addons_description")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {availableAddons.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              {t("settings.no_addons_available")}
+            </p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {availableAddons.map((addon) => {
+                const IconComponent = getIconComponent(addon.icon);
+                const isActive = isAddonActive(addon.addonKey);
+                const activeAddon = getActiveAddon(addon.addonKey);
+                const isIncludedInTier = addon.includedInTiers?.includes(subscriptionTier);
+                const hasTrial = (addon.trialDays || 0) > 0;
+
+                return (
+                  <Card key={addon.id} className={isActive ? "border-primary" : ""}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <IconComponent className="h-5 w-5 text-primary" />
+                          <CardTitle className="text-lg">{addon.name}</CardTitle>
+                        </div>
+                        {isActive && (
+                          <Badge variant={activeAddon?.status === "trial" ? "secondary" : "default"}>
+                            {getAddonStatusLabel(activeAddon?.status || "active")}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <p className="text-sm text-muted-foreground">
+                        {addon.description || t("settings.no_description")}
+                      </p>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">{t("settings.addon_price")}</span>
+                        <span className="font-medium">
+                          {isIncludedInTier ? (
+                            <Badge variant="secondary">{t("settings.addon_included_in_plan")}</Badge>
+                          ) : addon.monthlyPrice ? (
+                            `$${(addon.monthlyPrice / 100).toFixed(2)}${t("settings.addon_per_month")}`
+                          ) : (
+                            t("settings.addon_free")
+                          )}
+                        </span>
+                      </div>
+
+                      {activeAddon?.status === "trial" && activeAddon.trialEndsAt && (
+                        <p className="text-xs text-muted-foreground">
+                          {t("settings.trial_ends")}: {new Date(activeAddon.trialEndsAt).toLocaleDateString()}
+                        </p>
+                      )}
+
+                      <div className="flex gap-2">
+                        {isActive ? (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => deactivateMutation.mutate(addon.addonKey)}
+                            disabled={deactivateMutation.isPending}
+                            data-testid={`button-deactivate-${addon.addonKey}`}
+                          >
+                            {deactivateMutation.isPending ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : null}
+                            {t("settings.addon_deactivate")}
+                          </Button>
+                        ) : (
+                          <>
+                            {hasTrial && !isIncludedInTier && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => activateMutation.mutate({ addonKey: addon.addonKey, withTrial: true })}
+                                disabled={activateMutation.isPending}
+                                data-testid={`button-trial-${addon.addonKey}`}
+                              >
+                                {activateMutation.isPending ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : null}
+                                {t("settings.addon_start_trial")} ({addon.trialDays} {t("settings.days")})
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              className={hasTrial && !isIncludedInTier ? "flex-1" : "w-full"}
+                              onClick={() => activateMutation.mutate({ addonKey: addon.addonKey, withTrial: false })}
+                              disabled={activateMutation.isPending}
+                              data-testid={`button-activate-${addon.addonKey}`}
+                            >
+                              {activateMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : null}
+                              {t("settings.addon_activate")}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function EBillingSettings() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -1836,6 +2067,13 @@ export default function SettingsPage() {
                 <Store className="w-4 h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">{t("settings.shopify") || "Shopify"}</span>
                 <span className="sm:hidden">{t("shopify.short") || "Shop"}</span>
+              </TabsTrigger>
+            )}
+            {isOwner && (
+              <TabsTrigger value="addons" data-testid="tab-addons" className="text-xs sm:text-sm">
+                <Puzzle className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.addons")}</span>
+                <span className="sm:hidden">{t("settings.addons_short")}</span>
               </TabsTrigger>
             )}
           </TabsList>
@@ -3306,6 +3544,11 @@ export default function SettingsPage() {
         {/* Shopify Integration */}
         <TabsContent value="shopify" className="mt-6 space-y-6">
           <ShopifySettings />
+        </TabsContent>
+
+        {/* Add-ons */}
+        <TabsContent value="addons" className="mt-6 space-y-6">
+          <AddonsSettings />
         </TabsContent>
       </Tabs>
 
