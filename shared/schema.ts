@@ -1875,3 +1875,110 @@ export const insertTenantAddonSchema = createInsertSchema(tenantAddons).omit({
 });
 export type TenantAddon = typeof tenantAddons.$inferSelect;
 export type InsertTenantAddon = z.infer<typeof insertTenantAddonSchema>;
+
+// ==========================================
+// WhatsApp / Gupshup Integration
+// ==========================================
+
+export const whatsappMessageDirectionEnum = pgEnum("whatsapp_message_direction", ["inbound", "outbound"]);
+export const whatsappMessageTypeEnum = pgEnum("whatsapp_message_type", ["receipt", "alert", "manual", "command", "auto_reply"]);
+export const whatsappMessageStatusEnum = pgEnum("whatsapp_message_status", ["queued", "sent", "delivered", "read", "failed"]);
+export const whatsappSubscriptionStatusEnum = pgEnum("whatsapp_subscription_status", ["active", "exhausted", "expired", "cancelled"]);
+
+export const tenantWhatsappIntegrations = pgTable("tenant_whatsapp_integrations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id).unique(),
+
+  enabled: boolean("enabled").default(false),
+
+  gupshupApiKeyEncrypted: text("gupshup_api_key_encrypted"),
+  gupshupAppName: text("gupshup_app_name"),
+  senderPhone: text("sender_phone"),
+
+  approvedTemplates: jsonb("approved_templates").$type<string[]>().default([]),
+
+  notifyOnSale: boolean("notify_on_sale").default(false),
+  notifyOnLowStock: boolean("notify_on_low_stock").default(false),
+  notifyDailySummary: boolean("notify_daily_summary").default(false),
+
+  businessHours: text("business_hours"),
+  supportInfo: text("support_info"),
+
+  lastError: text("last_error"),
+  errorCount: integer("error_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTenantWhatsappIntegrationSchema = createInsertSchema(tenantWhatsappIntegrations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type TenantWhatsappIntegration = typeof tenantWhatsappIntegrations.$inferSelect;
+export type InsertTenantWhatsappIntegration = z.infer<typeof insertTenantWhatsappIntegrationSchema>;
+
+export const whatsappPackages = pgTable("whatsapp_packages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  messageLimit: integer("message_limit").notNull(),
+  price: integer("price").notNull(),
+  active: boolean("active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWhatsappPackageSchema = createInsertSchema(whatsappPackages).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type WhatsappPackage = typeof whatsappPackages.$inferSelect;
+export type InsertWhatsappPackage = z.infer<typeof insertWhatsappPackageSchema>;
+
+export const tenantWhatsappSubscriptions = pgTable("tenant_whatsapp_subscriptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  packageId: varchar("package_id").notNull().references(() => whatsappPackages.id),
+  messagesUsed: integer("messages_used").default(0),
+  messageLimit: integer("message_limit").notNull(),
+  status: whatsappSubscriptionStatusEnum("status").default("active"),
+  renewalDate: timestamp("renewal_date"),
+  activatedAt: timestamp("activated_at").defaultNow(),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTenantWhatsappSubscriptionSchema = createInsertSchema(tenantWhatsappSubscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  activatedAt: true,
+});
+export type TenantWhatsappSubscription = typeof tenantWhatsappSubscriptions.$inferSelect;
+export type InsertTenantWhatsappSubscription = z.infer<typeof insertTenantWhatsappSubscriptionSchema>;
+
+export const whatsappMessageLogs = pgTable("whatsapp_message_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  direction: whatsappMessageDirectionEnum("direction").notNull(),
+  phone: text("phone").notNull(),
+  messageType: whatsappMessageTypeEnum("message_type").notNull(),
+  templateId: text("template_id"),
+  messageBody: text("message_body"),
+  status: whatsappMessageStatusEnum("status").default("queued"),
+  providerMessageId: text("provider_message_id"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWhatsappMessageLogSchema = createInsertSchema(whatsappMessageLogs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type WhatsappMessageLog = typeof whatsappMessageLogs.$inferSelect;
+export type InsertWhatsappMessageLog = z.infer<typeof insertWhatsappMessageLogSchema>;

@@ -4,9 +4,9 @@ import * as ebillingService from "../services/internal-admin/ebillingService";
 import * as documentOpsService from "../services/internal-admin/documentOpsService";
 import * as integrationService from "../services/internal-admin/integrationService";
 import { db } from "../db";
-import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans } from "@shared/schema";
+import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans, whatsappPackages, tenantWhatsappSubscriptions, whatsappMessageLogs, tenantWhatsappIntegrations } from "@shared/schema";
 import bcrypt from "bcryptjs";
-import { eq, like, or, desc, and } from "drizzle-orm";
+import { eq, like, or, desc, and, sql } from "drizzle-orm";
 import crypto from "crypto";
 import https from "https";
 
@@ -1038,6 +1038,103 @@ internalAdminRouter.delete("/addon-store/:addonKey", internalAuth, requireRole([
       .where(eq(addonDefinitions.id, existing.id));
     
     res.json({ success: true, message: "Add-on deleted" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// WhatsApp Package Management (Admin)
+// ==========================================
+
+internalAdminRouter.get("/whatsapp/packages", internalAuth, async (req: Request, res: Response) => {
+  try {
+    const packages = await db.query.whatsappPackages.findMany({
+      orderBy: [whatsappPackages.sortOrder],
+    });
+    res.json(packages);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.post("/whatsapp/packages", internalAuth, requireRole(["superadmin", "billingops"]), async (req: Request, res: Response) => {
+  try {
+    const { name, messageLimit, price, active, sortOrder } = req.body;
+    if (!name || !messageLimit || price === undefined) {
+      return res.status(400).json({ error: "name, messageLimit, and price are required" });
+    }
+    const [pkg] = await db.insert(whatsappPackages).values({
+      name,
+      messageLimit,
+      price,
+      active: active !== false,
+      sortOrder: sortOrder || 0,
+    }).returning();
+    res.json(pkg);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.patch("/whatsapp/packages/:id", internalAuth, requireRole(["superadmin", "billingops"]), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, messageLimit, price, active, sortOrder } = req.body;
+    const updateData: any = { updatedAt: new Date() };
+    if (name !== undefined) updateData.name = name;
+    if (messageLimit !== undefined) updateData.messageLimit = messageLimit;
+    if (price !== undefined) updateData.price = price;
+    if (active !== undefined) updateData.active = active;
+    if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+
+    await db.update(whatsappPackages)
+      .set(updateData)
+      .where(eq(whatsappPackages.id, id));
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.delete("/whatsapp/packages/:id", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await db.delete(whatsappPackages)
+      .where(eq(whatsappPackages.id, id));
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.get("/whatsapp/usage", internalAuth, async (req: Request, res: Response) => {
+  try {
+    const subscriptions = await db.select({
+      tenantId: tenantWhatsappSubscriptions.tenantId,
+      messagesUsed: tenantWhatsappSubscriptions.messagesUsed,
+      messageLimit: tenantWhatsappSubscriptions.messageLimit,
+      status: tenantWhatsappSubscriptions.status,
+      packageId: tenantWhatsappSubscriptions.packageId,
+    })
+    .from(tenantWhatsappSubscriptions)
+    .orderBy(desc(tenantWhatsappSubscriptions.createdAt));
+
+    const tenantConfigs = await db.select({
+      tenantId: tenantWhatsappIntegrations.tenantId,
+      enabled: tenantWhatsappIntegrations.enabled,
+      senderPhone: tenantWhatsappIntegrations.senderPhone,
+      gupshupAppName: tenantWhatsappIntegrations.gupshupAppName,
+    }).from(tenantWhatsappIntegrations);
+
+    const totalMessages = await db.select({ count: sql<number>`count(*)` })
+      .from(whatsappMessageLogs);
+
+    res.json({
+      subscriptions,
+      tenantConfigs,
+      totalMessages: totalMessages[0]?.count || 0,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

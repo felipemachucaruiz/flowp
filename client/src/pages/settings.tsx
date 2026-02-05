@@ -52,6 +52,7 @@ import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw, Smartphone, 
 import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 import { EmailTemplateEditor } from "@/components/email-template-editor";
 import { ShopifySettings } from "@/components/shopify-settings";
+import { WhatsAppSettings } from "@/components/whatsapp-settings";
 
 const businessSettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
@@ -1570,6 +1571,12 @@ export default function SettingsPage() {
   });
   const hasShopifyAddon = shopifyAddonData?.hasAddon === true;
 
+  const { data: whatsappAddonData } = useQuery<{ hasAddon: boolean }>({
+    queryKey: ["/api/whatsapp/addon-status"],
+    retry: false,
+  });
+  const hasWhatsappAddon = whatsappAddonData?.hasAddon === true;
+
   // Tax rates state
   const [isAddingTax, setIsAddingTax] = useState(false);
   const [editingTax, setEditingTax] = useState<TaxRate | null>(null);
@@ -2062,6 +2069,13 @@ export default function SettingsPage() {
                 <Store className="w-4 h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">{t("settings.shopify") || "Shopify"}</span>
                 <span className="sm:hidden">{t("shopify.short") || "Shop"}</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && hasWhatsappAddon && (
+              <TabsTrigger value="whatsapp" data-testid="tab-whatsapp" className="text-xs sm:text-sm">
+                <MessageSquare className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.whatsapp" as any) || "WhatsApp"}</span>
+                <span className="sm:hidden">{t("whatsapp.short" as any) || "WA"}</span>
               </TabsTrigger>
             )}
             {isOwner && (
@@ -3539,6 +3553,11 @@ export default function SettingsPage() {
         {/* Shopify Integration */}
         <TabsContent value="shopify" className="mt-6 space-y-6">
           <ShopifySettings />
+        </TabsContent>
+
+        {/* WhatsApp Integration */}
+        <TabsContent value="whatsapp" className="mt-6 space-y-6">
+          <WhatsAppSettings />
         </TabsContent>
 
         {/* Add-ons */}

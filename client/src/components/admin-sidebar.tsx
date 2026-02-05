@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   ClipboardList,
   Puzzle,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -69,6 +70,11 @@ export function AdminSidebar() {
       title: "Packages",
       url: "/admin/packages",
       icon: Package,
+    },
+    {
+      title: "WhatsApp Packages",
+      url: "/admin/whatsapp-packages",
+      icon: MessageCircle,
     },
     {
       title: "Add-on Store",

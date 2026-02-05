@@ -70,10 +70,27 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 - **Admin Routes**: `/internal/api/tenants/:tenantId/addons` - GET, POST, DELETE for add-on management
 - **NOTE**: Shopify requires "Protected Customer Data Access" approval before order/customer data is accessible
 
+### WhatsApp/Gupshup Notifications - IMPLEMENTED
+- **Paid add-on** for tenants who want WhatsApp notifications
+- **Billing Gate**: All `/api/whatsapp/*` endpoints require active `whatsapp_notifications` add-on in `tenant_addons` table
+- **Add-on Management**: Admin Console (`/admin`) > Add-on Store (SuperAdmin/BillingOps only)
+- **Message Packages**: Admin-managed packages with COP pricing and message quotas
+- **Metered Billing**: Each message deducted from tenant's active subscription quota
+- **Credential Storage**: Gupshup API key encrypted with AES-256-GCM (same pattern as MATIAS/Shopify)
+- **Outbound Notifications**: Receipt on sale completion, low stock alerts (fire-and-forget, never blocks checkout)
+- **Inbound Commands**: RECIBO (last receipt), HORARIO (business hours), AYUDA (support info)
+- **Delivery Tracking**: Webhook processes Gupshup delivery status callbacks (sent/delivered/read/failed)
+- **Database Tables**: tenant_whatsapp_integrations, whatsapp_packages, tenant_whatsapp_subscriptions, whatsapp_message_logs
+- **API Routes**: `/api/whatsapp/*` - addon-status, config, test-connection, subscribe, usage, logs, send-receipt, webhook
+- **Admin Routes**: `/api/internal-admin/whatsapp/packages` - CRUD, `/api/internal-admin/whatsapp/usage` - overview
+- **Settings UI**: Settings > WhatsApp tab (visible when addon active) - credentials, packages, notification prefs, message logs
+- **Admin UI**: `/admin/whatsapp-packages` - package management and tenant usage overview
+- **Encryption Key**: Uses WHATSAPP_ENCRYPTION_KEY or SESSION_SECRET env var
+- **Gupshup API**: Template messages for notifications, session messages for 24-hour window replies
+
 ## Planned Features (TODO)
 - Shopify OAuth flow UI
 - Tenant settings UI for Shopify configuration
-- WhatsApp/Gupshup notifications integration
 
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data.

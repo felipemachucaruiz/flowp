@@ -46,6 +46,7 @@ import AdminPackages from "@/pages/admin/packages";
 import AdminAddonStore from "@/pages/admin/addon-store";
 import AdminAlerts from "@/pages/admin/alerts";
 import AdminAudit from "@/pages/admin/audit";
+import AdminWhatsAppPackages from "@/pages/admin/whatsapp-packages";
 import OnboardingPage from "@/pages/onboarding";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
@@ -193,6 +194,9 @@ function AdminRouter() {
         </Route>
         <Route path="/admin/audit">
           <AdminRoute component={AdminAudit} />
+        </Route>
+        <Route path="/admin/whatsapp-packages">
+          <AdminRoute component={AdminWhatsAppPackages} />
         </Route>
         <Route path="/admin/email-settings">
           <AdminRoute component={AdminEmailSettings} />

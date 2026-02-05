@@ -28,6 +28,8 @@ import tenantRoutes from "./routes/tenant";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 import { matiasRouter } from "./integrations/matias/routes";
 import { shopifyRouter } from "./integrations/shopify/routes";
+import { whatsappRouter } from "./integrations/gupshup/routes";
+import { sendReceiptNotification, sendLowStockNotification } from "./integrations/gupshup/service";
 import { internalAdminRouter } from "./routes/internalAdmin";
 import { generateInternalToken } from "./middleware/internalAuth";
 
@@ -81,6 +83,9 @@ export async function registerRoutes(
 
   // ===== SHOPIFY INTEGRATION ROUTES =====
   app.use("/api/shopify", shopifyRouter);
+
+  // ===== WHATSAPP / GUPSHUP INTEGRATION ROUTES =====
+  app.use("/api/whatsapp", whatsappRouter);
 
   // ===== INTERNAL ADMIN CONSOLE ROUTES =====
   app.use("/api/internal-admin", internalAdminRouter);
@@ -1882,6 +1887,21 @@ export async function registerRoutes(
       
       const updatedTab = await storage.getOrder(id);
       res.json(updatedTab);
+
+      if (tab.customerId) {
+        const customer = await storage.getCustomer(tab.customerId);
+        if (customer?.phone) {
+          const tenant = await storage.getTenant(tenantId);
+          sendReceiptNotification(
+            tenantId,
+            customer.phone,
+            updatedTab?.orderNumber || id.slice(0, 8),
+            tab.total,
+            tenant?.companyName || "Flowp",
+            tenant?.currency || "COP"
+          ).catch(err => console.error("[whatsapp] receipt notification error:", err));
+        }
+      }
     } catch (error) {
       console.error("Error closing tab:", error);
       res.status(500).json({ message: "Failed to close tab" });
@@ -2047,6 +2067,16 @@ export async function registerRoutes(
                     sku: product.sku || undefined,
                   }
                 ).catch(err => console.error('Failed to send low stock alert:', err));
+              }
+              if (owner?.phone) {
+                sendLowStockNotification(
+                  tenantId,
+                  owner.phone,
+                  product.name,
+                  currentStock,
+                  product.lowStockThreshold!,
+                  product.sku || undefined
+                ).catch(err => console.error('[whatsapp] low stock notification error:', err));
               }
             }
           }
