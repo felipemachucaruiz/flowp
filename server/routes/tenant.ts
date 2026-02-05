@@ -4,9 +4,10 @@ import {
   tenants, users, locations, registers, 
   electronicDocuments, supportTickets, ticketComments,
   subscriptions, invoices, auditLogs, orders, tenantIntegrationsMatias,
-  matiasDocumentQueue, matiasDocumentFiles
+  matiasDocumentQueue, matiasDocumentFiles,
+  addonDefinitions, tenantAddons
 } from "@shared/schema";
-import { eq, desc, sql, and, count, sum, gte, like, or, ilike } from "drizzle-orm";
+import { eq, desc, sql, and, count, sum, gte, like, or, ilike, asc } from "drizzle-orm";
 import { requireTenant, requirePermission, enforceTenantIsolation } from "../middleware/rbac";
 
 const router = Router();
@@ -658,6 +659,157 @@ router.get("/ebilling/status", requirePermission("settings.view"), async (req: R
   } catch (error) {
     console.error("Get e-billing status error:", error);
     res.status(500).json({ error: "Failed to get status" });
+  }
+});
+
+// ==========================================
+// CUSTOMER ADD-ONS MANAGEMENT
+// ==========================================
+
+// Get available add-ons and tenant's active add-ons
+router.get("/addons", async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    // Get tenant info for subscription tier
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    
+    // Get all available add-ons (active ones)
+    const availableAddons = await db.query.addonDefinitions.findMany({
+      where: eq(addonDefinitions.isActive, true),
+      orderBy: [asc(addonDefinitions.sortOrder)],
+    });
+    
+    // Get tenant's active add-ons
+    const activeAddons = await db.query.tenantAddons.findMany({
+      where: eq(tenantAddons.tenantId, tenantId),
+    });
+
+    res.json({ 
+      availableAddons, 
+      activeAddons,
+      subscriptionTier: tenant?.subscriptionTier || "basic",
+    });
+  } catch (error: any) {
+    console.error("Get addons error:", error);
+    res.status(500).json({ error: "Failed to get add-ons" });
+  }
+});
+
+// Activate an add-on (with optional trial)
+router.post("/addons/:addonKey", requirePermission("settings:edit"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    const { addonKey } = req.params;
+    const { withTrial } = req.body;
+    
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    // Get add-on definition
+    const addonDef = await db.query.addonDefinitions.findFirst({
+      where: eq(addonDefinitions.addonKey, addonKey),
+    });
+
+    if (!addonDef || !addonDef.isActive) {
+      return res.status(404).json({ error: "Add-on not found" });
+    }
+
+    // Check if already activated
+    const existing = await db.query.tenantAddons.findFirst({
+      where: and(
+        eq(tenantAddons.tenantId, tenantId),
+        eq(tenantAddons.addonType, addonKey)
+      ),
+    });
+
+    if (existing && existing.status !== "cancelled" && existing.status !== "expired") {
+      return res.status(400).json({ error: "Add-on already active" });
+    }
+
+    // Check if included in tenant's subscription tier
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    const tierInclusion = addonDef.includedInTiers || [];
+    const isIncludedInTier = tierInclusion.includes(tenant?.subscriptionTier || "");
+
+    // Determine status and trial end date
+    let status: "active" | "trial" = "active";
+    let trialEndsAt: Date | null = null;
+
+    if (withTrial && addonDef.trialDays > 0 && !isIncludedInTier) {
+      status = "trial";
+      trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + addonDef.trialDays);
+    }
+
+    if (existing) {
+      // Reactivate cancelled/expired addon
+      await db.update(tenantAddons)
+        .set({
+          status,
+          trialEndsAt,
+          monthlyPrice: isIncludedInTier ? 0 : addonDef.monthlyPrice,
+          cancelledAt: null,
+          billingCycleStart: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(tenantAddons.id, existing.id));
+    } else {
+      // Create new addon subscription
+      await db.insert(tenantAddons).values({
+        tenantId,
+        addonType: addonKey,
+        status,
+        trialEndsAt,
+        monthlyPrice: isIncludedInTier ? 0 : addonDef.monthlyPrice,
+        billingCycleStart: new Date(),
+      });
+    }
+
+    res.json({ success: true, message: "Add-on activated" });
+  } catch (error: any) {
+    console.error("Activate addon error:", error);
+    res.status(500).json({ error: "Failed to activate add-on" });
+  }
+});
+
+// Cancel an add-on
+router.delete("/addons/:addonKey", requirePermission("settings:edit"), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.targetTenantId;
+    const { addonKey } = req.params;
+    
+    if (!tenantId) {
+      return res.status(400).json({ error: "Tenant ID required" });
+    }
+
+    const addon = await db.query.tenantAddons.findFirst({
+      where: and(
+        eq(tenantAddons.tenantId, tenantId),
+        eq(tenantAddons.addonType, addonKey)
+      ),
+    });
+
+    if (!addon) {
+      return res.status(404).json({ error: "Add-on not found" });
+    }
+
+    await db.update(tenantAddons)
+      .set({
+        status: "cancelled",
+        cancelledAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(tenantAddons.id, addon.id));
+
+    res.json({ success: true, message: "Add-on cancelled" });
+  } catch (error: any) {
+    console.error("Cancel addon error:", error);
+    res.status(500).json({ error: "Failed to cancel add-on" });
   }
 });
 
