@@ -78,14 +78,18 @@ export async function syncInventoryToShopify(
           eq(stockMovements.productId, mapping.flowpProductId)
         ));
 
-      const currentStock = stockResult[0]?.total || 0;
+      const currentStock = Number(stockResult[0]?.total) || 0;
 
-      // Push to Shopify
-      await client.setInventoryLevel(
+      console.log(`[Shopify Inventory Sync] Setting inventory_item_id=${mapping.shopifyInventoryItemId} location=${locationId} to available=${currentStock}`);
+
+      // Push to Shopify - this SETS the absolute value, not adjusts
+      const result = await client.setInventoryLevel(
         parseInt(mapping.shopifyInventoryItemId),
         parseInt(locationId),
         currentStock
       );
+
+      console.log(`[Shopify Inventory Sync] Shopify response: available=${result.available}`);
 
       // Update last sync timestamp
       await db.update(shopifyProductMap)
@@ -105,7 +109,7 @@ export async function syncInventoryToShopify(
       );
 
       processed++;
-      console.log(`[Shopify Inventory Sync] Updated ${mapping.shopifyVariantId} to ${currentStock}`);
+      console.log(`[Shopify Inventory Sync] Updated inventory_item ${mapping.shopifyInventoryItemId} to ${currentStock} (confirmed: ${result.available})`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
