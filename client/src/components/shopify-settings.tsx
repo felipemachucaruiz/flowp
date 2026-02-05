@@ -49,6 +49,7 @@ interface ShopifyStatus {
   syncInventory?: boolean;
   syncPrices?: boolean;
   generateDianDocuments?: boolean;
+  shopifyLocationId?: string;
   lastSyncAt?: string;
   stats?: {
     totalOrders: number;
@@ -437,7 +438,7 @@ export function ShopifySettings() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">{t("shopify.location")}</label>
                   <Select
-                    defaultValue=""
+                    value={status?.shopifyLocationId || ""}
                     onValueChange={(value) => updateSettingsMutation.mutate({ shopifyLocationId: value })}
                   >
                     <SelectTrigger data-testid="select-shopify-location">

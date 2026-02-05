@@ -209,6 +209,7 @@ shopifyRouter.get("/status", async (req: Request, res: Response) => {
       syncInventory: config.syncInventory,
       syncPrices: config.syncPrices,
       generateDianDocuments: config.generateDianDocuments,
+      shopifyLocationId: config.shopifyLocationId,
       lastSyncAt: config.lastSyncAt,
       stats,
     });
