@@ -72,10 +72,15 @@ export default function AdminAddonStore() {
 
   const createMutation = useMutation({
     mutationFn: async (formData: AddonFormData) => {
-      return adminFetch("/internal/api/addon-store", {
+      const response = await adminFetch("/internal/api/addon-store", {
         method: "POST",
         body: JSON.stringify(formData),
       });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create add-on");
+      }
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/internal/api/addon-store"] });
@@ -90,10 +95,15 @@ export default function AdminAddonStore() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ addonKey, data }: { addonKey: string; data: Partial<AddonFormData> }) => {
-      return adminFetch(`/internal/api/addon-store/${addonKey}`, {
+      const response = await adminFetch(`/internal/api/addon-store/${addonKey}`, {
         method: "PATCH",
         body: JSON.stringify(data),
       });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to update add-on");
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/internal/api/addon-store"] });
