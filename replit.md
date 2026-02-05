@@ -52,7 +52,10 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 
 ### Shopify Integration - IMPLEMENTED
 - **Paid add-on** for tenants who also sell on Shopify
-- **Order Flow**: Shopify orders import to Flowp via webhooks (orders/create, orders/updated)
+- **Billing Gate**: All `/api/shopify/*` endpoints require active `shopify_integration` add-on in `tenant_addons` table
+- **Add-on Management**: Admin Console (`/admin`) → Tenants → Add-ons tab (SuperAdmin/BillingOps only)
+- **Order Flow**: Shopify orders import to Flowp via webhooks (orders/create, orders/updated) or polling fallback
+- **Order Polling**: `/api/shopify/sync/orders` fetches orders from last 24h (fallback when webhooks unavailable)
 - **Refund Handling**: Shopify refunds auto-create Flowp returns with credit notes to DIAN
 - **Inventory Sync**: Flowp → Shopify (Flowp is source of truth)
 - **Price Sync**: Flowp → Shopify (automatic when product price changes)
@@ -60,8 +63,10 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 - **Webhook Verification**: HMAC-SHA256 signature validation
 - **Idempotency**: Prevents duplicate order imports via shopify_event_id tracking
 - **Encrypted Credentials**: Same encryption pattern as MATIAS (AES-256-GCM)
-- **Database Tables**: tenant_shopify_integrations, shopify_orders, shopify_webhook_logs, shopify_product_map, shopify_sync_logs
+- **Database Tables**: tenant_shopify_integrations, shopify_orders, shopify_webhook_logs, shopify_product_map, shopify_sync_logs, tenant_addons
 - **API Routes**: `/api/shopify/*` - status, config, webhooks, mappings, sync, orders
+- **Admin Routes**: `/internal/api/tenants/:tenantId/addons` - GET, POST, DELETE for add-on management
+- **NOTE**: Shopify requires "Protected Customer Data Access" approval before order/customer data is accessible
 
 ## Planned Features (TODO)
 - Shopify OAuth flow UI

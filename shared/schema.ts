@@ -1785,3 +1785,48 @@ export const insertShopifySyncLogSchema = createInsertSchema(shopifySyncLogs).om
 });
 export type ShopifySyncLog = typeof shopifySyncLogs.$inferSelect;
 export type InsertShopifySyncLog = z.infer<typeof insertShopifySyncLogSchema>;
+
+// ============================================================
+// PAID ADD-ONS
+// ============================================================
+
+export const addonStatusEnum = pgEnum("addon_status", ["active", "cancelled", "expired", "trial"]);
+
+export const PAID_ADDONS = {
+  SHOPIFY_INTEGRATION: "shopify_integration",
+  WHATSAPP_NOTIFICATIONS: "whatsapp_notifications",
+} as const;
+
+export type PaidAddonType = typeof PAID_ADDONS[keyof typeof PAID_ADDONS];
+
+// Tenant Add-ons (tracks which paid add-ons each tenant has)
+export const tenantAddons = pgTable("tenant_addons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  
+  addonType: text("addon_type").notNull(),  // e.g., "shopify_integration"
+  status: addonStatusEnum("status").default("active"),
+  
+  // Billing tracking
+  monthlyPrice: integer("monthly_price"),  // Price in cents
+  billingCycleStart: timestamp("billing_cycle_start"),
+  billingCycleEnd: timestamp("billing_cycle_end"),
+  
+  // Trial support
+  trialEndsAt: timestamp("trial_ends_at"),
+  
+  // Metadata
+  activatedAt: timestamp("activated_at").defaultNow(),
+  cancelledAt: timestamp("cancelled_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTenantAddonSchema = createInsertSchema(tenantAddons).omit({ 
+  id: true, 
+  createdAt: true,
+  updatedAt: true,
+  activatedAt: true,
+});
+export type TenantAddon = typeof tenantAddons.$inferSelect;
+export type InsertTenantAddon = z.infer<typeof insertTenantAddonSchema>;

@@ -4,7 +4,7 @@ import * as ebillingService from "../services/internal-admin/ebillingService";
 import * as documentOpsService from "../services/internal-admin/documentOpsService";
 import * as integrationService from "../services/internal-admin/integrationService";
 import { db } from "../db";
-import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users } from "@shared/schema";
+import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { eq, like, or, desc, and } from "drizzle-orm";
 import crypto from "crypto";
@@ -806,5 +806,102 @@ internalAdminRouter.post("/matias/test-connection", requireRole(["superadmin"]),
     }
   } catch (error: any) {
     res.status(500).json({ error: error.message, success: false });
+  }
+});
+
+// ==========================================
+// TENANT ADD-ONS MANAGEMENT
+// ==========================================
+
+// Get all add-ons for a tenant
+internalAdminRouter.get("/tenants/:tenantId/addons", internalAuth, async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req.params;
+    
+    const addons = await db.query.tenantAddons.findMany({
+      where: eq(tenantAddons.tenantId, tenantId),
+    });
+    
+    res.json({ addons, availableAddons: Object.values(PAID_ADDONS) });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add or update an add-on for a tenant
+internalAdminRouter.post("/tenants/:tenantId/addons", internalAuth, requireRole(["SuperAdmin", "BillingOps"]), async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req.params;
+    const { addonType, status, monthlyPrice, trialEndsAt } = req.body;
+    
+    if (!addonType || !Object.values(PAID_ADDONS).includes(addonType)) {
+      return res.status(400).json({ error: "Invalid addon type" });
+    }
+    
+    // Check if addon already exists
+    const existing = await db.query.tenantAddons.findFirst({
+      where: and(
+        eq(tenantAddons.tenantId, tenantId),
+        eq(tenantAddons.addonType, addonType)
+      ),
+    });
+    
+    if (existing) {
+      // Update existing
+      await db.update(tenantAddons)
+        .set({
+          status: status || "active",
+          monthlyPrice,
+          trialEndsAt: trialEndsAt ? new Date(trialEndsAt) : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(tenantAddons.id, existing.id));
+      
+      res.json({ success: true, message: "Add-on updated" });
+    } else {
+      // Create new
+      await db.insert(tenantAddons).values({
+        tenantId,
+        addonType,
+        status: status || "active",
+        monthlyPrice,
+        trialEndsAt: trialEndsAt ? new Date(trialEndsAt) : null,
+        billingCycleStart: new Date(),
+      });
+      
+      res.json({ success: true, message: "Add-on activated" });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cancel an add-on
+internalAdminRouter.delete("/tenants/:tenantId/addons/:addonType", internalAuth, requireRole(["SuperAdmin", "BillingOps"]), async (req: Request, res: Response) => {
+  try {
+    const { tenantId, addonType } = req.params;
+    
+    const addon = await db.query.tenantAddons.findFirst({
+      where: and(
+        eq(tenantAddons.tenantId, tenantId),
+        eq(tenantAddons.addonType, addonType)
+      ),
+    });
+    
+    if (!addon) {
+      return res.status(404).json({ error: "Add-on not found" });
+    }
+    
+    await db.update(tenantAddons)
+      .set({
+        status: "cancelled",
+        cancelledAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(tenantAddons.id, addon.id));
+    
+    res.json({ success: true, message: "Add-on cancelled" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });

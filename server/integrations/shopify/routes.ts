@@ -1,7 +1,7 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { db } from "../../db";
-import { tenantShopifyIntegrations, shopifyOrders, shopifySyncLogs, shopifyProductMap, products } from "@shared/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { tenantShopifyIntegrations, shopifyOrders, shopifySyncLogs, shopifyProductMap, products, tenantAddons, PAID_ADDONS } from "@shared/schema";
+import { eq, and, desc, or, inArray } from "drizzle-orm";
 import { 
   saveShopifyConfig,
   getShopifyConfig,
@@ -30,16 +30,54 @@ import { encrypt } from "./shopifyClient";
 
 export const shopifyRouter = Router();
 
-// ==========================================
-// OAuth Flow Endpoints
-// ==========================================
-
-// Start OAuth flow - returns authorization URL
-shopifyRouter.post("/oauth/authorize", async (req: Request, res: Response) => {
+// Middleware to check if tenant has Shopify add-on
+async function requireShopifyAddon(req: Request, res: Response, next: NextFunction) {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
   }
+
+  try {
+    const addon = await db.query.tenantAddons.findFirst({
+      where: and(
+        eq(tenantAddons.tenantId, tenantId),
+        eq(tenantAddons.addonType, PAID_ADDONS.SHOPIFY_INTEGRATION),
+        or(
+          eq(tenantAddons.status, "active"),
+          eq(tenantAddons.status, "trial")
+        )
+      ),
+    });
+
+    if (!addon) {
+      return res.status(403).json({ 
+        error: "Shopify integration requires a paid add-on subscription",
+        code: "ADDON_REQUIRED"
+      });
+    }
+
+    // Check if trial has expired
+    if (addon.status === "trial" && addon.trialEndsAt && new Date(addon.trialEndsAt) < new Date()) {
+      return res.status(403).json({ 
+        error: "Your Shopify integration trial has expired. Please upgrade to continue.",
+        code: "TRIAL_EXPIRED"
+      });
+    }
+
+    next();
+  } catch (error: any) {
+    console.error("[Shopify Addon Check] Error:", error);
+    return res.status(500).json({ error: "Failed to verify add-on subscription" });
+  }
+}
+
+// ==========================================
+// OAuth Flow Endpoints (require Shopify add-on)
+// ==========================================
+
+// Start OAuth flow - returns authorization URL
+shopifyRouter.post("/oauth/authorize", requireShopifyAddon, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
 
   try {
     const { shopDomain, clientId, clientSecret } = req.body;
@@ -184,7 +222,7 @@ shopifyRouter.get("/oauth/callback", async (req: Request, res: Response) => {
 });
 
 // Get Shopify integration status
-shopifyRouter.get("/status", async (req: Request, res: Response) => {
+shopifyRouter.get("/status", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -234,7 +272,7 @@ shopifyRouter.get("/status", async (req: Request, res: Response) => {
 });
 
 // Save Shopify configuration (OAuth callback or manual setup)
-shopifyRouter.post("/config", async (req: Request, res: Response) => {
+shopifyRouter.post("/config", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -264,7 +302,7 @@ shopifyRouter.post("/config", async (req: Request, res: Response) => {
 });
 
 // Update sync settings
-shopifyRouter.patch("/config", async (req: Request, res: Response) => {
+shopifyRouter.patch("/config", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -300,7 +338,7 @@ shopifyRouter.patch("/config", async (req: Request, res: Response) => {
 });
 
 // Get webhook status
-shopifyRouter.get("/webhooks", async (req: Request, res: Response) => {
+shopifyRouter.get("/webhooks", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -328,7 +366,7 @@ shopifyRouter.get("/webhooks", async (req: Request, res: Response) => {
 });
 
 // Register webhooks manually
-shopifyRouter.post("/webhooks/register", async (req: Request, res: Response) => {
+shopifyRouter.post("/webhooks/register", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -356,7 +394,7 @@ shopifyRouter.post("/webhooks/register", async (req: Request, res: Response) => 
 });
 
 // Poll and import orders from Shopify (fallback when webhooks unavailable)
-shopifyRouter.post("/sync/orders", async (req: Request, res: Response) => {
+shopifyRouter.post("/sync/orders", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -472,7 +510,7 @@ shopifyRouter.post("/webhook/:topic", async (req: Request, res: Response) => {
 });
 
 // Product mapping endpoints
-shopifyRouter.get("/mappings", async (req: Request, res: Response) => {
+shopifyRouter.get("/mappings", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -486,7 +524,7 @@ shopifyRouter.get("/mappings", async (req: Request, res: Response) => {
   }
 });
 
-shopifyRouter.post("/mappings/auto", async (req: Request, res: Response) => {
+shopifyRouter.post("/mappings/auto", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -500,7 +538,7 @@ shopifyRouter.post("/mappings/auto", async (req: Request, res: Response) => {
   }
 });
 
-shopifyRouter.post("/mappings", async (req: Request, res: Response) => {
+shopifyRouter.post("/mappings", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -515,7 +553,7 @@ shopifyRouter.post("/mappings", async (req: Request, res: Response) => {
   }
 });
 
-shopifyRouter.delete("/mappings/:mappingId", async (req: Request, res: Response) => {
+shopifyRouter.delete("/mappings/:mappingId", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -531,7 +569,7 @@ shopifyRouter.delete("/mappings/:mappingId", async (req: Request, res: Response)
 });
 
 // Get Shopify products for mapping UI
-shopifyRouter.get("/products", async (req: Request, res: Response) => {
+shopifyRouter.get("/products", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -546,7 +584,7 @@ shopifyRouter.get("/products", async (req: Request, res: Response) => {
 });
 
 // Get unmapped Flowp products
-shopifyRouter.get("/unmapped-products", async (req: Request, res: Response) => {
+shopifyRouter.get("/unmapped-products", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -561,7 +599,7 @@ shopifyRouter.get("/unmapped-products", async (req: Request, res: Response) => {
 });
 
 // Sync endpoints
-shopifyRouter.post("/sync/inventory", async (req: Request, res: Response) => {
+shopifyRouter.post("/sync/inventory", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -575,7 +613,7 @@ shopifyRouter.post("/sync/inventory", async (req: Request, res: Response) => {
   }
 });
 
-shopifyRouter.post("/sync/prices", async (req: Request, res: Response) => {
+shopifyRouter.post("/sync/prices", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -590,7 +628,7 @@ shopifyRouter.post("/sync/prices", async (req: Request, res: Response) => {
 });
 
 // Get sync logs
-shopifyRouter.get("/sync-logs", async (req: Request, res: Response) => {
+shopifyRouter.get("/sync-logs", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -609,7 +647,7 @@ shopifyRouter.get("/sync-logs", async (req: Request, res: Response) => {
 });
 
 // Get Shopify orders
-shopifyRouter.get("/orders", async (req: Request, res: Response) => {
+shopifyRouter.get("/orders", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -628,7 +666,7 @@ shopifyRouter.get("/orders", async (req: Request, res: Response) => {
 });
 
 // Retry failed order import
-shopifyRouter.post("/orders/:orderId/retry", async (req: Request, res: Response) => {
+shopifyRouter.post("/orders/:orderId/retry", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -657,7 +695,7 @@ shopifyRouter.post("/orders/:orderId/retry", async (req: Request, res: Response)
 });
 
 // Get Shopify locations for configuration
-shopifyRouter.get("/locations", async (req: Request, res: Response) => {
+shopifyRouter.get("/locations", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
@@ -677,7 +715,7 @@ shopifyRouter.get("/locations", async (req: Request, res: Response) => {
 });
 
 // Disconnect Shopify (deactivate, keep data for audit)
-shopifyRouter.delete("/disconnect", async (req: Request, res: Response) => {
+shopifyRouter.delete("/disconnect", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
     return res.status(400).json({ error: "Tenant ID required" });
