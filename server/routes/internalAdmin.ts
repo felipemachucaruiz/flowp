@@ -954,7 +954,7 @@ internalAdminRouter.get("/addon-store/:addonKey", internalAuth, async (req: Requ
 internalAdminRouter.post("/addon-store", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
     const { 
-      addonKey, name, description, icon, category,
+      addonKey, name, description, icon, logoUrl, category,
       monthlyPrice, yearlyPrice, trialDays,
       includedInTiers, enabledFeatures, isActive, sortOrder
     } = req.body;
@@ -977,6 +977,7 @@ internalAdminRouter.post("/addon-store", internalAuth, requireRole(["superadmin"
       name,
       description,
       icon,
+      logoUrl,
       category: category || "integration",
       monthlyPrice: monthlyPrice || 0,
       yearlyPrice,
