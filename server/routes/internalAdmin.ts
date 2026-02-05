@@ -4,7 +4,7 @@ import * as ebillingService from "../services/internal-admin/ebillingService";
 import * as documentOpsService from "../services/internal-admin/documentOpsService";
 import * as integrationService from "../services/internal-admin/integrationService";
 import { db } from "../db";
-import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS } from "@shared/schema";
+import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { eq, like, or, desc, and } from "drizzle-orm";
 import crypto from "crypto";
@@ -901,6 +901,146 @@ internalAdminRouter.delete("/tenants/:tenantId/addons/:addonType", internalAuth,
       .where(eq(tenantAddons.id, addon.id));
     
     res.json({ success: true, message: "Add-on cancelled" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// ADD-ON STORE CONFIGURATION
+// ==========================================
+
+// Get all addon definitions
+internalAdminRouter.get("/addon-store", internalAuth, async (req: Request, res: Response) => {
+  try {
+    const addons = await db.query.addonDefinitions.findMany({
+      orderBy: [desc(addonDefinitions.sortOrder)],
+    });
+    
+    // Get subscription tiers for reference
+    const tiers = await db.query.subscriptionPlans.findMany({
+      where: eq(subscriptionPlans.isActive, true),
+    });
+    
+    res.json({ 
+      addons, 
+      tiers: tiers.map(t => ({ id: t.id, name: t.name, tier: t.tier }))
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single addon definition
+internalAdminRouter.get("/addon-store/:addonKey", internalAuth, async (req: Request, res: Response) => {
+  try {
+    const { addonKey } = req.params;
+    
+    const addon = await db.query.addonDefinitions.findFirst({
+      where: eq(addonDefinitions.addonKey, addonKey),
+    });
+    
+    if (!addon) {
+      return res.status(404).json({ error: "Add-on not found" });
+    }
+    
+    res.json(addon);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create addon definition
+internalAdminRouter.post("/addon-store", internalAuth, requireRole(["SuperAdmin"]), async (req: Request, res: Response) => {
+  try {
+    const { 
+      addonKey, name, description, icon, category,
+      monthlyPrice, yearlyPrice, trialDays,
+      includedInTiers, enabledFeatures, isActive, sortOrder
+    } = req.body;
+    
+    if (!addonKey || !name) {
+      return res.status(400).json({ error: "Add-on key and name are required" });
+    }
+    
+    // Check if key already exists
+    const existing = await db.query.addonDefinitions.findFirst({
+      where: eq(addonDefinitions.addonKey, addonKey),
+    });
+    
+    if (existing) {
+      return res.status(400).json({ error: "Add-on key already exists" });
+    }
+    
+    const [newAddon] = await db.insert(addonDefinitions).values({
+      addonKey,
+      name,
+      description,
+      icon,
+      category: category || "integration",
+      monthlyPrice: monthlyPrice || 0,
+      yearlyPrice,
+      trialDays: trialDays || 0,
+      includedInTiers: includedInTiers || [],
+      enabledFeatures: enabledFeatures || [],
+      isActive: isActive !== false,
+      sortOrder: sortOrder || 0,
+    }).returning();
+    
+    res.json({ success: true, addon: newAddon });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update addon definition
+internalAdminRouter.patch("/addon-store/:addonKey", internalAuth, requireRole(["SuperAdmin"]), async (req: Request, res: Response) => {
+  try {
+    const { addonKey } = req.params;
+    const updates = req.body;
+    
+    const existing = await db.query.addonDefinitions.findFirst({
+      where: eq(addonDefinitions.addonKey, addonKey),
+    });
+    
+    if (!existing) {
+      return res.status(404).json({ error: "Add-on not found" });
+    }
+    
+    await db.update(addonDefinitions)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(addonDefinitions.id, existing.id));
+    
+    res.json({ success: true, message: "Add-on updated" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete addon definition (soft delete - sets isActive to false)
+internalAdminRouter.delete("/addon-store/:addonKey", internalAuth, requireRole(["SuperAdmin"]), async (req: Request, res: Response) => {
+  try {
+    const { addonKey } = req.params;
+    
+    const existing = await db.query.addonDefinitions.findFirst({
+      where: eq(addonDefinitions.addonKey, addonKey),
+    });
+    
+    if (!existing) {
+      return res.status(404).json({ error: "Add-on not found" });
+    }
+    
+    await db.update(addonDefinitions)
+      .set({
+        isActive: false,
+        updatedAt: new Date(),
+      })
+      .where(eq(addonDefinitions.id, existing.id));
+    
+    res.json({ success: true, message: "Add-on deactivated" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
