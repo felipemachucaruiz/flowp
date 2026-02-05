@@ -666,8 +666,17 @@ router.get("/ebilling/status", requirePermission("settings.view"), async (req: R
 // CUSTOMER ADD-ONS MANAGEMENT
 // ==========================================
 
-// Get available add-ons and tenant's active add-ons
-router.get("/addons", async (req: Request, res: Response) => {
+// Helper middleware to check if user is owner
+const requireOwnerRole = (req: Request, res: Response, next: Function) => {
+  const user = req.user as any;
+  if (!user || user.role !== "owner") {
+    return res.status(403).json({ error: "Owner access required" });
+  }
+  next();
+};
+
+// Get available add-ons and tenant's active add-ons (owner only)
+router.get("/addons", requireOwnerRole, async (req: Request, res: Response) => {
   try {
     const tenantId = req.targetTenantId;
     if (!tenantId) {
@@ -699,15 +708,22 @@ router.get("/addons", async (req: Request, res: Response) => {
   }
 });
 
-// Activate an add-on (with optional trial)
-router.post("/addons/:addonKey", requirePermission("settings:edit"), async (req: Request, res: Response) => {
+// Activate an add-on (owner only, with optional trial)
+router.post("/addons/:addonKey", requireOwnerRole, async (req: Request, res: Response) => {
   try {
     const tenantId = req.targetTenantId;
     const { addonKey } = req.params;
-    const { withTrial } = req.body;
+    
+    // Validate request body
+    const withTrial = req.body.withTrial === true;
     
     if (!tenantId) {
       return res.status(400).json({ error: "Tenant ID required" });
+    }
+    
+    // Validate addonKey format (alphanumeric and underscores only)
+    if (!/^[a-z0-9_]+$/.test(addonKey)) {
+      return res.status(400).json({ error: "Invalid add-on key format" });
     }
 
     // Get add-on definition
@@ -739,24 +755,38 @@ router.post("/addons/:addonKey", requirePermission("settings:edit"), async (req:
     // Determine status and trial end date
     let status: "active" | "trial" = "active";
     let trialEndsAt: Date | null = null;
+    let trialUsedAt: Date | null = null;
 
-    if (withTrial && addonDef.trialDays > 0 && !isIncludedInTier) {
+    // Check if trial was already used (prevent trial abuse)
+    const trialAlreadyUsed = existing?.trialUsedAt != null;
+
+    if (withTrial && addonDef.trialDays > 0 && !isIncludedInTier && !trialAlreadyUsed) {
       status = "trial";
       trialEndsAt = new Date();
       trialEndsAt.setDate(trialEndsAt.getDate() + addonDef.trialDays);
+      trialUsedAt = new Date();
+    } else if (withTrial && trialAlreadyUsed) {
+      // User requested trial but already used it - activate without trial
+      status = "active";
     }
 
     if (existing) {
       // Reactivate cancelled/expired addon
+      const updateData: any = {
+        status,
+        trialEndsAt,
+        monthlyPrice: isIncludedInTier ? 0 : addonDef.monthlyPrice,
+        cancelledAt: null,
+        billingCycleStart: new Date(),
+        updatedAt: new Date(),
+      };
+      // Only set trialUsedAt if this is a new trial
+      if (trialUsedAt && !existing.trialUsedAt) {
+        updateData.trialUsedAt = trialUsedAt;
+      }
+      
       await db.update(tenantAddons)
-        .set({
-          status,
-          trialEndsAt,
-          monthlyPrice: isIncludedInTier ? 0 : addonDef.monthlyPrice,
-          cancelledAt: null,
-          billingCycleStart: new Date(),
-          updatedAt: new Date(),
-        })
+        .set(updateData)
         .where(eq(tenantAddons.id, existing.id));
     } else {
       // Create new addon subscription
@@ -765,6 +795,7 @@ router.post("/addons/:addonKey", requirePermission("settings:edit"), async (req:
         addonType: addonKey,
         status,
         trialEndsAt,
+        trialUsedAt,
         monthlyPrice: isIncludedInTier ? 0 : addonDef.monthlyPrice,
         billingCycleStart: new Date(),
       });
@@ -777,14 +808,19 @@ router.post("/addons/:addonKey", requirePermission("settings:edit"), async (req:
   }
 });
 
-// Cancel an add-on
-router.delete("/addons/:addonKey", requirePermission("settings:edit"), async (req: Request, res: Response) => {
+// Cancel an add-on (owner only)
+router.delete("/addons/:addonKey", requireOwnerRole, async (req: Request, res: Response) => {
   try {
     const tenantId = req.targetTenantId;
     const { addonKey } = req.params;
     
     if (!tenantId) {
       return res.status(400).json({ error: "Tenant ID required" });
+    }
+    
+    // Validate addonKey format
+    if (!/^[a-z0-9_]+$/.test(addonKey)) {
+      return res.status(400).json({ error: "Invalid add-on key format" });
     }
 
     const addon = await db.query.tenantAddons.findFirst({

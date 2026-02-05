@@ -1857,6 +1857,7 @@ export const tenantAddons = pgTable("tenant_addons", {
   
   // Trial support
   trialEndsAt: timestamp("trial_ends_at"),
+  trialUsedAt: timestamp("trial_used_at"),  // Track if trial was ever used (prevent reuse)
   
   // Metadata
   activatedAt: timestamp("activated_at").defaultNow(),
