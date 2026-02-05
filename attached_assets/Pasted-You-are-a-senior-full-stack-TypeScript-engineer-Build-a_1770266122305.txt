@@ -1,0 +1,171 @@
+You are a senior full-stack TypeScript engineer.
+Build a paid ADD-ON for Flowp (multi-tenant POS SaaS) that integrates Shopify with:
+- Flowp Orders / POS
+- Flowp Inventory (source of truth)
+- Flowp Electronic Billing (DIAN via Matias API)
+
+This add-on must be production-ready, async, idempotent, and monetizable.
+
+=====================================================
+STACK & CONTEXT
+=====================================================
+- Backend: Node.js + Express + TypeScript
+- DB: PostgreSQL + Drizzle ORM
+- Existing Flowp modules:
+  - Orders/Sales
+  - Inventory
+  - Electronic Billing (DIAN – Matias API)
+  - Admin Console (internal)
+  - COnfiguration page shopify (customer-facing)
+- Multi-tenant SaaS
+- Shopify is an EXTERNAL SALES CHANNEL, not the source of truth
+
+=====================================================
+CORE PRINCIPLES
+=====================================================
+1) Flowp is the SOURCE OF TRUTH for inventory.
+2) Shopify orders are IMPORTED into Flowp.
+3) POS checkout and Shopify orders must NEVER block on DIAN.
+4) Every Shopify order must be idempotent.
+5) This integration is a PAID ADD-ON.
+
+=====================================================
+FUNCTIONAL SCOPE (MVP)
+=====================================================
+
+A) SHOPIFY → FLOWP (Orders)
+- Receive Shopify webhooks:
+  - orders/create
+  - orders/paid
+  - refunds/create
+- Create Flowp orders with:
+  - channel = 'shopify'
+  - external_order_id = shopify_order_id
+  - customer data (if available)
+  - line items
+  - taxes
+  - shipping
+  - discounts
+- Prevent duplicates using external_order_id + tenant_id.
+
+B) INVENTORY SYNC
+- On order creation:
+  - Decrease inventory in Flowp
+- Flowp pushes updated stock levels to Shopify:
+  - inventory_levels/set
+- No bidirectional real-time sync.
+- Shopify NEVER overrides Flowp inventory.
+
+C) ELECTRONIC BILLING (DIAN)
+- After Shopify order is created in Flowp:
+  - Create electronic document ASYNC
+- Rules:
+  - Default: POS Electrónico (type_document_id = 20)
+  - If customer has tax ID and tenant requires it: Factura Electrónica (01)
+- Save:
+  - CUFE / track_id
+  - DIAN status
+  - PDF / Attached when available
+- On Shopify refund:
+  - Create Nota Crédito DIAN (type_document_id = 94)
+
+D) STATUS & RETRIES
+- Electronic billing failures must:
+  - Not affect order creation
+  - Be retryable
+- Store status:
+  - PENDING / ACCEPTED / REJECTED / FAILED
+- Allow manual retry from Admin Console.
+
+=====================================================
+DATA MODEL (DRIZZLE)
+=====================================================
+Create tables:
+
+1) tenant_shopify_integrations
+- tenant_id
+- shop_domain
+- access_token_encrypted
+- is_active
+- last_webhook_at
+- last_error
+- created_at, updated_at
+
+2) shopify_orders
+- id
+- tenant_id
+- shopify_order_id
+- shopify_order_number
+- flowp_order_id
+- status
+- payload_json
+- created_at
+
+3) shopify_webhook_logs
+- id
+- tenant_id
+- topic
+- shopify_event_id
+- payload_json
+- processed boolean
+- error_message
+- created_at
+
+=====================================================
+ADMIN CONSOLE (INTERNAL FLOWP)
+=====================================================
+Add tools to:
+- View which tenants have Shopify connected
+- See webhook health & failures
+- Reprocess failed Shopify orders
+- View Shopify-origin DIAN documents
+- Disable integration per tenant
+- Audit all actions
+
+=====================================================
+CONFIGURATION PAGE for shopify (CUSTOMER)
+=====================================================
+Add screens to:
+- Connect Shopify store (OAuth or token)
+- Enable / disable sync
+- See imported orders
+- See billing status per order
+- See inventory sync status
+- Warning banners if package limit reached
+
+=====================================================
+BILLING & MONETIZATION
+=====================================================
+- This integration consumes DIAN document packages.
+- Each Shopify order that generates:
+  - POS = 1 document
+  - Invoice = 1 document
+  - Credit note = 1 document
+- Block, allow overage, or mark overage based on tenant e-billing policy.
+- Add flag: requires_shopify_addon = true.
+
+=====================================================
+SECURITY & RELIABILITY
+=====================================================
+- Verify Shopify webhook signatures.
+- Encrypt all Shopify tokens.
+- Idempotent webhook processing.
+- Async job queue (DB-backed is fine).
+- Full audit logging.
+
+=====================================================
+DELIVERABLES
+=====================================================
+- Backend services & routes
+- Drizzle schemas & migrations
+- Webhook handlers
+- Inventory sync logic
+- DIAN billing hooks
+- Admin + Tenant API endpoints
+- README explaining:
+  - Setup
+  - Flow
+  - Limitations
+  - Billing impact
+
+Do NOT build frontend UI components in detail; expose clean APIs for existing React apps.
