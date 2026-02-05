@@ -11,6 +11,7 @@ import type {
   ShopifyWebhooksResponse,
   ShopifyWebhook,
   ShopifyInventoryLevel,
+  ShopifyOrder,
 } from "./types";
 
 const SHOPIFY_API_VERSION = "2024-01";
@@ -149,6 +150,37 @@ export class ShopifyClient {
     }
 
     return response.json();
+  }
+
+  // ==========================================
+  // Orders
+  // ==========================================
+
+  async getOrders(options: {
+    limit?: number;
+    status?: "any" | "open" | "closed" | "cancelled";
+    createdAtMin?: string;
+    updatedAtMin?: string;
+  } = {}): Promise<ShopifyOrder[]> {
+    const params = new URLSearchParams();
+    params.set("limit", String(options.limit || 50));
+    params.set("status", options.status || "any");
+    if (options.createdAtMin) params.set("created_at_min", options.createdAtMin);
+    if (options.updatedAtMin) params.set("updated_at_min", options.updatedAtMin);
+    
+    const response = await this.request<{ orders: ShopifyOrder[] }>(
+      "GET",
+      `/orders.json?${params.toString()}`
+    );
+    return response.orders;
+  }
+
+  async getOrder(orderId: number): Promise<ShopifyOrder> {
+    const response = await this.request<{ order: ShopifyOrder }>(
+      "GET",
+      `/orders/${orderId}.json`
+    );
+    return response.order;
   }
 
   // ==========================================
@@ -296,6 +328,77 @@ export async function getShopifyClient(tenantId: string): Promise<ShopifyClient 
   const client = new ShopifyClient(tenantId);
   const initialized = await client.initialize();
   return initialized ? client : null;
+}
+
+// Register all required webhooks for Shopify integration
+export async function registerAllWebhooks(
+  tenantId: string,
+  baseUrl: string
+): Promise<{ success: boolean; registered: string[]; errors: string[] }> {
+  const client = await getShopifyClient(tenantId);
+  if (!client) {
+    return { success: false, registered: [], errors: ["Failed to initialize Shopify client"] };
+  }
+
+  const webhookTopics = [
+    "orders/create",
+    "orders/updated",
+    "refunds/create",
+  ];
+
+  const registered: string[] = [];
+  const errors: string[] = [];
+
+  // First, get existing webhooks to avoid duplicates
+  let existingWebhooks: ShopifyWebhook[] = [];
+  try {
+    existingWebhooks = await client.getWebhooks();
+    console.log(`[Shopify Webhooks] Found ${existingWebhooks.length} existing webhooks`);
+  } catch (error) {
+    console.error("[Shopify Webhooks] Failed to get existing webhooks:", error);
+  }
+
+  for (const topic of webhookTopics) {
+    const address = `${baseUrl}/api/shopify/webhooks/${topic.replace("/", "-")}`;
+    
+    // Check if webhook already exists
+    const existing = existingWebhooks.find(
+      (w) => w.topic === topic && w.address === address
+    );
+    
+    if (existing) {
+      console.log(`[Shopify Webhooks] Webhook already exists for ${topic}`);
+      registered.push(topic);
+      continue;
+    }
+
+    // Delete any existing webhook for this topic with different address
+    const oldWebhook = existingWebhooks.find((w) => w.topic === topic);
+    if (oldWebhook) {
+      try {
+        await client.deleteWebhook(oldWebhook.id);
+        console.log(`[Shopify Webhooks] Deleted old webhook for ${topic}`);
+      } catch (error) {
+        console.error(`[Shopify Webhooks] Failed to delete old webhook for ${topic}:`, error);
+      }
+    }
+
+    try {
+      await client.registerWebhook(topic, address);
+      console.log(`[Shopify Webhooks] Registered webhook for ${topic} -> ${address}`);
+      registered.push(topic);
+    } catch (error: any) {
+      const msg = `Failed to register ${topic}: ${error.message}`;
+      console.error(`[Shopify Webhooks] ${msg}`);
+      errors.push(msg);
+    }
+  }
+
+  return {
+    success: errors.length === 0,
+    registered,
+    errors,
+  };
 }
 
 // Save or update Shopify configuration for a tenant

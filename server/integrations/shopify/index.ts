@@ -10,6 +10,7 @@ export {
   encrypt,
   decrypt,
   logSyncOperation,
+  registerAllWebhooks,
 } from "./shopifyClient";
 
 export { 

@@ -17,6 +17,7 @@ import {
   fullPriceSync,
   importPendingShopifyOrder,
   getShopifyClient,
+  registerAllWebhooks,
 } from "./index";
 import {
   generateOAuthUrl,
@@ -161,6 +162,19 @@ shopifyRouter.get("/oauth/callback", async (req: Request, res: Response) => {
       tokenResponse.expiresIn
     );
 
+    // Register webhooks for order syncing
+    const host = req.get("host") || "localhost:5000";
+    const protocol = req.secure || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+    const baseUrl = `${protocol}://${host}`;
+    
+    try {
+      const webhookResult = await registerAllWebhooks(tenantId, baseUrl);
+      console.log(`[Shopify OAuth] Webhook registration: ${webhookResult.registered.length} registered, ${webhookResult.errors.length} errors`);
+    } catch (webhookError) {
+      console.error("[Shopify OAuth] Failed to register webhooks:", webhookError);
+      // Don't fail OAuth, webhooks can be registered later
+    }
+
     console.log(`[Shopify OAuth] Successfully connected for tenant ${tenantId}`);
     return res.redirect("/settings/shopify?shopify_success=true");
   } catch (error: any) {
@@ -281,6 +295,140 @@ shopifyRouter.patch("/config", async (req: Request, res: Response) => {
     return res.json({ success: true, message: "Settings updated" });
   } catch (error: any) {
     console.error("[Shopify Config Update] Error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Get webhook status
+shopifyRouter.get("/webhooks", async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  if (!tenantId) {
+    return res.status(400).json({ error: "Tenant ID required" });
+  }
+
+  try {
+    const client = await getShopifyClient(tenantId);
+    if (!client) {
+      return res.status(404).json({ error: "Shopify not configured or not active" });
+    }
+
+    const webhooks = await client.getWebhooks();
+    return res.json({ 
+      webhooks: webhooks.map(w => ({
+        id: w.id,
+        topic: w.topic,
+        address: w.address,
+        createdAt: w.created_at,
+      }))
+    });
+  } catch (error: any) {
+    console.error("[Shopify Webhooks] Error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Register webhooks manually
+shopifyRouter.post("/webhooks/register", async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  if (!tenantId) {
+    return res.status(400).json({ error: "Tenant ID required" });
+  }
+
+  try {
+    const host = req.get("host") || "localhost:5000";
+    const protocol = req.secure || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+    const baseUrl = `${protocol}://${host}`;
+
+    const result = await registerAllWebhooks(tenantId, baseUrl);
+    
+    return res.json({
+      success: result.success,
+      registered: result.registered,
+      errors: result.errors,
+      message: result.success 
+        ? `Successfully registered ${result.registered.length} webhooks`
+        : `Registered ${result.registered.length} webhooks with ${result.errors.length} errors`,
+    });
+  } catch (error: any) {
+    console.error("[Shopify Webhooks Register] Error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// Poll and import orders from Shopify (fallback when webhooks unavailable)
+shopifyRouter.post("/sync/orders", async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  if (!tenantId) {
+    return res.status(400).json({ error: "Tenant ID required" });
+  }
+
+  try {
+    const client = await getShopifyClient(tenantId);
+    if (!client) {
+      return res.status(404).json({ error: "Shopify not configured or not active" });
+    }
+
+    const integration = await getShopifyConfig(tenantId);
+    if (!integration) {
+      return res.status(404).json({ error: "Shopify not configured" });
+    }
+
+    // Get orders from the last 24 hours
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    
+    const shopifyOrderList = await client.getOrders({
+      limit: 50,
+      status: "any",
+      createdAtMin: oneDayAgo.toISOString(),
+    });
+
+    console.log(`[Shopify Order Poll] Found ${shopifyOrderList.length} orders in last 24h`);
+
+    let imported = 0;
+    let skipped = 0;
+    let failed = 0;
+    const errors: string[] = [];
+
+    for (const shopifyOrder of shopifyOrderList) {
+      // Check if already imported
+      const existingOrder = await db.query.shopifyOrders.findFirst({
+        where: and(
+          eq(shopifyOrders.tenantId, tenantId),
+          eq(shopifyOrders.shopifyOrderId, String(shopifyOrder.id))
+        ),
+      });
+
+      if (existingOrder && existingOrder.status === "completed") {
+        skipped++;
+        continue;
+      }
+
+      try {
+        const { importShopifyOrder } = await import("./orderImport");
+        const result = await importShopifyOrder(tenantId, shopifyOrder, integration);
+        if (result.success) {
+          imported++;
+        } else {
+          failed++;
+          errors.push(`Order ${shopifyOrder.name}: ${result.message}`);
+        }
+      } catch (error: any) {
+        failed++;
+        errors.push(`Order ${shopifyOrder.name}: ${error.message}`);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Imported ${imported} orders, skipped ${skipped}, failed ${failed}`,
+      imported,
+      skipped,
+      failed,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (error: any) {
+    console.error("[Shopify Order Poll] Error:", error);
     return res.status(500).json({ error: error.message });
   }
 });
