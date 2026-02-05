@@ -63,6 +63,56 @@ export function validateOAuthState(state: string): OAuthState | null {
   return oauthState || null;
 }
 
+export function verifyOAuthCallback(
+  query: Record<string, string>,
+  clientSecret: string
+): boolean {
+  const { hmac, ...params } = query;
+  
+  if (!hmac) {
+    console.warn("[Shopify OAuth] No HMAC in callback");
+    return false;
+  }
+  
+  // Validate hmac is a valid hex string
+  if (!/^[a-f0-9]+$/i.test(hmac)) {
+    console.warn("[Shopify OAuth] Invalid HMAC format");
+    return false;
+  }
+  
+  const sortedParams = Object.keys(params)
+    .sort()
+    .map((key) => `${key}=${params[key]}`)
+    .join("&");
+  
+  const computedHmac = crypto
+    .createHmac("sha256", clientSecret)
+    .update(sortedParams)
+    .digest("hex");
+  
+  // Ensure both buffers have the same length before comparison
+  if (hmac.length !== computedHmac.length) {
+    console.warn("[Shopify OAuth] HMAC length mismatch");
+    return false;
+  }
+  
+  try {
+    const valid = crypto.timingSafeEqual(
+      Buffer.from(hmac, "hex"),
+      Buffer.from(computedHmac, "hex")
+    );
+    
+    if (!valid) {
+      console.warn("[Shopify OAuth] HMAC verification failed");
+    }
+    
+    return valid;
+  } catch (error) {
+    console.error("[Shopify OAuth] HMAC comparison error:", error);
+    return false;
+  }
+}
+
 export async function exchangeCodeForToken(
   shopDomain: string,
   clientId: string,
@@ -179,84 +229,20 @@ export async function saveOAuthCredentials(
   console.log(`[Shopify OAuth] Credentials saved for tenant ${tenantId}`);
 }
 
-export async function refreshAccessToken(tenantId: string): Promise<string | null> {
+export async function getAccessToken(tenantId: string): Promise<string | null> {
   const config = await db.query.tenantShopifyIntegrations.findFirst({
     where: eq(tenantShopifyIntegrations.tenantId, tenantId),
   });
   
-  if (!config || !config.clientIdEncrypted || !config.clientSecretEncrypted) {
-    console.error(`[Shopify OAuth] Cannot refresh token - missing OAuth credentials for tenant ${tenantId}`);
+  if (!config || !config.accessTokenEncrypted) {
+    console.error(`[Shopify OAuth] No access token found for tenant ${tenantId}`);
     return null;
   }
   
-  if (!config.refreshTokenEncrypted) {
-    console.log(`[Shopify OAuth] No refresh token available for tenant ${tenantId} - token may be offline access type`);
-    return config.accessTokenEncrypted ? decrypt(config.accessTokenEncrypted) : null;
-  }
-  
   try {
-    const clientId = decrypt(config.clientIdEncrypted);
-    const clientSecret = decrypt(config.clientSecretEncrypted);
-    const refreshToken = decrypt(config.refreshTokenEncrypted);
-    
-    const tokenUrl = `https://${config.shopDomain}/admin/oauth/access_token`;
-    
-    const response = await fetch(tokenUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        client_id: clientId,
-        client_secret: clientSecret,
-        grant_type: "refresh_token",
-        refresh_token: refreshToken,
-      }),
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[Shopify OAuth] Token refresh failed: ${response.status} ${errorText}`);
-      
-      await db.update(tenantShopifyIntegrations)
-        .set({
-          lastError: `Token refresh failed: ${response.status}`,
-          errorCount: (config.errorCount || 0) + 1,
-          updatedAt: new Date(),
-        })
-        .where(eq(tenantShopifyIntegrations.tenantId, tenantId));
-      
-      return null;
-    }
-    
-    const data = await response.json();
-    const newAccessToken = data.access_token;
-    const newRefreshToken = data.refresh_token;
-    const expiresIn = data.expires_in;
-    
-    const updates: any = {
-      accessTokenEncrypted: encrypt(newAccessToken),
-      lastError: null,
-      errorCount: 0,
-      updatedAt: new Date(),
-    };
-    
-    if (newRefreshToken) {
-      updates.refreshTokenEncrypted = encrypt(newRefreshToken);
-    }
-    
-    if (expiresIn) {
-      updates.tokenExpiresAt = new Date(Date.now() + expiresIn * 1000);
-    }
-    
-    await db.update(tenantShopifyIntegrations)
-      .set(updates)
-      .where(eq(tenantShopifyIntegrations.tenantId, tenantId));
-    
-    console.log(`[Shopify OAuth] Token refreshed for tenant ${tenantId}`);
-    return newAccessToken;
+    return decrypt(config.accessTokenEncrypted);
   } catch (error: any) {
-    console.error(`[Shopify OAuth] Error refreshing token for tenant ${tenantId}:`, error);
+    console.error(`[Shopify OAuth] Error decrypting token for tenant ${tenantId}:`, error);
     return null;
   }
 }

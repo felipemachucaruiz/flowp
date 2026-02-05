@@ -21,6 +21,7 @@ import {
 import {
   generateOAuthUrl,
   validateOAuthState,
+  verifyOAuthCallback,
   exchangeCodeForToken,
   saveOAuthCredentials,
 } from "./oauth";
@@ -127,6 +128,19 @@ shopifyRouter.get("/oauth/callback", async (req: Request, res: Response) => {
     const { decrypt } = await import("./shopifyClient");
     const clientId = decrypt(config.clientIdEncrypted);
     const clientSecret = decrypt(config.clientSecretEncrypted);
+
+    // Verify HMAC signature from Shopify
+    const queryParams: Record<string, string> = {};
+    for (const [key, value] of Object.entries(req.query)) {
+      if (typeof value === "string") {
+        queryParams[key] = value;
+      }
+    }
+    
+    if (!verifyOAuthCallback(queryParams, clientSecret)) {
+      console.error("[Shopify OAuth] HMAC verification failed");
+      return res.redirect("/settings?shopify_error=invalid_signature");
+    }
 
     // Exchange code for token
     const tokenResponse = await exchangeCodeForToken(
