@@ -1034,14 +1034,10 @@ internalAdminRouter.delete("/addon-store/:addonKey", internalAuth, requireRole([
       return res.status(404).json({ error: "Add-on not found" });
     }
     
-    await db.update(addonDefinitions)
-      .set({
-        isActive: false,
-        updatedAt: new Date(),
-      })
+    await db.delete(addonDefinitions)
       .where(eq(addonDefinitions.id, existing.id));
     
-    res.json({ success: true, message: "Add-on deactivated" });
+    res.json({ success: true, message: "Add-on deleted" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
