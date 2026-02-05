@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { db } from "../../db";
-import { tenantShopifyIntegrations, shopifyOrders, shopifySyncLogs, shopifyProductMap, products, tenantAddons, PAID_ADDONS } from "@shared/schema";
+import { tenantShopifyIntegrations, shopifyOrders, shopifySyncLogs, shopifyProductMap, products, tenantAddons, addonDefinitions, tenants, PAID_ADDONS } from "@shared/schema";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 import { 
   saveShopifyConfig,
@@ -30,7 +30,7 @@ import { encrypt } from "./shopifyClient";
 
 export const shopifyRouter = Router();
 
-// Middleware to check if tenant has Shopify add-on
+// Middleware to check if tenant has Shopify add-on (explicit subscription or included in tier)
 async function requireShopifyAddon(req: Request, res: Response, next: NextFunction) {
   const tenantId = req.headers["x-tenant-id"] as string;
   if (!tenantId) {
@@ -38,6 +38,7 @@ async function requireShopifyAddon(req: Request, res: Response, next: NextFuncti
   }
 
   try {
+    // First check for explicit subscription
     const addon = await db.query.tenantAddons.findFirst({
       where: and(
         eq(tenantAddons.tenantId, tenantId),
@@ -49,22 +50,38 @@ async function requireShopifyAddon(req: Request, res: Response, next: NextFuncti
       ),
     });
 
-    if (!addon) {
-      return res.status(403).json({ 
-        error: "Shopify integration requires a paid add-on subscription",
-        code: "ADDON_REQUIRED"
-      });
+    if (addon) {
+      // Check if trial has expired
+      if (addon.status === "trial" && addon.trialEndsAt && new Date(addon.trialEndsAt) < new Date()) {
+        return res.status(403).json({ 
+          error: "Your Shopify integration trial has expired. Please upgrade to continue.",
+          code: "TRIAL_EXPIRED"
+        });
+      }
+      return next();
     }
 
-    // Check if trial has expired
-    if (addon.status === "trial" && addon.trialEndsAt && new Date(addon.trialEndsAt) < new Date()) {
-      return res.status(403).json({ 
-        error: "Your Shopify integration trial has expired. Please upgrade to continue.",
-        code: "TRIAL_EXPIRED"
-      });
+    // No explicit subscription - check if tenant's subscription tier includes this add-on
+    const [tenant, addonDef] = await Promise.all([
+      db.query.tenants.findFirst({
+        where: eq(tenants.id, tenantId),
+        columns: { subscriptionTier: true },
+      }),
+      db.query.addonDefinitions.findFirst({
+        where: eq(addonDefinitions.addonKey, PAID_ADDONS.SHOPIFY_INTEGRATION),
+        columns: { includedInTiers: true },
+      }),
+    ]);
+
+    if (tenant && addonDef?.includedInTiers?.includes(tenant.subscriptionTier || "basic")) {
+      // Tenant's subscription tier includes this add-on for free
+      return next();
     }
 
-    next();
+    return res.status(403).json({ 
+      error: "Shopify integration requires a paid add-on subscription",
+      code: "ADDON_REQUIRED"
+    });
   } catch (error: any) {
     console.error("[Shopify Addon Check] Error:", error);
     return res.status(500).json({ error: "Failed to verify add-on subscription" });
