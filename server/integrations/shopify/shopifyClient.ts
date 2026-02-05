@@ -69,6 +69,9 @@ export class ShopifyClient {
   private accessToken: string = "";
   private apiVersion: string = SHOPIFY_API_VERSION;
   private locationId: string | null = null;
+  private tokenExpiresAt: Date | null = null;
+  private clientId: string = "";
+  private clientSecret: string = "";
 
   constructor(tenantId: string) {
     this.tenantId = tenantId;
@@ -91,15 +94,58 @@ export class ShopifyClient {
 
     this.shopDomain = config.shopDomain;
     this.locationId = config.shopifyLocationId || null;
+    this.tokenExpiresAt = config.tokenExpiresAt || null;
 
     try {
       this.accessToken = decrypt(config.accessTokenEncrypted);
+      
+      // Load OAuth credentials if available (for token refresh)
+      if (config.clientIdEncrypted) {
+        this.clientId = decrypt(config.clientIdEncrypted);
+      }
+      if (config.clientSecretEncrypted) {
+        this.clientSecret = decrypt(config.clientSecretEncrypted);
+      }
     } catch (error) {
-      console.error(`[Shopify] Failed to decrypt access token for tenant ${this.tenantId}:`, error);
+      console.error(`[Shopify] Failed to decrypt credentials for tenant ${this.tenantId}:`, error);
       return false;
     }
 
+    // Check if token needs refresh
+    if (this.tokenExpiresAt && this.isTokenExpiringSoon()) {
+      console.log(`[Shopify] Token expiring soon for tenant ${this.tenantId}, attempting refresh`);
+      const refreshed = await this.refreshToken();
+      if (!refreshed) {
+        console.warn(`[Shopify] Token refresh failed, continuing with current token`);
+      }
+    }
+
     return true;
+  }
+
+  private isTokenExpiringSoon(): boolean {
+    if (!this.tokenExpiresAt) return false;
+    const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+    return this.tokenExpiresAt < fiveMinutesFromNow;
+  }
+
+  private async refreshToken(): Promise<boolean> {
+    if (!this.clientId || !this.clientSecret) {
+      console.log(`[Shopify] No OAuth credentials available for token refresh`);
+      return false;
+    }
+
+    try {
+      const { refreshAccessToken } = await import("./oauth");
+      const newToken = await refreshAccessToken(this.tenantId);
+      if (newToken) {
+        this.accessToken = newToken;
+        return true;
+      }
+    } catch (error) {
+      console.error(`[Shopify] Token refresh error:`, error);
+    }
+    return false;
   }
 
   private getBaseUrl(): string {
