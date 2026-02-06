@@ -202,8 +202,8 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
   if (data.electronicBilling?.qrCode) {
     qrCodeDataUrl = await generateQRCodeDataURL(data.electronicBilling.qrCode);
   } else if (data.electronicBilling?.cufe) {
-    // Fallback: generate QR from CUFE if no qrCode URL provided
-    qrCodeDataUrl = await generateQRCodeDataURL(data.electronicBilling.cufe);
+    const dianUrl = `https://catalogo-vpfe.dian.gov.co/User/SearchDocument?DocumentKey=${data.electronicBilling.cufe}`;
+    qrCodeDataUrl = await generateQRCodeDataURL(dianUrl);
   }
   const lang = tenant?.language || "en";
   

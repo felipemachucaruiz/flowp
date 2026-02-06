@@ -8,6 +8,7 @@ import {
   tenantEbillingSubscriptions,
   ebillingPackages,
   returns,
+  orders,
 } from "@shared/schema";
 import { eq, and, sql, lte, gte } from "drizzle-orm";
 import { getMatiasClient } from "./matiasClient";
@@ -519,7 +520,11 @@ export async function processDocument(documentId: string): Promise<boolean> {
       // MATIAS returns the actual DIAN CUFE/CUDE in XmlDocumentKey (96-char SHA-384 hash)
       // Not in 'cufe' field - that doesn't exist. 'uuid' is MATIAS internal ID, NOT the DIAN CUFE.
       const dianCufe = response.data.XmlDocumentKey || response.data.response?.XmlDocumentKey;
-      const qrCode = response.data.qr?.qrDian;
+      let qrCode = response.data.qr?.qrDian;
+
+      if (dianCufe && !qrCode) {
+        qrCode = `https://catalogo-vpfe.dian.gov.co/User/SearchDocument?DocumentKey=${dianCufe}`;
+      }
       
       console.log(`[MATIAS] Document accepted. MATIAS UUID: ${response.data.uuid}, DIAN CUFE: ${dianCufe?.substring(0, 30)}...`);
       
@@ -537,7 +542,16 @@ export async function processDocument(documentId: string): Promise<boolean> {
 
       await incrementDocumentUsage(doc.tenantId, doc.kind);
 
-      // Update returns table if this is a credit note
+      if ((doc.kind === "POS" || doc.kind === "INVOICE") && doc.sourceId) {
+        await db.update(orders)
+          .set({
+            cufe: dianCufe,
+            qrCode: qrCode,
+            trackId: response.data.track_id,
+          })
+          .where(eq(orders.id, doc.sourceId));
+      }
+
       if (doc.kind === "POS_CREDIT_NOTE" && doc.sourceId) {
         await db.update(returns)
           .set({
@@ -608,6 +622,17 @@ export async function processDocument(documentId: string): Promise<boolean> {
               updatedAt: new Date(),
             })
             .where(eq(matiasDocumentQueue.id, documentId));
+
+          if ((doc.kind === "POS" || doc.kind === "INVOICE") && doc.sourceId) {
+            await db.update(orders)
+              .set({ cufe, qrCode, trackId: response.data?.track_id })
+              .where(eq(orders.id, doc.sourceId));
+          }
+          if (doc.kind === "POS_CREDIT_NOTE" && doc.sourceId) {
+            await db.update(returns)
+              .set({ cude: cufe, qrCode, creditNoteStatus: "accepted" })
+              .where(eq(returns.id, doc.sourceId));
+          }
           
           console.log(`[MATIAS] Document already validated. CUFE: ${cufe?.substring(0, 20)}...`);
           await incrementDocumentUsage(doc.tenantId, doc.kind);
