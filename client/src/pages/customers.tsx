@@ -63,7 +63,7 @@ export default function CustomersPage() {
     email: "",
     phone: "",
     address: "",
-    countryCode: "169",
+    countryCode: "45",
     municipalityId: "1",
     organizationTypeId: "2",
     taxRegimeId: "2",
@@ -142,7 +142,7 @@ export default function CustomersPage() {
       email: "",
       phone: "",
       address: "",
-      countryCode: "169",
+      countryCode: "45",
       municipalityId: "1",
       organizationTypeId: "2",
       taxRegimeId: "2",
@@ -182,7 +182,7 @@ export default function CustomersPage() {
       email: customer.email || "",
       phone: customer.phone || "",
       address: customer.address || "",
-      countryCode: customer.countryCode || "169",
+      countryCode: customer.countryCode || "45",
       municipalityId: String(customer.municipalityId || 1),
       organizationTypeId: String(customer.organizationTypeId || 2),
       taxRegimeId: String(customer.taxRegimeId || 2),
@@ -554,7 +554,7 @@ export default function CustomersPage() {
                                 phone: selectedCustomer.phone || "",
                                 email: selectedCustomer.email || "",
                                 address: selectedCustomer.address || "",
-                                countryCode: selectedCustomer.countryCode || "169",
+                                countryCode: selectedCustomer.countryCode || "45",
                                 municipalityId: selectedCustomer.municipalityId || 1,
                                 organizationTypeId: selectedCustomer.organizationTypeId || 2,
                                 taxRegimeId: selectedCustomer.taxRegimeId || 2,
@@ -761,7 +761,7 @@ export default function CustomersPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              {customerForm.countryCode === "169" && (
+              {customerForm.countryCode === "45" && (
                 <div>
                   <Label>{t("customers.municipality")}</Label>
                   <Select

@@ -40,7 +40,7 @@ export const DIAN_COUNTRIES = [
   { code: "149", name: "Canadá" },
   { code: "159", name: "Santa Sede" },
   { code: "165", name: "Cocos (Keeling), Islas" },
-  { code: "169", name: "Colombia" },
+  { code: "45", name: "Colombia" },
   { code: "173", name: "Comoras" },
   { code: "177", name: "Congo" },
   { code: "183", name: "Cook, Islas" },
