@@ -102,56 +102,106 @@ function getElementLabel(type: LabelElement["type"], t: (key: any) => string): s
   }
 }
 
+function getSampleBarcode(format: BarcodeFormat): string {
+  switch (format) {
+    case "EAN13": return "5901234123457";
+    case "EAN8": return "96385074";
+    case "UPC": return "012345678905";
+    case "CODE39": return "ABC-123";
+    case "QR": return "https://example.com";
+    case "CODE128":
+    default: return "ABC-12345";
+  }
+}
+
+function isValidForFormat(value: string, format: BarcodeFormat): boolean {
+  if (!value) return false;
+  switch (format) {
+    case "EAN13": return /^\d{12,13}$/.test(value);
+    case "EAN8": return /^\d{7,8}$/.test(value);
+    case "UPC": return /^\d{11,12}$/.test(value);
+    case "CODE39": return /^[A-Z0-9\-. $/+%]+$/i.test(value);
+    case "CODE128": return value.length > 0;
+    case "QR": return value.length > 0;
+    default: return true;
+  }
+}
+
+function resolveFormat(value: string, preferredFormat: BarcodeFormat): BarcodeFormat {
+  if (preferredFormat === "QR") return "QR";
+  if (isValidForFormat(value, preferredFormat)) return preferredFormat;
+  return "CODE128";
+}
+
 function BarcodeCanvas({ value, format, width, height }: { value: string; format: BarcodeFormat; width: number; height: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [renderError, setRenderError] = useState(false);
 
   useEffect(() => {
-    if (!value) return;
+    setRenderError(false);
+    if (!value) { setRenderError(true); return; }
 
     if (format === "QR") {
       QRCode.toDataURL(value, {
-        width: Math.min(width, height),
+        width: Math.max(50, Math.min(width, height)),
         margin: 0,
         color: { dark: "#000000", light: "#ffffff" },
-      }).then(setQrDataUrl).catch(() => setQrDataUrl(""));
+      }).then(url => { setQrDataUrl(url); setRenderError(false); })
+        .catch(() => { setQrDataUrl(""); setRenderError(true); });
       return;
     }
 
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const effectiveFormat = resolveFormat(value, format);
+
     try {
+      canvas.width = Math.max(50, Math.round(width));
+      canvas.height = Math.max(20, Math.round(height));
+
       JsBarcode(canvas, value, {
-        format: format,
-        width: Math.max(1, width / (value.length * 8)),
-        height: Math.max(10, height - 14),
+        format: effectiveFormat,
+        width: Math.max(1, Math.round(width / (value.length * 8))),
+        height: Math.max(10, Math.round(height - 14)),
         displayValue: true,
-        fontSize: Math.max(8, Math.min(12, height * 0.2)),
+        fontSize: Math.max(8, Math.min(12, Math.round(height * 0.2))),
         margin: 0,
         textMargin: 1,
+        valid: (valid: boolean) => {
+          if (!valid) setRenderError(true);
+        },
       });
     } catch {
+      setRenderError(true);
       const ctx = canvas.getContext("2d");
       if (ctx) {
+        canvas.width = Math.max(50, Math.round(width));
+        canvas.height = Math.max(20, Math.round(height));
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#ef4444";
-        ctx.font = "10px sans-serif";
+        ctx.font = "11px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("Invalid", canvas.width / 2, canvas.height / 2);
+        ctx.textBaseline = "middle";
+        ctx.fillText("Invalid barcode", canvas.width / 2, canvas.height / 2);
       }
     }
   }, [value, format, width, height]);
 
   if (format === "QR") {
-    return qrDataUrl ? (
+    return qrDataUrl && !renderError ? (
       <img src={qrDataUrl} alt="QR" style={{ width: Math.min(width, height), height: Math.min(width, height), objectFit: "contain" }} />
     ) : (
-      <div className="flex items-center justify-center text-muted-foreground text-xs" style={{ width, height }}>QR</div>
+      <div className="flex items-center justify-center bg-white text-muted-foreground text-xs border border-dashed rounded-sm" style={{ width, height }}>
+        <QrCode className="w-4 h-4 mr-1 opacity-50" />QR
+      </div>
     );
   }
 
-  return <canvas ref={canvasRef} style={{ width: "100%", height: "100%", objectFit: "contain" }} />;
+  return <canvas ref={canvasRef} style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />;
 }
 
 function DraggableElement({
@@ -247,7 +297,7 @@ function DraggableElement({
           </div>
         );
       case "barcode":
-        return <BarcodeCanvas value="123456789012" format={element.barcodeFormat || "CODE128"} width={w} height={h} />;
+        return <BarcodeCanvas value={getSampleBarcode(element.barcodeFormat || "CODE128")} format={element.barcodeFormat || "CODE128"} width={w} height={h} />;
       case "customText":
         return (
           <div className="w-full h-full overflow-hidden flex items-center" style={{ fontSize, fontWeight: element.fontWeight || "normal", textAlign: element.textAlign || "center" }}>
@@ -327,27 +377,47 @@ function PrintPreview({
   }, [selectedProducts, template.elements]);
 
   useEffect(() => {
-    selectedProducts.forEach(({ product }) => {
-      template.elements.forEach((el) => {
-        if (el.type === "barcode" && el.barcodeFormat !== "QR") {
-          const key = `${product.id}-${el.id}`;
-          const canvas = canvasRefs.current.get(key);
-          if (!canvas) return;
-          const barcodeValue = product.barcode || product.sku || String(product.id);
-          try {
-            JsBarcode(canvas, barcodeValue, {
-              format: el.barcodeFormat || "CODE128",
-              width: 1.5,
-              height: Math.max(10, el.height * MM_TO_PX - 14),
-              displayValue: true,
-              fontSize: 9,
-              margin: 0,
-              textMargin: 1,
-            });
-          } catch {}
-        }
+    const timer = setTimeout(() => {
+      selectedProducts.forEach(({ product }) => {
+        template.elements.forEach((el) => {
+          if (el.type === "barcode" && el.barcodeFormat !== "QR") {
+            const key = `${product.id}-${el.id}`;
+            const canvas = canvasRefs.current.get(key);
+            if (!canvas) return;
+            const barcodeValue = product.barcode || product.sku || String(product.id);
+            const effectiveFormat = resolveFormat(barcodeValue, el.barcodeFormat || "CODE128");
+            const w = Math.max(50, Math.round(el.width * MM_TO_PX));
+            const h = Math.max(20, Math.round(el.height * MM_TO_PX));
+            canvas.width = w;
+            canvas.height = h;
+            try {
+              JsBarcode(canvas, barcodeValue, {
+                format: effectiveFormat,
+                width: Math.max(1, Math.round(w / (barcodeValue.length * 8))),
+                height: Math.max(10, h - 14),
+                displayValue: true,
+                fontSize: 9,
+                margin: 0,
+                textMargin: 1,
+              });
+            } catch {
+              const ctx = canvas.getContext("2d");
+              if (ctx) {
+                ctx.clearRect(0, 0, w, h);
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(0, 0, w, h);
+                ctx.fillStyle = "#ef4444";
+                ctx.font = "9px sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("Invalid", w / 2, h / 2);
+              }
+            }
+          }
+        });
       });
-    });
+    }, 50);
+    return () => clearTimeout(timer);
   }, [selectedProducts, template.elements]);
 
   return (
