@@ -82,6 +82,7 @@
     "google-auth-library": "^10.5.0",
     "idb": "^8.0.3",
     "input-otp": "^1.4.2",
+    "jsbarcode": "^3.12.3",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.453.0",
     "memorystore": "^1.6.7",
