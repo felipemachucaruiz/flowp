@@ -378,39 +378,42 @@ function PrintPreview({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      selectedProducts.forEach(({ product }) => {
+      selectedProducts.forEach(({ product, quantity }) => {
         template.elements.forEach((el) => {
           if (el.type === "barcode" && el.barcodeFormat !== "QR") {
-            const key = `${product.id}-${el.id}`;
-            const canvas = canvasRefs.current.get(key);
-            if (!canvas) return;
             const barcodeValue = product.barcode || product.sku || String(product.id);
             const effectiveFormat = resolveFormat(barcodeValue, el.barcodeFormat || "CODE128");
             const w = Math.max(50, Math.round(el.width * MM_TO_PX));
             const h = Math.max(20, Math.round(el.height * MM_TO_PX));
-            canvas.width = w;
-            canvas.height = h;
-            try {
-              JsBarcode(canvas, barcodeValue, {
-                format: effectiveFormat,
-                width: Math.max(1, Math.round(w / (barcodeValue.length * 8))),
-                height: Math.max(10, h - 14),
-                displayValue: true,
-                fontSize: 9,
-                margin: 0,
-                textMargin: 1,
-              });
-            } catch {
-              const ctx = canvas.getContext("2d");
-              if (ctx) {
-                ctx.clearRect(0, 0, w, h);
-                ctx.fillStyle = "#ffffff";
-                ctx.fillRect(0, 0, w, h);
-                ctx.fillStyle = "#ef4444";
-                ctx.font = "9px sans-serif";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillText("Invalid", w / 2, h / 2);
+
+            for (let i = 0; i < quantity; i++) {
+              const copyKey = `${product.id}-${el.id}-${i}`;
+              const canvas = canvasRefs.current.get(copyKey);
+              if (!canvas) continue;
+              canvas.width = w;
+              canvas.height = h;
+              try {
+                JsBarcode(canvas, barcodeValue, {
+                  format: effectiveFormat,
+                  width: Math.max(1, Math.round(w / (barcodeValue.length * 8))),
+                  height: Math.max(10, h - 14),
+                  displayValue: true,
+                  fontSize: 9,
+                  margin: 0,
+                  textMargin: 1,
+                });
+              } catch {
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                  ctx.clearRect(0, 0, w, h);
+                  ctx.fillStyle = "#ffffff";
+                  ctx.fillRect(0, 0, w, h);
+                  ctx.fillStyle = "#ef4444";
+                  ctx.font = "9px sans-serif";
+                  ctx.textAlign = "center";
+                  ctx.textBaseline = "middle";
+                  ctx.fillText("Invalid", w / 2, h / 2);
+                }
               }
             }
           }
@@ -435,10 +438,10 @@ function PrintPreview({
           >
             {template.elements.map((el) => {
               const barcodeValue = product.barcode || product.sku || String(product.id);
-              const key = `${product.id}-${el.id}`;
+              const copyKey = `${product.id}-${el.id}-${i}`;
               return (
                 <div
-                  key={el.id}
+                  key={`${el.id}-${i}`}
                   className="absolute overflow-hidden"
                   style={{
                     left: `${el.x}mm`,
@@ -465,12 +468,12 @@ function PrintPreview({
                       <span className="truncate w-full" style={{ textAlign: el.textAlign, display: "block" }}>{product.sku || "-"}</span>
                     </div>
                   )}
-                  {el.type === "barcode" && el.barcodeFormat === "QR" && qrUrls.get(key) && (
-                    <img src={qrUrls.get(key)} alt="QR" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                  {el.type === "barcode" && el.barcodeFormat === "QR" && qrUrls.get(`${product.id}-${el.id}`) && (
+                    <img src={qrUrls.get(`${product.id}-${el.id}`)} alt="QR" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
                   )}
                   {el.type === "barcode" && el.barcodeFormat !== "QR" && (
                     <canvas
-                      ref={(c) => { if (c) canvasRefs.current.set(key, c); }}
+                      ref={(c) => { if (c) canvasRefs.current.set(copyKey, c); }}
                       style={{ width: "100%", height: "100%", objectFit: "contain" }}
                     />
                   )}
@@ -550,17 +553,27 @@ export default function LabelDesignerPage() {
       if (!canvasRef.current) return;
       const container = canvasRef.current.parentElement;
       if (!container) return;
-      const containerWidth = container.clientWidth - 32;
-      const containerHeight = container.clientHeight - 32;
+      const padding = 40;
+      const containerWidth = container.clientWidth - padding;
+      const containerHeight = container.clientHeight - padding;
       const labelWidth = template.widthMm * MM_TO_PX;
       const labelHeight = template.heightMm * MM_TO_PX;
+      if (labelWidth <= 0 || labelHeight <= 0) return;
       const scaleX = containerWidth / labelWidth;
       const scaleY = containerHeight / labelHeight;
-      setCanvasScale(Math.min(scaleX, scaleY, 3));
+      const scale = Math.min(scaleX, scaleY);
+      setCanvasScale(Math.max(0.5, Math.min(scale, 5)));
     };
     updateScale();
+    const observer = new ResizeObserver(updateScale);
+    if (canvasRef.current?.parentElement) {
+      observer.observe(canvasRef.current.parentElement);
+    }
     window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateScale);
+    };
   }, [template.widthMm, template.heightMm]);
 
   const selectedElement = template.elements.find(el => el.id === selectedElementId) || null;
@@ -1112,7 +1125,7 @@ export default function LabelDesignerPage() {
             </Tabs>
           </div>
 
-          <div className="flex-1 flex items-center justify-center p-4 overflow-auto bg-muted/30" onClick={() => setSelectedElementId(null)}>
+          <div className="flex-1 flex items-center justify-center p-4 overflow-hidden bg-muted/30" onClick={() => setSelectedElementId(null)}>
             <div
               ref={canvasRef}
               className="relative bg-white border-2 border-dashed border-muted-foreground/30 shadow-sm"
@@ -1121,6 +1134,7 @@ export default function LabelDesignerPage() {
                 height: template.heightMm * MM_TO_PX,
                 transform: `scale(${canvasScale})`,
                 transformOrigin: "center center",
+                flexShrink: 0,
               }}
               onClick={e => e.stopPropagation()}
               data-testid="label-canvas"
