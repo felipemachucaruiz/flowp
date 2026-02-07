@@ -38,6 +38,7 @@ import {
   Gift,
   AlertTriangle,
   FileText,
+  Barcode,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -121,6 +122,12 @@ export function AppSidebar() {
       url: "/products",
       icon: Tag,
       page: "products",
+    },
+    {
+      title: t("nav.labels"),
+      url: "/labels",
+      icon: Barcode,
+      page: "labels",
     },
     {
       title: t("nav.inventory"),

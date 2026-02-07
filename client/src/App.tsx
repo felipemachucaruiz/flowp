@@ -47,6 +47,7 @@ import AdminAddonStore from "@/pages/admin/addon-store";
 import AdminAlerts from "@/pages/admin/alerts";
 import AdminAudit from "@/pages/admin/audit";
 import AdminWhatsAppPackages from "@/pages/admin/whatsapp-packages";
+import LabelDesignerPage from "@/pages/label-designer";
 import OnboardingPage from "@/pages/onboarding";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
@@ -268,6 +269,9 @@ function TenantRouter() {
         </Route>
         <Route path="/settings/shopify">
           <ProtectedRoute component={SettingsPage} />
+        </Route>
+        <Route path="/labels">
+          <ProtectedRoute component={LabelDesignerPage} />
         </Route>
         <Route path="/electronic-billing">
           <ProtectedRoute component={ElectronicBillingPage} />

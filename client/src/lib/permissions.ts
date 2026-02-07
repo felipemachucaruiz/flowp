@@ -126,6 +126,7 @@ export function canAccessPage(role: UserRole | string | undefined, page: string)
     recipes: ['inventory.view'],
     alerts: ['inventory.view'],
     purchasing: ['purchasing.view'],
+    labels: ['products.view'],
     customers: ['customers.view'],
     'loyalty-rewards': ['loyalty.view', 'loyalty.manage'],
     reports: ['reports.view_operational', 'reports.view_all', 'reports.view_stock'],
