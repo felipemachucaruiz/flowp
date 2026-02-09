@@ -233,6 +233,7 @@ export const customers = pgTable("customers", {
   name: text("name").notNull(),
   email: text("email"),
   phone: text("phone"),
+  phoneCountryCode: varchar("phone_country_code", { length: 5 }).default("57"),
   address: text("address"),
   countryCode: varchar("country_code", { length: 3 }).default("45"),
   municipalityId: integer("municipality_id").default(1),

@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { Category, Product, Customer, LoyaltyReward, User as UserType, TaxRate } from "@shared/schema";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   Search,
   Plus,
@@ -95,6 +96,7 @@ export default function POSPage() {
   const [newCustomerName, setNewCustomerName] = useState("");
   const [newCustomerEmail, setNewCustomerEmail] = useState("");
   const [newCustomerPhone, setNewCustomerPhone] = useState("");
+  const [newCustomerPhoneCountryCode, setNewCustomerPhoneCountryCode] = useState("57");
   const [newCustomerIdType, setNewCustomerIdType] = useState<string>("");
   const [newCustomerIdNumber, setNewCustomerIdNumber] = useState("");
   const [discountPercent, setDiscountPercent] = useState<string>("0");
@@ -382,7 +384,7 @@ export default function POSPage() {
 
   // Create new customer mutation
   const createCustomerMutation = useMutation({
-    mutationFn: async (data: { name: string; email?: string; phone?: string; idType?: string; idNumber?: string }) => {
+    mutationFn: async (data: { name: string; email?: string; phone?: string; phoneCountryCode?: string; idType?: string; idNumber?: string }) => {
       const response = await apiRequest("POST", "/api/customers", data);
       return response.json() as Promise<Customer>;
     },
@@ -804,6 +806,7 @@ export default function POSPage() {
       name: newCustomerName.trim(),
       email: newCustomerEmail.trim(),
       phone: newCustomerPhone.trim() || undefined,
+      phoneCountryCode: newCustomerPhoneCountryCode,
       idType: newCustomerIdType || undefined,
       idNumber: newCustomerIdNumber.trim() || undefined,
     });
@@ -1338,7 +1341,7 @@ export default function POSPage() {
                     <div>
                       <p className="font-medium">{selectedCustomer.name}</p>
                       {selectedCustomer.phone && (
-                        <p className="text-sm text-muted-foreground">{selectedCustomer.phone}</p>
+                        <p className="text-sm text-muted-foreground">+{selectedCustomer.phoneCountryCode || "57"} {selectedCustomer.phone}</p>
                       )}
                       {selectedCustomer.idNumber && (
                         <p className="text-xs text-muted-foreground">
@@ -1431,10 +1434,12 @@ export default function POSPage() {
                     onChange={(e) => setNewCustomerEmail(e.target.value)}
                     data-testid="input-new-customer-email"
                   />
-                  <Input
-                    placeholder={`${t("customers.phone")} *`}
+                  <PhoneInput
                     value={newCustomerPhone}
-                    onChange={(e) => setNewCustomerPhone(e.target.value)}
+                    countryCode={newCustomerPhoneCountryCode}
+                    onPhoneChange={setNewCustomerPhone}
+                    onCountryCodeChange={setNewCustomerPhoneCountryCode}
+                    placeholder={`${t("customers.phone")} *`}
                     data-testid="input-new-customer-phone"
                   />
                   <div className="grid grid-cols-2 gap-2">
@@ -1520,7 +1525,7 @@ export default function POSPage() {
                           <div>
                             <p className="font-medium text-sm">{customer.name}</p>
                             {customer.phone && (
-                              <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                              <p className="text-xs text-muted-foreground">+{customer.phoneCountryCode || "57"} {customer.phone}</p>
                             )}
                           </div>
                           {customer.idNumber && (

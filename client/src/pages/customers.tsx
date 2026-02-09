@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -62,6 +63,7 @@ export default function CustomersPage() {
     name: "",
     email: "",
     phone: "",
+    phoneCountryCode: "57",
     address: "",
     countryCode: "45",
     municipalityId: "1",
@@ -141,6 +143,7 @@ export default function CustomersPage() {
       name: "",
       email: "",
       phone: "",
+      phoneCountryCode: "57",
       address: "",
       countryCode: "45",
       municipalityId: "1",
@@ -181,6 +184,7 @@ export default function CustomersPage() {
       name: customer.name,
       email: customer.email || "",
       phone: customer.phone || "",
+      phoneCountryCode: customer.phoneCountryCode || "57",
       address: customer.address || "",
       countryCode: customer.countryCode || "45",
       municipalityId: String(customer.municipalityId || 1),
@@ -287,7 +291,7 @@ export default function CustomersPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{customer.name}</p>
                       {customer.phone && (
-                        <p className="text-sm text-muted-foreground truncate">{customer.phone}</p>
+                        <p className="text-sm text-muted-foreground truncate">+{customer.phoneCountryCode || "57"} {customer.phone}</p>
                       )}
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="secondary" className="text-xs">
@@ -331,7 +335,7 @@ export default function CustomersPage() {
                         {selectedCustomer.phone && (
                           <span className="flex items-center gap-1">
                             <Phone className="w-4 h-4" />
-                            {selectedCustomer.phone}
+                            +{selectedCustomer.phoneCountryCode || "57"} {selectedCustomer.phone}
                           </span>
                         )}
                         {selectedCustomer.email && (
@@ -552,6 +556,7 @@ export default function CustomersPage() {
                                 id: selectedCustomer.id,
                                 name: selectedCustomer.name,
                                 phone: selectedCustomer.phone || "",
+                                phoneCountryCode: selectedCustomer.phoneCountryCode || "57",
                                 email: selectedCustomer.email || "",
                                 address: selectedCustomer.address || "",
                                 countryCode: selectedCustomer.countryCode || "45",
@@ -618,7 +623,7 @@ export default function CustomersPage() {
                 </div>
                 <div>
                   <div className="font-semibold">{selectedCustomer.name}</div>
-                  <div className="text-sm text-muted-foreground font-normal">{selectedCustomer.phone}</div>
+                  <div className="text-sm text-muted-foreground font-normal">{selectedCustomer.phone ? `+${selectedCustomer.phoneCountryCode || "57"} ${selectedCustomer.phone}` : ""}</div>
                 </div>
               </SheetTitle>
             </SheetHeader>
@@ -684,9 +689,11 @@ export default function CustomersPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>{t("customers.phone")} *</Label>
-                <Input
+                <PhoneInput
                   value={customerForm.phone}
-                  onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
+                  countryCode={customerForm.phoneCountryCode}
+                  onPhoneChange={(phone) => setCustomerForm({ ...customerForm, phone })}
+                  onCountryCodeChange={(phoneCountryCode) => setCustomerForm({ ...customerForm, phoneCountryCode })}
                   placeholder={t("customers.phone_placeholder")}
                   data-testid="input-customer-phone"
                 />

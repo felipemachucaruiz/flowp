@@ -1913,9 +1913,10 @@ export async function registerRoutes(
           const token = createReceiptToken(id, tenantId);
           const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "flowp.replit.app"}`;
           const receiptPdfUrl = `${appUrl}/api/receipt-pdf/${token}`;
+          const fullPhone = `${customer.phoneCountryCode || "57"}${customer.phone.replace(/\D/g, "")}`;
           sendReceiptNotification(
             tenantId,
-            customer.phone,
+            fullPhone,
             updatedTab?.orderNumber || id.slice(0, 8),
             tab.total,
             tenant?.companyName || "Flowp",
@@ -2219,9 +2220,10 @@ export async function registerRoutes(
             const token = createReceiptToken(order.id, tenantId);
             const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "flowp.replit.app"}`;
             const receiptPdfUrl = `${appUrl}/api/receipt-pdf/${token}`;
+            const fullPhone = `${customer.phoneCountryCode || "57"}${customer.phone.replace(/\D/g, "")}`;
             sendReceiptNotification(
               tenantId,
-              customer.phone,
+              fullPhone,
               order.orderNumber.toString(),
               order.total,
               tenantForWa?.companyName || "Flowp",
