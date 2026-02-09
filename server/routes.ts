@@ -356,7 +356,7 @@ export async function registerRoutes(
           adminName || adminUsername,
           businessName,
           tenant.id,
-          displayLanguage || 'en'
+          tenant.language || 'en'
         ).catch(err => console.error('Failed to send welcome email:', err));
       }
 
