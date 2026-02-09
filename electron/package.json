@@ -65,7 +65,9 @@
         "es_ES",
         "pt_BR"
       ],
-      "language": "1033"
+      "language": "1033",
+      "installerHeader": "resources/installerHeader.bmp",
+      "installerSidebar": "resources/installerSidebar.bmp"
     },
     "mac": {
       "target": [
