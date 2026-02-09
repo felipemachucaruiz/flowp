@@ -80,7 +80,7 @@ const LABEL_PRESETS = [
 ];
 
 const MM_TO_PX = 3.78;
-const GRID_SIZE = 2;
+const GRID_SIZE = 0.5;
 
 function snapToGrid(value: number): number {
   return Math.round(value / GRID_SIZE) * GRID_SIZE;
