@@ -116,7 +116,8 @@ jobs:
       # ── DigiCert Binary Signing (Official Plugin) ───────────────
       - name: Setup DigiCert client certificate
         run: |
-          echo "${{ secrets.SM_CLIENT_CERT_FILE_B64 }}" | base64 --decode > /d/Certificate_pkcs12.p12
+          echo "${{ secrets.SM_CLIENT_CERT_FILE_B64 }}" | base64 --decode > ${RUNNER_TEMP}/sm_client_cert.p12
+          echo "SM_CLIENT_CERT_FILE=${RUNNER_TEMP}/sm_client_cert.p12" >> "$GITHUB_ENV"
         shell: bash
 
       - name: Sign with DigiCert Software Trust Manager
@@ -128,7 +129,6 @@ jobs:
         env:
           SM_HOST: ${{ vars.SM_HOST }}
           SM_API_KEY: ${{ secrets.SM_API_KEY }}
-          SM_CLIENT_CERT_FILE: D:\Certificate_pkcs12.p12
           SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
       # ── End DigiCert Binary Signing ─────────────────────────────
 
