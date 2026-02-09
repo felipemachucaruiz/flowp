@@ -8,6 +8,7 @@ import {
   tenantAddons,
   addonDefinitions,
   tenants,
+  platformConfig,
   PAID_ADDONS,
 } from "@shared/schema";
 import { eq, and, or, desc, sql } from "drizzle-orm";
@@ -73,6 +74,41 @@ export async function getDecryptedApiKey(tenantId: string): Promise<string | nul
   }
 }
 
+export async function getGlobalGupshupCredentials(): Promise<{
+  apiKey: string;
+  appName: string;
+  senderPhone: string;
+  enabled: boolean;
+} | null> {
+  try {
+    const keys = ["gupshup_api_key", "gupshup_app_name", "gupshup_sender_phone", "whatsapp_global_enabled"];
+    const configs = await db.select()
+      .from(platformConfig)
+      .where(sql`${platformConfig.key} = ANY(${keys})`);
+
+    const configMap: Record<string, any> = {};
+    for (const c of configs) {
+      configMap[c.key] = c;
+    }
+
+    const apiKeyRow = configMap["gupshup_api_key"];
+    if (!apiKeyRow?.encryptedValue) return null;
+
+    const enabled = configMap["whatsapp_global_enabled"]?.value === "true";
+    if (!enabled) return null;
+
+    const apiKey = decrypt(apiKeyRow.encryptedValue);
+    return {
+      apiKey,
+      appName: configMap["gupshup_app_name"]?.value || "",
+      senderPhone: configMap["gupshup_sender_phone"]?.value || "",
+      enabled,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function getActiveSubscription(tenantId: string) {
   return db.query.tenantWhatsappSubscriptions.findFirst({
     where: and(
@@ -122,19 +158,19 @@ export async function sendTemplateMessage(
   templateParams: string[],
   messageType: "receipt" | "alert" | "manual" | "command" | "auto_reply" = "manual"
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const config = await getWhatsappConfig(tenantId);
-  if (!config?.enabled || !config.gupshupApiKeyEncrypted || !config.senderPhone) {
-    return { success: false, error: "WhatsApp not configured or disabled" };
+  const globalCreds = await getGlobalGupshupCredentials();
+  if (!globalCreds) {
+    return { success: false, error: "Global WhatsApp service not configured or disabled" };
+  }
+
+  const tenantConfig = await getWhatsappConfig(tenantId);
+  if (!tenantConfig?.enabled) {
+    return { success: false, error: "WhatsApp not enabled for this tenant" };
   }
 
   const quota = await validateQuota(tenantId);
   if (!quota.allowed) {
     return { success: false, error: quota.error };
-  }
-
-  const apiKey = await getDecryptedApiKey(tenantId);
-  if (!apiKey) {
-    return { success: false, error: "Failed to decrypt API key" };
   }
 
   const [logEntry] = await db.insert(whatsappMessageLogs).values({
@@ -148,7 +184,7 @@ export async function sendTemplateMessage(
 
   try {
     const body = new URLSearchParams({
-      source: config.senderPhone,
+      source: globalCreds.senderPhone,
       destination: destinationPhone,
       template: JSON.stringify({ id: templateId, params: templateParams }),
     });
@@ -156,7 +192,7 @@ export async function sendTemplateMessage(
     const response = await fetch(GUPSHUP_TEMPLATE_URL, {
       method: "POST",
       headers: {
-        "apikey": apiKey,
+        "apikey": globalCreds.apiKey,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: body.toString(),
@@ -201,19 +237,19 @@ export async function sendSessionMessage(
   messageText: string,
   messageType: "receipt" | "alert" | "manual" | "command" | "auto_reply" = "auto_reply"
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const config = await getWhatsappConfig(tenantId);
-  if (!config?.enabled || !config.gupshupApiKeyEncrypted || !config.senderPhone) {
-    return { success: false, error: "WhatsApp not configured or disabled" };
+  const globalCreds = await getGlobalGupshupCredentials();
+  if (!globalCreds) {
+    return { success: false, error: "Global WhatsApp service not configured or disabled" };
+  }
+
+  const tenantConfig = await getWhatsappConfig(tenantId);
+  if (!tenantConfig?.enabled) {
+    return { success: false, error: "WhatsApp not enabled for this tenant" };
   }
 
   const quota = await validateQuota(tenantId);
   if (!quota.allowed) {
     return { success: false, error: quota.error };
-  }
-
-  const apiKey = await getDecryptedApiKey(tenantId);
-  if (!apiKey) {
-    return { success: false, error: "Failed to decrypt API key" };
   }
 
   const [logEntry] = await db.insert(whatsappMessageLogs).values({
@@ -228,16 +264,16 @@ export async function sendSessionMessage(
   try {
     const body = new URLSearchParams({
       channel: "whatsapp",
-      source: config.senderPhone,
+      source: globalCreds.senderPhone,
       destination: destinationPhone,
-      "src.name": config.gupshupAppName || "",
+      "src.name": globalCreds.appName,
       message: JSON.stringify({ type: "text", text: messageText }),
     });
 
     const response = await fetch(GUPSHUP_SESSION_URL, {
       method: "POST",
       headers: {
-        "apikey": apiKey,
+        "apikey": globalCreds.apiKey,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: body.toString(),
@@ -267,19 +303,14 @@ export async function sendSessionMessage(
 }
 
 export async function testConnection(tenantId: string): Promise<{ success: boolean; error?: string }> {
-  const config = await getWhatsappConfig(tenantId);
-  if (!config?.gupshupApiKeyEncrypted || !config.senderPhone) {
-    return { success: false, error: "Missing Gupshup API key or sender phone" };
-  }
-
-  const apiKey = await getDecryptedApiKey(tenantId);
-  if (!apiKey) {
-    return { success: false, error: "Failed to decrypt API key" };
+  const globalCreds = await getGlobalGupshupCredentials();
+  if (!globalCreds) {
+    return { success: false, error: "Global WhatsApp service not configured or disabled" };
   }
 
   try {
     const response = await fetch("https://api.gupshup.io/sm/api/v1/wallet/balance", {
-      headers: { "apikey": apiKey },
+      headers: { "apikey": globalCreds.apiKey },
     });
     const data = await response.json();
     if (response.ok) {

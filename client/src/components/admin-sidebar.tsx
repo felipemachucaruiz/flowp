@@ -72,6 +72,11 @@ export function AdminSidebar() {
       icon: Package,
     },
     {
+      title: t("admin.whatsapp_global_config" as any) || "WhatsApp Config",
+      url: "/admin/whatsapp-config",
+      icon: MessageCircle,
+    },
+    {
       title: "WhatsApp Packages",
       url: "/admin/whatsapp-packages",
       icon: MessageCircle,

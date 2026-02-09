@@ -47,6 +47,7 @@ import AdminAddonStore from "@/pages/admin/addon-store";
 import AdminAlerts from "@/pages/admin/alerts";
 import AdminAudit from "@/pages/admin/audit";
 import AdminWhatsAppPackages from "@/pages/admin/whatsapp-packages";
+import AdminWhatsAppConfig from "@/pages/admin/whatsapp-config";
 import LabelDesignerPage from "@/pages/label-designer";
 import OnboardingPage from "@/pages/onboarding";
 import ForgotPasswordPage from "@/pages/forgot-password";
@@ -195,6 +196,9 @@ function AdminRouter() {
         </Route>
         <Route path="/admin/audit">
           <AdminRoute component={AdminAudit} />
+        </Route>
+        <Route path="/admin/whatsapp-config">
+          <AdminRoute component={AdminWhatsAppConfig} />
         </Route>
         <Route path="/admin/whatsapp-packages">
           <AdminRoute component={AdminWhatsAppPackages} />

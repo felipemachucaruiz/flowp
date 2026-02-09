@@ -3,6 +3,7 @@ import { internalAuth, requireRole, verifyInternalUser, createInternalUser } fro
 import * as ebillingService from "../services/internal-admin/ebillingService";
 import * as documentOpsService from "../services/internal-admin/documentOpsService";
 import * as integrationService from "../services/internal-admin/integrationService";
+import { encrypt as gupshupEncrypt, decrypt as gupshupDecrypt } from "../integrations/gupshup/service";
 import { db } from "../db";
 import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans, whatsappPackages, tenantWhatsappSubscriptions, whatsappMessageLogs, tenantWhatsappIntegrations } from "@shared/schema";
 import bcrypt from "bcryptjs";
@@ -1137,5 +1138,97 @@ internalAdminRouter.get("/whatsapp/usage", internalAuth, async (req: Request, re
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.get("/whatsapp/global-config", internalAuth, async (req: Request, res: Response) => {
+  try {
+    const keys = ["gupshup_api_key", "gupshup_app_name", "gupshup_sender_phone", "whatsapp_global_enabled"];
+    const configs = await db.select()
+      .from(platformConfig)
+      .where(sql`${platformConfig.key} = ANY(${keys})`);
+
+    const configMap: Record<string, string | null> = {};
+    for (const c of configs) {
+      if (c.key === "gupshup_api_key") {
+        configMap[c.key] = c.encryptedValue ? "configured" : null;
+      } else {
+        configMap[c.key] = c.value;
+      }
+    }
+
+    res.json({
+      hasApiKey: configMap["gupshup_api_key"] === "configured",
+      appName: configMap["gupshup_app_name"] || "",
+      senderPhone: configMap["gupshup_sender_phone"] || "",
+      enabled: configMap["whatsapp_global_enabled"] === "true",
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.post("/whatsapp/global-config", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    const { gupshupApiKey, appName, senderPhone, enabled } = req.body;
+
+    const upsertConfig = async (key: string, value?: string, encryptedValue?: string) => {
+      const existing = await db.query.platformConfig.findFirst({
+        where: eq(platformConfig.key, key),
+      });
+      if (existing) {
+        const updateData: any = { updatedAt: new Date() };
+        if (value !== undefined) updateData.value = value;
+        if (encryptedValue !== undefined) updateData.encryptedValue = encryptedValue;
+        await db.update(platformConfig).set(updateData).where(eq(platformConfig.key, key));
+      } else {
+        await db.insert(platformConfig).values({
+          key,
+          value: value || null,
+          encryptedValue: encryptedValue || null,
+          description: `Global WhatsApp config: ${key}`,
+        });
+      }
+    };
+
+    if (gupshupApiKey) {
+      await upsertConfig("gupshup_api_key", null, gupshupEncrypt(gupshupApiKey));
+    }
+    if (appName !== undefined) {
+      await upsertConfig("gupshup_app_name", appName);
+    }
+    if (senderPhone !== undefined) {
+      await upsertConfig("gupshup_sender_phone", senderPhone);
+    }
+    if (enabled !== undefined) {
+      await upsertConfig("whatsapp_global_enabled", String(enabled));
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    const apiKeyConfig = await db.query.platformConfig.findFirst({
+      where: eq(platformConfig.key, "gupshup_api_key"),
+    });
+    if (!apiKeyConfig?.encryptedValue) {
+      return res.json({ success: false, error: "No API key configured" });
+    }
+
+    const apiKey = gupshupDecrypt(apiKeyConfig.encryptedValue);
+    const response = await fetch("https://api.gupshup.io/sm/api/v1/wallet/balance", {
+      headers: { "apikey": apiKey },
+    });
+    const data = await response.json();
+    if (response.ok) {
+      return res.json({ success: true, balance: data.balance });
+    }
+    return res.json({ success: false, error: data.message || "Connection failed" });
+  } catch (error: any) {
+    res.json({ success: false, error: error.message });
   }
 });
