@@ -536,126 +536,107 @@ function PrintBridgeSettings() {
 
   const isConnected = bridgeStatus?.isAvailable && isAuthenticated;
 
-  // Electron Desktop App UI - show native printer selection (Local Printing)
+  // Electron Desktop App UI - clean native printer selection
   if (isElectron) {
     return (
-      <div className="mt-6 space-y-4">
-        {/* Header - Local Printing Mode */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="font-medium">{t("printing.local_printing")}</span>
-          </div>
-          <Badge variant="default">{t("printing.ready")}</Badge>
+      <div className="mt-6 space-y-6">
+        {/* Printer for Receipts */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">{t("printing.receipt_printer")}</Label>
+          <p className="text-xs text-muted-foreground">{t("printing.receipt_printer_desc")}</p>
+          {printers.length > 0 ? (
+            <Select
+              value={selectedPrinter}
+              onValueChange={(value) => {
+                setSelectedPrinter(value);
+                localStorage.setItem('flowp_electron_printer', value);
+                toast({
+                  title: t("printing.printer_configured"),
+                  description: value,
+                });
+              }}
+            >
+              <SelectTrigger className="w-full" data-testid="select-receipt-printer-electron">
+                <SelectValue placeholder={t("printing.select_printer_placeholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                {printers.map((p) => (
+                  <SelectItem key={p.name} value={p.name}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">{t("printing.no_printers")}</p>
+          )}
         </div>
 
-        <p className="text-sm text-muted-foreground">
-          {t("printing.local_printing_desc")}
-        </p>
-
-        {/* Connected State - Native Printing */}
-        <div className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 space-y-3">
-          <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
-            <Check className="w-5 h-5" />
-            <span className="font-medium">{t("printing.direct_print_active")}</span>
-          </div>
-          {bridgeStatus?.version && (
-            <div className="text-sm text-muted-foreground">
-              <span className="font-medium">{t("printing.app_version")}</span> {bridgeStatus.version}
-            </div>
-          )}
-          {printers.length > 0 && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">{t("printing.receipt_printer")}</Label>
-                <p className="text-xs text-muted-foreground">{t("printing.receipt_printer_desc")}</p>
-                <Select
-                  value={selectedPrinter}
-                  onValueChange={(value) => {
-                    setSelectedPrinter(value);
-                    localStorage.setItem('flowp_electron_printer', value);
-                    toast({
-                      title: t("printing.printer_configured"),
-                      description: value,
-                    });
-                  }}
-                >
-                  <SelectTrigger className="w-full" data-testid="select-receipt-printer-electron">
-                    <SelectValue placeholder={t("printing.select_printer_placeholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {printers.map((p) => (
-                      <SelectItem key={p.name} value={p.name}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">{t("printing.barcode_printer")}</Label>
-                <p className="text-xs text-muted-foreground">{t("printing.barcode_printer_desc")}</p>
-                <Select
-                  value={selectedBarcodePrinter || '__same__'}
-                  onValueChange={(value) => {
-                    const actual = value === '__same__' ? '' : value;
-                    setSelectedBarcodePrinter(actual);
-                    if (actual) {
-                      localStorage.setItem('flowp_electron_barcode_printer', actual);
-                    } else {
-                      localStorage.removeItem('flowp_electron_barcode_printer');
-                    }
-                    toast({
-                      title: t("printing.printer_configured"),
-                      description: actual || t("printing.same_printer"),
-                    });
-                  }}
-                >
-                  <SelectTrigger className="w-full" data-testid="select-barcode-printer-electron">
-                    <SelectValue placeholder={t("printing.select_printer_placeholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__same__">{t("printing.same_printer")}</SelectItem>
-                    {printers.map((p) => (
-                      <SelectItem key={p.name} value={p.name}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-          
-          {/* Cash Drawer Settings */}
-          <div className="border-t pt-3 mt-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm font-medium">{t("printing.open_cash_drawer")}</Label>
-                <p className="text-xs text-muted-foreground">{t("printing.open_cash_drawer_desc")}</p>
-              </div>
-              <Switch
-                checked={openCashDrawer}
-                onCheckedChange={updateCashDrawerSetting}
-                data-testid="switch-cash-drawer-electron"
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={testCashDrawer}
-              disabled={isTestingDrawer}
-              data-testid="button-test-cash-drawer-electron"
+        {/* Printer for Labels */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">{t("printing.barcode_printer")}</Label>
+          <p className="text-xs text-muted-foreground">{t("printing.barcode_printer_desc")}</p>
+          {printers.length > 0 ? (
+            <Select
+              value={selectedBarcodePrinter || '__same__'}
+              onValueChange={(value) => {
+                const actual = value === '__same__' ? '' : value;
+                setSelectedBarcodePrinter(actual);
+                if (actual) {
+                  localStorage.setItem('flowp_electron_barcode_printer', actual);
+                } else {
+                  localStorage.removeItem('flowp_electron_barcode_printer');
+                }
+                toast({
+                  title: t("printing.printer_configured"),
+                  description: actual || t("printing.same_printer"),
+                });
+              }}
             >
-              {isTestingDrawer ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <DoorOpen className="w-4 h-4 mr-2" />
-              )}
-              {t("printing.test_cash_drawer")}
-            </Button>
+              <SelectTrigger className="w-full" data-testid="select-barcode-printer-electron">
+                <SelectValue placeholder={t("printing.select_printer_placeholder")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__same__">{t("printing.same_printer")}</SelectItem>
+                {printers.map((p) => (
+                  <SelectItem key={p.name} value={p.name}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">{t("printing.no_printers")}</p>
+          )}
+        </div>
+
+        {/* Cash Drawer */}
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm font-medium">{t("printing.cash_drawer")}</Label>
+              <p className="text-xs text-muted-foreground">{t("printing.open_cash_drawer_desc")}</p>
+            </div>
+            <Switch
+              checked={openCashDrawer}
+              onCheckedChange={updateCashDrawerSetting}
+              data-testid="switch-cash-drawer-electron"
+            />
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={testCashDrawer}
+            disabled={isTestingDrawer || !selectedPrinter}
+            data-testid="button-test-cash-drawer-electron"
+          >
+            {isTestingDrawer ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <DoorOpen className="w-4 h-4 mr-2" />
+            )}
+            {t("printing.test_cash_drawer")}
+          </Button>
         </div>
 
         {/* Refresh Printers */}
@@ -3280,21 +3261,23 @@ export default function SettingsPage() {
               <CardTitle>{t("printing.instructions")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="p-4 rounded-lg bg-muted/50 border border-dashed">
-                <div className="flex items-center gap-3 mb-3">
-                  <Printer className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-medium">{t("printing.browser_printing")}</span>
+              {!printBridge.isElectronApp() && (
+                <div className="p-4 rounded-lg bg-muted/50 border border-dashed">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Printer className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-medium">{t("printing.browser_printing")}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {t("printing.browser_description")}
+                  </p>
+                  <div className="text-sm space-y-2">
+                    <p><strong>{t("printing.supported_sizes")}:</strong> 58mm, 80mm</p>
+                    <p><strong>{t("printing.tip")}:</strong> {t("printing.tip_text")}</p>
+                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {t("printing.browser_description")}
-                </p>
-                <div className="text-sm space-y-2">
-                  <p><strong>{t("printing.supported_sizes")}:</strong> 58mm, 80mm</p>
-                  <p><strong>{t("printing.tip")}:</strong> {t("printing.tip_text")}</p>
-                </div>
-              </div>
+              )}
 
-              <div className="hidden sm:block">
+              <div className={printBridge.isElectronApp() ? "" : "hidden sm:block"}>
                 <PrintBridgeSettings />
               </div>
             </CardContent>
@@ -3529,54 +3512,60 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                <Separator />
+                {!printBridge.isElectronApp() && (
+                  <>
+                    <Separator />
 
-                <div className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-blue-500/10 rounded-lg">
-                      <Printer className="w-6 h-6 text-blue-500" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold">PrintBridge</h3>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        {t("downloads.printbridge_desc")}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <a 
-                          href="/printbridge/simple.zip" 
-                          download="PrintBridge-Windows.zip"
-                          className="inline-flex"
-                        >
-                          <Button variant="outline" data-testid="button-download-printbridge-win">
-                            <Download className="w-4 h-4 mr-2" />
-                            {t("downloads.download_windows")}
-                          </Button>
-                        </a>
-                        <a 
-                          href="/printbridge/mac.zip" 
-                          download="PrintBridge-Mac.zip"
-                          className="inline-flex"
-                        >
-                          <Button variant="outline" data-testid="button-download-printbridge-mac">
-                            <Download className="w-4 h-4 mr-2" />
-                            {t("downloads.download_mac")}
-                          </Button>
-                        </a>
+                    <div className="p-4 border rounded-lg space-y-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 bg-blue-500/10 rounded-lg">
+                          <Printer className="w-6 h-6 text-blue-500" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="font-semibold">PrintBridge</h3>
+                          <p className="text-sm text-muted-foreground mb-3">
+                            {t("downloads.printbridge_desc")}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <a 
+                              href="/printbridge/simple.zip" 
+                              download="PrintBridge-Windows.zip"
+                              className="inline-flex"
+                            >
+                              <Button variant="outline" data-testid="button-download-printbridge-win">
+                                <Download className="w-4 h-4 mr-2" />
+                                {t("downloads.download_windows")}
+                              </Button>
+                            </a>
+                            <a 
+                              href="/printbridge/mac.zip" 
+                              download="PrintBridge-Mac.zip"
+                              className="inline-flex"
+                            >
+                              <Button variant="outline" data-testid="button-download-printbridge-mac">
+                                <Download className="w-4 h-4 mr-2" />
+                                {t("downloads.download_mac")}
+                              </Button>
+                            </a>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
 
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <h4 className="font-medium text-sm mb-2">{t("downloads.instructions_title")}</h4>
-                <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                  <li>{t("downloads.instruction_1")}</li>
-                  <li>{t("downloads.instruction_2")}</li>
-                  <li>{t("downloads.instruction_3")}</li>
-                  <li>{t("downloads.instruction_4")}</li>
-                </ol>
-              </div>
+              {!printBridge.isElectronApp() && (
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">{t("downloads.instructions_title")}</h4>
+                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>{t("downloads.instruction_1")}</li>
+                    <li>{t("downloads.instruction_2")}</li>
+                    <li>{t("downloads.instruction_3")}</li>
+                    <li>{t("downloads.instruction_4")}</li>
+                  </ol>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
