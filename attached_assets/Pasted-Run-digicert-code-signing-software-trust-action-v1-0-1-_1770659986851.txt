@@ -1,0 +1,29 @@
+Run digicert/code-signing-software-trust-action@v1.0.1
+  
+Platform caching service available: true
+Runner type: GITHUB_RUNNER
+Setting up 'DigiCert Software Trust Manager' for simple-signing mode.
+Trying to restore cache for smctl-0.0.0-0-win32-x64 @ C:\hostedtoolcache\windows\smctl
+Setting up smctl-win32-x64
+Looking for all installed and cached versions of smctl
+Using sha256 checksum file for determining the version of smctl
+Downloaded sha256 checksum file from https://pki-downloads.digicert.com/stm/latest/smctl.exe.sha256
+Using sha256 checksum 6d8398a62a99e8efe6aa8ae221eeecd9f827d2db61219f91263d3da386a95b71 as version for smctl
+Required cached version of smctl for this run is 0.0.0-6d8398a62a99e8efe6aa8ae221eeecd9f827d2db61219f91263d3da386a95b71
+smctl NOT found in cache, downloading from https://pki-downloads.digicert.com/stm/latest/smctl.exe
+smctl downloaded @ D:\a\_temp\d5a563df-3fce-48e4-baf0-71bcc778cb47
+Setting the FILE file D:\a\_temp\d5a563df-3fce-48e4-baf0-71bcc778cb47
+Performing post download activities for D:\a\_temp\D_56f56010-3acb-4ba9-bfba-2554f2473de9
+Caching smctl@0.0.0-6d8398a62a99e8efe6aa8ae221eeecd9f827d2db61219f91263d3da386a95b71 from D:\a\_temp\D_56f56010-3acb-4ba9-bfba-2554f2473de9
+smctl cached @ C:\hostedtoolcache\windows\smctl\0.0.0-6d8398a62a99e8efe6aa8ae221eeecd9f827d2db61219f91263d3da386a95b71\x64
+Adding C:\hostedtoolcache\windows\smctl\0.0.0-6d8398a62a99e8efe6aa8ae221eeecd9f827d2db61219f91263d3da386a95b71\x64 to PATH
+Checking actual version of smctl
+C:\hostedtoolcache\windows\smctl\0.0.0-6d8398a62a99e8efe6aa8ae221eeecd9f827d2db61219f91263d3da386a95b71\x64\smctl.exe -v
+smctl version 1.63.0
+It was a cache miss for smctl-0.0.0-0-win32-x64, saving it now
+C:\hostedtoolcache\windows\smctl\0.0.0-6d8398a62a99e8efe6aa8ae221eeecd9f827d2db61219f91263d3da386a95b71\x64\smctl.exe sign --simple --input electron/dist --keypair-alias *** --exit-non-zero-on-fail --failfast
+"C:\Program Files\Git\usr\bin\tar.exe" --posix -cf cache.tzst --exclude cache.tzst -P -C D:/a/flowp/flowp --files-from manifest.txt --force-local --use-compress-program "zstd -T0"
+Signing of "electron\\dist\\Flowp POS Setup 1.0.4.exe" was failed. Reason: status_code=403, message={"error":{"status":"access_denied","message":"User is not multi-factor authenticated. Missing Client Authentication Certificate. As per compliance rules, user needs to be authenticated using multi-factor for performing sign operation."}}, nested_error=<nil>
+Error: Error: The process 'C:\hostedtoolcache\windows\smctl\0.0.0-6d8398a62a99e8efe6aa8ae221eeecd9f827d2db61219f91263d3da386a95b71\x64\smctl.exe' failed with exit code 1
+Sent 5590313 of 5590313 (100.0%), 7.2 MBs/sec
+Cache saved successfully, cacheId is 2787745277
