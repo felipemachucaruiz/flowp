@@ -1224,11 +1224,17 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
     const response = await fetch("https://api.gupshup.io/sm/api/v1/wallet/balance", {
       headers: { "apikey": apiKey },
     });
-    const data = await response.json();
-    if (response.ok) {
+    const text = await response.text();
+    let data: any = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      data = { message: text || `HTTP ${response.status}` };
+    }
+    if (response.ok && data.status === "success") {
       return res.json({ success: true, balance: data.balance });
     }
-    return res.json({ success: false, error: data.message || "Connection failed" });
+    return res.json({ success: false, error: data.message || `HTTP ${response.status}: ${text.substring(0, 200)}` });
   } catch (error: any) {
     res.json({ success: false, error: error.message });
   }
