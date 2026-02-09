@@ -1197,7 +1197,8 @@ internalAdminRouter.post("/whatsapp/global-config", internalAuth, requireRole(["
     };
 
     if (gupshupApiKey) {
-      await upsertConfig("gupshup_api_key", null, gupshupEncrypt(gupshupApiKey));
+      const trimmedKey = gupshupApiKey.trim();
+      await upsertConfig("gupshup_api_key", null, gupshupEncrypt(trimmedKey));
     }
     if (appName !== undefined) {
       await upsertConfig("gupshup_app_name", appName);
@@ -1224,17 +1225,22 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
       return res.json({ success: false, error: "No API key configured" });
     }
 
-    const apiKey = gupshupDecrypt(apiKeyConfig.encryptedValue);
+    const apiKey = gupshupDecrypt(apiKeyConfig.encryptedValue).trim();
     
     const appNameConfig = await db.query.platformConfig.findFirst({
       where: eq(platformConfig.key, "gupshup_app_name"),
     });
-    const appName = appNameConfig?.value || "";
+    const appName = (appNameConfig?.value || "").trim();
+
+    const keyPrefix = apiKey.substring(0, 6);
+    const keySuffix = apiKey.substring(apiKey.length - 4);
+    console.log(`[WhatsApp Test] Key: ${keyPrefix}...${keySuffix} (len=${apiKey.length}), App: "${appName}"`);
 
     const response = await fetch(`https://api.gupshup.io/wa/app/${encodeURIComponent(appName)}`, {
       headers: { "apikey": apiKey },
     });
     const text = await response.text();
+    console.log(`[WhatsApp Test] Response: HTTP ${response.status} - ${text.substring(0, 300)}`);
     let data: any = {};
     try {
       data = text ? JSON.parse(text) : {};
@@ -1245,7 +1251,7 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
       return res.json({ success: true, appName: data?.app?.name || appName });
     }
     if (response.status === 401 || response.status === 403) {
-      return res.json({ success: false, error: "Invalid API key - authentication failed" });
+      return res.json({ success: false, error: `Invalid API key (${keyPrefix}...${keySuffix}) - authentication failed` });
     }
     return res.json({ success: false, error: data.message || `HTTP ${response.status}: ${text.substring(0, 200)}` });
   } catch (error: any) {
