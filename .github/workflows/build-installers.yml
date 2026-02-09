@@ -120,7 +120,7 @@ jobs:
         shell: bash
 
       - name: Sign with DigiCert Software Trust Manager
-        uses: digicert/code-signing-software-trust-action@v1
+        uses: digicert/code-signing-software-trust-action@v1.0.1
         with:
           simple-signing-mode: true
           input: electron/dist
