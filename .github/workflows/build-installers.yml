@@ -99,53 +99,27 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      # ── DigiCert KeyLocker Setup ──────────────────────────────────
-      - name: Setup DigiCert KeyLocker certificate
-        if: env.SM_API_KEY != ''
+      # ── DigiCert Binary Signing Setup (Official Plugin) ─────────
+      - name: Setup DigiCert client certificate
+        if: ${{ secrets.SM_CLIENT_CERT_FILE_B64 != '' }}
         run: |
-          echo "${{ secrets.SM_CLIENT_CERT_FILE_B64 }}" | base64 --decode > /d/Certificate_pkcs12.p12
+          echo "${{ secrets.SM_CLIENT_CERT_FILE_B64 }}" | base64 --decode > "${RUNNER_TEMP}/sm_client_cert.p12"
+          echo "SM_CLIENT_CERT_FILE=${RUNNER_TEMP}/sm_client_cert.p12" >> $GITHUB_ENV
         shell: bash
-        env:
-          SM_API_KEY: ${{ secrets.SM_API_KEY }}
 
-      - name: Install DigiCert KeyLocker Tools
-        if: env.SM_API_KEY != ''
-        run: |
-          curl -X GET https://one.digicert.com/signingmanager/api-ui/v1/releases/smtools-windows-x64.msi/download -H "x-api-key:${{ secrets.SM_API_KEY }}" -o smtools.msi
-          msiexec /i smtools.msi /quiet /qn
-          echo "C:\Program Files\DigiCert\DigiCert Keylocker Tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        shell: pwsh
+      - name: Setup DigiCert Software Trust Manager
+        id: stm-setup
+        if: ${{ secrets.SM_API_KEY != '' }}
+        uses: digicert/code-signing-software-trust-action@v1.0.0
+        with:
+          simple-signing-mode: true
+          keypair-alias: ${{ secrets.SM_KEYPAIR_ALIAS }}
         env:
+          SM_HOST: ${{ secrets.SM_HOST }}
           SM_API_KEY: ${{ secrets.SM_API_KEY }}
-
-      - name: Configure DigiCert KeyLocker environment
-        if: env.SM_API_KEY != ''
-        run: |
-          echo "SM_HOST=${{ secrets.SM_HOST }}" >> $GITHUB_ENV
-          echo "SM_API_KEY=${{ secrets.SM_API_KEY }}" >> $GITHUB_ENV
-          echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> $GITHUB_ENV
-          echo "SM_CLIENT_CERT_PASSWORD=${{ secrets.SM_CLIENT_CERT_PASSWORD }}" >> $GITHUB_ENV
-          echo "SM_KEYPAIR_ALIAS=${{ secrets.SM_KEYPAIR_ALIAS }}" >> $GITHUB_ENV
-        shell: bash
-        env:
-          SM_API_KEY: ${{ secrets.SM_API_KEY }}
-
-      - name: Sync DigiCert KeyLocker certificate
-        if: env.SM_API_KEY != ''
-        run: |
-          smctl windows certsync --keypair-alias="${{ secrets.SM_KEYPAIR_ALIAS }}"
-        shell: cmd
-        env:
-          SM_API_KEY: ${{ secrets.SM_API_KEY }}
-
-      - name: Verify DigiCert KeyLocker health
-        if: env.SM_API_KEY != ''
-        run: |
-          smctl healthcheck
-        shell: cmd
-        env:
-          SM_API_KEY: ${{ secrets.SM_API_KEY }}
-      # ── End DigiCert KeyLocker Setup ──────────────────────────────
+          SM_CLIENT_CERT_FILE: ${{ env.SM_CLIENT_CERT_FILE }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+      # ── End DigiCert Setup ──────────────────────────────────────
 
       - name: Install Electron Builder
         run: npm install -g electron-builder
@@ -161,9 +135,27 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SM_HOST: ${{ secrets.SM_HOST }}
           SM_API_KEY: ${{ secrets.SM_API_KEY }}
-          SM_CLIENT_CERT_FILE: D:\Certificate_pkcs12.p12
+          SM_CLIENT_CERT_FILE: ${{ env.SM_CLIENT_CERT_FILE }}
           SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
           SM_KEYPAIR_ALIAS: ${{ secrets.SM_KEYPAIR_ALIAS }}
+
+      # ── Sign the built installer with DigiCert ──────────────────
+      - name: Sign Windows installer with DigiCert
+        if: ${{ secrets.SM_API_KEY != '' }}
+        run: |
+          $exeFiles = Get-ChildItem -Path "electron/dist" -Filter "*.exe" -Recurse
+          foreach ($file in $exeFiles) {
+            Write-Host "Signing: $($file.FullName)"
+            smctl sign --keypair-alias="${{ secrets.SM_KEYPAIR_ALIAS }}" --input "$($file.FullName)"
+            Write-Host "Signed: $($file.FullName)"
+          }
+        shell: pwsh
+        env:
+          SM_HOST: ${{ secrets.SM_HOST }}
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_FILE: ${{ env.SM_CLIENT_CERT_FILE }}
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+      # ── End Sign ────────────────────────────────────────────────
 
       - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
@@ -194,7 +186,7 @@ jobs:
 
       # ── Apple Code Signing & Notarization Setup ───────────────────
       - name: Import Apple signing certificate
-        if: env.APPLE_CERTIFICATE_B64 != ''
+        if: ${{ secrets.APPLE_CERTIFICATE_B64 != '' }}
         run: |
           echo "${{ secrets.APPLE_CERTIFICATE_B64 }}" | base64 --decode > certificate.p12
           security create-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
@@ -203,8 +195,6 @@ jobs:
           security import certificate.p12 -k build.keychain -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
           rm certificate.p12
-        env:
-          APPLE_CERTIFICATE_B64: ${{ secrets.APPLE_CERTIFICATE_B64 }}
       # ── End Apple Code Signing Setup ──────────────────────────────
 
       - name: Install Electron Builder
