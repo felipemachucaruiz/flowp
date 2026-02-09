@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { db } from "../../db";
-import { tenantShopifyIntegrations, shopifyOrders, shopifySyncLogs, shopifyProductMap, products, tenantAddons, addonDefinitions, tenants, PAID_ADDONS } from "@shared/schema";
-import { eq, and, desc, or, inArray } from "drizzle-orm";
+import { tenantShopifyIntegrations, shopifyOrders, shopifySyncLogs, shopifyProductMap, products, tenantAddons, addonDefinitions, tenants, PAID_ADDONS, platformConfig } from "@shared/schema";
+import { eq, and, desc, or, inArray, sql } from "drizzle-orm";
 import { 
   saveShopifyConfig,
   getShopifyConfig,
@@ -26,7 +26,7 @@ import {
   exchangeCodeForToken,
   saveOAuthCredentials,
 } from "./oauth";
-import { encrypt } from "./shopifyClient";
+import { encrypt, decrypt } from "./shopifyClient";
 
 export const shopifyRouter = Router();
 
@@ -145,16 +145,63 @@ shopifyRouter.get("/addon-status", async (req: Request, res: Response) => {
 // OAuth Flow Endpoints (require Shopify add-on)
 // ==========================================
 
+async function getGlobalShopifyCredentials(): Promise<{ clientId: string; clientSecret: string } | null> {
+  const keys = ["shopify_client_id", "shopify_client_secret", "shopify_oauth_enabled"];
+  const configs = await db.select()
+    .from(platformConfig)
+    .where(sql`${platformConfig.key} = ANY(${keys})`);
+
+  const configMap: Record<string, any> = {};
+  for (const c of configs) {
+    configMap[c.key] = c;
+  }
+
+  if (configMap["shopify_oauth_enabled"]?.value !== "true") {
+    return null;
+  }
+
+  const clientIdConfig = configMap["shopify_client_id"];
+  const clientSecretConfig = configMap["shopify_client_secret"];
+
+  if (!clientIdConfig?.encryptedValue || !clientSecretConfig?.encryptedValue) {
+    return null;
+  }
+
+  return {
+    clientId: decrypt(clientIdConfig.encryptedValue),
+    clientSecret: decrypt(clientSecretConfig.encryptedValue),
+  };
+}
+
+shopifyRouter.get("/oauth-available", requireShopifyAddon, async (_req: Request, res: Response) => {
+  try {
+    const globalCreds = await getGlobalShopifyCredentials();
+    res.json({ available: !!globalCreds });
+  } catch (error: any) {
+    res.json({ available: false });
+  }
+});
+
 // Start OAuth flow - returns authorization URL
 shopifyRouter.post("/oauth/authorize", requireShopifyAddon, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
 
   try {
-    const { shopDomain, clientId, clientSecret } = req.body;
+    const { shopDomain } = req.body;
 
-    if (!shopDomain || !clientId || !clientSecret) {
+    if (!shopDomain) {
       return res.status(400).json({ 
-        error: "Shop domain, client ID, and client secret are required" 
+        error: "Shop domain is required" 
+      });
+    }
+
+    const globalCreds = await getGlobalShopifyCredentials();
+    const clientId = req.body.clientId || globalCreds?.clientId;
+    const clientSecret = req.body.clientSecret || globalCreds?.clientSecret;
+
+    if (!clientId || !clientSecret) {
+      return res.status(400).json({ 
+        error: "Shopify OAuth is not configured. Please contact your administrator." 
       });
     }
 
@@ -162,7 +209,6 @@ shopifyRouter.post("/oauth/authorize", requireShopifyAddon, async (req: Request,
     const protocol = req.secure || req.get("x-forwarded-proto") === "https" ? "https" : "http";
     const redirectUri = `${protocol}://${host}/api/shopify/oauth/callback`;
 
-    // Store credentials temporarily (will be saved permanently after callback)
     const existing = await db.query.tenantShopifyIntegrations.findFirst({
       where: eq(tenantShopifyIntegrations.tenantId, tenantId),
     });

@@ -27,6 +27,7 @@ import {
   ClipboardList,
   Puzzle,
   MessageCircle,
+  ShoppingBag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
@@ -70,6 +71,11 @@ export function AdminSidebar() {
       title: "Packages",
       url: "/admin/packages",
       icon: Package,
+    },
+    {
+      title: "Shopify Config",
+      url: "/admin/shopify-config",
+      icon: ShoppingBag,
     },
     {
       title: t("admin.whatsapp_global_config" as any) || "WhatsApp Config",

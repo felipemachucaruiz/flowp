@@ -4,6 +4,7 @@ import * as ebillingService from "../services/internal-admin/ebillingService";
 import * as documentOpsService from "../services/internal-admin/documentOpsService";
 import * as integrationService from "../services/internal-admin/integrationService";
 import { encrypt as gupshupEncrypt, decrypt as gupshupDecrypt } from "../integrations/gupshup/service";
+import { encrypt as shopifyEncrypt, decrypt as shopifyDecrypt } from "../integrations/shopify/shopifyClient";
 import { db } from "../db";
 import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans, whatsappPackages, tenantWhatsappSubscriptions, whatsappMessageLogs, tenantWhatsappIntegrations } from "@shared/schema";
 import bcrypt from "bcryptjs";
@@ -1230,5 +1231,70 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
     return res.json({ success: false, error: data.message || "Connection failed" });
   } catch (error: any) {
     res.json({ success: false, error: error.message });
+  }
+});
+
+internalAdminRouter.get("/shopify/global-config", internalAuth, requireRole(["superadmin", "billingops"]), async (req: Request, res: Response) => {
+  try {
+    const keys = ["shopify_client_id", "shopify_client_secret", "shopify_oauth_enabled"];
+    const configs = await db.select()
+      .from(platformConfig)
+      .where(sql`${platformConfig.key} = ANY(${keys})`);
+
+    const configMap: Record<string, string | null> = {};
+    for (const c of configs) {
+      if (c.key === "shopify_client_id" || c.key === "shopify_client_secret") {
+        configMap[c.key] = c.encryptedValue ? "configured" : null;
+      } else {
+        configMap[c.key] = c.value;
+      }
+    }
+
+    res.json({
+      hasClientId: configMap["shopify_client_id"] === "configured",
+      hasClientSecret: configMap["shopify_client_secret"] === "configured",
+      enabled: configMap["shopify_oauth_enabled"] === "true",
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.post("/shopify/global-config", internalAuth, requireRole(["superadmin", "billingops"]), async (req: Request, res: Response) => {
+  try {
+    const { clientId, clientSecret, enabled } = req.body;
+
+    const upsertConfig = async (key: string, value?: string, encryptedValue?: string) => {
+      const existing = await db.query.platformConfig.findFirst({
+        where: eq(platformConfig.key, key),
+      });
+      if (existing) {
+        const updateData: any = { updatedAt: new Date() };
+        if (value !== undefined) updateData.value = value;
+        if (encryptedValue !== undefined) updateData.encryptedValue = encryptedValue;
+        await db.update(platformConfig).set(updateData).where(eq(platformConfig.key, key));
+      } else {
+        await db.insert(platformConfig).values({
+          key,
+          value: value || null,
+          encryptedValue: encryptedValue || null,
+          description: `Global Shopify config: ${key}`,
+        });
+      }
+    };
+
+    if (clientId) {
+      await upsertConfig("shopify_client_id", null, shopifyEncrypt(clientId));
+    }
+    if (clientSecret) {
+      await upsertConfig("shopify_client_secret", null, shopifyEncrypt(clientSecret));
+    }
+    if (enabled !== undefined) {
+      await upsertConfig("shopify_oauth_enabled", String(enabled));
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });

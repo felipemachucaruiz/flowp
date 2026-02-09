@@ -66,8 +66,10 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 - **Idempotency**: Prevents duplicate order imports via shopify_event_id tracking
 - **Encrypted Credentials**: Same encryption pattern as MATIAS (AES-256-GCM)
 - **Database Tables**: tenant_shopify_integrations, shopify_orders, shopify_webhook_logs, shopify_product_map, shopify_sync_logs, tenant_addons
-- **API Routes**: `/api/shopify/*` - status, config, webhooks, mappings, sync, orders
-- **Admin Routes**: `/internal/api/tenants/:tenantId/addons` - GET, POST, DELETE for add-on management
+- **API Routes**: `/api/shopify/*` - status, config, webhooks, mappings, sync, orders, oauth-available
+- **Admin Routes**: `/internal/api/tenants/:tenantId/addons` - GET, POST, DELETE for add-on management; `/api/internal-admin/shopify/global-config` - GET/POST global Shopify app credentials
+- **Admin UI**: `/admin/shopify-config` - global Shopify App credentials management (Client ID, Client Secret, enable toggle)
+- **OAuth Flow**: Global Shopify App credentials stored encrypted in `platformConfig` table with keys: `shopify_client_id`, `shopify_client_secret`, `shopify_oauth_enabled`. Tenants only need to enter their store domain to connect - no API keys needed. Falls back to per-request credentials if global config is not available.
 - **NOTE**: Shopify requires "Protected Customer Data Access" approval before order/customer data is accessible
 
 ### WhatsApp/Gupshup Notifications - IMPLEMENTED
@@ -90,8 +92,6 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 - **Gupshup API**: Template messages for notifications, session messages for 24-hour window replies. `sendTemplateMessage`, `sendSessionMessage`, and `testConnection` all use `getGlobalGupshupCredentials()` from `platformConfig` table.
 
 ## Planned Features (TODO)
-- Shopify OAuth flow UI
-- Tenant settings UI for Shopify configuration
 - **WhatsApp Phase 2**: Per-tenant Gupshup configuration (paid premium). Each tenant can connect their own WhatsApp account with their own Gupshup API keys. Service should check tenant-specific credentials first, falling back to global Flowp credentials if not configured.
 
 ## External Dependencies
