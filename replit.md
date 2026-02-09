@@ -92,6 +92,7 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 ## Planned Features (TODO)
 - Shopify OAuth flow UI
 - Tenant settings UI for Shopify configuration
+- **WhatsApp Phase 2**: Per-tenant Gupshup configuration (paid premium). Each tenant can connect their own WhatsApp account with their own Gupshup API keys. Service should check tenant-specific credentials first, falling back to global Flowp credentials if not configured.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database for all application data.
