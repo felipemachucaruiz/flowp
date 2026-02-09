@@ -99,28 +99,6 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      # ── DigiCert Binary Signing Setup (Official Plugin) ─────────
-      - name: Setup DigiCert client certificate
-        if: ${{ secrets.SM_CLIENT_CERT_FILE_B64 != '' }}
-        run: |
-          echo "${{ secrets.SM_CLIENT_CERT_FILE_B64 }}" | base64 --decode > "${RUNNER_TEMP}/sm_client_cert.p12"
-          echo "SM_CLIENT_CERT_FILE=${RUNNER_TEMP}/sm_client_cert.p12" >> $GITHUB_ENV
-        shell: bash
-
-      - name: Setup DigiCert Software Trust Manager
-        id: stm-setup
-        if: ${{ secrets.SM_API_KEY != '' }}
-        uses: digicert/code-signing-software-trust-action@v1.0.0
-        with:
-          simple-signing-mode: true
-          keypair-alias: ${{ secrets.SM_KEYPAIR_ALIAS }}
-        env:
-          SM_HOST: ${{ secrets.SM_HOST }}
-          SM_API_KEY: ${{ secrets.SM_API_KEY }}
-          SM_CLIENT_CERT_FILE: ${{ env.SM_CLIENT_CERT_FILE }}
-          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
-      # ── End DigiCert Setup ──────────────────────────────────────
-
       - name: Install Electron Builder
         run: npm install -g electron-builder
 
@@ -128,34 +106,31 @@ jobs:
         working-directory: electron
         run: npm install
 
-      - name: Build Windows Installer
+      - name: Build Windows Installer (unsigned)
         working-directory: electron
         run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SM_HOST: ${{ secrets.SM_HOST }}
-          SM_API_KEY: ${{ secrets.SM_API_KEY }}
-          SM_CLIENT_CERT_FILE: ${{ env.SM_CLIENT_CERT_FILE }}
-          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
-          SM_KEYPAIR_ALIAS: ${{ secrets.SM_KEYPAIR_ALIAS }}
+          CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      # ── Sign the built installer with DigiCert ──────────────────
-      - name: Sign Windows installer with DigiCert
-        if: ${{ secrets.SM_API_KEY != '' }}
+      # ── DigiCert Binary Signing (Official Plugin) ───────────────
+      - name: Setup DigiCert client certificate
         run: |
-          $exeFiles = Get-ChildItem -Path "electron/dist" -Filter "*.exe" -Recurse
-          foreach ($file in $exeFiles) {
-            Write-Host "Signing: $($file.FullName)"
-            smctl sign --keypair-alias="${{ secrets.SM_KEYPAIR_ALIAS }}" --input "$($file.FullName)"
-            Write-Host "Signed: $($file.FullName)"
-          }
-        shell: pwsh
+          echo "${{ secrets.SM_CLIENT_CERT_FILE_B64 }}" | base64 --decode > /d/Certificate_pkcs12.p12
+        shell: bash
+
+      - name: Sign with DigiCert Software Trust Manager
+        uses: digicert/code-signing-software-trust-action@v1
+        with:
+          simple-signing-mode: true
+          input: electron/dist
+          keypair-alias: ${{ secrets.SM_KEYPAIR_ALIAS }}
         env:
-          SM_HOST: ${{ secrets.SM_HOST }}
+          SM_HOST: ${{ vars.SM_HOST }}
           SM_API_KEY: ${{ secrets.SM_API_KEY }}
-          SM_CLIENT_CERT_FILE: ${{ env.SM_CLIENT_CERT_FILE }}
+          SM_CLIENT_CERT_FILE: D:\Certificate_pkcs12.p12
           SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
-      # ── End Sign ────────────────────────────────────────────────
+      # ── End DigiCert Binary Signing ─────────────────────────────
 
       - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
