@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/lib/i18n";
+import { adminFetch } from "@/lib/admin-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,8 +15,6 @@ import {
   Send,
   RefreshCw,
   Loader2,
-  CheckCircle,
-  XCircle,
   Phone,
   Settings,
   Shield,
@@ -39,6 +38,11 @@ export default function AdminWhatsAppConfig() {
   const [enabled, setEnabled] = useState(false);
   const { data: config, isLoading } = useQuery<GlobalConfig>({
     queryKey: ["/api/internal-admin/whatsapp/global-config"],
+    queryFn: async () => {
+      const res = await adminFetch("/api/internal-admin/whatsapp/global-config");
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
   });
 
   useEffect(() => {
@@ -59,9 +63,8 @@ export default function AdminWhatsAppConfig() {
       if (apiKey) {
         payload.gupshupApiKey = apiKey;
       }
-      const res = await fetch("/api/internal-admin/whatsapp/global-config", {
+      const res = await adminFetch("/api/internal-admin/whatsapp/global-config", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -86,9 +89,8 @@ export default function AdminWhatsAppConfig() {
 
   const testMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/internal-admin/whatsapp/test-global-connection", {
+      const res = await adminFetch("/api/internal-admin/whatsapp/test-global-connection", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
       });
       if (!res.ok) throw new Error(await res.text());
       return res.json();

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/lib/i18n";
+import { adminFetch } from "@/lib/admin-fetch";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,11 @@ export default function AdminShopifyConfig() {
 
   const { data: config, isLoading } = useQuery<GlobalShopifyConfig>({
     queryKey: ["/api/internal-admin/shopify/global-config"],
+    queryFn: async () => {
+      const res = await adminFetch("/api/internal-admin/shopify/global-config");
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
   });
 
   useEffect(() => {
@@ -49,9 +55,8 @@ export default function AdminShopifyConfig() {
       const payload: Record<string, unknown> = { enabled };
       if (clientId) payload.clientId = clientId;
       if (clientSecret) payload.clientSecret = clientSecret;
-      const res = await fetch("/api/internal-admin/shopify/global-config", {
+      const res = await adminFetch("/api/internal-admin/shopify/global-config", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error(await res.text());
