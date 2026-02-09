@@ -1,6 +1,6 @@
 {
   "name": "flowp-desktop",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Flowp POS - Multi-Tenant Point of Sale System",
   "main": "main.js",
   "author": "Flowp",
