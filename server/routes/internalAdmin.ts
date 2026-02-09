@@ -1236,24 +1236,34 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
     const keySuffix = apiKey.substring(apiKey.length - 4);
     console.log(`[WhatsApp Test] Key: ${keyPrefix}...${keySuffix} (len=${apiKey.length}), App: "${appName}"`);
 
-    const response = await fetch(`https://api.gupshup.io/wa/app/${encodeURIComponent(appName)}`, {
-      headers: { "apikey": apiKey },
+    const endpoints = [
+      { url: `https://api.gupshup.io/wa/app/${encodeURIComponent(appName)}`, name: "app-info" },
+      { url: `https://partner.gupshup.io/partner/app/${encodeURIComponent(appName)}/templates`, name: "partner-templates" },
+      { url: `https://api.gupshup.io/sm/api/v2/wallet/balance`, name: "wallet-v2" },
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetch(endpoint.url, {
+          headers: { "apikey": apiKey },
+        });
+        const text = await response.text();
+        console.log(`[WhatsApp Test] ${endpoint.name}: HTTP ${response.status} - ${text.substring(0, 300)}`);
+        
+        if (response.ok) {
+          let data: any = {};
+          try { data = text ? JSON.parse(text) : {}; } catch {}
+          return res.json({ success: true, appName: appName, endpoint: endpoint.name });
+        }
+      } catch (e: any) {
+        console.log(`[WhatsApp Test] ${endpoint.name}: Error - ${e.message}`);
+      }
+    }
+
+    return res.json({ 
+      success: false, 
+      error: `Authentication failed for key ${keyPrefix}...${keySuffix} with app "${appName}". Please verify your API key and app name in the Gupshup dashboard (https://www.gupshup.io/whatsapp/dashboard).` 
     });
-    const text = await response.text();
-    console.log(`[WhatsApp Test] Response: HTTP ${response.status} - ${text.substring(0, 300)}`);
-    let data: any = {};
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = { message: text || `HTTP ${response.status}` };
-    }
-    if (response.ok) {
-      return res.json({ success: true, appName: data?.app?.name || appName });
-    }
-    if (response.status === 401 || response.status === 403) {
-      return res.json({ success: false, error: `Invalid API key (${keyPrefix}...${keySuffix}) - authentication failed` });
-    }
-    return res.json({ success: false, error: data.message || `HTTP ${response.status}: ${text.substring(0, 200)}` });
   } catch (error: any) {
     res.json({ success: false, error: error.message });
   }
