@@ -171,6 +171,7 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
       footerText: tenant?.receiptFooterText || undefined,
       openCashDrawer: data.paymentMethod === "cash" || data.payments?.some(p => p.type === "cash"),
       cutPaper: true,
+      cutBeforeCoupon: !!(tenant?.couponEnabled && tenant?.couponText),
       couponEnabled: tenant?.couponEnabled || false,
       couponLines: tenant?.couponEnabled ? parseCouponLines(tenant?.couponText) : undefined,
       electronicBilling: data.electronicBilling ? {
@@ -445,6 +446,11 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
         size: 80mm auto;
         margin: 0;
       }
+      .coupon-cut {
+        page-break-before: always !important;
+        break-before: page !important;
+        margin-top: 0 !important;
+      }
     }
   </style>
 </head>
@@ -556,21 +562,22 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
   </div>
   
   ${tenant?.couponEnabled && tenant?.couponText ? `
-  <!-- Coupon Section - with page break to simulate paper cut -->
+  <!-- Coupon Section - page break forces thermal printer cut -->
   <div class="coupon-cut" style="
     page-break-before: always;
+    break-before: page;
     border-top: 2px dashed #000;
-    margin-top: 10px;
+    margin-top: 15px;
     padding-top: 10px;
   ">
-    <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">✂ - - - - - - - - - - - - - - - - ✂</div>
+    <div style="text-align: center; font-weight: bold; margin-bottom: 5px;">&#9986; - - - - - - - - - - - - - - - - &#9986;</div>
   </div>
   <div class="coupon" style="
     width: 100%;
     padding: 10px 5px;
-    font-family: ${fontFamily};
+    font-family: ${cssFontFamily};
   ">
-    ${renderCouponContent(tenant.couponText, fontFamily, fontSize)}
+    ${renderCouponContent(tenant.couponText, cssFontFamily, fontSize)}
     <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px; font-size: ${Math.round(fontSize * 0.8)}px; text-align: center;">
       ${tenant?.name || ""}
     </div>

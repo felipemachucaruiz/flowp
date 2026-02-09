@@ -95,6 +95,7 @@ interface ReceiptData {
   footerText?: string;
   openCashDrawer?: boolean;
   cutPaper?: boolean;
+  cutBeforeCoupon?: boolean;
   couponEnabled?: boolean;
   couponLines?: Array<{
     text: string;
