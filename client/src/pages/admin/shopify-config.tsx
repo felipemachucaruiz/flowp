@@ -18,6 +18,7 @@ import {
   Settings,
   Key,
   Link2,
+  CheckCircle2,
 } from "lucide-react";
 
 interface GlobalShopifyConfig {
@@ -156,6 +157,12 @@ export default function AdminShopifyConfig() {
                 <label className="text-sm font-medium" htmlFor="shopify-client-id">
                   {t("admin.shopify_client_id" as any) || "Client ID (API Key)"}
                 </label>
+                {config?.hasClientId && !clientId && (
+                  <div className="flex items-center gap-2 p-2 bg-green-500/10 rounded-lg text-sm text-green-700 dark:text-green-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                    {t("admin.credential_stored" as any) || "Credential saved and encrypted. Enter a new value to replace it."}
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <Key className="w-4 h-4 text-muted-foreground" />
                   <Input
@@ -164,7 +171,7 @@ export default function AdminShopifyConfig() {
                     onChange={(e) => setClientId(e.target.value)}
                     placeholder={
                       config?.hasClientId
-                        ? `********** (${t("admin.stored_encrypted" as any) || "stored encrypted"})`
+                        ? t("admin.enter_new_to_replace" as any) || "Enter new value to replace..."
                         : t("admin.shopify_enter_client_id" as any) || "Enter Shopify App Client ID"
                     }
                     data-testid="input-global-shopify-client-id"
@@ -179,6 +186,12 @@ export default function AdminShopifyConfig() {
                 <label className="text-sm font-medium" htmlFor="shopify-client-secret">
                   {t("admin.shopify_client_secret" as any) || "Client Secret (API Secret Key)"}
                 </label>
+                {config?.hasClientSecret && !clientSecret && (
+                  <div className="flex items-center gap-2 p-2 bg-green-500/10 rounded-lg text-sm text-green-700 dark:text-green-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                    {t("admin.credential_stored" as any) || "Credential saved and encrypted. Enter a new value to replace it."}
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <Link2 className="w-4 h-4 text-muted-foreground" />
                   <Input
@@ -188,7 +201,7 @@ export default function AdminShopifyConfig() {
                     onChange={(e) => setClientSecret(e.target.value)}
                     placeholder={
                       config?.hasClientSecret
-                        ? `********** (${t("admin.stored_encrypted" as any) || "stored encrypted"})`
+                        ? t("admin.enter_new_to_replace" as any) || "Enter new value to replace..."
                         : t("admin.shopify_enter_client_secret" as any) || "Enter Shopify App Client Secret"
                     }
                     data-testid="input-global-shopify-client-secret"
