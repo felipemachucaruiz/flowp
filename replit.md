@@ -82,11 +82,12 @@ Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL ba
 - **Delivery Tracking**: Webhook processes Gupshup delivery status callbacks (sent/delivered/read/failed)
 - **Database Tables**: tenant_whatsapp_integrations, whatsapp_packages, tenant_whatsapp_subscriptions, whatsapp_message_logs
 - **API Routes**: `/api/whatsapp/*` - addon-status, config, test-connection, subscribe, usage, logs, send-receipt, webhook
-- **Admin Routes**: `/api/internal-admin/whatsapp/packages` - CRUD, `/api/internal-admin/whatsapp/usage` - overview
-- **Settings UI**: Settings > WhatsApp tab (visible when addon active) - credentials, packages, notification prefs, message logs
-- **Admin UI**: `/admin/whatsapp-packages` - package management and tenant usage overview
-- **Encryption Key**: Uses WHATSAPP_ENCRYPTION_KEY or SESSION_SECRET env var
-- **Gupshup API**: Template messages for notifications, session messages for 24-hour window replies
+- **Admin Routes**: `/api/internal-admin/whatsapp/packages` - CRUD, `/api/internal-admin/whatsapp/usage` - overview, `/api/internal-admin/whatsapp/global-config` - GET/POST global Gupshup credentials, `/api/internal-admin/whatsapp/test-global-connection` - POST test
+- **Settings UI**: Settings > WhatsApp tab (visible when addon active) - notification prefs, packages, message logs (no API credentials shown to tenants)
+- **Admin UI**: `/admin/whatsapp-config` - global Gupshup credentials management, `/admin/whatsapp-packages` - package management and tenant usage overview
+- **Stage 1 Architecture**: All tenants use Flowp's centralized WhatsApp account. Global Gupshup credentials (API key, app name, sender phone) stored encrypted in `platformConfig` table with keys: `gupshup_api_key`, `gupshup_app_name`, `gupshup_sender_phone`, `whatsapp_global_enabled`. Tenants cannot configure API credentials - they only manage notification preferences and subscribe to message packages.
+- **Encryption**: Global WhatsApp credentials use AES-256-GCM encryption (same as gupshup service) via `gupshupEncrypt`/`gupshupDecrypt`. Uses WHATSAPP_ENCRYPTION_KEY or SESSION_SECRET env var.
+- **Gupshup API**: Template messages for notifications, session messages for 24-hour window replies. `sendTemplateMessage`, `sendSessionMessage`, and `testConnection` all use `getGlobalGupshupCredentials()` from `platformConfig` table.
 
 ## Planned Features (TODO)
 - Shopify OAuth flow UI
