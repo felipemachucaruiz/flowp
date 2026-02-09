@@ -102,8 +102,8 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh bg-gradient-to-br from-background via-background to-muted/30 p-4 safe-area-inset overflow-y-auto">
-      <div className="w-full max-w-lg space-y-6 mx-auto py-8">
+    <div className="fixed inset-0 z-50 bg-gradient-to-br from-background via-background to-muted/30 overflow-y-auto safe-area-inset">
+      <div className="w-full max-w-lg space-y-6 mx-auto px-4 py-8">
         {/* Logo and branding */}
         <div className="text-center space-y-2">
           <FlowpLogo className="h-12 mx-auto mb-4" />

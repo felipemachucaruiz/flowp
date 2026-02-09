@@ -483,7 +483,7 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh bg-background flex items-center justify-center p-4 safe-area-inset overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-background flex items-center justify-center p-4 safe-area-inset overflow-y-auto">
       <Card className="w-full max-w-lg my-auto max-h-[calc(100dvh-2rem)] flex flex-col">
         <CardHeader className="text-center shrink-0">
           <div className="mx-auto mb-4">
