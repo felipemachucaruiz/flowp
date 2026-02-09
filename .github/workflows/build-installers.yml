@@ -91,7 +91,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: web-build
-          path: dist/
+          path: electron/web-build/
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -148,7 +148,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: web-build
-          path: dist/
+          path: electron/web-build/
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

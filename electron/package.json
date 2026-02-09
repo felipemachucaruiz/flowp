@@ -38,7 +38,7 @@
     ],
     "extraResources": [
       {
-        "from": "../dist",
+        "from": "web-build",
         "to": "app",
         "filter": [
           "**/*"
