@@ -290,6 +290,14 @@ export default function AdminTenantDetail() {
               <CardContent>
                 <dl className="space-y-2 text-sm">
                   <div className="flex justify-between">
+                    <dt className="text-muted-foreground">{t("admin.support_id" as any) || "Support ID"}</dt>
+                    <dd className="font-medium">
+                      <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded" data-testid="text-tenant-support-id">
+                        {tenant?.supportId || "—"}
+                      </code>
+                    </dd>
+                  </div>
+                  <div className="flex justify-between">
                     <dt className="text-muted-foreground">Type</dt>
                     <dd className="font-medium">{tenant?.type}</dd>
                   </div>

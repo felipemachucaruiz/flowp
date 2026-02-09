@@ -2413,6 +2413,12 @@ export default function SettingsPage() {
                       <p className="font-medium">{tenant?.name || t("business.not_set")}</p>
                     </div>
                     <div>
+                      <p className="text-sm text-muted-foreground">{t("business.support_id" as any) || "Support ID"}</p>
+                      <code className="text-sm font-mono bg-muted px-1.5 py-0.5 rounded" data-testid="text-tenant-support-id">
+                        {tenant?.supportId || "—"}
+                      </code>
+                    </div>
+                    <div>
                       <p className="text-sm text-muted-foreground">{t("business.type")}</p>
                       <Badge variant="secondary" className="capitalize">
                         {tenant?.type || "Not set"}

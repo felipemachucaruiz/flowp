@@ -37,6 +37,7 @@ export const alertSeverityEnum = pgEnum("alert_severity", ["info", "warning", "c
 // Tenants
 export const tenants = pgTable("tenants", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  supportId: varchar("support_id").unique(),
   name: text("name").notNull(),
   type: tenantTypeEnum("type").notNull(),
   status: tenantStatusEnum("status").default("trial"),

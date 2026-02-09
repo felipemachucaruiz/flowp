@@ -45,6 +45,7 @@ import { useI18n } from "@/lib/i18n";
 
 interface Tenant {
   id: string;
+  supportId: string | null;
   name: string;
   type: "retail" | "restaurant";
   status: "trial" | "active" | "past_due" | "suspended" | "cancelled";
@@ -296,6 +297,7 @@ export default function AdminTenants() {
             <TableHeader>
               <TableRow>
                 <TableHead>{t("admin.name")}</TableHead>
+                <TableHead>{t("admin.support_id" as any) || "Support ID"}</TableHead>
                 <TableHead>{t("admin.type")}</TableHead>
                 <TableHead>{t("admin.status")}</TableHead>
                 <TableHead>{t("admin.features")}</TableHead>
@@ -314,6 +316,11 @@ export default function AdminTenants() {
                         {tenant.name}
                       </div>
                     </Link>
+                  </TableCell>
+                  <TableCell>
+                    <code className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded" data-testid={`text-support-id-${tenant.id}`}>
+                      {tenant.supportId || "—"}
+                    </code>
                   </TableCell>
                   <TableCell>{getTypeBadge(tenant.type)}</TableCell>
                   <TableCell>{getStatusBadge(tenant.status)}</TableCell>

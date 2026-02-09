@@ -275,8 +275,22 @@ export class DatabaseStorage implements IStorage {
 
   async createTenant(tenant: InsertTenant): Promise<Tenant> {
     const featureFlags = tenant.type === "restaurant" ? RESTAURANT_FEATURES : RETAIL_FEATURES;
-    const [created] = await db.insert(tenants).values({ ...tenant, featureFlags }).returning();
+    const supportId = await this.generateSupportId();
+    const [created] = await db.insert(tenants).values({ ...tenant, featureFlags, supportId }).returning();
     return created;
+  }
+
+  private async generateSupportId(): Promise<string> {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    for (let attempt = 0; attempt < 10; attempt++) {
+      let code = "FLP-";
+      for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      const existing = await db.select({ id: tenants.id }).from(tenants).where(eq(tenants.supportId, code));
+      if (existing.length === 0) return code;
+    }
+    throw new Error("Could not generate unique support ID");
   }
 
   // Users
