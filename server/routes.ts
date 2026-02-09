@@ -32,6 +32,22 @@ import { whatsappRouter } from "./integrations/gupshup/routes";
 import { sendReceiptNotification, sendLowStockNotification } from "./integrations/gupshup/service";
 import { internalAdminRouter } from "./routes/internalAdmin";
 import { generateInternalToken } from "./middleware/internalAuth";
+import { generateReceiptPDF } from "./pdf-receipt";
+
+const receiptTokens = new Map<string, { orderId: string; tenantId: string; expiresAt: number }>();
+
+function createReceiptToken(orderId: string, tenantId: string): string {
+  const token = crypto.randomBytes(32).toString("hex");
+  receiptTokens.set(token, { orderId, tenantId, expiresAt: Date.now() + 10 * 60 * 1000 });
+  return token;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, data] of receiptTokens) {
+    if (data.expiresAt < now) receiptTokens.delete(token);
+  }
+}, 60 * 1000);
 
 // WebSocket clients by tenant for real-time KDS updates
 const wsClients = new Map<string, Set<WebSocket>>();
@@ -1892,13 +1908,20 @@ export async function registerRoutes(
         const customer = await storage.getCustomer(tab.customerId);
         if (customer?.phone) {
           const tenant = await storage.getTenant(tenantId);
+          const orderTotal = parseFloat(tab.total);
+          const pointsEarned = Math.floor(orderTotal / 1000);
+          const token = createReceiptToken(id, tenantId);
+          const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "flowp.replit.app"}`;
+          const receiptPdfUrl = `${appUrl}/api/receipt-pdf/${token}`;
           sendReceiptNotification(
             tenantId,
             customer.phone,
             updatedTab?.orderNumber || id.slice(0, 8),
             tab.total,
             tenant?.companyName || "Flowp",
-            tenant?.currency || "COP"
+            tenant?.currency || "COP",
+            pointsEarned,
+            receiptPdfUrl
           ).catch(err => console.error("[whatsapp] receipt notification error:", err));
         }
       }
@@ -2190,6 +2213,23 @@ export async function registerRoutes(
               }
             ).catch(err => console.error('Failed to send payment received email:', err));
           }
+
+          if (customer.phone) {
+            const tenantForWa = await storage.getTenant(tenantId);
+            const token = createReceiptToken(order.id, tenantId);
+            const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "flowp.replit.app"}`;
+            const receiptPdfUrl = `${appUrl}/api/receipt-pdf/${token}`;
+            sendReceiptNotification(
+              tenantId,
+              customer.phone,
+              order.orderNumber.toString(),
+              order.total,
+              tenantForWa?.companyName || "Flowp",
+              tenantForWa?.currency || "COP",
+              pointsEarned,
+              receiptPdfUrl
+            ).catch(err => console.error("[whatsapp] receipt notification error:", err));
+          }
         }
       }
 
@@ -2325,6 +2365,61 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Send receipt error:", error);
       res.status(500).json({ message: "Failed to send receipt" });
+    }
+  });
+
+  // Public receipt PDF endpoint (token-based access for WhatsApp/Gupshup)
+  app.get("/api/receipt-pdf/:token", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+      const tokenData = receiptTokens.get(token);
+      if (!tokenData || tokenData.expiresAt < Date.now()) {
+        return res.status(404).json({ message: "Receipt not found or expired" });
+      }
+
+      const order = await storage.getOrder(tokenData.orderId);
+      if (!order || order.tenantId !== tokenData.tenantId) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const tenant = await storage.getTenant(tokenData.tenantId);
+      const items = await storage.getOrderItems(tokenData.orderId);
+      const payments = await storage.getPaymentsByOrder(tokenData.orderId);
+      const currencySymbol = tenant?.currencySymbol || "$";
+      const lang = tenant?.displayLanguage || "es";
+
+      const itemsForPdf = await Promise.all(items.map(async (item) => {
+        const product = await storage.getProduct(item.productId);
+        return {
+          name: product?.name || "Product",
+          quantity: item.quantity,
+          price: `${currencySymbol}${parseFloat(item.unitPrice).toFixed(0)}`,
+        };
+      }));
+
+      const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
+
+      const pdfBuffer = await generateReceiptPDF({
+        receiptNumber: order.orderNumber,
+        date: orderDate.toLocaleDateString(lang === "es" ? "es-CO" : lang, { year: "numeric", month: "short", day: "numeric" }),
+        time: orderDate.toLocaleTimeString(lang === "es" ? "es-CO" : lang, { hour: "2-digit", minute: "2-digit" }),
+        items: itemsForPdf,
+        subtotal: `${currencySymbol}${parseFloat(order.subtotal).toFixed(0)}`,
+        tax: `${currencySymbol}${parseFloat(order.taxAmount).toFixed(0)}`,
+        total: `${currencySymbol}${parseFloat(order.total).toFixed(0)}`,
+        paymentMethod: payments[0]?.method || "cash",
+        companyName: tenant?.companyName || "Flowp POS",
+        companyAddress: tenant?.address || undefined,
+        companyPhone: tenant?.phone || undefined,
+        currency: tenant?.currency || "COP",
+      }, lang);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="Recibo_${order.orderNumber}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Receipt PDF generation error:", error);
+      res.status(500).json({ message: "Failed to generate receipt" });
     }
   });
 

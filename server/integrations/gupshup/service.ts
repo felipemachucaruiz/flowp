@@ -359,13 +359,93 @@ export async function requireWhatsappAddon(tenantId: string): Promise<{ allowed:
   return { allowed: false, error: "WhatsApp notifications requires a paid add-on subscription", code: "ADDON_REQUIRED" };
 }
 
+export async function sendDocumentMessage(
+  tenantId: string,
+  destinationPhone: string,
+  documentUrl: string,
+  filename: string,
+  caption: string,
+  messageType: "receipt" | "alert" | "manual" = "receipt"
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const globalCreds = await getGlobalGupshupCredentials();
+  if (!globalCreds) {
+    return { success: false, error: "Global WhatsApp service not configured or disabled" };
+  }
+
+  const tenantConfig = await getWhatsappConfig(tenantId);
+  if (!tenantConfig?.enabled) {
+    return { success: false, error: "WhatsApp not enabled for this tenant" };
+  }
+
+  const quota = await validateQuota(tenantId);
+  if (!quota.allowed) {
+    return { success: false, error: quota.error };
+  }
+
+  const [logEntry] = await db.insert(whatsappMessageLogs).values({
+    tenantId,
+    direction: "outbound",
+    phone: destinationPhone,
+    messageType,
+    messageBody: `[PDF: ${filename}] ${caption}`,
+    status: "queued",
+  }).returning();
+
+  try {
+    const body = new URLSearchParams({
+      channel: "whatsapp",
+      source: globalCreds.senderPhone,
+      destination: destinationPhone,
+      "src.name": globalCreds.appName,
+      message: JSON.stringify({
+        type: "file",
+        url: documentUrl,
+        filename: filename,
+        caption: caption,
+      }),
+    });
+
+    const response = await fetch(GUPSHUP_SESSION_URL, {
+      method: "POST",
+      headers: {
+        "apikey": globalCreds.apiKey,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.status === "submitted") {
+      await deductMessage(tenantId);
+      await db.update(whatsappMessageLogs)
+        .set({ status: "sent", providerMessageId: data.messageId, updatedAt: new Date() })
+        .where(eq(whatsappMessageLogs.id, logEntry.id));
+      return { success: true, messageId: data.messageId };
+    } else {
+      const errorMsg = data.message || JSON.stringify(data);
+      await db.update(whatsappMessageLogs)
+        .set({ status: "failed", errorMessage: errorMsg, updatedAt: new Date() })
+        .where(eq(whatsappMessageLogs.id, logEntry.id));
+      return { success: false, error: errorMsg };
+    }
+  } catch (error: any) {
+    await db.update(whatsappMessageLogs)
+      .set({ status: "failed", errorMessage: error.message, updatedAt: new Date() })
+      .where(eq(whatsappMessageLogs.id, logEntry.id));
+    return { success: false, error: error.message };
+  }
+}
+
 export async function sendReceiptNotification(
   tenantId: string,
   customerPhone: string,
   orderNumber: string,
   total: string,
   companyName: string,
-  currency: string = "COP"
+  currency: string = "COP",
+  pointsEarned: number = 0,
+  receiptPdfUrl?: string
 ): Promise<void> {
   try {
     const addonCheck = await requireWhatsappAddon(tenantId);
@@ -384,8 +464,24 @@ export async function sendReceiptNotification(
       maximumFractionDigits: 0,
     }).format(parseFloat(total));
 
-    const message = `${companyName} - Recibo de compra\n\nOrden: #${orderNumber}\nTotal: ${formattedTotal}\n\nGracias por su compra.`;
-    await sendSessionMessage(tenantId, customerPhone, message, "receipt");
+    let message = `*${companyName}* - Recibo de compra\n\nOrden: #${orderNumber}\nTotal: ${formattedTotal}`;
+    if (pointsEarned > 0) {
+      message += `\n\nPuntos ganados: +${pointsEarned.toLocaleString()}`;
+    }
+    message += `\n\nGracias por su compra.`;
+
+    if (receiptPdfUrl) {
+      await sendDocumentMessage(
+        tenantId,
+        customerPhone,
+        receiptPdfUrl,
+        `Recibo_${orderNumber}.pdf`,
+        message,
+        "receipt"
+      );
+    } else {
+      await sendSessionMessage(tenantId, customerPhone, message, "receipt");
+    }
   } catch (err) {
     console.error(`[whatsapp] Failed to send receipt notification for tenant ${tenantId}:`, err);
   }
