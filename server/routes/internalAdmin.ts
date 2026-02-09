@@ -1114,20 +1114,24 @@ internalAdminRouter.get("/whatsapp/usage", internalAuth, async (req: Request, re
   try {
     const subscriptions = await db.select({
       tenantId: tenantWhatsappSubscriptions.tenantId,
+      businessName: tenants.businessName,
       messagesUsed: tenantWhatsappSubscriptions.messagesUsed,
       messageLimit: tenantWhatsappSubscriptions.messageLimit,
       status: tenantWhatsappSubscriptions.status,
       packageId: tenantWhatsappSubscriptions.packageId,
     })
     .from(tenantWhatsappSubscriptions)
+    .leftJoin(tenants, eq(tenantWhatsappSubscriptions.tenantId, tenants.id))
     .orderBy(desc(tenantWhatsappSubscriptions.createdAt));
 
     const tenantConfigs = await db.select({
       tenantId: tenantWhatsappIntegrations.tenantId,
+      businessName: tenants.businessName,
       enabled: tenantWhatsappIntegrations.enabled,
       senderPhone: tenantWhatsappIntegrations.senderPhone,
       gupshupAppName: tenantWhatsappIntegrations.gupshupAppName,
-    }).from(tenantWhatsappIntegrations);
+    }).from(tenantWhatsappIntegrations)
+    .leftJoin(tenants, eq(tenantWhatsappIntegrations.tenantId, tenants.id));
 
     const totalMessages = await db.select({ count: sql<number>`count(*)` })
       .from(whatsappMessageLogs);

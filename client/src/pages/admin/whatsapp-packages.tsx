@@ -46,6 +46,7 @@ interface WhatsappPackage {
 
 interface WhatsappSubscription {
   tenantId: string;
+  businessName: string | null;
   messagesUsed: number;
   messageLimit: number;
   status: string;
@@ -54,7 +55,7 @@ interface WhatsappSubscription {
 
 interface UsageData {
   subscriptions: WhatsappSubscription[];
-  tenantConfigs: { tenantId: string; enabled: boolean; senderPhone: string; gupshupAppName: string }[];
+  tenantConfigs: { tenantId: string; businessName: string | null; enabled: boolean; senderPhone: string; gupshupAppName: string }[];
   totalMessages: number;
 }
 
@@ -340,6 +341,7 @@ export default function AdminWhatsAppPackages() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Business Name</TableHead>
                       <TableHead>Tenant ID</TableHead>
                       <TableHead>Messages Used</TableHead>
                       <TableHead>Message Limit</TableHead>
@@ -350,6 +352,9 @@ export default function AdminWhatsAppPackages() {
                   <TableBody>
                     {usageData.subscriptions.map((sub: WhatsappSubscription, index: number) => (
                       <TableRow key={`${sub.tenantId}-${index}`} data-testid={`row-subscription-${index}`}>
+                        <TableCell className="font-medium" data-testid={`text-sub-business-${index}`}>
+                          {sub.businessName || "—"}
+                        </TableCell>
                         <TableCell className="font-mono text-xs" data-testid={`text-sub-tenant-${index}`}>
                           {sub.tenantId}
                         </TableCell>
