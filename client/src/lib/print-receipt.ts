@@ -610,9 +610,26 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
 </html>
   `;
 
+  // If running in Electron, use silent printing (no popup window)
+  if ((window as any).electronAPI?.isElectron && (window as any).electronAPI?.printSilent) {
+    try {
+      // Strip the auto-print script for Electron (it handles printing itself)
+      const cleanHTML = receiptHTML.replace(/<script>[\s\S]*?<\/script>/, '');
+      await (window as any).electronAPI.printSilent(cleanHTML);
+    } catch (e) {
+      console.error('[Electron] Silent print failed, falling back to window:', e);
+      openPrintWindow(receiptHTML);
+    }
+    return;
+  }
+
+  openPrintWindow(receiptHTML);
+}
+
+function openPrintWindow(html: string) {
   const printWindow = window.open("", "_blank", "width=350,height=600");
   if (printWindow) {
-    printWindow.document.write(receiptHTML);
+    printWindow.document.write(html);
     printWindow.document.close();
   }
 }

@@ -152,3 +152,31 @@ ipcMain.handle('get-app-version', () => {
 ipcMain.handle('get-platform', () => {
   return process.platform;
 });
+
+ipcMain.handle('print-silent', async (event, html) => {
+  return new Promise((resolve) => {
+    const printWin = new BrowserWindow({
+      show: false,
+      width: 350,
+      height: 600,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    printWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+
+    printWin.webContents.on('did-finish-load', () => {
+      printWin.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
+        printWin.close();
+        resolve({ success, error: failureReason || undefined });
+      });
+    });
+
+    printWin.webContents.on('did-fail-load', () => {
+      printWin.close();
+      resolve({ success: false, error: 'Failed to load receipt content' });
+    });
+  });
+});
