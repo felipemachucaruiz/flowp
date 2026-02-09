@@ -32,8 +32,6 @@ import {
 
 const shopifyConfigSchema = z.object({
   shopDomain: z.string().min(1, "Shop domain is required").regex(/^[a-z0-9-]+\.myshopify\.com$/, "Invalid Shopify domain format (e.g., my-store.myshopify.com)"),
-  clientId: z.string().optional(),
-  clientSecret: z.string().optional(),
   syncInventory: z.boolean().default(true),
   syncPrices: z.boolean().default(true),
   generateDianDocuments: z.boolean().default(true),
@@ -108,7 +106,6 @@ export function ShopifySettings() {
   const [showMappingsDialog, setShowMappingsDialog] = useState(false);
   const [showOrdersDialog, setShowOrdersDialog] = useState(false);
   const [isSyncing, setIsSyncing] = useState<"inventory" | "prices" | null>(null);
-  const [showAdvancedCreds, setShowAdvancedCreds] = useState(false);
 
   const { data: oauthAvailable } = useQuery<{ available: boolean }>({
     queryKey: ["/api/shopify/oauth-available"],
@@ -139,8 +136,6 @@ export function ShopifySettings() {
     resolver: zodResolver(shopifyConfigSchema),
     defaultValues: {
       shopDomain: "",
-      clientId: "",
-      clientSecret: "",
       syncInventory: true,
       syncPrices: true,
       generateDianDocuments: true,
@@ -152,8 +147,6 @@ export function ShopifySettings() {
     mutationFn: async (data: ShopifyConfigFormData) => {
       const res = await apiRequest("POST", "/api/shopify/oauth/authorize", {
         shopDomain: data.shopDomain,
-        clientId: data.clientId,
-        clientSecret: data.clientSecret,
       });
       return res.json();
     },
@@ -571,7 +564,7 @@ export function ShopifySettings() {
         </Card>
       )}
 
-      <Dialog open={showConfigDialog} onOpenChange={(open) => { setShowConfigDialog(open); if (!open) setShowAdvancedCreds(false); }}>
+      <Dialog open={showConfigDialog} onOpenChange={setShowConfigDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -579,9 +572,7 @@ export function ShopifySettings() {
               {t("shopify.connect_title")}
             </DialogTitle>
             <DialogDescription>
-              {oauthAvailable?.available
-                ? (t("shopify.connect_simple_desc" as any) || "Enter your Shopify store domain to connect your store. No API keys needed.")
-                : t("shopify.connect_desc")}
+              {t("shopify.connect_simple_desc" as any) || "Enter your Shopify store domain to connect your store."}
             </DialogDescription>
           </DialogHeader>
           <Form {...configForm}>
@@ -607,64 +598,10 @@ export function ShopifySettings() {
                 )}
               />
 
-              {(!oauthAvailable?.available || showAdvancedCreds) && (
-                <>
-                  <FormField
-                    control={configForm.control}
-                    name="clientId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("shopify.client_id")}</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            value={field.value || ""}
-                            placeholder="shpca_..."
-                            data-testid="input-client-id"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t("shopify.client_id_help")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={configForm.control}
-                    name="clientSecret"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("shopify.client_secret")}</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field}
-                            value={field.value || ""}
-                            type="password"
-                            placeholder="shpcs_..."
-                            data-testid="input-client-secret"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          {t("shopify.client_secret_help")}
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
-
-              {oauthAvailable?.available && !showAdvancedCreds && (
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground underline"
-                  onClick={() => setShowAdvancedCreds(true)}
-                  data-testid="button-show-advanced-creds"
-                >
-                  {t("shopify.use_custom_credentials" as any) || "Use custom app credentials instead"}
-                </button>
+              {!oauthAvailable?.available && (
+                <div className="p-3 bg-destructive/10 rounded-lg text-sm text-destructive">
+                  {t("shopify.oauth_not_configured" as any) || "Shopify integration is not yet configured by your administrator. Please contact support."}
+                </div>
               )}
 
               <div className="space-y-3 pt-2">
@@ -746,11 +683,11 @@ export function ShopifySettings() {
                 </Button>
                 <Button 
                   type="submit" 
-                  disabled={saveConfigMutation.isPending}
+                  disabled={saveConfigMutation.isPending || !oauthAvailable?.available}
                   data-testid="button-save-shopify-config"
                 >
                   {saveConfigMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  {t("common.save")}
+                  {t("shopify.connect")}
                 </Button>
               </DialogFooter>
             </form>
