@@ -149,7 +149,7 @@ async function getGlobalShopifyCredentials(): Promise<{ clientId: string; client
   const keys = ["shopify_client_id", "shopify_client_secret", "shopify_oauth_enabled"];
   const configs = await db.select()
     .from(platformConfig)
-    .where(sql`${platformConfig.key} = ANY(${keys})`);
+    .where(inArray(platformConfig.key, keys));
 
   const configMap: Record<string, any> = {};
   for (const c of configs) {

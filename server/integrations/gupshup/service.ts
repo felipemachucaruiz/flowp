@@ -11,7 +11,7 @@ import {
   platformConfig,
   PAID_ADDONS,
 } from "@shared/schema";
-import { eq, and, or, desc, sql } from "drizzle-orm";
+import { eq, and, or, desc, sql, inArray } from "drizzle-orm";
 
 const GUPSHUP_TEMPLATE_URL = "https://api.gupshup.io/sm/api/v1/template/msg";
 const GUPSHUP_SESSION_URL = "https://api.gupshup.io/sm/api/v1/msg";
@@ -84,7 +84,7 @@ export async function getGlobalGupshupCredentials(): Promise<{
     const keys = ["gupshup_api_key", "gupshup_app_name", "gupshup_sender_phone", "whatsapp_global_enabled"];
     const configs = await db.select()
       .from(platformConfig)
-      .where(sql`${platformConfig.key} = ANY(${keys})`);
+      .where(inArray(platformConfig.key, keys));
 
     const configMap: Record<string, any> = {};
     for (const c of configs) {

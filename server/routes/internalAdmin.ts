@@ -8,7 +8,7 @@ import { encrypt as shopifyEncrypt, decrypt as shopifyDecrypt } from "../integra
 import { db } from "../db";
 import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans, whatsappPackages, tenantWhatsappSubscriptions, whatsappMessageLogs, tenantWhatsappIntegrations } from "@shared/schema";
 import bcrypt from "bcryptjs";
-import { eq, like, or, desc, and, sql } from "drizzle-orm";
+import { eq, like, or, desc, and, sql, inArray } from "drizzle-orm";
 import crypto from "crypto";
 import https from "https";
 
@@ -1147,7 +1147,7 @@ internalAdminRouter.get("/whatsapp/global-config", internalAuth, async (req: Req
     const keys = ["gupshup_api_key", "gupshup_app_name", "gupshup_sender_phone", "whatsapp_global_enabled"];
     const configs = await db.select()
       .from(platformConfig)
-      .where(sql`${platformConfig.key} = ANY(${keys})`);
+      .where(inArray(platformConfig.key, keys));
 
     const configMap: Record<string, string | null> = {};
     for (const c of configs) {
@@ -1239,7 +1239,7 @@ internalAdminRouter.get("/shopify/global-config", internalAuth, requireRole(["su
     const keys = ["shopify_client_id", "shopify_client_secret", "shopify_oauth_enabled"];
     const configs = await db.select()
       .from(platformConfig)
-      .where(sql`${platformConfig.key} = ANY(${keys})`);
+      .where(inArray(platformConfig.key, keys));
 
     const configMap: Record<string, string | null> = {};
     for (const c of configs) {
