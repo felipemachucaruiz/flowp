@@ -183,8 +183,7 @@ jobs:
         run: npx electron --version
 
       - name: Build macOS Installer
-        working-directory: electron
-        run: npx electron-builder --mac --publish never
+        run: npx --prefix electron electron-builder --mac --publish never --project electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: false

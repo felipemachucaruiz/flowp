@@ -79,7 +79,8 @@
       ],
       "icon": "resources/icon.icns",
       "category": "public.app-category.business",
-      "publish": null
+      "publish": null,
+      "identity": null
     },
     "dmg": {
       "contents": [
