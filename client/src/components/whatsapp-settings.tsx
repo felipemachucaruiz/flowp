@@ -4,7 +4,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +30,6 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
-  Phone,
 } from "lucide-react";
 
 interface WhatsAppConfig {
@@ -106,10 +104,6 @@ export function WhatsAppSettings() {
   const { tenant } = useAuth();
   const queryClient = useQueryClient();
 
-  const [gupshupApiKey, setGupshupApiKey] = useState("");
-  const [gupshupAppName, setGupshupAppName] = useState("");
-  const [senderPhone, setSenderPhone] = useState("");
-  const [enabled, setEnabled] = useState(false);
   const [configLoaded, setConfigLoaded] = useState(false);
 
   const [notifyOnSale, setNotifyOnSale] = useState(false);
@@ -134,9 +128,6 @@ export function WhatsAppSettings() {
 
   if (config && !configLoaded) {
     if (config.configured) {
-      setGupshupAppName(config.gupshupAppName || "");
-      setSenderPhone(config.senderPhone || "");
-      setEnabled(config.enabled || false);
       setNotifyOnSale(config.notifyOnSale || false);
       setNotifyOnLowStock(config.notifyOnLowStock || false);
       setNotifyDailySummary(config.notifyDailySummary || false);
@@ -181,64 +172,6 @@ export function WhatsAppSettings() {
       return res.json();
     },
     enabled: !!tenant?.id && !!config?.configured,
-  });
-
-  const saveConfigMutation = useMutation({
-    mutationFn: async () => {
-      const payload: Record<string, unknown> = {
-        gupshupAppName,
-        senderPhone,
-        enabled,
-      };
-      if (gupshupApiKey) {
-        payload.gupshupApiKey = gupshupApiKey;
-      }
-      const res = await apiRequest("POST", "/api/whatsapp/config", payload);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["whatsapp", "config"] });
-      setGupshupApiKey("");
-      toast({
-        title: t("common.success" as any) || "Success",
-        description: t("whatsapp.configSaved" as any) || "Configuration saved successfully.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: t("common.error" as any) || "Error",
-        description: error.message || "Failed to save configuration",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const testConnectionMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/whatsapp/test-connection");
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      if (data.success) {
-        toast({
-          title: t("whatsapp.connectionSuccess" as any) || "Connection Successful",
-          description: t("whatsapp.connectionSuccessDesc" as any) || "Gupshup API connection verified.",
-        });
-      } else {
-        toast({
-          title: t("whatsapp.connectionFailed" as any) || "Connection Failed",
-          description: data.error || "Could not connect to Gupshup API",
-          variant: "destructive",
-        });
-      }
-    },
-    onError: (error: any) => {
-      toast({
-        title: t("whatsapp.connectionFailed" as any) || "Connection Failed",
-        description: error.message || "Could not connect to Gupshup API",
-        variant: "destructive",
-      });
-    },
   });
 
   const subscribeMutation = useMutation({
@@ -318,7 +251,7 @@ export function WhatsAppSettings() {
             </div>
             <div>
               <CardTitle className="flex items-center gap-2 flex-wrap">
-                {t("whatsapp.title" as any) || "WhatsApp Integration"}
+                {t("whatsapp.title" as any) || "WhatsApp Notifications"}
                 {config?.configured && (
                   <Badge
                     variant={config.enabled ? "default" : "secondary"}
@@ -331,125 +264,34 @@ export function WhatsAppSettings() {
                 )}
               </CardTitle>
               <p className="text-sm text-muted-foreground">
-                {t("whatsapp.subtitle" as any) || "Configure Gupshup WhatsApp messaging for your business"}
+                {t("whatsapp.tenantSubtitle" as any) || "WhatsApp notifications are sent from Flowp's verified account"}
               </p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Settings className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">
-              {t("whatsapp.gupshupCredentials" as any) || "Gupshup Credentials"}
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium" htmlFor="gupshup-api-key">
-                {t("whatsapp.apiKey" as any) || "Gupshup API Key"}
-              </label>
-              <Input
-                id="gupshup-api-key"
-                type="password"
-                value={gupshupApiKey}
-                onChange={(e) => setGupshupApiKey(e.target.value)}
-                placeholder={
-                  config?.hasApiKey
-                    ? "********** (stored encrypted)"
-                    : "Enter your Gupshup API key"
-                }
-                data-testid="input-gupshup-api-key"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t("whatsapp.apiKeyNote" as any) || "Stored encrypted on our servers"}
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium" htmlFor="gupshup-app-name">
-                {t("whatsapp.appName" as any) || "Gupshup App Name"}
-              </label>
-              <Input
-                id="gupshup-app-name"
-                value={gupshupAppName}
-                onChange={(e) => setGupshupAppName(e.target.value)}
-                placeholder="MyBusinessApp"
-                data-testid="input-gupshup-app-name"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm font-medium" htmlFor="sender-phone">
-                {t("whatsapp.senderPhone" as any) || "Sender Phone Number"}
-              </label>
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="sender-phone"
-                  value={senderPhone}
-                  onChange={(e) => setSenderPhone(e.target.value)}
-                  placeholder="+573001234567"
-                  data-testid="input-sender-phone"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <span className="text-sm font-medium">
-                  {t("whatsapp.enableIntegration" as any) || "Enable Integration"}
-                </span>
-                <p className="text-xs text-muted-foreground">
-                  {t("whatsapp.enableIntegrationDesc" as any) || "Turn on/off WhatsApp messaging"}
-                </p>
-              </div>
-              <Switch
-                checked={enabled}
-                onCheckedChange={setEnabled}
-                data-testid="switch-whatsapp-enabled"
-              />
-            </div>
-          </div>
-
-          <Separator />
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => testConnectionMutation.mutate()}
-              disabled={testConnectionMutation.isPending}
-              data-testid="button-test-connection"
-            >
-              {testConnectionMutation.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
-              )}
-              {t("whatsapp.testConnection" as any) || "Test Connection"}
-            </Button>
-            <Button
-              onClick={() => saveConfigMutation.mutate()}
-              disabled={saveConfigMutation.isPending}
-              data-testid="button-save-config"
-            >
-              {saveConfigMutation.isPending ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Send className="w-4 h-4 mr-2" />
-              )}
-              {t("whatsapp.saveConfig" as any) || "Save Configuration"}
-            </Button>
-          </div>
-
-          {config?.lastError && (
-            <div className="flex items-start gap-2 p-3 bg-destructive/10 rounded-lg">
-              <XCircle className="w-4 h-4 text-destructive mt-0.5" />
+          {config?.configured && config.enabled ? (
+            <div className="flex items-start gap-2 p-3 bg-green-500/10 rounded-lg">
+              <CheckCircle className="w-4 h-4 text-green-600 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-destructive">
-                  {t("whatsapp.lastError" as any) || "Last Error"}
+                <p className="text-sm font-medium">
+                  {t("whatsapp.serviceActive" as any) || "WhatsApp service is active"}
                 </p>
-                <p className="text-xs text-muted-foreground">{config.lastError}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("whatsapp.serviceActiveDesc" as any) || "Notifications are being sent from Flowp's WhatsApp. Configure your preferences below."}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
+              <MessageCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="text-sm font-medium">
+                  {t("whatsapp.serviceInactive" as any) || "WhatsApp service is not active"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("whatsapp.serviceInactiveDesc" as any) || "Subscribe to a message package below to start receiving WhatsApp notifications."}
+                </p>
               </div>
             </div>
           )}
