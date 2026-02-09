@@ -474,6 +474,7 @@ function PrintPreview({
                   {el.type === "barcode" && el.barcodeFormat !== "QR" && (
                     <canvas
                       ref={(c) => { if (c) canvasRefs.current.set(copyKey, c); }}
+                      data-copy-key={copyKey}
                       style={{ width: "100%", height: "100%", objectFit: "contain" }}
                     />
                   )}
@@ -667,13 +668,74 @@ export default function LabelDesignerPage() {
     localStorage.setItem("flowp_label_templates", JSON.stringify(updated));
   };
 
+  const waitForCanvasReady = useCallback((): Promise<void> => {
+    return new Promise((resolve) => {
+      let attempts = 0;
+      const check = () => {
+        const canvases = document.querySelectorAll('.print-labels canvas[data-copy-key]');
+        const allReady = canvases.length === 0 || Array.from(canvases).every((c) => {
+          const canvas = c as HTMLCanvasElement;
+          return canvas.width > 0 && canvas.height > 0;
+        });
+        if (allReady || attempts > 20) {
+          resolve();
+        } else {
+          attempts++;
+          requestAnimationFrame(check);
+        }
+      };
+      requestAnimationFrame(check);
+    });
+  }, []);
+
+  const electronSilentPrint = useCallback(async () => {
+    await waitForCanvasReady();
+    const el = document.querySelector('.print-labels');
+    if (!el) return;
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('canvas').forEach((canvas) => {
+      const key = canvas.getAttribute('data-copy-key');
+      if (!key) return;
+      const origCanvas = el.querySelector(`canvas[data-copy-key="${key}"]`) as HTMLCanvasElement | null;
+      if (origCanvas) {
+        const img = document.createElement('img');
+        img.src = origCanvas.toDataURL('image/png');
+        img.style.cssText = canvas.style.cssText || '';
+        img.width = origCanvas.width;
+        img.height = origCanvas.height;
+        canvas.parentNode?.replaceChild(img, canvas);
+      }
+    });
+    const html = `<!DOCTYPE html><html><head><style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: white; }
+      .print-labels { display: flex; flex-direction: column; gap: 1mm; }
+      .label-single { page-break-inside: avoid; break-inside: avoid; position: relative; overflow: hidden; background: white; color: black; }
+      @page { size: ${template.widthMm}mm ${template.heightMm}mm; margin: 0; }
+    </style></head><body>${clone.innerHTML}</body></html>`;
+    const barcodePrinter = localStorage.getItem('flowp_electron_barcode_printer')
+      || localStorage.getItem('flowp_electron_printer')
+      || undefined;
+    try {
+      await (window as any).electronAPI.printSilent(html, barcodePrinter);
+    } catch (e) {
+      console.error('[Electron] Label print failed:', e);
+      window.print();
+    }
+  }, [template, waitForCanvasReady]);
+
   const handlePrint = () => {
     if (selectedProducts.length === 0) {
       toast({ title: t("labels.no_products_selected"), variant: "destructive" });
       return;
     }
     setShowPreview(true);
-    setTimeout(() => window.print(), 300);
+    const isElectronApp = !!(window as any).electronAPI?.isElectron && (window as any).electronAPI?.printSilent;
+    if (isElectronApp) {
+      setTimeout(() => electronSilentPrint(), 500);
+    } else {
+      setTimeout(() => window.print(), 300);
+    }
   };
 
   const filteredProducts = products.filter(p =>
@@ -1199,7 +1261,14 @@ export default function LabelDesignerPage() {
             <Button variant="outline" onClick={() => setShowPreview(false)}>
               {t("common.cancel")}
             </Button>
-            <Button onClick={() => window.print()} data-testid="button-confirm-print">
+            <Button onClick={() => {
+              const isElectronApp = !!(window as any).electronAPI?.isElectron && (window as any).electronAPI?.printSilent;
+              if (isElectronApp) {
+                electronSilentPrint();
+              } else {
+                window.print();
+              }
+            }} data-testid="button-confirm-print">
               <Printer className="w-4 h-4 mr-1" />
               {t("labels.print")}
             </Button>

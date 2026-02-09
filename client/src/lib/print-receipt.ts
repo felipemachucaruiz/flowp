@@ -610,12 +610,11 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
 </html>
   `;
 
-  // If running in Electron, use silent printing (no popup window)
   if ((window as any).electronAPI?.isElectron && (window as any).electronAPI?.printSilent) {
     try {
-      // Strip the auto-print script for Electron (it handles printing itself)
       const cleanHTML = receiptHTML.replace(/<script>[\s\S]*?<\/script>/, '');
-      await (window as any).electronAPI.printSilent(cleanHTML);
+      const receiptPrinter = localStorage.getItem('flowp_electron_printer') || undefined;
+      await (window as any).electronAPI.printSilent(cleanHTML, receiptPrinter);
     } catch (e) {
       console.error('[Electron] Silent print failed, falling back to window:', e);
       openPrintWindow(receiptHTML);

@@ -413,6 +413,7 @@ function PrintBridgeSettings() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [selectedPrinter, setSelectedPrinter] = useState<string>('');
+  const [selectedBarcodePrinter, setSelectedBarcodePrinter] = useState<string>('');
   const [openCashDrawer, setOpenCashDrawer] = useState(tenant?.openCashDrawer ?? false);
   const [isTestingDrawer, setIsTestingDrawer] = useState(false);
   const isElectron = printBridge.isElectronApp();
@@ -519,11 +520,14 @@ function PrintBridgeSettings() {
 
   useEffect(() => {
     checkBridgeStatus();
-    // Load saved printer from localStorage for Electron
     if (isElectron) {
       const savedPrinter = localStorage.getItem('flowp_electron_printer');
       if (savedPrinter) {
         setSelectedPrinter(savedPrinter);
+      }
+      const savedBarcodePrinter = localStorage.getItem('flowp_electron_barcode_printer');
+      if (savedBarcodePrinter) {
+        setSelectedBarcodePrinter(savedBarcodePrinter);
       }
     }
     const interval = setInterval(checkBridgeStatus, 10000);
@@ -561,30 +565,66 @@ function PrintBridgeSettings() {
             </div>
           )}
           {printers.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">{t("printing.select_printer")}</Label>
-              <Select
-                value={selectedPrinter}
-                onValueChange={(value) => {
-                  setSelectedPrinter(value);
-                  localStorage.setItem('flowp_electron_printer', value);
-                  toast({
-                    title: t("printing.printer_configured"),
-                    description: value,
-                  });
-                }}
-              >
-                <SelectTrigger className="w-full" data-testid="select-printer-electron">
-                  <SelectValue placeholder={t("printing.select_printer_placeholder")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {printers.map((p) => (
-                    <SelectItem key={p.name} value={p.name}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t("printing.receipt_printer")}</Label>
+                <p className="text-xs text-muted-foreground">{t("printing.receipt_printer_desc")}</p>
+                <Select
+                  value={selectedPrinter}
+                  onValueChange={(value) => {
+                    setSelectedPrinter(value);
+                    localStorage.setItem('flowp_electron_printer', value);
+                    toast({
+                      title: t("printing.printer_configured"),
+                      description: value,
+                    });
+                  }}
+                >
+                  <SelectTrigger className="w-full" data-testid="select-receipt-printer-electron">
+                    <SelectValue placeholder={t("printing.select_printer_placeholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {printers.map((p) => (
+                      <SelectItem key={p.name} value={p.name}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">{t("printing.barcode_printer")}</Label>
+                <p className="text-xs text-muted-foreground">{t("printing.barcode_printer_desc")}</p>
+                <Select
+                  value={selectedBarcodePrinter || '__same__'}
+                  onValueChange={(value) => {
+                    const actual = value === '__same__' ? '' : value;
+                    setSelectedBarcodePrinter(actual);
+                    if (actual) {
+                      localStorage.setItem('flowp_electron_barcode_printer', actual);
+                    } else {
+                      localStorage.removeItem('flowp_electron_barcode_printer');
+                    }
+                    toast({
+                      title: t("printing.printer_configured"),
+                      description: actual || t("printing.same_printer"),
+                    });
+                  }}
+                >
+                  <SelectTrigger className="w-full" data-testid="select-barcode-printer-electron">
+                    <SelectValue placeholder={t("printing.select_printer_placeholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__same__">{t("printing.same_printer")}</SelectItem>
+                    {printers.map((p) => (
+                      <SelectItem key={p.name} value={p.name}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
           

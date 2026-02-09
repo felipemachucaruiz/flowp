@@ -153,7 +153,7 @@ ipcMain.handle('get-platform', () => {
   return process.platform;
 });
 
-ipcMain.handle('print-silent', async (event, html) => {
+ipcMain.handle('print-silent', async (event, html, printerName) => {
   return new Promise((resolve) => {
     const printWin = new BrowserWindow({
       show: false,
@@ -168,7 +168,11 @@ ipcMain.handle('print-silent', async (event, html) => {
     printWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
 
     printWin.webContents.on('did-finish-load', () => {
-      printWin.webContents.print({ silent: true, printBackground: true }, (success, failureReason) => {
+      const printOptions = { silent: true, printBackground: true };
+      if (printerName) {
+        printOptions.deviceName = printerName;
+      }
+      printWin.webContents.print(printOptions, (success, failureReason) => {
         printWin.close();
         resolve({ success, error: failureReason || undefined });
       });
