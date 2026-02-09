@@ -1221,7 +1221,13 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
     }
 
     const apiKey = gupshupDecrypt(apiKeyConfig.encryptedValue);
-    const response = await fetch("https://api.gupshup.io/sm/api/v1/wallet/balance", {
+    
+    const appNameConfig = await db.query.platformConfig.findFirst({
+      where: eq(platformConfig.key, "gupshup_app_name"),
+    });
+    const appName = appNameConfig?.value || "";
+
+    const response = await fetch(`https://api.gupshup.io/wa/app/${encodeURIComponent(appName)}`, {
       headers: { "apikey": apiKey },
     });
     const text = await response.text();
@@ -1231,8 +1237,11 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
     } catch {
       data = { message: text || `HTTP ${response.status}` };
     }
-    if (response.ok && data.status === "success") {
-      return res.json({ success: true, balance: data.balance });
+    if (response.ok) {
+      return res.json({ success: true, appName: data?.app?.name || appName });
+    }
+    if (response.status === 401 || response.status === 403) {
+      return res.json({ success: false, error: "Invalid API key - authentication failed" });
     }
     return res.json({ success: false, error: data.message || `HTTP ${response.status}: ${text.substring(0, 200)}` });
   } catch (error: any) {
