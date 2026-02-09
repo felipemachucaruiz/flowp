@@ -48,6 +48,7 @@ export default function ProductsPage() {
     name: "",
     price: "",
     categoryId: "",
+    sku: "",
     barcode: "",
     cost: "",
     image: "",
@@ -102,7 +103,7 @@ export default function ProductsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setProductDialogOpen(false);
       setEditingProduct(null);
-      setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "", image: "", trackInventory: true, lowStockThreshold: "10" });
+      setProductForm({ name: "", price: "", categoryId: "", sku: "", barcode: "", cost: "", image: "", trackInventory: true, lowStockThreshold: "10" });
       setProductFormTouched(false);
       toast({ title: editingProduct ? t("products.updated") : t("products.created") });
     },
@@ -140,6 +141,7 @@ export default function ProductsPage() {
         name: product.name,
         price: product.price,
         categoryId: product.categoryId || "",
+        sku: product.sku || "",
         barcode: product.barcode || "",
         cost: product.cost || "",
         image: product.image || "",
@@ -148,7 +150,7 @@ export default function ProductsPage() {
       });
     } else {
       setEditingProduct(null);
-      setProductForm({ name: "", price: "", categoryId: "", barcode: "", cost: "", image: "", trackInventory: true, lowStockThreshold: "10" });
+      setProductForm({ name: "", price: "", categoryId: "", sku: "", barcode: "", cost: "", image: "", trackInventory: true, lowStockThreshold: "10" });
     }
     setProductDialogOpen(true);
   };
@@ -181,8 +183,10 @@ export default function ProductsPage() {
   const [showFilters, setShowFilters] = useState(false);
   
   const filteredProducts = products?.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (p.barcode && p.barcode.toLowerCase().includes(searchQuery.toLowerCase()));
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = p.name.toLowerCase().includes(q) ||
+      (p.sku && p.sku.toLowerCase().includes(q)) ||
+      (p.barcode && p.barcode.toLowerCase().includes(q));
     
     const matchesCategory = categoryFilter === "all" || p.categoryId === categoryFilter;
     
@@ -349,6 +353,11 @@ export default function ProductsPage() {
                                 style={{ backgroundColor: getCategoryColor(product.categoryId) + "20", color: getCategoryColor(product.categoryId) }}
                               >
                                 {getCategoryName(product.categoryId)}
+                              </Badge>
+                            )}
+                            {product.sku && (
+                              <Badge variant="outline" className="text-xs">
+                                SKU: {product.sku}
                               </Badge>
                             )}
                             {product.barcode && (
@@ -604,14 +613,25 @@ export default function ProductsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>{t("products.sku")}</Label>
-              <Input
-                value={productForm.barcode}
-                onChange={(e) => setProductForm({ ...productForm, barcode: e.target.value })}
-                placeholder="12345678901"
-                data-testid="input-product-barcode"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t("products.sku")}</Label>
+                <Input
+                  value={productForm.sku}
+                  onChange={(e) => setProductForm({ ...productForm, sku: e.target.value })}
+                  placeholder="SKU-001"
+                  data-testid="input-product-sku"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t("products.barcode")}</Label>
+                <Input
+                  value={productForm.barcode}
+                  onChange={(e) => setProductForm({ ...productForm, barcode: e.target.value })}
+                  placeholder="7701234567890"
+                  data-testid="input-product-barcode"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label>{t("products.image")}</Label>
