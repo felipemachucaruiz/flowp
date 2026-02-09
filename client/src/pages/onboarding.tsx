@@ -483,17 +483,17 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="min-h-screen min-h-dvh bg-background flex items-center justify-center p-4 safe-area-inset">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
+    <div className="min-h-screen min-h-dvh bg-background flex items-center justify-center p-4 safe-area-inset overflow-y-auto">
+      <Card className="w-full max-w-lg my-auto max-h-[calc(100dvh-2rem)] flex flex-col">
+        <CardHeader className="text-center shrink-0">
           <div className="mx-auto mb-4">
             <img src={flowpLogo} alt="Flowp" className="w-16 h-16" />
           </div>
           <CardTitle className="text-2xl">{t("onboarding.welcome")}</CardTitle>
           <CardDescription>{t("onboarding.subtitle")}</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex justify-center mb-8">
+        <CardContent className="flex flex-col min-h-0 flex-1">
+          <div className="flex justify-center mb-8 shrink-0">
             {STEPS.map((step, index) => {
               const StepIcon = step.icon;
               return (
@@ -527,9 +527,11 @@ export default function OnboardingPage() {
             })}
           </div>
 
-          {renderStep()}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            {renderStep()}
+          </div>
 
-          <div className="flex justify-between mt-8">
+          <div className="flex justify-between gap-2 mt-8 shrink-0 pt-4 border-t">
             <Button
               variant="outline"
               onClick={handleBack}
