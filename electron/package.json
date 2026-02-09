@@ -55,6 +55,8 @@
         }
       ],
       "icon": "resources/icon.ico",
+      "sign": "./customSign.js",
+      "signingHashAlgorithms": ["sha256"],
       "publish": null
     },
     "nsis": {

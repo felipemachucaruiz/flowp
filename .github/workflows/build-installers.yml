@@ -99,6 +99,54 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # ── DigiCert KeyLocker Setup ──────────────────────────────────
+      - name: Setup DigiCert KeyLocker certificate
+        if: env.SM_API_KEY != ''
+        run: |
+          echo "${{ secrets.SM_CLIENT_CERT_FILE_B64 }}" | base64 --decode > /d/Certificate_pkcs12.p12
+        shell: bash
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+
+      - name: Install DigiCert KeyLocker Tools
+        if: env.SM_API_KEY != ''
+        run: |
+          curl -X GET https://one.digicert.com/signingmanager/api-ui/v1/releases/smtools-windows-x64.msi/download -H "x-api-key:${{ secrets.SM_API_KEY }}" -o smtools.msi
+          msiexec /i smtools.msi /quiet /qn
+          echo "C:\Program Files\DigiCert\DigiCert Keylocker Tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: pwsh
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+
+      - name: Configure DigiCert KeyLocker environment
+        if: env.SM_API_KEY != ''
+        run: |
+          echo "SM_HOST=${{ secrets.SM_HOST }}" >> $GITHUB_ENV
+          echo "SM_API_KEY=${{ secrets.SM_API_KEY }}" >> $GITHUB_ENV
+          echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> $GITHUB_ENV
+          echo "SM_CLIENT_CERT_PASSWORD=${{ secrets.SM_CLIENT_CERT_PASSWORD }}" >> $GITHUB_ENV
+          echo "SM_KEYPAIR_ALIAS=${{ secrets.SM_KEYPAIR_ALIAS }}" >> $GITHUB_ENV
+        shell: bash
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+
+      - name: Sync DigiCert KeyLocker certificate
+        if: env.SM_API_KEY != ''
+        run: |
+          smctl windows certsync --keypair-alias="${{ secrets.SM_KEYPAIR_ALIAS }}"
+        shell: cmd
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+
+      - name: Verify DigiCert KeyLocker health
+        if: env.SM_API_KEY != ''
+        run: |
+          smctl healthcheck
+        shell: cmd
+        env:
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+      # ── End DigiCert KeyLocker Setup ──────────────────────────────
+
       - name: Install Electron Builder
         run: npm install -g electron-builder
 
@@ -111,6 +159,11 @@ jobs:
         run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SM_HOST: ${{ secrets.SM_HOST }}
+          SM_API_KEY: ${{ secrets.SM_API_KEY }}
+          SM_CLIENT_CERT_FILE: D:\Certificate_pkcs12.p12
+          SM_CLIENT_CERT_PASSWORD: ${{ secrets.SM_CLIENT_CERT_PASSWORD }}
+          SM_KEYPAIR_ALIAS: ${{ secrets.SM_KEYPAIR_ALIAS }}
 
       - name: Upload Windows Installer
         uses: actions/upload-artifact@v4
@@ -139,6 +192,21 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # ── Apple Code Signing & Notarization Setup ───────────────────
+      - name: Import Apple signing certificate
+        if: env.APPLE_CERTIFICATE_B64 != ''
+        run: |
+          echo "${{ secrets.APPLE_CERTIFICATE_B64 }}" | base64 --decode > certificate.p12
+          security create-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          security import certificate.p12 -k build.keychain -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" build.keychain
+          rm certificate.p12
+        env:
+          APPLE_CERTIFICATE_B64: ${{ secrets.APPLE_CERTIFICATE_B64 }}
+      # ── End Apple Code Signing Setup ──────────────────────────────
+
       - name: Install Electron Builder
         run: npm install -g electron-builder
 
@@ -151,6 +219,11 @@ jobs:
         run: npm run build:mac
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.APPLE_CERTIFICATE_B64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload macOS Installer
         uses: actions/upload-artifact@v4
