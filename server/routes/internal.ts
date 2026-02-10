@@ -324,7 +324,7 @@ router.get("/plans", requirePermission("billing.plans:read"), async (req: Reques
 
 router.post("/plans", requirePermission("billing.plans:manage"), async (req: Request, res: Response) => {
   try {
-    const { name, priceMonthly, priceYearly, currency, maxLocations, maxRegisters, maxUsers, features, isActive, sortOrder } = req.body;
+    const { name, tier, businessType, priceMonthly, priceYearly, currency, maxLocations, maxRegisters, maxUsers, maxProducts, maxDianDocuments, maxTables, maxRecipes, features, isActive, sortOrder } = req.body;
 
     if (!name || priceMonthly === undefined) {
       return res.status(400).json({ error: "Name and monthly price are required" });
@@ -334,12 +334,18 @@ router.post("/plans", requirePermission("billing.plans:manage"), async (req: Req
       .insert(subscriptionPlans)
       .values({
         name,
+        tier: tier || "basic",
+        businessType: businessType || "retail",
         priceMonthly: priceMonthly.toString(),
         priceYearly: priceYearly ? priceYearly.toString() : null,
         currency: currency || "USD",
         maxLocations: maxLocations || 1,
-        maxRegisters: maxRegisters || 2,
-        maxUsers: maxUsers || 5,
+        maxRegisters: maxRegisters || 1,
+        maxUsers: maxUsers || 1,
+        maxProducts: maxProducts ?? 100,
+        maxDianDocuments: maxDianDocuments ?? 200,
+        maxTables: maxTables ?? 0,
+        maxRecipes: maxRecipes ?? 0,
         features: features || [],
         isActive: isActive !== false,
         sortOrder: sortOrder || 0,
@@ -355,16 +361,22 @@ router.post("/plans", requirePermission("billing.plans:manage"), async (req: Req
 
 router.put("/plans/:id", requirePermission("billing.plans:manage"), async (req: Request, res: Response) => {
   try {
-    const { name, priceMonthly, priceYearly, currency, maxLocations, maxRegisters, maxUsers, features, isActive, sortOrder } = req.body;
+    const { name, tier, businessType, priceMonthly, priceYearly, currency, maxLocations, maxRegisters, maxUsers, maxProducts, maxDianDocuments, maxTables, maxRecipes, features, isActive, sortOrder } = req.body;
 
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
+    if (tier !== undefined) updateData.tier = tier;
+    if (businessType !== undefined) updateData.businessType = businessType;
     if (priceMonthly !== undefined) updateData.priceMonthly = priceMonthly.toString();
     if (priceYearly !== undefined) updateData.priceYearly = priceYearly ? priceYearly.toString() : null;
     if (currency !== undefined) updateData.currency = currency;
     if (maxLocations !== undefined) updateData.maxLocations = maxLocations;
     if (maxRegisters !== undefined) updateData.maxRegisters = maxRegisters;
     if (maxUsers !== undefined) updateData.maxUsers = maxUsers;
+    if (maxProducts !== undefined) updateData.maxProducts = maxProducts;
+    if (maxDianDocuments !== undefined) updateData.maxDianDocuments = maxDianDocuments;
+    if (maxTables !== undefined) updateData.maxTables = maxTables;
+    if (maxRecipes !== undefined) updateData.maxRecipes = maxRecipes;
     if (features !== undefined) updateData.features = features;
     if (isActive !== undefined) updateData.isActive = isActive;
     if (sortOrder !== undefined) updateData.sortOrder = sortOrder;

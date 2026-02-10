@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, Building2, Monitor, Users, CreditCard, Loader2 } from "lucide-react";
+import { Check, Building2, Monitor, Users, CreditCard, Loader2, ShoppingBag, FileText, UtensilsCrossed, CookingPot } from "lucide-react";
 import PayPalButton from "@/components/PayPalButton";
 import type { SubscriptionPlan } from "@shared/schema";
 
@@ -204,6 +204,30 @@ export default function SubscriptionPage() {
                       <span className="font-medium">{plan.maxUsers}</span>
                       <span className="text-xs text-muted-foreground">Users</span>
                     </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{(plan as any).maxProducts === -1 ? "\u221e" : ((plan as any).maxProducts ?? 100)}</span>
+                      <span className="text-xs text-muted-foreground">Products</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{(plan as any).maxDianDocuments ?? 200}</span>
+                      <span className="text-xs text-muted-foreground">DIAN/mo</span>
+                    </div>
+                    {((plan as any).maxTables > 0 || (plan as any).businessType === "restaurant") && (
+                      <div className="flex flex-col items-center gap-1">
+                        <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{(plan as any).maxTables ?? 0}</span>
+                        <span className="text-xs text-muted-foreground">Tables</span>
+                      </div>
+                    )}
+                    {(plan as any).businessType === "restaurant" && (
+                      <div className="flex flex-col items-center gap-1">
+                        <CookingPot className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{(plan as any).maxRecipes === -1 ? "\u221e" : ((plan as any).maxRecipes ?? 0)}</span>
+                        <span className="text-xs text-muted-foreground">Recipes</span>
+                      </div>
+                    )}
                   </div>
 
                   {plan.features && plan.features.length > 0 && (

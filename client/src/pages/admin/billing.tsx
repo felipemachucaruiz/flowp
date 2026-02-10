@@ -35,17 +35,23 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Package, Check, Users, Building2, Monitor } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Check, Users, Building2, Monitor, ShoppingBag, FileText, UtensilsCrossed, CookingPot } from "lucide-react";
 import type { SubscriptionPlan } from "@shared/schema";
 
 interface PlanFormData {
   name: string;
+  tier: string;
+  businessType: string;
   priceMonthly: number;
   priceYearly: number | null;
   currency: string;
   maxLocations: number;
   maxRegisters: number;
   maxUsers: number;
+  maxProducts: number;
+  maxDianDocuments: number;
+  maxTables: number;
+  maxRecipes: number;
   features: string[];
   isActive: boolean;
   sortOrder: number;
@@ -53,12 +59,18 @@ interface PlanFormData {
 
 const defaultFormData: PlanFormData = {
   name: "",
+  tier: "basic",
+  businessType: "retail",
   priceMonthly: 0,
   priceYearly: null,
   currency: "USD",
   maxLocations: 1,
   maxRegisters: 2,
   maxUsers: 5,
+  maxProducts: 100,
+  maxDianDocuments: 200,
+  maxTables: 0,
+  maxRecipes: 0,
   features: [],
   isActive: true,
   sortOrder: 0,
@@ -167,16 +179,22 @@ export default function AdminBilling() {
   const openEditDialog = (plan: SubscriptionPlan) => {
     setEditingPlan(plan);
     const features = plan.features || [];
-    const isRestaurant = features.some(f => f.startsWith("restaurant."));
-    setPlanType(isRestaurant ? "restaurant" : "retail");
+    const bt = (plan as any).businessType || (features.some(f => f.startsWith("restaurant.")) ? "restaurant" : "retail");
+    setPlanType(bt as "retail" | "restaurant");
     setFormData({
       name: plan.name,
+      tier: (plan as any).tier || "basic",
+      businessType: bt,
       priceMonthly: parseFloat(plan.priceMonthly),
       priceYearly: plan.priceYearly ? parseFloat(plan.priceYearly) : null,
       currency: plan.currency || "USD",
       maxLocations: plan.maxLocations || 1,
       maxRegisters: plan.maxRegisters || 2,
       maxUsers: plan.maxUsers || 5,
+      maxProducts: (plan as any).maxProducts ?? 100,
+      maxDianDocuments: (plan as any).maxDianDocuments ?? 200,
+      maxTables: (plan as any).maxTables ?? 0,
+      maxRecipes: (plan as any).maxRecipes ?? 0,
       features: features,
       isActive: plan.isActive !== false,
       sortOrder: plan.sortOrder || 0,
@@ -263,12 +281,30 @@ export default function AdminBilling() {
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="tier">{t("admin.billing_tier")}</Label>
+          <select
+            id="tier"
+            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+            value={formData.tier}
+            onChange={(e) => setFormData(prev => ({ ...prev, tier: e.target.value }))}
+            data-testid="select-plan-tier"
+          >
+            <option value="basic">Basic / Starter</option>
+            <option value="pro">Pro</option>
+            <option value="enterprise">Enterprise / Avanzado</option>
+          </select>
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-4">
         <div className="grid gap-2">
           <Label htmlFor="maxLocations">{t("admin.billing_max_locations")}</Label>
           <Input
             id="maxLocations"
             type="number"
+            min="-1"
             value={formData.maxLocations}
             onChange={(e) => setFormData(prev => ({ ...prev, maxLocations: parseInt(e.target.value) || 1 }))}
             data-testid="input-plan-max-locations"
@@ -279,8 +315,9 @@ export default function AdminBilling() {
           <Input
             id="maxRegisters"
             type="number"
+            min="-1"
             value={formData.maxRegisters}
-            onChange={(e) => setFormData(prev => ({ ...prev, maxRegisters: parseInt(e.target.value) || 2 }))}
+            onChange={(e) => setFormData(prev => ({ ...prev, maxRegisters: parseInt(e.target.value) || 1 }))}
             data-testid="input-plan-max-registers"
           />
         </div>
@@ -289,20 +326,84 @@ export default function AdminBilling() {
           <Input
             id="maxUsers"
             type="number"
+            min="-1"
             value={formData.maxUsers}
-            onChange={(e) => setFormData(prev => ({ ...prev, maxUsers: parseInt(e.target.value) || 5 }))}
+            onChange={(e) => setFormData(prev => ({ ...prev, maxUsers: parseInt(e.target.value) || 1 }))}
             data-testid="input-plan-max-users"
           />
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="maxProducts">{t("admin.billing_max_products")}</Label>
+          <Input
+            id="maxProducts"
+            type="number"
+            min="-1"
+            value={formData.maxProducts}
+            onChange={(e) => setFormData(prev => ({ ...prev, maxProducts: parseInt(e.target.value) ?? 100 }))}
+            data-testid="input-plan-max-products"
+          />
+          <p className="text-xs text-muted-foreground">-1 = {t("admin.billing_unlimited")}</p>
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="maxDianDocuments">{t("admin.billing_max_dian_docs")}</Label>
+          <Input
+            id="maxDianDocuments"
+            type="number"
+            min="-1"
+            value={formData.maxDianDocuments}
+            onChange={(e) => setFormData(prev => ({ ...prev, maxDianDocuments: parseInt(e.target.value) ?? 200 }))}
+            data-testid="input-plan-max-dian-docs"
+          />
+          <p className="text-xs text-muted-foreground">-1 = {t("admin.billing_unlimited")}</p>
+        </div>
+      </div>
+
+      {planType === "restaurant" && (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="maxTables">{t("admin.billing_max_tables")}</Label>
+            <Input
+              id="maxTables"
+              type="number"
+              min="-1"
+              value={formData.maxTables}
+              onChange={(e) => setFormData(prev => ({ ...prev, maxTables: parseInt(e.target.value) ?? 0 }))}
+              data-testid="input-plan-max-tables"
+            />
+            <p className="text-xs text-muted-foreground">-1 = {t("admin.billing_unlimited")}, 0 = {t("admin.billing_na")}</p>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="maxRecipes">{t("admin.billing_max_recipes")}</Label>
+            <Input
+              id="maxRecipes"
+              type="number"
+              min="-1"
+              value={formData.maxRecipes}
+              onChange={(e) => setFormData(prev => ({ ...prev, maxRecipes: parseInt(e.target.value) ?? 0 }))}
+              data-testid="input-plan-max-recipes"
+            />
+            <p className="text-xs text-muted-foreground">-1 = {t("admin.billing_unlimited")}, 0 = {t("admin.billing_na")}</p>
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
         <Label>{t("admin.billing_plan_type")}</Label>
         <Tabs value={planType} onValueChange={(v) => {
-          setPlanType(v as "retail" | "restaurant");
+          const bt = v as "retail" | "restaurant";
+          setPlanType(bt);
           const proFeatureIds = PRO_FEATURES.map(f => f.id);
           const currentProFeatures = formData.features.filter(f => proFeatureIds.includes(f));
-          setFormData(prev => ({ ...prev, features: currentProFeatures }));
+          setFormData(prev => ({
+            ...prev,
+            businessType: bt,
+            features: currentProFeatures,
+            maxTables: bt === "retail" ? 0 : prev.maxTables,
+            maxRecipes: bt === "retail" ? 0 : prev.maxRecipes,
+          }));
         }}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="retail" data-testid="tab-retail">{t("admin.retail")}</TabsTrigger>
@@ -481,6 +582,9 @@ export default function AdminBilling() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                {(plan as any).tier && (
+                  <Badge variant="outline">{(plan as any).tier} - {(plan as any).businessType || "retail"}</Badge>
+                )}
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   <div className="flex items-center gap-1">
                     <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -494,6 +598,26 @@ export default function AdminBilling() {
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <span>{plan.maxUsers} {t("admin.billing_users")}</span>
                   </div>
+                  <div className="flex items-center gap-1">
+                    <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                    <span>{(plan as any).maxProducts === -1 ? t("admin.billing_unlimited") : ((plan as any).maxProducts ?? 100)} {t("admin.billing_products")}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <span>{(plan as any).maxDianDocuments ?? 200} {t("admin.billing_dian_docs")}</span>
+                  </div>
+                  {((plan as any).businessType === "restaurant" || ((plan as any).maxTables > 0)) && (
+                    <div className="flex items-center gap-1">
+                      <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
+                      <span>{(plan as any).maxTables ?? 0} {t("admin.billing_tables")}</span>
+                    </div>
+                  )}
+                  {((plan as any).businessType === "restaurant") && (
+                    <div className="flex items-center gap-1">
+                      <CookingPot className="h-4 w-4 text-muted-foreground" />
+                      <span>{(plan as any).maxRecipes === -1 ? t("admin.billing_unlimited") : ((plan as any).maxRecipes ?? 0)} {t("admin.billing_recipes")}</span>
+                    </div>
+                  )}
                 </div>
                 
                 {plan.features && plan.features.length > 0 && (
