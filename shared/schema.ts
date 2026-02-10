@@ -141,15 +141,47 @@ export const registers = pgTable("registers", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Register Session Status
+export const registerSessionStatusEnum = pgEnum("register_session_status", ["open", "closed"]);
+export const cashMovementTypeEnum = pgEnum("cash_movement_type", ["cash_in", "cash_out"]);
+
 // Register Sessions (Cash Drawer)
 export const registerSessions = pgTable("register_sessions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   registerId: varchar("register_id").references(() => registers.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   userId: varchar("user_id").references(() => users.id).notNull(),
+  closedByUserId: varchar("closed_by_user_id").references(() => users.id),
+  status: registerSessionStatusEnum("status").default("open").notNull(),
   openingCash: decimal("opening_cash", { precision: 10, scale: 2 }).notNull(),
   closingCash: decimal("closing_cash", { precision: 10, scale: 2 }),
+  expectedCash: decimal("expected_cash", { precision: 10, scale: 2 }),
+  expectedCard: decimal("expected_card", { precision: 10, scale: 2 }),
+  countedCash: decimal("counted_cash", { precision: 10, scale: 2 }),
+  countedCard: decimal("counted_card", { precision: 10, scale: 2 }),
+  cashVariance: decimal("cash_variance", { precision: 10, scale: 2 }),
+  cardVariance: decimal("card_variance", { precision: 10, scale: 2 }),
+  totalSales: decimal("total_sales", { precision: 10, scale: 2 }),
+  totalOrders: integer("total_orders").default(0),
+  totalReturns: decimal("total_returns", { precision: 10, scale: 2 }).default("0"),
+  cashMovementsIn: decimal("cash_movements_in", { precision: 10, scale: 2 }).default("0"),
+  cashMovementsOut: decimal("cash_movements_out", { precision: 10, scale: 2 }).default("0"),
+  denominationCounts: jsonb("denomination_counts").$type<Record<string, number>>(),
+  notes: text("notes"),
   openedAt: timestamp("opened_at").defaultNow(),
   closedAt: timestamp("closed_at"),
+});
+
+// Cash Movements (deposits/withdrawals during session)
+export const cashMovements = pgTable("cash_movements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").references(() => registerSessions.id).notNull(),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  type: cashMovementTypeEnum("type").notNull(),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Categories
@@ -303,6 +335,7 @@ export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   registerId: varchar("register_id").references(() => registers.id),
+  registerSessionId: varchar("register_session_id").references(() => registerSessions.id),
   userId: varchar("user_id").references(() => users.id).notNull(),
   salesRepId: varchar("sales_rep_id").references(() => users.id),
   customerId: varchar("customer_id").references(() => customers.id),
@@ -929,6 +962,7 @@ export const insertSupplierProductSchema = createInsertSchema(supplierProducts).
 export const insertModifierGroupSchema = createInsertSchema(modifierGroups).omit({ id: true });
 export const insertModifierSchema = createInsertSchema(modifiers).omit({ id: true });
 export const insertRegisterSessionSchema = createInsertSchema(registerSessions).omit({ id: true, openedAt: true, closedAt: true });
+export const insertCashMovementSchema = createInsertSchema(cashMovements).omit({ id: true, createdAt: true });
 
 // Portal Insert Schemas
 export const insertPortalRoleSchema = createInsertSchema(portalRoles).omit({ id: true, createdAt: true });
@@ -969,6 +1003,8 @@ export type Register = typeof registers.$inferSelect;
 export type InsertRegister = z.infer<typeof insertRegisterSchema>;
 export type RegisterSession = typeof registerSessions.$inferSelect;
 export type InsertRegisterSession = z.infer<typeof insertRegisterSessionSchema>;
+export type CashMovement = typeof cashMovements.$inferSelect;
+export type InsertCashMovement = z.infer<typeof insertCashMovementSchema>;
 export type Category = typeof categories.$inferSelect;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Product = typeof products.$inferSelect;

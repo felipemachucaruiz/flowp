@@ -39,6 +39,7 @@ import {
   AlertTriangle,
   FileText,
   Barcode,
+  Landmark,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -174,6 +175,12 @@ export function AppSidebar() {
       url: "/loyalty",
       icon: Gift,
       page: "loyalty-rewards",
+    },
+    {
+      title: t("nav.cash_register"),
+      url: "/cash-register",
+      icon: Landmark,
+      page: "cash-register",
     },
     {
       title: t("nav.reports"),

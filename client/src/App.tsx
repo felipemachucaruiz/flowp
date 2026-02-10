@@ -50,6 +50,7 @@ import AdminWhatsAppPackages from "@/pages/admin/whatsapp-packages";
 import AdminWhatsAppConfig from "@/pages/admin/whatsapp-config";
 import AdminShopifyConfig from "@/pages/admin/shopify-config";
 import LabelDesignerPage from "@/pages/label-designer";
+import CashRegisterPage from "@/pages/cash-register";
 import OnboardingPage from "@/pages/onboarding";
 import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
@@ -271,6 +272,9 @@ function TenantRouter() {
         </Route>
         <Route path="/loyalty">
           <ProtectedRoute component={LoyaltyRewardsPage} />
+        </Route>
+        <Route path="/cash-register">
+          <ProtectedRoute component={CashRegisterPage} />
         </Route>
         <Route path="/settings">
           <ProtectedRoute component={SettingsPage} />

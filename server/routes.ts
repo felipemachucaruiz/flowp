@@ -9,8 +9,8 @@ import archiver from "archiver";
 import { storage } from "./storage";
 import { emailService } from "./email";
 import { db } from "./db";
-import { orders, tenantIntegrationsMatias } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { orders, payments, registerSessions, cashMovements, tenantIntegrationsMatias } from "@shared/schema";
+import { eq, and, sql } from "drizzle-orm";
 import {
   insertTenantSchema,
   insertCategorySchema,
@@ -2025,6 +2025,8 @@ export async function registerRoutes(
       // Get next order number
       const orderNumber = await storage.getNextOrderNumber(tenantId);
 
+      const activeSession = await storage.getActiveSessionByTenant(tenantId);
+
       // Create order
       const order = await storage.createOrder({
         tenantId,
@@ -2036,7 +2038,8 @@ export async function registerRoutes(
         taxAmount: taxAmount.toString(),
         total: total.toString(),
         discountAmount: "0",
-        registerId: null,
+        registerId: activeSession?.registerId || null,
+        registerSessionId: activeSession?.id || null,
         customerId: customerId || null,
         tableId: null,
         notes: null,
@@ -4492,6 +4495,224 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Subscription error:", error);
       res.status(500).json({ message: "Failed to create subscription" });
+    }
+  });
+
+  // ===== CASH REGISTER ROUTES =====
+
+  app.get("/api/registers", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(400).json({ error: "Missing tenant" });
+      const regs = await storage.getRegistersByTenant(tenantId);
+      res.json(regs);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/register-sessions/active", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(400).json({ error: "Missing tenant" });
+      const registerId = req.query.registerId as string;
+      let session;
+      if (registerId) {
+        session = await storage.getActiveRegisterSession(registerId);
+      } else {
+        session = await storage.getActiveSessionByTenant(tenantId);
+      }
+      res.json(session || null);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/register-sessions", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(400).json({ error: "Missing tenant" });
+      const limit = parseInt(req.query.limit as string) || 50;
+      const sessions = await storage.getRegisterSessionsByTenant(tenantId, limit);
+
+      const sessionsWithUser = await Promise.all(sessions.map(async (s) => {
+        const user = await storage.getUser(s.userId);
+        const closedByUser = s.closedByUserId ? await storage.getUser(s.closedByUserId) : null;
+        return { ...s, userName: user?.name || user?.username, closedByUserName: closedByUser?.name || closedByUser?.username };
+      }));
+      res.json(sessionsWithUser);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/register-sessions/:id", async (req: Request, res: Response) => {
+    try {
+      const session = await storage.getRegisterSession(req.params.id);
+      if (!session) return res.status(404).json({ error: "Session not found" });
+      const user = await storage.getUser(session.userId);
+      const closedByUser = session.closedByUserId ? await storage.getUser(session.closedByUserId) : null;
+      const movements = await storage.getCashMovementsBySession(session.id);
+      res.json({
+        ...session,
+        userName: user?.name || user?.username,
+        closedByUserName: closedByUser?.name || closedByUser?.username,
+        movements,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/register-sessions/open", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = (req.session as any)?.userId;
+      if (!tenantId || !userId) return res.status(400).json({ error: "Missing tenant or user" });
+
+      const { registerId, openingCash } = req.body;
+      if (!registerId) return res.status(400).json({ error: "Missing registerId" });
+
+      const existingSession = await storage.getActiveRegisterSession(registerId);
+      if (existingSession) {
+        return res.status(400).json({ error: "Register already has an open session" });
+      }
+
+      const session = await storage.openRegisterSession({
+        registerId,
+        tenantId,
+        userId,
+        openingCash: String(openingCash || "0"),
+        status: "open",
+      });
+      res.json(session);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/register-sessions/:id/close", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = (req.session as any)?.userId;
+      if (!tenantId || !userId) return res.status(400).json({ error: "Missing tenant or user" });
+
+      const session = await storage.getRegisterSession(req.params.id);
+      if (!session) return res.status(404).json({ error: "Session not found" });
+      if (session.status === "closed") return res.status(400).json({ error: "Session already closed" });
+
+      const { countedCash, countedCard, denominationCounts, notes } = req.body;
+
+      const sessionOrders = await db.select({
+        total: orders.total,
+        id: orders.id,
+      }).from(orders).where(
+        and(
+          eq(orders.tenantId, tenantId),
+          eq(orders.registerSessionId, session.id),
+          eq(orders.status, "completed"),
+        )
+      );
+
+      let expectedCashSales = 0;
+      let expectedCardSales = 0;
+      let totalSales = 0;
+
+      for (const order of sessionOrders) {
+        totalSales += parseFloat(order.total || "0");
+        const orderPayments = await db.select().from(payments).where(eq(payments.orderId, order.id));
+        for (const p of orderPayments) {
+          const amount = parseFloat(p.amount || "0");
+          if (p.method === "cash") {
+            expectedCashSales += amount;
+          } else if (p.method === "card") {
+            expectedCardSales += amount;
+          } else if (p.method === "split") {
+            expectedCashSales += amount / 2;
+            expectedCardSales += amount / 2;
+          }
+        }
+      }
+
+      const movementsResult = await db.select({
+        type: cashMovements.type,
+        total: sql<string>`SUM(${cashMovements.amount})`,
+      }).from(cashMovements)
+        .where(eq(cashMovements.sessionId, session.id))
+        .groupBy(cashMovements.type);
+
+      let movIn = 0, movOut = 0;
+      for (const m of movementsResult) {
+        if (m.type === "cash_in") movIn = parseFloat(m.total || "0");
+        if (m.type === "cash_out") movOut = parseFloat(m.total || "0");
+      }
+
+      const openingCashVal = parseFloat(session.openingCash || "0");
+      const expectedCash = openingCashVal + expectedCashSales + movIn - movOut;
+      const expectedCard = expectedCardSales;
+
+      const countedCashVal = parseFloat(countedCash || "0");
+      const countedCardVal = parseFloat(countedCard || "0");
+
+      const cashVariance = countedCashVal - expectedCash;
+      const cardVariance = countedCardVal - expectedCard;
+
+      const closedSession = await storage.closeRegisterSession(session.id, {
+        closedByUserId: userId,
+        closingCash: String(countedCashVal),
+        expectedCash: String(expectedCash),
+        expectedCard: String(expectedCard),
+        countedCash: String(countedCashVal),
+        countedCard: String(countedCardVal),
+        cashVariance: String(cashVariance),
+        cardVariance: String(cardVariance),
+        totalSales: String(totalSales),
+        totalOrders: sessionOrders.length,
+        cashMovementsIn: String(movIn),
+        cashMovementsOut: String(movOut),
+        denominationCounts: denominationCounts || null,
+        notes: notes || null,
+      });
+
+      res.json(closedSession);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/register-sessions/:id/movements", async (req: Request, res: Response) => {
+    try {
+      const movements = await storage.getCashMovementsBySession(req.params.id);
+      res.json(movements);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/register-sessions/:id/movements", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = (req.session as any)?.userId;
+      if (!tenantId || !userId) return res.status(400).json({ error: "Missing tenant or user" });
+
+      const session = await storage.getRegisterSession(req.params.id);
+      if (!session) return res.status(404).json({ error: "Session not found" });
+      if (session.status === "closed") return res.status(400).json({ error: "Session is closed" });
+
+      const { type, amount, reason } = req.body;
+      if (!type || !amount) return res.status(400).json({ error: "Missing type or amount" });
+
+      const movement = await storage.createCashMovement({
+        sessionId: session.id,
+        tenantId,
+        userId,
+        type,
+        amount: String(amount),
+        reason: reason || null,
+      });
+      res.json(movement);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 

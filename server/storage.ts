@@ -1,5 +1,5 @@
 import {
-  tenants, users, registers, registerSessions, categories, products,
+  tenants, users, registers, registerSessions, cashMovements, categories, products,
   modifierGroups, modifiers, productModifierGroups, floors, tables,
   orders, orderItems, kitchenTickets, payments, returns, returnItems, stockMovements, auditLogs, customers,
   loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions,
@@ -9,6 +9,7 @@ import {
   saleIngredientConsumptions, ingredientAlerts, matiasDocumentQueue,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
+  type CashMovement, type InsertCashMovement,
   type Category, type InsertCategory, type Product, type InsertProduct,
   type Customer, type InsertCustomer,
   type LoyaltyTransaction, type InsertLoyaltyTransaction,
@@ -256,6 +257,19 @@ export interface IStorage {
   
   // FIFO Ingredient Consumption
   consumeIngredientFifo(tenantId: string, ingredientId: string, qtyNeeded: number, orderId: string, userId?: string): Promise<void>;
+  
+  // Register Sessions (Cash Register)
+  getRegistersByTenant(tenantId: string): Promise<Register[]>;
+  getActiveRegisterSession(registerId: string): Promise<RegisterSession | undefined>;
+  getActiveSessionByTenant(tenantId: string): Promise<RegisterSession | undefined>;
+  getRegisterSessionsByTenant(tenantId: string, limit?: number): Promise<RegisterSession[]>;
+  getRegisterSession(id: string): Promise<RegisterSession | undefined>;
+  openRegisterSession(data: InsertRegisterSession): Promise<RegisterSession>;
+  closeRegisterSession(id: string, data: Partial<RegisterSession>): Promise<RegisterSession | undefined>;
+  
+  // Cash Movements
+  getCashMovementsBySession(sessionId: string): Promise<CashMovement[]>;
+  createCashMovement(movement: InsertCashMovement): Promise<CashMovement>;
   
   // Pro Feature Check
   hasTenantProFeature(tenantId: string, feature: string): Promise<boolean>;
@@ -1752,6 +1766,62 @@ export class DatabaseStorage implements IStorage {
         eq(notifications.isRead, true),
         lte(notifications.createdAt, cutoffDate)
       ));
+  }
+
+  // Register Sessions (Cash Register)
+  async getRegistersByTenant(tenantId: string): Promise<Register[]> {
+    return db.select().from(registers).where(eq(registers.tenantId, tenantId)).orderBy(asc(registers.name));
+  }
+
+  async getActiveRegisterSession(registerId: string): Promise<RegisterSession | undefined> {
+    const [session] = await db.select().from(registerSessions)
+      .where(and(eq(registerSessions.registerId, registerId), eq(registerSessions.status, "open")));
+    return session || undefined;
+  }
+
+  async getActiveSessionByTenant(tenantId: string): Promise<RegisterSession | undefined> {
+    const [session] = await db.select().from(registerSessions)
+      .where(and(eq(registerSessions.tenantId, tenantId), eq(registerSessions.status, "open")))
+      .orderBy(desc(registerSessions.openedAt))
+      .limit(1);
+    return session || undefined;
+  }
+
+  async getRegisterSessionsByTenant(tenantId: string, limit: number = 50): Promise<RegisterSession[]> {
+    return db.select().from(registerSessions)
+      .where(eq(registerSessions.tenantId, tenantId))
+      .orderBy(desc(registerSessions.openedAt))
+      .limit(limit);
+  }
+
+  async getRegisterSession(id: string): Promise<RegisterSession | undefined> {
+    const [session] = await db.select().from(registerSessions).where(eq(registerSessions.id, id));
+    return session || undefined;
+  }
+
+  async openRegisterSession(data: InsertRegisterSession): Promise<RegisterSession> {
+    const [session] = await db.insert(registerSessions).values({ ...data, status: "open" }).returning();
+    return session;
+  }
+
+  async closeRegisterSession(id: string, data: Partial<RegisterSession>): Promise<RegisterSession | undefined> {
+    const [session] = await db.update(registerSessions)
+      .set({ ...data, status: "closed", closedAt: new Date() })
+      .where(eq(registerSessions.id, id))
+      .returning();
+    return session || undefined;
+  }
+
+  // Cash Movements
+  async getCashMovementsBySession(sessionId: string): Promise<CashMovement[]> {
+    return db.select().from(cashMovements)
+      .where(eq(cashMovements.sessionId, sessionId))
+      .orderBy(desc(cashMovements.createdAt));
+  }
+
+  async createCashMovement(movement: InsertCashMovement): Promise<CashMovement> {
+    const [created] = await db.insert(cashMovements).values(movement).returning();
+    return created;
   }
 }
 

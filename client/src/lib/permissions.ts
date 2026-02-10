@@ -36,7 +36,10 @@ export type Permission =
   | 'tables.view'
   | 'tables.manage'
   | 'kitchen.view'
-  | 'kitchen.manage';
+  | 'kitchen.manage'
+  | 'cash_register.view'
+  | 'cash_register.open_close'
+  | 'cash_register.manage';
 
 const rolePermissions: Record<UserRole, Permission[]> = {
   owner: [
@@ -52,6 +55,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'users.view', 'users.manage',
     'tables.view', 'tables.manage',
     'kitchen.view', 'kitchen.manage',
+    'cash_register.view', 'cash_register.open_close', 'cash_register.manage',
   ],
   admin: [
     'pos.view', 'pos.sell', 'pos.void',
@@ -66,6 +70,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'users.view', 'users.manage',
     'tables.view', 'tables.manage',
     'kitchen.view', 'kitchen.manage',
+    'cash_register.view', 'cash_register.open_close', 'cash_register.manage',
   ],
   manager: [
     'pos.view', 'pos.sell', 'pos.void',
@@ -78,6 +83,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'sales_history.view_own', 'sales_history.view_all',
     'tables.view', 'tables.manage',
     'kitchen.view', 'kitchen.manage',
+    'cash_register.view', 'cash_register.open_close', 'cash_register.manage',
   ],
   cashier: [
     'pos.view', 'pos.sell',
@@ -86,6 +92,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'customers.view', 'customers.create',
     'loyalty.view', 'loyalty.apply',
     'sales_history.view_own',
+    'cash_register.view', 'cash_register.open_close',
   ],
   kitchen: [
     'products.view',
@@ -135,6 +142,7 @@ export function canAccessPage(role: UserRole | string | undefined, page: string)
     settings: ['settings.view', 'settings.edit_operational', 'settings.edit_all'],
     tables: ['tables.view'],
     kitchen: ['kitchen.view'],
+    'cash-register': ['cash_register.view', 'cash_register.open_close', 'cash_register.manage'],
   };
   
   const required = pagePermissions[page];
