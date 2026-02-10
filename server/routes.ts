@@ -4629,7 +4629,7 @@ export async function registerRoutes(
   app.post("/api/register-sessions/open", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
-      const userId = (req.session as any)?.userId;
+      const userId = req.headers["x-user-id"] as string;
       if (!tenantId || !userId) return res.status(400).json({ error: "Missing tenant or user" });
 
       const { registerId, openingCash } = req.body;
@@ -4656,7 +4656,7 @@ export async function registerRoutes(
   app.post("/api/register-sessions/:id/close", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
-      const userId = (req.session as any)?.userId;
+      const userId = req.headers["x-user-id"] as string;
       if (!tenantId || !userId) return res.status(400).json({ error: "Missing tenant or user" });
 
       const session = await storage.getRegisterSession(req.params.id);
@@ -4754,7 +4754,7 @@ export async function registerRoutes(
   app.post("/api/register-sessions/:id/movements", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
-      const userId = (req.session as any)?.userId;
+      const userId = req.headers["x-user-id"] as string;
       if (!tenantId || !userId) return res.status(400).json({ error: "Missing tenant or user" });
 
       const session = await storage.getRegisterSession(req.params.id);
