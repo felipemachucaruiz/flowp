@@ -1453,7 +1453,10 @@ export async function registerRoutes(
       if (!tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      // Verify floor belongs to tenant if provided
+      const limitCheck = await storage.checkSubscriptionLimit(tenantId, "tables");
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ message: "Table limit reached for your subscription plan", current: limitCheck.current, max: limitCheck.max });
+      }
       if (req.body.floorId) {
         const floors = await storage.getFloorsByTenant(tenantId);
         const floorExists = floors.find(f => f.id === req.body.floorId);
@@ -3958,6 +3961,10 @@ export async function registerRoutes(
         return res.status(401).json({ message: "Unauthorized" });
       }
       if (!await checkProFeatureAccess(tenantId, res)) return;
+      const limitCheck = await storage.checkSubscriptionLimit(tenantId, "recipes");
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ message: "Recipe limit reached for your subscription plan", current: limitCheck.current, max: limitCheck.max });
+      }
       const { items, ...recipeData } = req.body;
       const recipe = await storage.createRecipe({
         ...recipeData,

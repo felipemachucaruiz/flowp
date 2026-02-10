@@ -751,18 +751,19 @@ export interface TierLimits {
   maxWarehouses: number;
   maxDianDocuments: number;
   maxTables: number;
+  maxRecipes: number;
 }
 
 export const RETAIL_TIER_LIMITS: Record<string, TierLimits> = {
-  basic: { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200, maxTables: 0 },
-  pro: { maxRegisters: 2, maxUsers: 3, maxLocations: 1, maxProducts: 250, maxWarehouses: 2, maxDianDocuments: 600, maxTables: 0 },
-  enterprise: { maxRegisters: 5, maxUsers: 10, maxLocations: 3, maxProducts: -1, maxWarehouses: 5, maxDianDocuments: 1000, maxTables: 0 },
+  basic: { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200, maxTables: 0, maxRecipes: 0 },
+  pro: { maxRegisters: 2, maxUsers: 3, maxLocations: 1, maxProducts: 250, maxWarehouses: 2, maxDianDocuments: 600, maxTables: 0, maxRecipes: 0 },
+  enterprise: { maxRegisters: 5, maxUsers: 10, maxLocations: 3, maxProducts: -1, maxWarehouses: 5, maxDianDocuments: 1000, maxTables: 0, maxRecipes: 0 },
 };
 
 export const RESTAURANT_TIER_LIMITS: Record<string, TierLimits> = {
-  basic: { maxRegisters: 1, maxUsers: 2, maxLocations: 1, maxProducts: 50, maxWarehouses: 1, maxDianDocuments: 500, maxTables: 10 },
-  pro: { maxRegisters: 2, maxUsers: 5, maxLocations: 1, maxProducts: 200, maxWarehouses: 2, maxDianDocuments: 1500, maxTables: 30 },
-  enterprise: { maxRegisters: 5, maxUsers: 15, maxLocations: 3, maxProducts: -1, maxWarehouses: 5, maxDianDocuments: 4000, maxTables: 100 },
+  basic: { maxRegisters: 1, maxUsers: 2, maxLocations: 1, maxProducts: 50, maxWarehouses: 1, maxDianDocuments: 500, maxTables: 10, maxRecipes: 0 },
+  pro: { maxRegisters: 2, maxUsers: 5, maxLocations: 1, maxProducts: 200, maxWarehouses: 2, maxDianDocuments: 1500, maxTables: 30, maxRecipes: 50 },
+  enterprise: { maxRegisters: 5, maxUsers: 15, maxLocations: 3, maxProducts: -1, maxWarehouses: 5, maxDianDocuments: 4000, maxTables: 100, maxRecipes: -1 },
 };
 
 export function getTierLimitsForType(businessType: string, tier: string): TierLimits {
@@ -786,6 +787,7 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   maxWarehouses: integer("max_warehouses").default(1),
   maxDianDocuments: integer("max_dian_documents").default(200),
   maxTables: integer("max_tables").default(0),
+  maxRecipes: integer("max_recipes").default(0),
   features: jsonb("features").$type<string[]>().default([]),
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),

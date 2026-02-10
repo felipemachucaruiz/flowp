@@ -13,6 +13,7 @@ export interface TenantPlanInfo {
     maxWarehouses: number;
     maxDianDocuments: number;
     maxTables: number;
+    maxRecipes: number;
   };
   features: string[];
   usage: {
@@ -21,8 +22,11 @@ export interface TenantPlanInfo {
     products: number;
     locations: number;
     tables: number;
+    recipes: number;
   };
 }
+
+type LimitResource = "registers" | "users" | "products" | "locations" | "tables" | "recipes";
 
 export function useSubscription() {
   const { data, isLoading } = useQuery<TenantPlanInfo>({
@@ -34,33 +38,35 @@ export function useSubscription() {
   const tier = data?.tier || "basic";
   const businessType = data?.businessType || "retail";
   const features = data?.features || [];
-  const limits = data?.limits || { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200, maxTables: 0 };
-  const usage = data?.usage || { registers: 0, users: 0, products: 0, locations: 0, tables: 0 };
+  const limits = data?.limits || { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200, maxTables: 0, maxRecipes: 0 };
+  const usage = data?.usage || { registers: 0, users: 0, products: 0, locations: 0, tables: 0, recipes: 0 };
 
   const hasFeature = (feature: SubscriptionFeature): boolean => {
     return features.includes(feature);
   };
 
-  const canCreate = (resource: "registers" | "users" | "products" | "locations" | "tables"): boolean => {
+  const canCreate = (resource: LimitResource): boolean => {
     const limitMap: Record<string, { current: number; max: number }> = {
       registers: { current: usage.registers, max: limits.maxRegisters },
       users: { current: usage.users, max: limits.maxUsers },
       products: { current: usage.products, max: limits.maxProducts },
       locations: { current: usage.locations, max: limits.maxLocations },
       tables: { current: usage.tables, max: limits.maxTables },
+      recipes: { current: usage.recipes, max: limits.maxRecipes },
     };
     const { current, max } = limitMap[resource];
     if (max === -1) return true;
     return current < max;
   };
 
-  const getUsagePercent = (resource: "registers" | "users" | "products" | "locations" | "tables"): number => {
+  const getUsagePercent = (resource: LimitResource): number => {
     const limitMap: Record<string, { current: number; max: number }> = {
       registers: { current: usage.registers, max: limits.maxRegisters },
       users: { current: usage.users, max: limits.maxUsers },
       products: { current: usage.products, max: limits.maxProducts },
       locations: { current: usage.locations, max: limits.maxLocations },
       tables: { current: usage.tables, max: limits.maxTables },
+      recipes: { current: usage.recipes, max: limits.maxRecipes },
     };
     const { current, max } = limitMap[resource];
     if (max === -1) return 0;

@@ -1874,7 +1874,7 @@ export class DatabaseStorage implements IStorage {
     plan: SubscriptionPlan | null;
     tier: string;
     businessType: string;
-    limits: { maxRegisters: number; maxUsers: number; maxLocations: number; maxProducts: number; maxWarehouses: number; maxDianDocuments: number; maxTables: number };
+    limits: { maxRegisters: number; maxUsers: number; maxLocations: number; maxProducts: number; maxWarehouses: number; maxDianDocuments: number; maxTables: number; maxRecipes: number };
     features: string[];
   }> {
     const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
@@ -1912,18 +1912,20 @@ export class DatabaseStorage implements IStorage {
         maxWarehouses: (plan as any).maxWarehouses ?? tierDefaults.maxWarehouses,
         maxDianDocuments: (plan as any).maxDianDocuments ?? tierDefaults.maxDianDocuments,
         maxTables: (plan as any).maxTables ?? tierDefaults.maxTables,
+        maxRecipes: (plan as any).maxRecipes ?? tierDefaults.maxRecipes,
       },
       features: effectiveFeatures,
     };
   }
 
   async getTenantUsageCounts(tenantId: string): Promise<{
-    registers: number; users: number; products: number; locations: number; tables: number;
+    registers: number; users: number; products: number; locations: number; tables: number; recipes: number;
   }> {
     const [regCount] = await db.select({ count: sql<number>`count(*)::int` }).from(registers).where(eq(registers.tenantId, tenantId));
     const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(users).where(eq(users.tenantId, tenantId));
     const [prodCount] = await db.select({ count: sql<number>`count(*)::int` }).from(products).where(eq(products.tenantId, tenantId));
     const [tableCount] = await db.select({ count: sql<number>`count(*)::int` }).from(tables).innerJoin(floors, eq(tables.floorId, floors.id)).where(eq(floors.tenantId, tenantId));
+    const [recipeCount] = await db.select({ count: sql<number>`count(*)::int` }).from(recipes).where(eq(recipes.tenantId, tenantId));
     const locationCount = 1;
     
     return {
@@ -1932,6 +1934,7 @@ export class DatabaseStorage implements IStorage {
       products: prodCount?.count || 0,
       locations: locationCount,
       tables: tableCount?.count || 0,
+      recipes: recipeCount?.count || 0,
     };
   }
 
@@ -1940,7 +1943,7 @@ export class DatabaseStorage implements IStorage {
     return features.includes(feature);
   }
 
-  async checkSubscriptionLimit(tenantId: string, resource: "registers" | "users" | "products" | "locations" | "tables"): Promise<{ allowed: boolean; current: number; max: number }> {
+  async checkSubscriptionLimit(tenantId: string, resource: "registers" | "users" | "products" | "locations" | "tables" | "recipes"): Promise<{ allowed: boolean; current: number; max: number }> {
     const { limits } = await this.getTenantPlanWithLimits(tenantId);
     const usage = await this.getTenantUsageCounts(tenantId);
     
@@ -1950,6 +1953,7 @@ export class DatabaseStorage implements IStorage {
       products: { current: usage.products, max: limits.maxProducts },
       locations: { current: usage.locations, max: limits.maxLocations },
       tables: { current: usage.tables, max: limits.maxTables },
+      recipes: { current: usage.recipes, max: limits.maxRecipes },
     };
     
     const { current, max } = limitMap[resource];
