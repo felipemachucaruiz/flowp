@@ -7,7 +7,7 @@ import {
   suppliers, purchaseOrders, purchaseOrderItems, supplierIngredients, supplierProducts,
   ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
   saleIngredientConsumptions, ingredientAlerts, matiasDocumentQueue,
-  getTierFeaturesForType,
+  getTierFeaturesForType, getTierLimitsForType,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
   type CashMovement, type InsertCashMovement,
@@ -285,14 +285,14 @@ export interface IStorage {
     plan: SubscriptionPlan | null;
     tier: string;
     businessType: string;
-    limits: { maxRegisters: number; maxUsers: number; maxLocations: number; maxProducts: number; maxWarehouses: number; maxDianDocuments: number };
+    limits: { maxRegisters: number; maxUsers: number; maxLocations: number; maxProducts: number; maxWarehouses: number; maxDianDocuments: number; maxTables: number };
     features: string[];
   }>;
   getTenantUsageCounts(tenantId: string): Promise<{
-    registers: number; users: number; products: number; locations: number;
+    registers: number; users: number; products: number; locations: number; tables: number;
   }>;
   hasSubscriptionFeature(tenantId: string, feature: string): Promise<boolean>;
-  checkSubscriptionLimit(tenantId: string, resource: "registers" | "users" | "products" | "locations"): Promise<{ allowed: boolean; current: number; max: number }>;
+  checkSubscriptionLimit(tenantId: string, resource: "registers" | "users" | "products" | "locations" | "tables"): Promise<{ allowed: boolean; current: number; max: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1874,11 +1874,9 @@ export class DatabaseStorage implements IStorage {
     plan: SubscriptionPlan | null;
     tier: string;
     businessType: string;
-    limits: { maxRegisters: number; maxUsers: number; maxLocations: number; maxProducts: number; maxWarehouses: number; maxDianDocuments: number };
+    limits: { maxRegisters: number; maxUsers: number; maxLocations: number; maxProducts: number; maxWarehouses: number; maxDianDocuments: number; maxTables: number };
     features: string[];
   }> {
-    const defaults = { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200 };
-    
     const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
     const tenantBusinessType = tenant?.type || "retail";
     
@@ -1886,40 +1884,46 @@ export class DatabaseStorage implements IStorage {
     if (!subscription) {
       const tier = tenant?.subscriptionTier || "basic";
       const tierFeatures = getTierFeaturesForType(tenantBusinessType, tier);
-      return { plan: null, tier, businessType: tenantBusinessType, limits: defaults, features: tierFeatures as string[] };
+      const tierLimits = getTierLimitsForType(tenantBusinessType, tier);
+      return { plan: null, tier, businessType: tenantBusinessType, limits: tierLimits, features: tierFeatures as string[] };
     }
     
     const [plan] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, subscription.planId));
-    if (!plan) return { plan: null, tier: "basic", businessType: tenantBusinessType, limits: defaults, features: [] };
+    if (!plan) {
+      const fallbackLimits = getTierLimitsForType(tenantBusinessType, "basic");
+      return { plan: null, tier: "basic", businessType: tenantBusinessType, limits: fallbackLimits, features: [] };
+    }
     
     const tier = (plan as any).tier || "basic";
     const planBusinessType = (plan as any).businessType || tenantBusinessType;
     const planFeatures = (plan.features as string[]) || [];
     const effectiveFeatures = planFeatures.length > 0 ? planFeatures : getTierFeaturesForType(planBusinessType, tier) as string[];
+    const tierDefaults = getTierLimitsForType(planBusinessType, tier);
     
     return {
       plan,
       tier,
       businessType: planBusinessType,
       limits: {
-        maxRegisters: plan.maxRegisters || defaults.maxRegisters,
-        maxUsers: plan.maxUsers || defaults.maxUsers,
-        maxLocations: plan.maxLocations || defaults.maxLocations,
-        maxProducts: (plan as any).maxProducts || defaults.maxProducts,
-        maxWarehouses: (plan as any).maxWarehouses || defaults.maxWarehouses,
-        maxDianDocuments: (plan as any).maxDianDocuments || defaults.maxDianDocuments,
+        maxRegisters: plan.maxRegisters || tierDefaults.maxRegisters,
+        maxUsers: plan.maxUsers || tierDefaults.maxUsers,
+        maxLocations: plan.maxLocations || tierDefaults.maxLocations,
+        maxProducts: (plan as any).maxProducts ?? tierDefaults.maxProducts,
+        maxWarehouses: (plan as any).maxWarehouses ?? tierDefaults.maxWarehouses,
+        maxDianDocuments: (plan as any).maxDianDocuments ?? tierDefaults.maxDianDocuments,
+        maxTables: (plan as any).maxTables ?? tierDefaults.maxTables,
       },
       features: effectiveFeatures,
     };
   }
 
   async getTenantUsageCounts(tenantId: string): Promise<{
-    registers: number; users: number; products: number; locations: number;
+    registers: number; users: number; products: number; locations: number; tables: number;
   }> {
     const [regCount] = await db.select({ count: sql<number>`count(*)::int` }).from(registers).where(eq(registers.tenantId, tenantId));
     const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(users).where(eq(users.tenantId, tenantId));
     const [prodCount] = await db.select({ count: sql<number>`count(*)::int` }).from(products).where(eq(products.tenantId, tenantId));
-    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    const [tableCount] = await db.select({ count: sql<number>`count(*)::int` }).from(tables).innerJoin(floors, eq(tables.floorId, floors.id)).where(eq(floors.tenantId, tenantId));
     const locationCount = 1;
     
     return {
@@ -1927,6 +1931,7 @@ export class DatabaseStorage implements IStorage {
       users: userCount?.count || 0,
       products: prodCount?.count || 0,
       locations: locationCount,
+      tables: tableCount?.count || 0,
     };
   }
 
@@ -1935,7 +1940,7 @@ export class DatabaseStorage implements IStorage {
     return features.includes(feature);
   }
 
-  async checkSubscriptionLimit(tenantId: string, resource: "registers" | "users" | "products" | "locations"): Promise<{ allowed: boolean; current: number; max: number }> {
+  async checkSubscriptionLimit(tenantId: string, resource: "registers" | "users" | "products" | "locations" | "tables"): Promise<{ allowed: boolean; current: number; max: number }> {
     const { limits } = await this.getTenantPlanWithLimits(tenantId);
     const usage = await this.getTenantUsageCounts(tenantId);
     
@@ -1944,11 +1949,12 @@ export class DatabaseStorage implements IStorage {
       users: { current: usage.users, max: limits.maxUsers },
       products: { current: usage.products, max: limits.maxProducts },
       locations: { current: usage.locations, max: limits.maxLocations },
+      tables: { current: usage.tables, max: limits.maxTables },
     };
     
     const { current, max } = limitMap[resource];
-    const unlimited = max === -1;
-    return { allowed: unlimited || current < max, current, max };
+    if (max === -1) return { allowed: true, current, max };
+    return { allowed: current < max, current, max };
   }
 }
 

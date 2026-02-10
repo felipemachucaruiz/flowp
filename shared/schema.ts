@@ -708,22 +708,26 @@ export const RETAIL_TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
 };
 
 export const RESTAURANT_TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
-  basic: [],
+  basic: [
+    SUBSCRIPTION_FEATURES.LABEL_DESIGNER,
+  ],
   pro: [
+    SUBSCRIPTION_FEATURES.LABEL_DESIGNER,
     SUBSCRIPTION_FEATURES.USER_MANAGEMENT,
     SUBSCRIPTION_FEATURES.REPORTS_DETAILED,
     SUBSCRIPTION_FEATURES.KDS_ADVANCED,
-    SUBSCRIPTION_FEATURES.FLOOR_MANAGEMENT,
-    SUBSCRIPTION_FEATURES.MODIFIERS_ADVANCED,
     SUBSCRIPTION_FEATURES.INGREDIENTS_RECIPES,
+    SUBSCRIPTION_FEATURES.MODIFIERS_ADVANCED,
+    SUBSCRIPTION_FEATURES.INVENTORY_ADVANCED,
   ],
   enterprise: [
+    SUBSCRIPTION_FEATURES.LABEL_DESIGNER,
     SUBSCRIPTION_FEATURES.USER_MANAGEMENT,
     SUBSCRIPTION_FEATURES.REPORTS_DETAILED,
     SUBSCRIPTION_FEATURES.KDS_ADVANCED,
-    SUBSCRIPTION_FEATURES.FLOOR_MANAGEMENT,
-    SUBSCRIPTION_FEATURES.MODIFIERS_ADVANCED,
     SUBSCRIPTION_FEATURES.INGREDIENTS_RECIPES,
+    SUBSCRIPTION_FEATURES.MODIFIERS_ADVANCED,
+    SUBSCRIPTION_FEATURES.INVENTORY_ADVANCED,
     SUBSCRIPTION_FEATURES.TIPS_ANALYTICS,
     SUBSCRIPTION_FEATURES.MULTI_LOCATION,
     SUBSCRIPTION_FEATURES.REPORTS_MANAGEMENT,
@@ -739,6 +743,34 @@ export function getTierFeaturesForType(businessType: string, tier: string): Subs
 
 export const TIER_FEATURES: Record<string, SubscriptionFeature[]> = RETAIL_TIER_FEATURES;
 
+export interface TierLimits {
+  maxRegisters: number;
+  maxUsers: number;
+  maxLocations: number;
+  maxProducts: number;
+  maxWarehouses: number;
+  maxDianDocuments: number;
+  maxTables: number;
+}
+
+export const RETAIL_TIER_LIMITS: Record<string, TierLimits> = {
+  basic: { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200, maxTables: 0 },
+  pro: { maxRegisters: 2, maxUsers: 3, maxLocations: 1, maxProducts: 250, maxWarehouses: 2, maxDianDocuments: 600, maxTables: 0 },
+  enterprise: { maxRegisters: 5, maxUsers: 10, maxLocations: 3, maxProducts: -1, maxWarehouses: 5, maxDianDocuments: 1000, maxTables: 0 },
+};
+
+export const RESTAURANT_TIER_LIMITS: Record<string, TierLimits> = {
+  basic: { maxRegisters: 1, maxUsers: 2, maxLocations: 1, maxProducts: 50, maxWarehouses: 1, maxDianDocuments: 500, maxTables: 10 },
+  pro: { maxRegisters: 2, maxUsers: 5, maxLocations: 1, maxProducts: 200, maxWarehouses: 2, maxDianDocuments: 1500, maxTables: 30 },
+  enterprise: { maxRegisters: 5, maxUsers: 15, maxLocations: 3, maxProducts: -1, maxWarehouses: 5, maxDianDocuments: 4000, maxTables: 100 },
+};
+
+export function getTierLimitsForType(businessType: string, tier: string): TierLimits {
+  const mapping = businessType === "restaurant" ? RESTAURANT_TIER_LIMITS : RETAIL_TIER_LIMITS;
+  const fallback = businessType === "restaurant" ? RESTAURANT_TIER_LIMITS.basic : RETAIL_TIER_LIMITS.basic;
+  return mapping[tier] || fallback;
+}
+
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
@@ -753,6 +785,7 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   maxProducts: integer("max_products").default(100),
   maxWarehouses: integer("max_warehouses").default(1),
   maxDianDocuments: integer("max_dian_documents").default(200),
+  maxTables: integer("max_tables").default(0),
   features: jsonb("features").$type<string[]>().default([]),
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),
