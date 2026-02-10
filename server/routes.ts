@@ -315,12 +315,19 @@ export async function registerRoutes(
         adminPhone,
         adminUsername,
         adminPassword,
+        trialTier,
       } = req.body;
 
       // Validate required fields
       if (!adminEmail || !adminPhone) {
         return res.status(400).json({ message: "Email and phone number are required" });
       }
+
+      const TRIAL_DAYS = 14;
+      const validTiers = ["basic", "pro", "enterprise"];
+      const selectedTier = validTiers.includes(trialTier) ? trialTier : "basic";
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
 
       // Create tenant
       const tenant = await storage.createTenant({
@@ -334,7 +341,10 @@ export async function registerRoutes(
         taxRate: "0",
         logo: null,
         featureFlags: businessType === "restaurant" ? RESTAURANT_FEATURES : RETAIL_FEATURES,
-      });
+        subscriptionTier: selectedTier,
+        trialEndsAt,
+        status: "trial",
+      } as any);
 
       // Create owner user (first user is always owner)
       const user = await storage.createUser({
@@ -4459,7 +4469,8 @@ export async function registerRoutes(
         receiptShowLogo, receiptHeaderText, receiptFooterText, 
         receiptShowAddress, receiptShowPhone, receiptTaxId, receiptLogo, onboardingComplete,
         receiptLogoSize, receiptFontSize, receiptFontFamily,
-        couponEnabled, couponText, openCashDrawer, allowZeroStockSales
+        couponEnabled, couponText, openCashDrawer, allowZeroStockSales,
+        subscriptionTier
       } = req.body;
       
       const updated = await storage.updateTenant(tenantId, {
@@ -4487,7 +4498,8 @@ export async function registerRoutes(
         couponText: couponText !== undefined ? couponText : undefined,
         openCashDrawer: openCashDrawer !== undefined ? openCashDrawer : undefined,
         allowZeroStockSales: allowZeroStockSales !== undefined ? allowZeroStockSales : undefined,
-      });
+        subscriptionTier: subscriptionTier && ["basic", "pro", "enterprise"].includes(subscriptionTier) ? subscriptionTier : undefined,
+      } as any);
       
       if (!updated) {
         return res.status(404).json({ message: "Tenant not found" });
@@ -4607,8 +4619,36 @@ export async function registerRoutes(
       const tenantId = req.headers["x-tenant-id"] as string;
       if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
 
+      const tenant = await storage.getTenant(tenantId);
       const planData = await storage.getTenantPlanWithLimits(tenantId);
       const usage = await storage.getTenantUsageCounts(tenantId);
+
+      let trialInfo: { isTrialing: boolean; trialEndsAt: string | null; daysRemaining: number; trialExpired: boolean } = {
+        isTrialing: false,
+        trialEndsAt: null,
+        daysRemaining: 0,
+        trialExpired: false,
+      };
+
+      if (tenant?.status === "trial" && tenant.trialEndsAt) {
+        const now = new Date();
+        const trialEnd = new Date(tenant.trialEndsAt);
+        const msRemaining = trialEnd.getTime() - now.getTime();
+        const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+        const trialExpired = msRemaining <= 0;
+
+        trialInfo = {
+          isTrialing: true,
+          trialEndsAt: tenant.trialEndsAt.toISOString(),
+          daysRemaining,
+          trialExpired,
+        };
+
+        if (trialExpired && !planData.plan) {
+          await storage.updateTenant(tenantId, { status: "suspended", suspendedReason: "Trial expired" } as any);
+          trialInfo.trialExpired = true;
+        }
+      }
 
       res.json({
         tier: planData.tier,
@@ -4620,6 +4660,8 @@ export async function registerRoutes(
           ...usage,
           warehouses: (await storage.getWarehousesByTenant(tenantId)).length,
         },
+        trial: trialInfo,
+        status: tenant?.status || "trial",
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch plan info" });

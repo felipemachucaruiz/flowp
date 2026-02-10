@@ -1,6 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { SUBSCRIPTION_FEATURES, type SubscriptionFeature } from "@shared/schema";
 
+export interface TrialInfo {
+  isTrialing: boolean;
+  trialEndsAt: string | null;
+  daysRemaining: number;
+  trialExpired: boolean;
+}
+
 export interface TenantPlanInfo {
   tier: string;
   businessType: string;
@@ -25,6 +32,8 @@ export interface TenantPlanInfo {
     tables: number;
     recipes: number;
   };
+  trial?: TrialInfo;
+  status?: string;
 }
 
 type LimitResource = "registers" | "users" | "products" | "locations" | "warehouses" | "tables" | "recipes";
@@ -41,6 +50,8 @@ export function useSubscription() {
   const features = data?.features || [];
   const limits = data?.limits || { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200, maxTables: 0, maxRecipes: 0 };
   const usage = data?.usage || { registers: 0, users: 0, products: 0, locations: 0, warehouses: 0, tables: 0, recipes: 0 };
+  const trial: TrialInfo = data?.trial || { isTrialing: false, trialEndsAt: null, daysRemaining: 0, trialExpired: false };
+  const status = data?.status || "trial";
 
   const hasFeature = (feature: SubscriptionFeature): boolean => {
     return features.includes(feature);
@@ -81,6 +92,7 @@ export function useSubscription() {
     isLoading,
     tier,
     businessType,
+    status,
     isRetail: businessType === "retail",
     isRestaurant: businessType === "restaurant",
     isBasic: tier === "basic",
@@ -90,6 +102,7 @@ export function useSubscription() {
     limits,
     usage,
     features,
+    trial,
     hasFeature,
     canCreate,
     getUsagePercent,

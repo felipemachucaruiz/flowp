@@ -5,12 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Check, ChevronRight, ChevronLeft, Globe, Building2, DollarSign, Receipt, Loader2, ImageIcon, X } from "lucide-react";
+import { Check, ChevronRight, ChevronLeft, Globe, Building2, DollarSign, Receipt, Loader2, ImageIcon, X, CreditCard, Package, Users, Monitor, ShoppingBag, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import flowpLogo from "@assets/flowp_logoball_1769460779650.webp";
 import { useUpload } from "@/hooks/use-upload";
@@ -45,9 +46,91 @@ const COUNTRIES = [
 
 const STEPS = [
   { id: "language", icon: Globe },
+  { id: "plan", icon: CreditCard },
   { id: "business", icon: Building2 },
   { id: "currency", icon: DollarSign },
   { id: "receipt", icon: Receipt },
+];
+
+type PlanFeature = { key: string; count?: number };
+
+const PLAN_OPTIONS: Array<{
+  tier: string;
+  labelKey: string;
+  descKey: string;
+  recommended?: boolean;
+  color: string;
+  selectedColor: string;
+  features: PlanFeature[];
+  restaurantFeatures: PlanFeature[];
+}> = [
+  {
+    tier: "basic",
+    labelKey: "onboarding.plan_starter",
+    descKey: "onboarding.plan_starter_desc",
+    color: "border-border",
+    selectedColor: "border-primary bg-primary/5",
+    features: [
+      { key: "registers", count: 1 },
+      { key: "users", count: 1 },
+      { key: "products", count: 100 },
+      { key: "warehouses", count: 1 },
+    ],
+    restaurantFeatures: [
+      { key: "registers", count: 1 },
+      { key: "users", count: 2 },
+      { key: "products", count: 50 },
+      { key: "tables", count: 10 },
+    ],
+  },
+  {
+    tier: "pro",
+    labelKey: "onboarding.plan_pro",
+    descKey: "onboarding.plan_pro_desc",
+    recommended: true,
+    color: "border-border",
+    selectedColor: "border-primary bg-primary/5",
+    features: [
+      { key: "registers", count: 2 },
+      { key: "users", count: 3 },
+      { key: "products", count: 250 },
+      { key: "warehouses", count: 2 },
+      { key: "label_designer" },
+      { key: "reports" },
+    ],
+    restaurantFeatures: [
+      { key: "registers", count: 2 },
+      { key: "users", count: 5 },
+      { key: "products", count: 200 },
+      { key: "tables", count: 30 },
+      { key: "recipes", count: 50 },
+      { key: "kds" },
+    ],
+  },
+  {
+    tier: "enterprise",
+    labelKey: "onboarding.plan_advanced",
+    descKey: "onboarding.plan_advanced_desc",
+    color: "border-border",
+    selectedColor: "border-primary bg-primary/5",
+    features: [
+      { key: "registers", count: 5 },
+      { key: "users", count: 10 },
+      { key: "unlimited_products" },
+      { key: "locations", count: 3 },
+      { key: "warehouses", count: 5 },
+      { key: "multi_location" },
+      { key: "ecommerce" },
+    ],
+    restaurantFeatures: [
+      { key: "registers", count: 5 },
+      { key: "users", count: 15 },
+      { key: "unlimited_products" },
+      { key: "tables", count: 100 },
+      { key: "unlimited_recipes" },
+      { key: "multi_location" },
+    ],
+  },
 ];
 
 export default function OnboardingPage() {
@@ -59,6 +142,7 @@ export default function OnboardingPage() {
   
   const [formData, setFormData] = useState({
     language: tenant?.language || "en",
+    subscriptionTier: (tenant as any)?.subscriptionTier || "pro",
     name: tenant?.name || "",
     country: tenant?.country || "",
     city: tenant?.city || "",
@@ -144,6 +228,16 @@ export default function OnboardingPage() {
   };
 
   const selectedCountry = COUNTRIES.find(c => c.value === formData.country);
+  const isRestaurant = tenant?.type === "restaurant";
+
+  const getFeatureLabel = (feat: PlanFeature): string => {
+    const i18nKey = `onboarding.plan_feat_${feat.key}` as any;
+    const label = t(i18nKey);
+    if (feat.count !== undefined) {
+      return label.replace("{count}", String(feat.count));
+    }
+    return label;
+  };
 
   const renderStep = () => {
     switch (currentStep) {
@@ -181,12 +275,70 @@ export default function OnboardingPage() {
       case 1:
         return (
           <div className="space-y-6">
+            <div className="text-center mb-4">
+              <h2 className="text-2xl font-bold mb-2">{t("onboarding.plan_title")}</h2>
+              <p className="text-muted-foreground text-sm">{t("onboarding.plan_description")}</p>
+            </div>
+            <div className="grid grid-cols-1 gap-3">
+              {PLAN_OPTIONS.map((plan) => {
+                const features = isRestaurant ? plan.restaurantFeatures : plan.features;
+                const isSelected = formData.subscriptionTier === plan.tier;
+                return (
+                  <button
+                    key={plan.tier}
+                    onClick={() => setFormData({ ...formData, subscriptionTier: plan.tier })}
+                    className={cn(
+                      "relative flex flex-col p-4 rounded-lg border-2 transition-all hover-elevate text-left",
+                      isSelected ? plan.selectedColor : plan.color + " hover:border-primary/50"
+                    )}
+                    data-testid={`button-plan-${plan.tier}`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold">{t(plan.labelKey as any)}</span>
+                        {plan.recommended && (
+                          <Badge variant="default" className="text-xs">
+                            {t("onboarding.plan_recommended")}
+                          </Badge>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                          <Check className="w-4 h-4 text-primary-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">{t(plan.descKey as any)}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {features.slice(0, 4).map((f, i) => (
+                        <span key={i} className="text-xs bg-muted px-2 py-1 rounded-md">
+                          {getFeatureLabel(f)}
+                        </span>
+                      ))}
+                      {features.length > 4 && (
+                        <span className="text-xs text-muted-foreground">
+                          +{features.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-center text-xs text-muted-foreground">
+              {t("onboarding.plan_trial_note")}
+            </p>
+          </div>
+        );
+
+      case 2:
+        return (
+          <div className="space-y-6">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-bold mb-2">{t("onboarding.business_title")}</h2>
               <p className="text-muted-foreground">{t("onboarding.business_description")}</p>
             </div>
             <div className="space-y-4">
-              {/* Logo Upload */}
               <div className="flex flex-col items-center mb-4">
                 <Label className="mb-2">{t("onboarding.business_logo")}</Label>
                 <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden bg-muted/50 relative">
@@ -299,7 +451,7 @@ export default function OnboardingPage() {
           </div>
         );
 
-      case 2:
+      case 3:
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
@@ -361,7 +513,7 @@ export default function OnboardingPage() {
           </div>
         );
 
-      case 3:
+      case 4:
         return (
           <div className="space-y-6">
             <div className="text-center mb-8">
@@ -369,7 +521,6 @@ export default function OnboardingPage() {
               <p className="text-muted-foreground">{t("onboarding.receipt_description")}</p>
             </div>
             <div className="space-y-4">
-              {/* Receipt Logo Upload */}
               <div className="flex flex-col items-center mb-4">
                 <Label className="mb-2">{t("onboarding.receipt_logo")}</Label>
                 <div className="w-24 h-24 border-2 border-dashed rounded-lg flex items-center justify-center overflow-hidden bg-muted/50 relative">
@@ -517,7 +668,7 @@ export default function OnboardingPage() {
                   {index < STEPS.length - 1 && (
                     <div
                       className={cn(
-                        "w-12 h-1 mx-1",
+                        "w-8 h-1 mx-1",
                         index < currentStep ? "bg-primary" : "bg-muted"
                       )}
                     />

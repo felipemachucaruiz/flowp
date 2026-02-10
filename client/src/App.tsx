@@ -14,6 +14,11 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationCenter } from "@/components/notification-center";
+import { useSubscription } from "@/lib/use-subscription";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Clock, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -102,6 +107,59 @@ function AdminRoute({ component: Component }: { component: () => JSX.Element }) 
   return <Component />;
 }
 
+function TrialBanner() {
+  const { trial, status, isLoading } = useSubscription();
+  const { t } = useI18n();
+  const [, navigate] = useLocation();
+
+  const showBanner = trial.isTrialing || status === "trial" || (status === "suspended" && trial.trialExpired);
+  if (isLoading || !showBanner) return null;
+
+  const daysText = trial.trialExpired
+    ? t("trial.expired")
+    : trial.daysRemaining <= 0
+    ? t("trial.last_day")
+    : trial.daysRemaining === 1
+    ? t("trial.day_remaining")
+    : t("trial.days_remaining").replace("{days}", String(trial.daysRemaining));
+
+  const isUrgent = trial.trialExpired || trial.daysRemaining <= 3;
+
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-2 px-3 py-1.5 text-xs shrink-0",
+        trial.trialExpired
+          ? "bg-destructive/10 text-destructive border-b border-destructive/20"
+          : isUrgent
+          ? "bg-orange-500/10 text-orange-700 dark:text-orange-400 border-b border-orange-500/20"
+          : "bg-primary/5 text-muted-foreground border-b"
+      )}
+      data-testid="banner-trial"
+    >
+      <div className="flex items-center gap-2 flex-wrap">
+        {isUrgent ? (
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+        ) : (
+          <Clock className="w-3.5 h-3.5 shrink-0" />
+        )}
+        <span>{t("trial.banner_title")}</span>
+        <Badge variant={trial.trialExpired ? "destructive" : "secondary"}>
+          {daysText}
+        </Badge>
+      </div>
+      <Button
+        variant={trial.trialExpired ? "destructive" : "outline"}
+        size="sm"
+        onClick={() => navigate("/settings")}
+        data-testid="button-trial-upgrade"
+      >
+        {t("trial.upgrade_now")}
+      </Button>
+    </div>
+  );
+}
+
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -130,6 +188,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </header>
+          <TrialBanner />
           <main className="flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
