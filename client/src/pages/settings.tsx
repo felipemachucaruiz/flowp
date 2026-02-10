@@ -55,6 +55,8 @@ import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 import { EmailTemplateEditor } from "@/components/email-template-editor";
 import { ShopifySettings } from "@/components/shopify-settings";
 import { WhatsAppSettings } from "@/components/whatsapp-settings";
+import { useSubscription } from "@/lib/use-subscription";
+import { UpgradeBanner } from "@/components/upgrade-banner";
 
 const businessSettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
@@ -1086,6 +1088,7 @@ function RegistersSettings() {
   const { t } = useI18n();
   const { toast } = useToast();
   const { tenant } = useAuth();
+  const { canCreate: canCreateSub, usage: subUsage, limits: subLimits } = useSubscription();
 
   const [showDialog, setShowDialog] = useState(false);
   const [editingRegister, setEditingRegister] = useState<{ id: string; name: string } | null>(null);
@@ -1193,10 +1196,15 @@ function RegistersSettings() {
           </div>
         </CardHeader>
         <CardContent>
-          {count >= maxRegisters && (
-            <div className="flex items-center gap-2 p-3 mb-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md text-sm">
-              <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
-              <span className="text-yellow-700 dark:text-yellow-300">{t("settings.register_limit_reached")}</span>
+          {!canCreateSub("registers") && (
+            <div className="mb-4">
+              <UpgradeBanner
+                type="limit"
+                resourceName={t("settings.registers")}
+                current={subUsage.registers}
+                max={subLimits.maxRegisters}
+                compact
+              />
             </div>
           )}
           {isLoading ? (
@@ -1668,6 +1676,7 @@ export default function SettingsPage() {
   const { tenant, refreshTenant } = useAuth();
   const { t, formatDate } = useI18n();
   const { can, isOwner, isAdmin } = usePermissions();
+  const { canCreate: canCreateSub2, usage: subUsage2, limits: subLimits2 } = useSubscription();
   
   // Determine initial tab from URL path and query params
   const getInitialTab = () => {
@@ -2212,6 +2221,7 @@ export default function SettingsPage() {
   };
 
   const openTableDialog = (table?: Table) => {
+    if (!table && !canCreateSub2("tables")) return;
     if (table) {
       setEditingItem(table);
       tableForm.reset({ name: table.name, floorId: table.floorId, capacity: table.capacity || 4 });
@@ -2884,7 +2894,7 @@ export default function SettingsPage() {
                 </div>
                 <Button
                   onClick={() => openTableDialog()}
-                  disabled={!floors?.length}
+                  disabled={!floors?.length || !canCreateSub2("tables")}
                   data-testid="button-add-table"
                 >
                   <Plus className="w-4 h-4 mr-2" />
@@ -2892,6 +2902,17 @@ export default function SettingsPage() {
                 </Button>
               </CardHeader>
               <CardContent>
+                {!canCreateSub2("tables") && (
+                  <div className="mb-4">
+                    <UpgradeBanner
+                      type="limit"
+                      resourceName={t("form.tables")}
+                      current={subUsage2.tables}
+                      max={subLimits2.maxTables}
+                      compact
+                    />
+                  </div>
+                )}
                 {tablesLoading ? (
                   <div className="space-y-2">
                     {[...Array(4)].map((_, i) => (

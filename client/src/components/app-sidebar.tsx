@@ -253,15 +253,21 @@ export function AppSidebar() {
                   return (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton
-                        className="h-12 sm:h-9 text-base sm:text-sm opacity-50 cursor-not-allowed"
+                        asChild
+                        className="h-12 sm:h-9 text-base sm:text-sm opacity-60"
                         data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}-locked`}
-                        onClick={(e) => e.preventDefault()}
                       >
-                        <item.icon className="w-5 h-5 sm:w-4 sm:h-4" />
-                        <span className="flex-1">{item.title}</span>
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 no-default-hover-elevate no-default-active-elevate">
-                          {requiredTierLabel}
-                        </Badge>
+                        <Link
+                          href="/subscription"
+                          onClick={() => { if (isMobile) setOpenMobile(false); }}
+                        >
+                          <item.icon className="w-5 h-5 sm:w-4 sm:h-4" />
+                          <span className="flex-1">{item.title}</span>
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 no-default-hover-elevate no-default-active-elevate">
+                            <Lock className="w-3 h-3 mr-0.5" />
+                            {requiredTierLabel}
+                          </Badge>
+                        </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );

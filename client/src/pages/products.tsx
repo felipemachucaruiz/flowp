@@ -18,12 +18,15 @@ import { useToast } from "@/hooks/use-toast";
 import type { Category, Product } from "@shared/schema";
 import { Plus, Pencil, Trash2, Package, Tag, X, ImageIcon, Search, Filter } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
+import { useSubscription } from "@/lib/use-subscription";
+import { UpgradeBanner } from "@/components/upgrade-banner";
 
 export default function ProductsPage() {
   const { tenant } = useAuth();
   const { t } = useI18n();
   const { toast } = useToast();
   const { can } = usePermissions();
+  const { canCreate, usage, limits } = useSubscription();
 
   const formatCurrency = (amount: number) => {
     const currency = tenant?.currency || "USD";
@@ -257,12 +260,26 @@ export default function ProductsPage() {
                 )}
               </Button>
               {can('products.create') && (
-                <Button onClick={() => openProductDialog()} data-testid="button-add-product">
+                <Button
+                  onClick={() => openProductDialog()}
+                  disabled={!canCreate("products")}
+                  data-testid="button-add-product"
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   {t("products.add")}
                 </Button>
               )}
             </div>
+
+            {!canCreate("products") && (
+              <UpgradeBanner
+                type="limit"
+                resourceName={t("nav.products")}
+                current={usage.products}
+                max={limits.maxProducts}
+                compact
+              />
+            )}
 
             {showFilters && (
               <Card>

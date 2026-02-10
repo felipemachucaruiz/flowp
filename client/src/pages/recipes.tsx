@@ -12,12 +12,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, ChefHat, Trash2, Edit, Crown, Package } from "lucide-react";
 import type { Product, Ingredient, Recipe, RecipeItem } from "@shared/schema";
+import { useSubscription } from "@/lib/use-subscription";
+import { UpgradeBanner } from "@/components/upgrade-banner";
 
 type RecipeWithItems = Recipe & { items: RecipeItem[] };
 
 export default function RecipesPage() {
   const { t } = useI18n();
   const { toast } = useToast();
+  const { canCreate, usage, limits } = useSubscription();
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<RecipeWithItems | null>(null);
@@ -268,7 +271,7 @@ export default function RecipesPage() {
         </div>
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
-            <Button data-testid="button-add-recipe">
+            <Button disabled={!canCreate("recipes")} data-testid="button-add-recipe">
               <Plus className="w-4 h-4 mr-2" />
               {t("recipes.add")}
             </Button>
@@ -418,6 +421,16 @@ export default function RecipesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {!canCreate("recipes") && (
+        <UpgradeBanner
+          type="limit"
+          resourceName={t("recipes.title")}
+          current={usage.recipes}
+          max={limits.maxRecipes}
+          compact
+        />
+      )}
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
