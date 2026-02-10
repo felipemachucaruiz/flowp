@@ -259,6 +259,7 @@ export interface IStorage {
   consumeIngredientFifo(tenantId: string, ingredientId: string, qtyNeeded: number, orderId: string, userId?: string): Promise<void>;
   
   // Register Sessions (Cash Register)
+  createRegister(data: InsertRegister): Promise<Register>;
   getRegistersByTenant(tenantId: string): Promise<Register[]>;
   getActiveRegisterSession(registerId: string): Promise<RegisterSession | undefined>;
   getActiveSessionByTenant(tenantId: string): Promise<RegisterSession | undefined>;
@@ -1769,6 +1770,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Register Sessions (Cash Register)
+  async createRegister(data: InsertRegister): Promise<Register> {
+    const [reg] = await db.insert(registers).values(data).returning();
+    return reg;
+  }
+
   async getRegistersByTenant(tenantId: string): Promise<Register[]> {
     return db.select().from(registers).where(eq(registers.tenantId, tenantId)).orderBy(asc(registers.name));
   }

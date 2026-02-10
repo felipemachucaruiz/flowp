@@ -349,6 +349,13 @@ export async function registerRoutes(
         isActive: true,
       });
 
+      await storage.createRegister({
+        tenantId: tenant.id,
+        name: "Caja 1",
+        deviceId: null,
+        printerConfig: null,
+      });
+
       // Send welcome email (async, don't wait)
       if (adminEmail) {
         emailService.sendWelcomeEmail(
