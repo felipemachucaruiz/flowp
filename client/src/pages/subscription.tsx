@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, Building2, Monitor, Users, CreditCard, Loader2, ShoppingBag, FileText, UtensilsCrossed, CookingPot } from "lucide-react";
+import { Check, Building2, Monitor, Users, CreditCard, Loader2, ShoppingBag, FileText, UtensilsCrossed, CookingPot, Warehouse } from "lucide-react";
 import PayPalButton from "@/components/PayPalButton";
 import type { SubscriptionPlan } from "@shared/schema";
 
@@ -203,6 +203,11 @@ export default function SubscriptionPage() {
                       <Users className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">{plan.maxUsers}</span>
                       <span className="text-xs text-muted-foreground">Users</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1">
+                      <Warehouse className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{(plan as any).maxWarehouses ?? 1}</span>
+                      <span className="text-xs text-muted-foreground">Warehouses</span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <ShoppingBag className="h-4 w-4 text-muted-foreground" />

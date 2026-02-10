@@ -35,7 +35,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Package, Check, Users, Building2, Monitor, ShoppingBag, FileText, UtensilsCrossed, CookingPot } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, Check, Users, Building2, Monitor, ShoppingBag, FileText, UtensilsCrossed, CookingPot, Warehouse } from "lucide-react";
 import type { SubscriptionPlan } from "@shared/schema";
 
 interface PlanFormData {
@@ -48,6 +48,7 @@ interface PlanFormData {
   maxLocations: number;
   maxRegisters: number;
   maxUsers: number;
+  maxWarehouses: number;
   maxProducts: number;
   maxDianDocuments: number;
   maxTables: number;
@@ -67,6 +68,7 @@ const defaultFormData: PlanFormData = {
   maxLocations: 1,
   maxRegisters: 2,
   maxUsers: 5,
+  maxWarehouses: 1,
   maxProducts: 100,
   maxDianDocuments: 200,
   maxTables: 0,
@@ -191,6 +193,7 @@ export default function AdminBilling() {
       maxLocations: plan.maxLocations || 1,
       maxRegisters: plan.maxRegisters || 2,
       maxUsers: plan.maxUsers || 5,
+      maxWarehouses: (plan as any).maxWarehouses ?? 1,
       maxProducts: (plan as any).maxProducts ?? 100,
       maxDianDocuments: (plan as any).maxDianDocuments ?? 200,
       maxTables: (plan as any).maxTables ?? 0,
@@ -298,7 +301,7 @@ export default function AdminBilling() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="grid gap-2">
           <Label htmlFor="maxLocations">{t("admin.billing_max_locations")}</Label>
           <Input
@@ -330,6 +333,17 @@ export default function AdminBilling() {
             value={formData.maxUsers}
             onChange={(e) => setFormData(prev => ({ ...prev, maxUsers: parseInt(e.target.value) || 1 }))}
             data-testid="input-plan-max-users"
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="maxWarehouses">{t("admin.billing_max_warehouses")}</Label>
+          <Input
+            id="maxWarehouses"
+            type="number"
+            min="-1"
+            value={formData.maxWarehouses}
+            onChange={(e) => setFormData(prev => ({ ...prev, maxWarehouses: parseInt(e.target.value) || 1 }))}
+            data-testid="input-plan-max-warehouses"
           />
         </div>
       </div>
@@ -597,6 +611,10 @@ export default function AdminBilling() {
                   <div className="flex items-center gap-1">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <span>{plan.maxUsers} {t("admin.billing_users")}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Warehouse className="h-4 w-4 text-muted-foreground" />
+                    <span>{(plan as any).maxWarehouses ?? 1} {t("admin.billing_warehouses")}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <ShoppingBag className="h-4 w-4 text-muted-foreground" />

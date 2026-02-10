@@ -324,7 +324,7 @@ router.get("/plans", requirePermission("billing.plans:read"), async (req: Reques
 
 router.post("/plans", requirePermission("billing.plans:manage"), async (req: Request, res: Response) => {
   try {
-    const { name, tier, businessType, priceMonthly, priceYearly, currency, maxLocations, maxRegisters, maxUsers, maxProducts, maxDianDocuments, maxTables, maxRecipes, features, isActive, sortOrder } = req.body;
+    const { name, tier, businessType, priceMonthly, priceYearly, currency, maxLocations, maxRegisters, maxUsers, maxWarehouses, maxProducts, maxDianDocuments, maxTables, maxRecipes, features, isActive, sortOrder } = req.body;
 
     if (!name || priceMonthly === undefined) {
       return res.status(400).json({ error: "Name and monthly price are required" });
@@ -342,6 +342,7 @@ router.post("/plans", requirePermission("billing.plans:manage"), async (req: Req
         maxLocations: maxLocations || 1,
         maxRegisters: maxRegisters || 1,
         maxUsers: maxUsers || 1,
+        maxWarehouses: maxWarehouses ?? 1,
         maxProducts: maxProducts ?? 100,
         maxDianDocuments: maxDianDocuments ?? 200,
         maxTables: maxTables ?? 0,
@@ -361,7 +362,7 @@ router.post("/plans", requirePermission("billing.plans:manage"), async (req: Req
 
 router.put("/plans/:id", requirePermission("billing.plans:manage"), async (req: Request, res: Response) => {
   try {
-    const { name, tier, businessType, priceMonthly, priceYearly, currency, maxLocations, maxRegisters, maxUsers, maxProducts, maxDianDocuments, maxTables, maxRecipes, features, isActive, sortOrder } = req.body;
+    const { name, tier, businessType, priceMonthly, priceYearly, currency, maxLocations, maxRegisters, maxUsers, maxWarehouses, maxProducts, maxDianDocuments, maxTables, maxRecipes, features, isActive, sortOrder } = req.body;
 
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
@@ -373,6 +374,7 @@ router.put("/plans/:id", requirePermission("billing.plans:manage"), async (req: 
     if (maxLocations !== undefined) updateData.maxLocations = maxLocations;
     if (maxRegisters !== undefined) updateData.maxRegisters = maxRegisters;
     if (maxUsers !== undefined) updateData.maxUsers = maxUsers;
+    if (maxWarehouses !== undefined) updateData.maxWarehouses = maxWarehouses;
     if (maxProducts !== undefined) updateData.maxProducts = maxProducts;
     if (maxDianDocuments !== undefined) updateData.maxDianDocuments = maxDianDocuments;
     if (maxTables !== undefined) updateData.maxTables = maxTables;
