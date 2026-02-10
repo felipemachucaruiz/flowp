@@ -3,6 +3,7 @@ import { SUBSCRIPTION_FEATURES, type SubscriptionFeature } from "@shared/schema"
 
 export interface TenantPlanInfo {
   tier: string;
+  businessType: string;
   plan: { id: string; name: string } | null;
   limits: {
     maxRegisters: number;
@@ -29,6 +30,7 @@ export function useSubscription() {
   });
 
   const tier = data?.tier || "basic";
+  const businessType = data?.businessType || "retail";
   const features = data?.features || [];
   const limits = data?.limits || { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200 };
   const usage = data?.usage || { registers: 0, users: 0, products: 0, locations: 0 };
@@ -64,6 +66,9 @@ export function useSubscription() {
   return {
     isLoading,
     tier,
+    businessType,
+    isRetail: businessType === "retail",
+    isRestaurant: businessType === "restaurant",
     isBasic: tier === "basic",
     isPro: tier === "pro",
     isEnterprise: tier === "enterprise",

@@ -150,7 +150,7 @@ export function AppSidebar() {
             url: "/ingredients",
             icon: Package,
             page: "ingredients",
-            requiredFeature: SUBSCRIPTION_FEATURES.INVENTORY_ADVANCED as SubscriptionFeature,
+            requiredFeature: SUBSCRIPTION_FEATURES.INGREDIENTS_RECIPES as SubscriptionFeature,
             minTier: "pro",
           },
           {
@@ -158,7 +158,7 @@ export function AppSidebar() {
             url: "/recipes",
             icon: ChefHat,
             page: "recipes",
-            requiredFeature: SUBSCRIPTION_FEATURES.INVENTORY_ADVANCED as SubscriptionFeature,
+            requiredFeature: SUBSCRIPTION_FEATURES.INGREDIENTS_RECIPES as SubscriptionFeature,
             minTier: "pro",
           },
           {

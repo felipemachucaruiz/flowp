@@ -4496,6 +4496,7 @@ export async function registerRoutes(
 
       res.json({
         tier: planData.tier,
+        businessType: planData.businessType,
         plan: planData.plan ? { id: planData.plan.id, name: planData.plan.name } : null,
         limits: planData.limits,
         features: planData.features,

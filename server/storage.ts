@@ -7,7 +7,7 @@ import {
   suppliers, purchaseOrders, purchaseOrderItems, supplierIngredients, supplierProducts,
   ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
   saleIngredientConsumptions, ingredientAlerts, matiasDocumentQueue,
-  TIER_FEATURES,
+  getTierFeaturesForType,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
   type CashMovement, type InsertCashMovement,
@@ -284,6 +284,7 @@ export interface IStorage {
   getTenantPlanWithLimits(tenantId: string): Promise<{
     plan: SubscriptionPlan | null;
     tier: string;
+    businessType: string;
     limits: { maxRegisters: number; maxUsers: number; maxLocations: number; maxProducts: number; maxWarehouses: number; maxDianDocuments: number };
     features: string[];
   }>;
@@ -1872,29 +1873,34 @@ export class DatabaseStorage implements IStorage {
   async getTenantPlanWithLimits(tenantId: string): Promise<{
     plan: SubscriptionPlan | null;
     tier: string;
+    businessType: string;
     limits: { maxRegisters: number; maxUsers: number; maxLocations: number; maxProducts: number; maxWarehouses: number; maxDianDocuments: number };
     features: string[];
   }> {
     const defaults = { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200 };
     
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    const tenantBusinessType = tenant?.type || "retail";
+    
     const subscription = await this.getTenantSubscription(tenantId);
     if (!subscription) {
-      const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
       const tier = tenant?.subscriptionTier || "basic";
-      const tierFeatures = TIER_FEATURES[tier] || [];
-      return { plan: null, tier, limits: defaults, features: tierFeatures as string[] };
+      const tierFeatures = getTierFeaturesForType(tenantBusinessType, tier);
+      return { plan: null, tier, businessType: tenantBusinessType, limits: defaults, features: tierFeatures as string[] };
     }
     
     const [plan] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, subscription.planId));
-    if (!plan) return { plan: null, tier: "basic", limits: defaults, features: [] };
+    if (!plan) return { plan: null, tier: "basic", businessType: tenantBusinessType, limits: defaults, features: [] };
     
     const tier = (plan as any).tier || "basic";
+    const planBusinessType = (plan as any).businessType || tenantBusinessType;
     const planFeatures = (plan.features as string[]) || [];
-    const effectiveFeatures = planFeatures.length > 0 ? planFeatures : (TIER_FEATURES[tier] || []) as string[];
+    const effectiveFeatures = planFeatures.length > 0 ? planFeatures : getTierFeaturesForType(planBusinessType, tier) as string[];
     
     return {
       plan,
       tier,
+      businessType: planBusinessType,
       limits: {
         maxRegisters: plan.maxRegisters || defaults.maxRegisters,
         maxUsers: plan.maxUsers || defaults.maxUsers,

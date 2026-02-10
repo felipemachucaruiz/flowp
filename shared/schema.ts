@@ -678,11 +678,16 @@ export const SUBSCRIPTION_FEATURES = {
   REPORTS_MANAGEMENT: "reports_management",
   ECOMMERCE_INTEGRATIONS: "ecommerce_integrations",
   SECURITY_AUDIT: "security_audit",
+  KDS_ADVANCED: "kds_advanced",
+  FLOOR_MANAGEMENT: "floor_management",
+  MODIFIERS_ADVANCED: "modifiers_advanced",
+  INGREDIENTS_RECIPES: "ingredients_recipes",
+  TIPS_ANALYTICS: "tips_analytics",
 } as const;
 
 export type SubscriptionFeature = typeof SUBSCRIPTION_FEATURES[keyof typeof SUBSCRIPTION_FEATURES];
 
-export const TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
+export const RETAIL_TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
   basic: [],
   pro: [
     SUBSCRIPTION_FEATURES.USER_MANAGEMENT,
@@ -702,10 +707,43 @@ export const TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
   ],
 };
 
+export const RESTAURANT_TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
+  basic: [],
+  pro: [
+    SUBSCRIPTION_FEATURES.USER_MANAGEMENT,
+    SUBSCRIPTION_FEATURES.REPORTS_DETAILED,
+    SUBSCRIPTION_FEATURES.KDS_ADVANCED,
+    SUBSCRIPTION_FEATURES.FLOOR_MANAGEMENT,
+    SUBSCRIPTION_FEATURES.MODIFIERS_ADVANCED,
+    SUBSCRIPTION_FEATURES.INGREDIENTS_RECIPES,
+  ],
+  enterprise: [
+    SUBSCRIPTION_FEATURES.USER_MANAGEMENT,
+    SUBSCRIPTION_FEATURES.REPORTS_DETAILED,
+    SUBSCRIPTION_FEATURES.KDS_ADVANCED,
+    SUBSCRIPTION_FEATURES.FLOOR_MANAGEMENT,
+    SUBSCRIPTION_FEATURES.MODIFIERS_ADVANCED,
+    SUBSCRIPTION_FEATURES.INGREDIENTS_RECIPES,
+    SUBSCRIPTION_FEATURES.TIPS_ANALYTICS,
+    SUBSCRIPTION_FEATURES.MULTI_LOCATION,
+    SUBSCRIPTION_FEATURES.REPORTS_MANAGEMENT,
+    SUBSCRIPTION_FEATURES.ECOMMERCE_INTEGRATIONS,
+    SUBSCRIPTION_FEATURES.SECURITY_AUDIT,
+  ],
+};
+
+export function getTierFeaturesForType(businessType: string, tier: string): SubscriptionFeature[] {
+  const mapping = businessType === "restaurant" ? RESTAURANT_TIER_FEATURES : RETAIL_TIER_FEATURES;
+  return mapping[tier] || [];
+}
+
+export const TIER_FEATURES: Record<string, SubscriptionFeature[]> = RETAIL_TIER_FEATURES;
+
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   tier: text("tier").default("basic"),
+  businessType: text("business_type").default("retail"),
   priceMonthly: decimal("price_monthly", { precision: 10, scale: 2 }).notNull(),
   priceYearly: decimal("price_yearly", { precision: 10, scale: 2 }),
   currency: text("currency").default("COP"),
