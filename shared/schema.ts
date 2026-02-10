@@ -15,7 +15,9 @@ export const orderChannelEnum = pgEnum("order_channel", ["pos", "shopify", "manu
 export const customerIdTypeEnum = pgEnum("customer_id_type", ["pasaporte", "cedula_ciudadania", "cedula_extranjeria", "nit", "tarjeta_identidad", "registro_civil", "consumidor_final"]);
 
 // Purchase order enums
-export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft", "ordered", "partial", "received", "cancelled"]);
+export const purchaseOrderStatusEnum = pgEnum("purchase_order_status", ["draft", "sent", "partial", "received", "cancelled"]);
+export const supplierDocTypeEnum = pgEnum("supplier_doc_type", ["nit", "cc", "other"]);
+export const paymentTermsTypeEnum = pgEnum("payment_terms_type", ["cash", "credit"]);
 
 // Portal enums
 export const tenantStatusEnum = pgEnum("tenant_status", ["trial", "active", "past_due", "suspended", "cancelled"]);
@@ -471,10 +473,15 @@ export const suppliers = pgTable("suppliers", {
   tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   contactName: text("contact_name"),
+  documentType: supplierDocTypeEnum("document_type"),
+  identification: text("identification"),
   email: text("email"),
   phone: text("phone"),
   address: text("address"),
   taxId: text("tax_id"),
+  paymentTermsType: paymentTermsTypeEnum("payment_terms_type").default("cash"),
+  paymentTermsDays: integer("payment_terms_days").default(0),
+  currency: text("currency"),
   notes: text("notes"),
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -485,6 +492,7 @@ export const purchaseOrders = pgTable("purchase_orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   supplierId: varchar("supplier_id").references(() => suppliers.id),
+  destinationWarehouseId: varchar("destination_warehouse_id").references(() => warehouses.id),
   orderNumber: text("order_number").notNull(),
   status: purchaseOrderStatusEnum("status").default("draft").notNull(),
   expectedDate: timestamp("expected_date"),
@@ -510,6 +518,30 @@ export const purchaseOrderItems = pgTable("purchase_order_items", {
   expirationDate: timestamp("expiration_date"),
   lotCode: text("lot_code"),
   notes: text("notes"),
+});
+
+// Purchase Receipts (goods received notes)
+export const purchaseReceipts = pgTable("purchase_receipts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
+  purchaseOrderId: varchar("purchase_order_id").references(() => purchaseOrders.id).notNull(),
+  receiptNumber: text("receipt_number").notNull(),
+  warehouseId: varchar("warehouse_id").references(() => warehouses.id),
+  receivedBy: varchar("received_by").references(() => users.id),
+  notes: text("notes"),
+  receivedAt: timestamp("received_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Purchase Receipt Items
+export const purchaseReceiptItems = pgTable("purchase_receipt_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  receiptId: varchar("receipt_id").references(() => purchaseReceipts.id).notNull(),
+  purchaseOrderItemId: varchar("purchase_order_item_id").references(() => purchaseOrderItems.id),
+  productId: varchar("product_id").references(() => products.id),
+  ingredientId: varchar("ingredient_id").references(() => ingredients.id),
+  quantityReceived: integer("quantity_received").notNull(),
+  unitCost: decimal("unit_cost", { precision: 12, scale: 2 }).notNull(),
 });
 
 // Supplier-Ingredient Linking (preferred suppliers for ingredients)
@@ -1070,6 +1102,8 @@ export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit
 export const insertPurchaseOrderItemSchema = createInsertSchema(purchaseOrderItems).omit({ id: true });
 export const insertSupplierIngredientSchema = createInsertSchema(supplierIngredients).omit({ id: true, createdAt: true });
 export const insertSupplierProductSchema = createInsertSchema(supplierProducts).omit({ id: true, createdAt: true });
+export const insertPurchaseReceiptSchema = createInsertSchema(purchaseReceipts).omit({ id: true, createdAt: true });
+export const insertPurchaseReceiptItemSchema = createInsertSchema(purchaseReceiptItems).omit({ id: true });
 export const insertModifierGroupSchema = createInsertSchema(modifierGroups).omit({ id: true });
 export const insertModifierSchema = createInsertSchema(modifiers).omit({ id: true });
 export const insertRegisterSessionSchema = createInsertSchema(registerSessions).omit({ id: true, openedAt: true, closedAt: true });
@@ -1158,6 +1192,10 @@ export type SupplierIngredient = typeof supplierIngredients.$inferSelect;
 export type InsertSupplierIngredient = z.infer<typeof insertSupplierIngredientSchema>;
 export type SupplierProduct = typeof supplierProducts.$inferSelect;
 export type InsertSupplierProduct = z.infer<typeof insertSupplierProductSchema>;
+export type PurchaseReceipt = typeof purchaseReceipts.$inferSelect;
+export type InsertPurchaseReceipt = z.infer<typeof insertPurchaseReceiptSchema>;
+export type PurchaseReceiptItem = typeof purchaseReceiptItems.$inferSelect;
+export type InsertPurchaseReceiptItem = z.infer<typeof insertPurchaseReceiptItemSchema>;
 
 // Portal Types
 export type PortalRole = typeof portalRoles.$inferSelect;

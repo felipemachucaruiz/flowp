@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,35 +21,30 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import type { Supplier, PurchaseOrder, PurchaseOrderItem, Product, Ingredient } from "@shared/schema";
 import {
-  Truck,
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  Package,
-  CheckCircle,
-  Clock,
-  AlertTriangle,
-  ShoppingCart,
-  Eye,
-  Loader2,
-  Leaf,
-  CalendarDays,
-  RefreshCw,
+  Truck, Plus, Search, Edit, Trash2, Package, CheckCircle,
+  ShoppingCart, Loader2, Leaf,
+  RefreshCw, Send, FileText, Warehouse,
 } from "lucide-react";
 
 type SupplierFormData = {
   name: string;
   contactName?: string;
+  documentType?: string;
+  identification?: string;
   email?: string;
   phone?: string;
   address?: string;
+  taxId?: string;
+  paymentTermsType?: string;
+  paymentTermsDays?: number;
+  currency?: string;
   notes?: string;
   isActive: boolean;
 };
 
 type PurchaseOrderFormData = {
   supplierId: string;
+  destinationWarehouseId?: string;
   expectedDate?: string;
   notes?: string;
 };
@@ -66,37 +61,65 @@ interface PurchaseOrderWithItems extends PurchaseOrder {
   items?: PurchaseOrderItem[];
 }
 
-const localeMap: Record<string, string> = {
-  en: "en-US",
-  es: "es-ES",
-  pt: "pt-BR",
+type ReceiptData = {
+  id: string;
+  receiptNumber: string;
+  warehouseId?: string;
+  receivedBy?: string;
+  notes?: string;
+  receivedAt: string;
+  items: Array<{
+    id: string;
+    productId?: string;
+    ingredientId?: string;
+    quantityReceived: number;
+    unitCost: string;
+  }>;
 };
+
+type ReorderSuggestion = {
+  type: "product" | "ingredient";
+  id: string;
+  name: string;
+  currentStock: number;
+  reorderPoint: number;
+  suggestedQty: number;
+  preferredSupplierId?: string;
+  preferredSupplierName?: string;
+  unit?: string;
+};
+
+const localeMap: Record<string, string> = { en: "en-US", es: "es-ES", pt: "pt-BR" };
 
 export default function PurchasingPage() {
   const { toast } = useToast();
   const { t, formatDate, language } = useI18n();
   const { tenant } = useAuth();
-  
+
   const formatCurrency = (amount: number) => {
     const locale = localeMap[language] || "en-US";
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency: tenant?.currency || "USD",
-    }).format(amount);
+    return new Intl.NumberFormat(locale, { style: "currency", currency: tenant?.currency || "USD" }).format(amount);
   };
-  
+
   const supplierSchema = z.object({
     name: z.string().min(1, t("common.required")),
     contactName: z.string().optional(),
+    documentType: z.string().optional(),
+    identification: z.string().optional(),
     email: z.string().email().optional().or(z.literal("")),
     phone: z.string().optional(),
     address: z.string().optional(),
+    taxId: z.string().optional(),
+    paymentTermsType: z.string().optional(),
+    paymentTermsDays: z.coerce.number().min(0).optional(),
+    currency: z.string().optional(),
     notes: z.string().optional(),
     isActive: z.boolean().default(true),
   });
 
   const purchaseOrderSchema = z.object({
     supplierId: z.string().min(1, t("common.required")),
+    destinationWarehouseId: z.string().optional(),
     expectedDate: z.string().optional(),
     notes: z.string().optional(),
   });
@@ -108,1365 +131,711 @@ export default function PurchasingPage() {
     quantity: z.number().min(1, t("common.required")),
     unitCost: z.number().min(0, t("common.required")),
   }).refine(data => (data.itemType === "product" && data.productId) || (data.itemType === "ingredient" && data.ingredientId), {
-    message: t("common.required"),
-    path: ["productId"],
+    message: t("common.required"), path: ["productId"],
   });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showSupplierDialog, setShowSupplierDialog] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [showDeleteSupplierDialog, setShowDeleteSupplierDialog] = useState(false);
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
-  
   const [showOrderDialog, setShowOrderDialog] = useState(false);
   const [showOrderDetailsDialog, setShowOrderDetailsDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrderWithItems | null>(null);
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
   const [showReceiveDialog, setShowReceiveDialog] = useState(false);
   const [receiveQuantities, setReceiveQuantities] = useState<Record<string, number>>({});
-  const [receiveExpirationDates, setReceiveExpirationDates] = useState<Record<string, string>>({});
-  const [receiveLotCodes, setReceiveLotCodes] = useState<Record<string, string>>({});
+  const [receiveNotes, setReceiveNotes] = useState("");
+  const [receiveWarehouseId, setReceiveWarehouseId] = useState<string>("");
   const [itemType, setItemType] = useState<"product" | "ingredient">("product");
   const [selectedReorderItems, setSelectedReorderItems] = useState<Set<string>>(new Set());
   const [reorderQuantities, setReorderQuantities] = useState<Record<string, number>>({});
   const [reorderSupplierId, setReorderSupplierId] = useState<string>("");
+  const [orderDetailTab, setOrderDetailTab] = useState<string>("items");
+  const [showDeleteOrderDialog, setShowDeleteOrderDialog] = useState(false);
 
-  const { data: suppliers, isLoading: suppliersLoading } = useQuery<Supplier[]>({
-    queryKey: ["/api/suppliers"],
-  });
+  const { data: suppliers, isLoading: suppliersLoading } = useQuery<Supplier[]>({ queryKey: ["/api/suppliers"] });
+  const { data: purchaseOrders, isLoading: ordersLoading } = useQuery<PurchaseOrder[]>({ queryKey: ["/api/purchase-orders"] });
+  const { data: products } = useQuery<Product[]>({ queryKey: ["/api/products"] });
+  const { data: ingredients } = useQuery<Ingredient[]>({ queryKey: ["/api/ingredients"], enabled: tenant?.type === "restaurant" });
+  const { data: warehouses } = useQuery<any[]>({ queryKey: ["/api/warehouses"] });
 
-  const { data: purchaseOrders, isLoading: ordersLoading } = useQuery<PurchaseOrder[]>({
-    queryKey: ["/api/purchase-orders"],
-  });
-
-  const { data: products } = useQuery<Product[]>({
-    queryKey: ["/api/products"],
-  });
-
-  const { data: ingredients } = useQuery<Ingredient[]>({
-    queryKey: ["/api/ingredients"],
-    enabled: tenant?.type === "restaurant",
-  });
-
-  type ReorderSuggestion = {
-    type: "product" | "ingredient";
-    id: string;
-    name: string;
-    currentStock: number;
-    reorderPoint: number;
-    suggestedQty: number;
-    preferredSupplierId?: string;
-    preferredSupplierName?: string;
-    unit?: string;
-  };
-
-  const { data: reorderSuggestions, isLoading: reorderLoading, refetch: refetchReorder } = useQuery<ReorderSuggestion[]>({
-    queryKey: ["/api/reorder-suggestions"],
-  });
-
-  const supplierForm = useForm<SupplierFormData>({
-    resolver: zodResolver(supplierSchema),
-    defaultValues: {
-      name: "",
-      contactName: "",
-      email: "",
-      phone: "",
-      address: "",
-      notes: "",
-      isActive: true,
-    },
-  });
-
-  const orderForm = useForm<PurchaseOrderFormData>({
-    resolver: zodResolver(purchaseOrderSchema),
-    defaultValues: {
-      supplierId: "",
-      expectedDate: "",
-      notes: "",
-    },
-  });
-
-  const itemForm = useForm<OrderItemFormData>({
-    resolver: zodResolver(orderItemSchema),
-    defaultValues: {
-      itemType: "product",
-      productId: "",
-      ingredientId: "",
-      quantity: 1,
-      unitCost: 0,
-    },
-  });
-
-  const createSupplierMutation = useMutation({
-    mutationFn: async (data: SupplierFormData) => {
-      const res = await apiRequest("POST", "/api/suppliers", data);
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: t("purchasing.supplier_created") });
-      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
-      setShowSupplierDialog(false);
-      supplierForm.reset();
-    },
-  });
-
-  const updateSupplierMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: SupplierFormData }) => {
-      const res = await apiRequest("PATCH", `/api/suppliers/${id}`, data);
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: t("purchasing.supplier_updated") });
-      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
-      setShowSupplierDialog(false);
-      setEditingSupplier(null);
-      supplierForm.reset();
-    },
-  });
-
-  const deleteSupplierMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/suppliers/${id}`);
-    },
-    onSuccess: () => {
-      toast({ title: t("purchasing.supplier_deleted") });
-      queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] });
-      setShowDeleteSupplierDialog(false);
-      setSupplierToDelete(null);
-    },
-  });
-
-  const createOrderMutation = useMutation({
-    mutationFn: async (data: PurchaseOrderFormData) => {
-      const res = await apiRequest("POST", "/api/purchase-orders", {
-        ...data,
-        expectedDate: data.expectedDate ? new Date(data.expectedDate).toISOString() : null,
-        status: "draft",
+  const { data: receipts } = useQuery<ReceiptData[]>({
+    queryKey: ["/api/purchase-orders", selectedOrder?.id, "receipts"],
+    enabled: !!selectedOrder?.id,
+    queryFn: async () => {
+      const res = await fetch(`/api/purchase-orders/${selectedOrder!.id}/receipts`, {
+        headers: { "x-tenant-id": localStorage.getItem("tenantId") || "" },
       });
       return res.json();
     },
-    onSuccess: () => {
-      toast({ title: t("purchasing.order_created") });
-      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
-      setShowOrderDialog(false);
-      orderForm.reset();
-    },
   });
 
+  const { data: reorderSuggestions, isLoading: reorderLoading, refetch: refetchReorder } = useQuery<ReorderSuggestion[]>({ queryKey: ["/api/reorder-suggestions"] });
+
+  const supplierForm = useForm<SupplierFormData>({
+    resolver: zodResolver(supplierSchema),
+    defaultValues: { name: "", contactName: "", documentType: "", identification: "", email: "", phone: "", address: "", taxId: "", paymentTermsType: "cash", paymentTermsDays: 0, currency: "", notes: "", isActive: true },
+  });
+  const orderForm = useForm<PurchaseOrderFormData>({
+    resolver: zodResolver(purchaseOrderSchema),
+    defaultValues: { supplierId: "", destinationWarehouseId: "", expectedDate: "", notes: "" },
+  });
+  const itemForm = useForm<OrderItemFormData>({
+    resolver: zodResolver(orderItemSchema),
+    defaultValues: { itemType: "product", productId: "", ingredientId: "", quantity: 1, unitCost: 0 },
+  });
+
+  const createSupplierMutation = useMutation({
+    mutationFn: async (data: SupplierFormData) => { const res = await apiRequest("POST", "/api/suppliers", data); return res.json(); },
+    onSuccess: () => { toast({ title: t("purchasing.supplier_created") }); queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] }); setShowSupplierDialog(false); supplierForm.reset(); },
+  });
+  const updateSupplierMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: SupplierFormData }) => { const res = await apiRequest("PATCH", `/api/suppliers/${id}`, data); return res.json(); },
+    onSuccess: () => { toast({ title: t("purchasing.supplier_updated") }); queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] }); setShowSupplierDialog(false); setEditingSupplier(null); supplierForm.reset(); },
+  });
+  const deleteSupplierMutation = useMutation({
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/suppliers/${id}`); },
+    onSuccess: () => { toast({ title: t("purchasing.supplier_deleted") }); queryClient.invalidateQueries({ queryKey: ["/api/suppliers"] }); setShowDeleteSupplierDialog(false); setSupplierToDelete(null); },
+  });
+  const createOrderMutation = useMutation({
+    mutationFn: async (data: PurchaseOrderFormData) => {
+      const res = await apiRequest("POST", "/api/purchase-orders", {
+        ...data, expectedDate: data.expectedDate ? new Date(data.expectedDate).toISOString() : null,
+        destinationWarehouseId: data.destinationWarehouseId || null, status: "draft",
+      });
+      return res.json();
+    },
+    onSuccess: () => { toast({ title: t("purchasing.order_created") }); queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] }); setShowOrderDialog(false); orderForm.reset(); },
+  });
   const addItemMutation = useMutation({
     mutationFn: async ({ orderId, data }: { orderId: string; data: OrderItemFormData }) => {
-      const payload = {
-        productId: data.itemType === "product" ? data.productId : null,
-        ingredientId: data.itemType === "ingredient" ? data.ingredientId : null,
-        quantity: data.quantity,
-        unitCost: data.unitCost,
-      };
+      const payload = { productId: data.itemType === "product" ? data.productId : null, ingredientId: data.itemType === "ingredient" ? data.ingredientId : null, quantity: data.quantity, unitCost: data.unitCost };
       const res = await apiRequest("POST", `/api/purchase-orders/${orderId}/items`, payload);
       return res.json();
     },
-    onSuccess: () => {
-      toast({ title: t("purchasing.order_updated") });
-      if (selectedOrder) {
-        fetchOrderDetails(selectedOrder.id);
-      }
-      setShowAddItemDialog(false);
-      itemForm.reset();
-      setItemType("product");
-    },
+    onSuccess: () => { toast({ title: t("purchasing.order_updated") }); if (selectedOrder) fetchOrderDetails(selectedOrder.id); setShowAddItemDialog(false); itemForm.reset(); setItemType("product"); },
   });
-
   const deleteItemMutation = useMutation({
-    mutationFn: async (itemId: string) => {
-      await apiRequest("DELETE", `/api/purchase-order-items/${itemId}`);
-    },
-    onSuccess: () => {
-      if (selectedOrder) {
-        fetchOrderDetails(selectedOrder.id);
-      }
-    },
+    mutationFn: async (itemId: string) => { await apiRequest("DELETE", `/api/purchase-order-items/${itemId}`); },
+    onSuccess: () => { if (selectedOrder) fetchOrderDetails(selectedOrder.id); },
   });
-
   const updateOrderStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const res = await apiRequest("PATCH", `/api/purchase-orders/${id}`, { status });
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: t("purchasing.order_updated") });
-      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
-      if (selectedOrder) {
-        fetchOrderDetails(selectedOrder.id);
-      }
-    },
+    mutationFn: async ({ id, status }: { id: string; status: string }) => { const res = await apiRequest("PATCH", `/api/purchase-orders/${id}`, { status }); return res.json(); },
+    onSuccess: () => { toast({ title: t("purchasing.order_updated") }); queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] }); if (selectedOrder) fetchOrderDetails(selectedOrder.id); },
   });
-
   const receiveStockMutation = useMutation({
-    mutationFn: async ({ orderId, items }: { orderId: string; items: Array<{ itemId: string; receivedQuantity: number; expirationDate?: string; lotCode?: string }> }) => {
-      const res = await apiRequest("POST", `/api/purchase-orders/${orderId}/receive`, { items });
+    mutationFn: async ({ orderId, items, warehouseId, notes }: { orderId: string; items: Array<{ itemId: string; receivedQuantity: number }>; warehouseId?: string; notes?: string }) => {
+      const res = await apiRequest("POST", `/api/purchase-orders/${orderId}/receive`, { items, warehouseId, notes });
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: t("purchasing.stock_received") });
+      toast({ title: t("purchasing.receipt_created") });
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/levels"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ingredients"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/ingredient-lots"] });
-      setShowReceiveDialog(false);
-      setReceiveQuantities({});
-      setReceiveExpirationDates({});
-      setReceiveLotCodes({});
-      if (selectedOrder) {
-        fetchOrderDetails(selectedOrder.id);
-      }
+      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders", selectedOrder?.id, "receipts"] });
+      setShowReceiveDialog(false); setReceiveQuantities({}); setReceiveNotes("");
+      if (selectedOrder) fetchOrderDetails(selectedOrder.id);
     },
   });
-
   const deleteOrderMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/purchase-orders/${id}`);
-    },
-    onSuccess: () => {
-      toast({ title: t("purchasing.order_deleted") });
-      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
-      setShowOrderDetailsDialog(false);
-      setSelectedOrder(null);
-    },
+    mutationFn: async (id: string) => { await apiRequest("DELETE", `/api/purchase-orders/${id}`); },
+    onSuccess: () => { toast({ title: t("purchasing.order_deleted") }); queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] }); setShowOrderDetailsDialog(false); setSelectedOrder(null); },
   });
-
   const createReorderMutation = useMutation({
     mutationFn: async (data: { supplierId: string; items: Array<{ type: "product" | "ingredient"; id: string; quantity: number; unitCost: number }> }) => {
       const res = await apiRequest("POST", "/api/reorder-suggestions/create-order", data);
       return res.json();
     },
-    onSuccess: () => {
-      toast({ title: t("purchasing.order_created") });
-      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/reorder-suggestions"] });
-      setSelectedReorderItems(new Set());
-      setReorderQuantities({});
-      setReorderSupplierId("");
-    },
+    onSuccess: () => { toast({ title: t("purchasing.order_created") }); queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] }); queryClient.invalidateQueries({ queryKey: ["/api/reorder-suggestions"] }); setSelectedReorderItems(new Set()); setReorderQuantities({}); setReorderSupplierId(""); },
   });
 
   const fetchOrderDetails = async (orderId: string) => {
-    const res = await fetch(`/api/purchase-orders/${orderId}`, {
-      headers: { "x-tenant-id": localStorage.getItem("tenantId") || "" },
-    });
-    if (res.ok) {
-      const order = await res.json();
-      setSelectedOrder(order);
-    }
+    const res = await fetch(`/api/purchase-orders/${orderId}`, { headers: { "x-tenant-id": localStorage.getItem("tenantId") || "" } });
+    if (res.ok) { const order = await res.json(); setSelectedOrder(order); }
   };
 
   const handleEditSupplier = (supplier: Supplier) => {
     setEditingSupplier(supplier);
     supplierForm.reset({
-      name: supplier.name,
-      contactName: supplier.contactName || "",
-      email: supplier.email || "",
-      phone: supplier.phone || "",
-      address: supplier.address || "",
-      notes: supplier.notes || "",
-      isActive: supplier.isActive ?? true,
+      name: supplier.name, contactName: supplier.contactName || "",
+      documentType: (supplier as any).documentType || "", identification: (supplier as any).identification || "",
+      email: supplier.email || "", phone: supplier.phone || "", address: supplier.address || "",
+      taxId: supplier.taxId || "", paymentTermsType: (supplier as any).paymentTermsType || "cash",
+      paymentTermsDays: (supplier as any).paymentTermsDays || 0, currency: (supplier as any).currency || "",
+      notes: supplier.notes || "", isActive: supplier.isActive ?? true,
     });
     setShowSupplierDialog(true);
   };
 
   const handleSupplierSubmit = (data: SupplierFormData) => {
-    if (editingSupplier) {
-      updateSupplierMutation.mutate({ id: editingSupplier.id, data });
-    } else {
-      createSupplierMutation.mutate(data);
-    }
+    if (editingSupplier) updateSupplierMutation.mutate({ id: editingSupplier.id, data });
+    else createSupplierMutation.mutate(data);
   };
 
   const handleViewOrder = (order: PurchaseOrder) => {
     fetchOrderDetails(order.id);
+    setOrderDetailTab("items");
     setShowOrderDetailsDialog(true);
-  };
-
-  const handleAddItem = (data: OrderItemFormData) => {
-    if (selectedOrder) {
-      addItemMutation.mutate({ orderId: selectedOrder.id, data });
-    }
   };
 
   const handleReceiveStock = () => {
     if (!selectedOrder || !selectedOrder.items) return;
-    
-    const itemsToReceive = Object.entries(receiveQuantities)
-      .filter(([, qty]) => qty > 0)
-      .map(([itemId, receivedQuantity]) => ({
-        itemId,
-        receivedQuantity,
-        expirationDate: receiveExpirationDates[itemId] || undefined,
-        lotCode: receiveLotCodes[itemId] || undefined,
-      }));
-    
-    if (itemsToReceive.length > 0) {
-      receiveStockMutation.mutate({ orderId: selectedOrder.id, items: itemsToReceive });
-    }
+    const itemsToReceive = Object.entries(receiveQuantities).filter(([, qty]) => qty > 0).map(([itemId, receivedQuantity]) => ({ itemId, receivedQuantity }));
+    if (itemsToReceive.length === 0) return;
+    receiveStockMutation.mutate({ orderId: selectedOrder.id, items: itemsToReceive, warehouseId: receiveWarehouseId || undefined, notes: receiveNotes || undefined });
   };
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof Clock }> = {
-      draft: { variant: "secondary", icon: Clock },
-      pending: { variant: "outline", icon: Clock },
-      ordered: { variant: "default", icon: ShoppingCart },
-      partial: { variant: "outline", icon: AlertTriangle },
-      received: { variant: "default", icon: CheckCircle },
-      cancelled: { variant: "destructive", icon: AlertTriangle },
+    const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      draft: { label: t("purchasing.status_draft"), variant: "secondary" },
+      sent: { label: t("purchasing.status_sent"), variant: "default" },
+      partial: { label: t("purchasing.status_partial"), variant: "outline" },
+      received: { label: t("purchasing.status_received"), variant: "default" },
+      cancelled: { label: t("purchasing.status_cancelled"), variant: "destructive" },
     };
-    
-    const config = statusConfig[status] || statusConfig.draft;
-    const Icon = config.icon;
-    const translationKey = `purchasing.status_${status}` as keyof typeof t;
-    
-    return (
-      <Badge variant={config.variant} className="gap-1">
-        <Icon className="h-3 w-3" />
-        {t(translationKey) || status}
-      </Badge>
-    );
+    const s = statusMap[status] || { label: status, variant: "secondary" as const };
+    return <Badge variant={s.variant} data-testid={`badge-status-${status}`}>{s.label}</Badge>;
   };
 
-  const getSupplierName = (supplierId: string | null) => {
-    if (!supplierId) return "-";
-    return suppliers?.find(s => s.id === supplierId)?.name || "-";
-  };
+  const getSupplierName = (supplierId?: string | null) => !supplierId || !suppliers ? "-" : suppliers.find(s => s.id === supplierId)?.name || "-";
+  const getProductName = (productId?: string | null) => !productId || !products ? "-" : products.find(p => p.id === productId)?.name || "-";
+  const getIngredientName = (ingredientId?: string | null) => !ingredientId || !ingredients ? "-" : ingredients.find(i => i.id === ingredientId)?.name || "-";
+  const getWarehouseName = (warehouseId?: string | null) => !warehouseId || !warehouses ? "-" : warehouses.find(w => w.id === warehouseId)?.name || "-";
 
-  const getProductName = (productId: string | null | undefined) => {
-    if (!productId) return "-";
-    return products?.find(p => p.id === productId)?.name || "-";
-  };
-
-  const getIngredientName = (ingredientId: string | null | undefined) => {
-    if (!ingredientId) return "-";
-    return ingredients?.find(i => i.id === ingredientId)?.name || "-";
-  };
-
-  const getItemName = (item: PurchaseOrderItem) => {
-    if (item.productId) {
-      return getProductName(item.productId);
-    }
-    if (item.ingredientId) {
-      return getIngredientName(item.ingredientId);
-    }
-    return "-";
-  };
-
-  const isIngredientItem = (item: PurchaseOrderItem) => {
-    return !!item.ingredientId;
-  };
-
-  const calculateOrderTotal = (items?: PurchaseOrderItem[]) => {
-    if (!items) return 0;
-    return items.reduce((sum, item) => {
-      const cost = parseFloat(item.unitCost || "0");
-      return sum + cost * item.quantity;
-    }, 0);
-  };
-
-  const filteredSuppliers = suppliers?.filter(s =>
-    s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (s.contactName && s.contactName.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  const filteredOrders = purchaseOrders?.filter(o =>
-    o.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    getSupplierName(o.supplierId).toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredSuppliers = suppliers?.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || (s.contactName && s.contactName.toLowerCase().includes(searchQuery.toLowerCase()))) || [];
+  const filteredOrders = purchaseOrders?.filter(o => o.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) || getSupplierName(o.supplierId).toLowerCase().includes(searchQuery.toLowerCase())) || [];
 
   return (
-    <div className="h-full overflow-y-auto touch-scroll overscroll-contain">
-      <div className="p-4 md:p-6 pb-24 md:pb-6 space-y-6">
+    <div className="flex flex-col h-full" data-testid="page-purchasing">
+      <div className="flex items-center justify-between gap-2 p-4 border-b flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-purchasing-title">{t("purchasing.title")}</h1>
-          <p className="text-muted-foreground">{t("purchasing.subtitle")}</p>
+          <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("purchasing.title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("purchasing.subtitle")}</p>
+        </div>
+      </div>
+
+      <Tabs defaultValue="suppliers" className="flex-1 flex flex-col">
+        <div className="px-4 pt-2">
+          <TabsList data-testid="tabs-purchasing">
+            <TabsTrigger value="suppliers" data-testid="tab-suppliers"><Truck className="w-4 h-4 mr-1" />{t("purchasing.suppliers")}</TabsTrigger>
+            <TabsTrigger value="orders" data-testid="tab-orders"><ShoppingCart className="w-4 h-4 mr-1" />{t("purchasing.purchase_orders")}</TabsTrigger>
+            <TabsTrigger value="reorder" data-testid="tab-reorder"><RefreshCw className="w-4 h-4 mr-1" />{t("purchasing.quick_reorder")}</TabsTrigger>
+          </TabsList>
         </div>
 
-        <Tabs defaultValue="suppliers" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="suppliers" data-testid="tab-suppliers">
-              <Truck className="h-4 w-4 mr-2" />
-              {t("purchasing.suppliers")}
-            </TabsTrigger>
-            <TabsTrigger value="orders" data-testid="tab-orders">
-              <Package className="h-4 w-4 mr-2" />
-              {t("purchasing.purchase_orders")}
-            </TabsTrigger>
-            <TabsTrigger value="reorder" data-testid="tab-reorder">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              {t("purchasing.quick_reorder")}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="suppliers" className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t("customers.search_placeholder")}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                  data-testid="input-supplier-search"
-                />
-              </div>
-              <Button
-                onClick={() => {
-                  setEditingSupplier(null);
-                  supplierForm.reset();
-                  setShowSupplierDialog(true);
-                }}
-                data-testid="button-new-supplier"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {t("purchasing.new_supplier")}
-              </Button>
+        <TabsContent value="suppliers" className="flex-1 p-4">
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder={t("common.search")} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" data-testid="input-search-suppliers" />
             </div>
-
-            {suppliersLoading ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3].map(i => (
-                  <Card key={i}>
-                    <CardContent className="p-4">
-                      <Skeleton className="h-6 w-32 mb-2" />
-                      <Skeleton className="h-4 w-24" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : filteredSuppliers && filteredSuppliers.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {filteredSuppliers.map(supplier => (
-                  <Card key={supplier.id} className="hover-elevate" data-testid={`card-supplier-${supplier.id}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1">
-                          <h3 className="font-semibold">{supplier.name}</h3>
-                          {supplier.contactName && (
-                            <p className="text-sm text-muted-foreground">{supplier.contactName}</p>
-                          )}
-                          {supplier.email && (
-                            <p className="text-sm text-muted-foreground">{supplier.email}</p>
-                          )}
-                          {supplier.phone && (
-                            <p className="text-sm text-muted-foreground">{supplier.phone}</p>
-                          )}
-                        </div>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditSupplier(supplier)}
-                            data-testid={`button-edit-supplier-${supplier.id}`}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSupplierToDelete(supplier);
-                              setShowDeleteSupplierDialog(true);
-                            }}
-                            data-testid={`button-delete-supplier-${supplier.id}`}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+            <Button onClick={() => { setEditingSupplier(null); supplierForm.reset(); setShowSupplierDialog(true); }} data-testid="button-new-supplier">
+              <Plus className="w-4 h-4 mr-1" />{t("purchasing.new_supplier")}
+            </Button>
+          </div>
+          {suppliersLoading ? (
+            <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
+          ) : filteredSuppliers.length === 0 ? (
+            <Card><CardContent className="flex flex-col items-center justify-center py-12">
+              <Truck className="w-12 h-12 text-muted-foreground mb-4" />
+              <p className="text-lg font-medium">{t("purchasing.no_suppliers")}</p>
+              <p className="text-sm text-muted-foreground mb-4">{t("purchasing.add_first_supplier")}</p>
+            </CardContent></Card>
+          ) : (
+            <div className="space-y-2">
+              {filteredSuppliers.map(supplier => (
+                <Card key={supplier.id} data-testid={`card-supplier-${supplier.id}`}>
+                  <CardContent className="flex items-center justify-between gap-3 p-4 flex-wrap">
+                    <div className="flex-1 min-w-[200px]">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium" data-testid={`text-supplier-name-${supplier.id}`}>{supplier.name}</span>
+                        {!supplier.isActive && <Badge variant="secondary">{t("common.inactive")}</Badge>}
                       </div>
-                      {!supplier.isActive && (
-                        <Badge variant="secondary" className="mt-2">{t("purchasing.active")}: No</Badge>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Truck className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-lg font-medium">{t("purchasing.no_suppliers")}</p>
-                  <p className="text-muted-foreground">{t("purchasing.add_first_supplier")}</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="orders" className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder={t("customers.search_placeholder")}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                  data-testid="input-order-search"
-                />
-              </div>
-              <Button
-                onClick={() => {
-                  orderForm.reset();
-                  setShowOrderDialog(true);
-                }}
-                disabled={!suppliers || suppliers.length === 0}
-                data-testid="button-new-order"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {t("purchasing.new_order")}
-              </Button>
-            </div>
-
-            {ordersLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <Card key={i}>
-                    <CardContent className="p-4">
-                      <Skeleton className="h-6 w-48 mb-2" />
-                      <Skeleton className="h-4 w-32" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : filteredOrders && filteredOrders.length > 0 ? (
-              <div className="space-y-3">
-                {filteredOrders.map(order => (
-                  <Card
-                    key={order.id}
-                    className="hover-elevate cursor-pointer"
-                    onClick={() => handleViewOrder(order)}
-                    data-testid={`card-order-${order.id}`}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">{order.orderNumber}</h3>
-                            {getStatusBadge(order.status)}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {t("purchasing.supplier")}: {getSupplierName(order.supplierId)}
-                          </p>
-                          {order.expectedDate && (
-                            <p className="text-sm text-muted-foreground">
-                              {t("purchasing.expected_date")}: {formatDate(new Date(order.expectedDate))}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" data-testid={`button-view-order-${order.id}`}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Package className="h-12 w-12 text-muted-foreground mb-4" />
-                  <p className="text-lg font-medium">{t("purchasing.no_orders")}</p>
-                  <p className="text-muted-foreground">{t("purchasing.add_first_order")}</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="reorder" className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-semibold">{t("purchasing.low_stock_items")}</h3>
-                <p className="text-sm text-muted-foreground">{t("purchasing.reorder_suggestions")}</p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => refetchReorder()}
-                data-testid="button-refresh-reorder"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                {t("common.refresh")}
-              </Button>
-            </div>
-
-            {reorderLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map(i => (
-                  <Card key={i}>
-                    <CardContent className="p-4">
-                      <Skeleton className="h-6 w-48 mb-2" />
-                      <Skeleton className="h-4 w-32" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : reorderSuggestions && reorderSuggestions.length > 0 ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={selectedReorderItems.size === reorderSuggestions.length}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        const allItems = new Set(reorderSuggestions.map(s => `${s.type}-${s.id}`));
-                        setSelectedReorderItems(allItems);
-                        const defaultQtys: Record<string, number> = {};
-                        reorderSuggestions.forEach(s => {
-                          defaultQtys[`${s.type}-${s.id}`] = s.suggestedQty;
-                        });
-                        setReorderQuantities(defaultQtys);
-                      } else {
-                        setSelectedReorderItems(new Set());
-                        setReorderQuantities({});
-                      }
-                    }}
-                    className="h-4 w-4"
-                    data-testid="checkbox-select-all-reorder"
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {t("common.select_all")} ({selectedReorderItems.size} / {reorderSuggestions.length})
-                  </span>
-                </div>
-
-                <div className="grid gap-3">
-                  {reorderSuggestions.map(suggestion => {
-                    const key = `${suggestion.type}-${suggestion.id}`;
-                    const isSelected = selectedReorderItems.has(key);
-                    return (
-                      <Card 
-                        key={key} 
-                        className={`hover-elevate ${isSelected ? "ring-2 ring-primary" : ""}`}
-                        data-testid={`card-reorder-${key}`}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-4">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(e) => {
-                                const newSet = new Set(selectedReorderItems);
-                                if (e.target.checked) {
-                                  newSet.add(key);
-                                  setReorderQuantities(prev => ({
-                                    ...prev,
-                                    [key]: suggestion.suggestedQty
-                                  }));
-                                } else {
-                                  newSet.delete(key);
-                                  setReorderQuantities(prev => {
-                                    const updated = { ...prev };
-                                    delete updated[key];
-                                    return updated;
-                                  });
-                                }
-                                setSelectedReorderItems(newSet);
-                              }}
-                              className="h-4 w-4"
-                              data-testid={`checkbox-reorder-${key}`}
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                {suggestion.type === "ingredient" ? (
-                                  <Leaf className="h-4 w-4 text-green-600" />
-                                ) : (
-                                  <Package className="h-4 w-4 text-blue-600" />
-                                )}
-                                <span className="font-medium" data-testid={`text-reorder-name-${key}`}>{suggestion.name}</span>
-                                {suggestion.unit && (
-                                  <Badge variant="secondary" className="text-xs" data-testid={`badge-reorder-unit-${key}`}>{suggestion.unit}</Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                                <span>{t("purchasing.current_stock")}: <span className="text-destructive font-medium" data-testid={`text-reorder-stock-${key}`}>{suggestion.currentStock}</span></span>
-                                <span>{t("purchasing.reorder_point")}: <span data-testid={`text-reorder-point-${key}`}>{suggestion.reorderPoint}</span></span>
-                                {suggestion.preferredSupplierName && (
-                                  <span className="flex items-center gap-1" data-testid={`text-reorder-supplier-${key}`}>
-                                    <Truck className="h-3 w-3" />
-                                    {suggestion.preferredSupplierName}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Label className="text-sm">{t("purchasing.quantity")}:</Label>
-                              <Input
-                                type="number"
-                                min={1}
-                                value={reorderQuantities[key] || suggestion.suggestedQty}
-                                onChange={(e) => {
-                                  const val = parseInt(e.target.value) || suggestion.suggestedQty;
-                                  setReorderQuantities(prev => ({
-                                    ...prev,
-                                    [key]: val
-                                  }));
-                                  if (!selectedReorderItems.has(key)) {
-                                    setSelectedReorderItems(prev => new Set([...prev, key]));
-                                  }
-                                }}
-                                className="w-20"
-                                data-testid={`input-reorder-qty-${key}`}
-                              />
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                {selectedReorderItems.size > 0 && (
-                  <Card className="bg-muted/50">
-                    <CardContent className="p-4">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div>
-                          <p className="font-medium" data-testid="text-reorder-count">{selectedReorderItems.size} {t("purchasing.low_stock_items")} {t("common.selected")}</p>
-                          <p className="text-sm text-muted-foreground">{t("purchasing.select_supplier")}</p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Select
-                            value={reorderSupplierId}
-                            onValueChange={setReorderSupplierId}
-                          >
-                            <SelectTrigger className="w-48" data-testid="select-reorder-supplier">
-                              <SelectValue placeholder={t("purchasing.select_supplier")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {suppliers?.filter(s => s.isActive).map(s => (
-                                <SelectItem key={s.id} value={s.id} data-testid={`select-supplier-${s.id}`}>{s.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            onClick={() => {
-                              const items = Array.from(selectedReorderItems).map(key => {
-                                const [type, id] = key.split("-") as ["product" | "ingredient", string];
-                                const suggestion = reorderSuggestions?.find(s => `${s.type}-${s.id}` === key);
-                                return {
-                                  type,
-                                  id,
-                                  quantity: reorderQuantities[key] || suggestion?.suggestedQty || 1,
-                                  unitCost: 0
-                                };
-                              });
-                              createReorderMutation.mutate({ supplierId: reorderSupplierId, items });
-                            }}
-                            disabled={!reorderSupplierId || selectedReorderItems.size === 0 || createReorderMutation.isPending}
-                            data-testid="button-create-reorder-po"
-                          >
-                            {createReorderMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            {t("purchasing.create_po_from_suggestions")}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
-                  <p className="text-lg font-medium">{t("purchasing.no_reorder_suggestions")}</p>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
-
-        <Dialog open={showSupplierDialog} onOpenChange={setShowSupplierDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {editingSupplier ? t("purchasing.edit") : t("purchasing.new_supplier")}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...supplierForm}>
-              <form onSubmit={supplierForm.handleSubmit(handleSupplierSubmit)} className="space-y-4">
-                <FormField
-                  control={supplierForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("purchasing.supplier_name")}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-supplier-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={supplierForm.control}
-                  name="contactName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("purchasing.contact_name")}</FormLabel>
-                      <FormControl>
-                        <Input {...field} data-testid="input-supplier-contact" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={supplierForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("purchasing.email")}</FormLabel>
-                        <FormControl>
-                          <Input type="email" {...field} data-testid="input-supplier-email" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={supplierForm.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("purchasing.phone")}</FormLabel>
-                        <FormControl>
-                          <Input {...field} data-testid="input-supplier-phone" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={supplierForm.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("purchasing.address")}</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} data-testid="input-supplier-address" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={supplierForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("purchasing.notes")}</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} data-testid="input-supplier-notes" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={supplierForm.control}
-                  name="isActive"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center gap-2">
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          data-testid="switch-supplier-active"
-                        />
-                      </FormControl>
-                      <Label>{t("purchasing.active")}</Label>
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setShowSupplierDialog(false)}>
-                    {t("purchasing.cancel")}
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createSupplierMutation.isPending || updateSupplierMutation.isPending}
-                    data-testid="button-save-supplier"
-                  >
-                    {(createSupplierMutation.isPending || updateSupplierMutation.isPending) && (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    )}
-                    {t("purchasing.save")}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showDeleteSupplierDialog} onOpenChange={setShowDeleteSupplierDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("purchasing.delete_supplier")}</DialogTitle>
-              <DialogDescription>{t("purchasing.delete_supplier_confirm")}</DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDeleteSupplierDialog(false)}>
-                {t("purchasing.cancel")}
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => supplierToDelete && deleteSupplierMutation.mutate(supplierToDelete.id)}
-                disabled={deleteSupplierMutation.isPending}
-                data-testid="button-confirm-delete-supplier"
-              >
-                {deleteSupplierMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {t("purchasing.delete")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showOrderDialog} onOpenChange={setShowOrderDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("purchasing.new_order")}</DialogTitle>
-            </DialogHeader>
-            <Form {...orderForm}>
-              <form onSubmit={orderForm.handleSubmit((data) => createOrderMutation.mutate(data))} className="space-y-4">
-                <FormField
-                  control={orderForm.control}
-                  name="supplierId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("purchasing.supplier")}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-order-supplier">
-                            <SelectValue placeholder={t("purchasing.select_supplier")} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {suppliers?.filter(s => s.isActive).map(s => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={orderForm.control}
-                  name="expectedDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("purchasing.expected_date")}</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} data-testid="input-order-date" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={orderForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("purchasing.notes")}</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} data-testid="input-order-notes" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setShowOrderDialog(false)}>
-                    {t("purchasing.cancel")}
-                  </Button>
-                  <Button type="submit" disabled={createOrderMutation.isPending} data-testid="button-create-order">
-                    {createOrderMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    {t("purchasing.save")}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showOrderDetailsDialog} onOpenChange={setShowOrderDetailsDialog}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                {t("purchasing.order_details")} - {selectedOrder?.orderNumber}
-                {selectedOrder && getStatusBadge(selectedOrder.status)}
-              </DialogTitle>
-            </DialogHeader>
-            {selectedOrder && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">{t("purchasing.supplier")}:</span>{" "}
-                    {getSupplierName(selectedOrder.supplierId)}
-                  </div>
-                  {selectedOrder.expectedDate && (
-                    <div>
-                      <span className="text-muted-foreground">{t("purchasing.expected_date")}:</span>{" "}
-                      {formatDate(new Date(selectedOrder.expectedDate))}
-                    </div>
-                  )}
-                  <div>
-                    <span className="text-muted-foreground">{t("purchasing.created_on")}:</span>{" "}
-                    {formatDate(new Date(selectedOrder.createdAt!))}
-                  </div>
-                </div>
-
-                <div className="border rounded-md">
-                  <div className="p-3 bg-muted/50 border-b flex items-center justify-between">
-                    <h4 className="font-medium">{t("purchasing.items_count")}</h4>
-                    {selectedOrder.status === "draft" && (
-                      <Button size="sm" onClick={() => setShowAddItemDialog(true)} data-testid="button-add-item">
-                        <Plus className="h-4 w-4 mr-1" />
-                        {t("purchasing.add_item")}
-                      </Button>
-                    )}
-                  </div>
-                  <div className="p-3">
-                    {selectedOrder.items && selectedOrder.items.length > 0 ? (
-                      <div className="space-y-2">
-                        {selectedOrder.items.map(item => (
-                          <div key={item.id} className="flex items-center justify-between p-2 border rounded">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                {isIngredientItem(item) ? (
-                                  <Leaf className="h-4 w-4 text-green-600" />
-                                ) : (
-                                  <Package className="h-4 w-4 text-blue-600" />
-                                )}
-                                <p className="font-medium">{getItemName(item)}</p>
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                {t("purchasing.quantity")}: {item.quantity} | {t("purchasing.unit_cost")}: {formatCurrency(parseFloat(item.unitCost || "0"))}
-                              </p>
-                              {(item.receivedQuantity || 0) > 0 && (
-                                <p className="text-sm text-green-600">
-                                  {t("purchasing.received")}: {item.receivedQuantity}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">
-                                {formatCurrency(parseFloat(item.unitCost || "0") * item.quantity)}
-                              </span>
-                              {selectedOrder.status === "draft" && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => deleteItemMutation.mutate(item.id)}
-                                  data-testid={`button-delete-item-${item.id}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                        <div className="flex justify-end pt-2 border-t">
-                          <span className="font-semibold">
-                            {t("purchasing.total")}: {formatCurrency(calculateOrderTotal(selectedOrder.items))}
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1 flex-wrap">
+                        {supplier.contactName && <span>{supplier.contactName}</span>}
+                        {supplier.phone && <span>{supplier.phone}</span>}
+                        {supplier.email && <span>{supplier.email}</span>}
+                        {(supplier as any).documentType && <span>{t(`purchasing.doc_type_${(supplier as any).documentType}`)}: {(supplier as any).identification}</span>}
+                        {(supplier as any).paymentTermsType && (
+                          <span>{t(`purchasing.payment_terms_${(supplier as any).paymentTermsType}`)}
+                            {(supplier as any).paymentTermsType === "credit" && ` (${(supplier as any).paymentTermsDays || 0} ${t("purchasing.payment_terms_days")})`}
                           </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-center text-muted-foreground py-4">{t("purchasing.add_item")}</p>
-                    )}
-                  </div>
-                </div>
-
-                <DialogFooter className="flex-col sm:flex-row gap-2">
-                  {selectedOrder.status === "draft" && selectedOrder.items && selectedOrder.items.length > 0 && (
-                    <Button
-                      onClick={() => updateOrderStatusMutation.mutate({ id: selectedOrder.id, status: "ordered" })}
-                      disabled={updateOrderStatusMutation.isPending}
-                      data-testid="button-place-order"
-                    >
-                      {t("purchasing.place_order")}
-                    </Button>
-                  )}
-                  {(selectedOrder.status === "ordered" || selectedOrder.status === "partial") && (
-                    <Button onClick={() => setShowReceiveDialog(true)} data-testid="button-receive-stock">
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      {t("purchasing.receive_stock")}
-                    </Button>
-                  )}
-                  <Button
-                    variant="destructive"
-                    onClick={() => deleteOrderMutation.mutate(selectedOrder.id)}
-                    disabled={deleteOrderMutation.isPending}
-                    data-testid="button-delete-order"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {t("purchasing.delete")}
-                  </Button>
-                </DialogFooter>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showAddItemDialog} onOpenChange={(open) => {
-          setShowAddItemDialog(open);
-          if (!open) {
-            setItemType("product");
-            itemForm.reset();
-          }
-        }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("purchasing.add_item")}</DialogTitle>
-            </DialogHeader>
-            <Form {...itemForm}>
-              <form onSubmit={itemForm.handleSubmit(handleAddItem)} className="space-y-4">
-                {tenant?.type === "restaurant" && ingredients && ingredients.length > 0 && (
-                  <div className="flex items-center gap-4 p-3 bg-muted rounded-lg">
-                    <Label className="text-sm font-medium">{t("purchasing.item_type")}</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={itemType === "product" ? "default" : "outline"}
-                        onClick={() => {
-                          setItemType("product");
-                          itemForm.setValue("itemType", "product");
-                          itemForm.setValue("ingredientId", "");
-                        }}
-                        data-testid="button-item-type-product"
-                      >
-                        <Package className="h-4 w-4 mr-1" />
-                        {t("purchasing.product")}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={itemType === "ingredient" ? "default" : "outline"}
-                        onClick={() => {
-                          setItemType("ingredient");
-                          itemForm.setValue("itemType", "ingredient");
-                          itemForm.setValue("productId", "");
-                        }}
-                        data-testid="button-item-type-ingredient"
-                      >
-                        <Leaf className="h-4 w-4 mr-1" />
-                        {t("ingredients.ingredient")}
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {itemType === "product" && (
-                  <FormField
-                    control={itemForm.control}
-                    name="productId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("purchasing.product")}</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-item-product">
-                              <SelectValue placeholder={t("purchasing.select_product")} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {products?.map(p => (
-                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {itemType === "ingredient" && (
-                  <FormField
-                    control={itemForm.control}
-                    name="ingredientId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("ingredients.ingredient")}</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-item-ingredient">
-                              <SelectValue placeholder={t("ingredients.select_ingredient")} />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {ingredients?.map(i => (
-                              <SelectItem key={i.id} value={i.id}>{i.name} ({i.uomBase})</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={itemForm.control}
-                    name="quantity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("purchasing.quantity")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min={1}
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                            data-testid="input-item-quantity"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={itemForm.control}
-                    name="unitCost"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("purchasing.unit_cost")}</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                            data-testid="input-item-cost"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setShowAddItemDialog(false)}>
-                    {t("purchasing.cancel")}
-                  </Button>
-                  <Button type="submit" disabled={addItemMutation.isPending} data-testid="button-save-item">
-                    {addItemMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    {t("purchasing.save")}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={showReceiveDialog} onOpenChange={(open) => {
-          setShowReceiveDialog(open);
-          if (!open) {
-            setReceiveQuantities({});
-            setReceiveExpirationDates({});
-            setReceiveLotCodes({});
-          }
-        }}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>{t("purchasing.receiving_stock")}</DialogTitle>
-            </DialogHeader>
-            {selectedOrder?.items && (
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-                {selectedOrder.items
-                  .filter(item => (item.receivedQuantity || 0) < item.quantity)
-                  .map(item => (
-                    <div key={item.id} className="p-3 border rounded space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {isIngredientItem(item) ? (
-                            <Leaf className="h-4 w-4 text-green-600" />
-                          ) : (
-                            <Package className="h-4 w-4 text-blue-600" />
-                          )}
-                          <p className="font-medium">{getItemName(item)}</p>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {t("purchasing.ordered")}: {item.quantity} | {t("purchasing.received")}: {item.receivedQuantity || 0}
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs">{t("purchasing.receive_qty")}</Label>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={item.quantity - (item.receivedQuantity || 0)}
-                            value={receiveQuantities[item.id] || 0}
-                            onChange={(e) => setReceiveQuantities(prev => ({
-                              ...prev,
-                              [item.id]: parseInt(e.target.value) || 0,
-                            }))}
-                            data-testid={`input-receive-qty-${item.id}`}
-                          />
-                        </div>
-                        
-                        {isIngredientItem(item) && (
-                          <div>
-                            <Label className="text-xs">{t("purchasing.expiration_date")}</Label>
-                            <Input
-                              type="date"
-                              value={receiveExpirationDates[item.id] || ""}
-                              onChange={(e) => setReceiveExpirationDates(prev => ({
-                                ...prev,
-                                [item.id]: e.target.value,
-                              }))}
-                              data-testid={`input-expiration-${item.id}`}
-                            />
-                          </div>
                         )}
                       </div>
-                      
-                      {isIngredientItem(item) && (
-                        <div>
-                          <Label className="text-xs">{t("purchasing.lot_code")}</Label>
-                          <Input
-                            placeholder={t("purchasing.lot_code_placeholder")}
-                            value={receiveLotCodes[item.id] || ""}
-                            onChange={(e) => setReceiveLotCodes(prev => ({
-                              ...prev,
-                              [item.id]: e.target.value,
-                            }))}
-                            data-testid={`input-lot-code-${item.id}`}
-                          />
-                        </div>
-                      )}
                     </div>
-                  ))}
-                {selectedOrder.items.every(item => (item.receivedQuantity || 0) >= item.quantity) && (
-                  <p className="text-center text-green-600">{t("purchasing.all_received")}</p>
-                )}
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setShowReceiveDialog(false)}>
-                    {t("purchasing.cancel")}
-                  </Button>
-                  <Button
-                    onClick={handleReceiveStock}
-                    disabled={receiveStockMutation.isPending || Object.values(receiveQuantities).every(q => q === 0)}
-                    data-testid="button-confirm-receive"
-                  >
-                    {receiveStockMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    {t("purchasing.receive")}
-                  </Button>
-                </DialogFooter>
+                    <div className="flex items-center gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => handleEditSupplier(supplier)} data-testid={`button-edit-supplier-${supplier.id}`}><Edit className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => { setSupplierToDelete(supplier); setShowDeleteSupplierDialog(true); }} data-testid={`button-delete-supplier-${supplier.id}`}><Trash2 className="w-4 h-4" /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="orders" className="flex-1 p-4">
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input placeholder={t("common.search")} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9" data-testid="input-search-orders" />
+            </div>
+            <Button onClick={() => { orderForm.reset(); setShowOrderDialog(true); }} data-testid="button-new-order">
+              <Plus className="w-4 h-4 mr-1" />{t("purchasing.new_order")}
+            </Button>
+          </div>
+          {ordersLoading ? (
+            <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
+          ) : filteredOrders.length === 0 ? (
+            <Card><CardContent className="flex flex-col items-center justify-center py-12">
+              <ShoppingCart className="w-12 h-12 text-muted-foreground mb-4" />
+              <p className="text-lg font-medium">{t("purchasing.no_orders")}</p>
+              <p className="text-sm text-muted-foreground mb-4">{t("purchasing.add_first_order")}</p>
+            </CardContent></Card>
+          ) : (
+            <div className="space-y-2">
+              {filteredOrders.map(order => (
+                <Card key={order.id} className="hover-elevate cursor-pointer" onClick={() => handleViewOrder(order)} data-testid={`card-order-${order.id}`}>
+                  <CardContent className="flex items-center justify-between gap-3 p-4 flex-wrap">
+                    <div className="flex-1 min-w-[200px]">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium">{order.orderNumber}</span>
+                        {getStatusBadge(order.status)}
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1 flex-wrap">
+                        <span>{getSupplierName(order.supplierId)}</span>
+                        {order.expectedDate && <span>{formatDate(new Date(order.expectedDate))}</span>}
+                        {(order as any).destinationWarehouseId && (
+                          <span className="flex items-center gap-1"><Warehouse className="w-3 h-3" />{getWarehouseName((order as any).destinationWarehouseId)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right"><span className="font-medium">{formatCurrency(parseFloat(order.total || "0"))}</span></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="reorder" className="flex-1 p-4">
+          <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+            <div>
+              <h3 className="text-lg font-medium">{t("purchasing.reorder_suggestions")}</h3>
+              <p className="text-sm text-muted-foreground">{t("purchasing.low_stock_items")}</p>
+            </div>
+            <Button variant="outline" onClick={() => refetchReorder()} data-testid="button-refresh-reorder">
+              <RefreshCw className="w-4 h-4 mr-1" />{t("common.refresh")}
+            </Button>
+          </div>
+          {reorderLoading ? (
+            <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
+          ) : !reorderSuggestions || reorderSuggestions.length === 0 ? (
+            <Card><CardContent className="flex flex-col items-center justify-center py-12">
+              <CheckCircle className="w-12 h-12 text-muted-foreground mb-4" />
+              <p className="text-lg font-medium">{t("purchasing.no_reorder_suggestions")}</p>
+            </CardContent></Card>
+          ) : (
+            <div className="space-y-2">
+              {selectedReorderItems.size > 0 && (
+                <Card className="mb-4"><CardContent className="p-4">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Select value={reorderSupplierId} onValueChange={setReorderSupplierId}>
+                      <SelectTrigger className="w-[200px]" data-testid="select-reorder-supplier"><SelectValue placeholder={t("purchasing.select_supplier")} /></SelectTrigger>
+                      <SelectContent>{suppliers?.filter(s => s.isActive).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Button disabled={!reorderSupplierId || createReorderMutation.isPending} onClick={() => {
+                      const items = Array.from(selectedReorderItems).map(key => {
+                        const suggestion = reorderSuggestions.find(s => `${s.type}-${s.id}` === key);
+                        return { type: suggestion!.type, id: suggestion!.id, quantity: reorderQuantities[key] || suggestion!.suggestedQty, unitCost: 0 };
+                      });
+                      createReorderMutation.mutate({ supplierId: reorderSupplierId, items });
+                    }} data-testid="button-create-reorder-po">
+                      {createReorderMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                      {t("purchasing.create_po_from_suggestions")}
+                    </Button>
+                  </div>
+                </CardContent></Card>
+              )}
+              {reorderSuggestions.map(suggestion => {
+                const key = `${suggestion.type}-${suggestion.id}`;
+                const isSelected = selectedReorderItems.has(key);
+                return (
+                  <Card key={key} data-testid={`card-reorder-${key}`}>
+                    <CardContent className="flex items-center justify-between gap-3 p-4 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        <input type="checkbox" checked={isSelected} onChange={(e) => {
+                          const next = new Set(selectedReorderItems);
+                          if (e.target.checked) next.add(key); else next.delete(key);
+                          setSelectedReorderItems(next);
+                        }} data-testid={`checkbox-reorder-${key}`} />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            {suggestion.type === "ingredient" ? <Leaf className="w-4 h-4" /> : <Package className="w-4 h-4" />}
+                            <span className="font-medium">{suggestion.name}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1 flex-wrap">
+                            <span>{t("purchasing.current_stock")}: {suggestion.currentStock}</span>
+                            <span>{t("purchasing.reorder_point")}: {suggestion.reorderPoint}</span>
+                            {suggestion.preferredSupplierName && <span>{t("purchasing.supplier")}: {suggestion.preferredSupplierName}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm">{t("purchasing.suggested_qty")}:</Label>
+                        <Input type="number" className="w-20" value={reorderQuantities[key] ?? suggestion.suggestedQty}
+                          onChange={(e) => setReorderQuantities(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))} data-testid={`input-reorder-qty-${key}`} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={showSupplierDialog} onOpenChange={setShowSupplierDialog}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editingSupplier ? t("purchasing.edit") : t("purchasing.new_supplier")}</DialogTitle></DialogHeader>
+          <Form {...supplierForm}>
+            <form onSubmit={supplierForm.handleSubmit(handleSupplierSubmit)} className="space-y-4">
+              <FormField control={supplierForm.control} name="name" render={({ field }) => (
+                <FormItem><FormLabel>{t("purchasing.supplier_name")}</FormLabel><FormControl><Input {...field} data-testid="input-supplier-name" /></FormControl><FormMessage /></FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={supplierForm.control} name="documentType" render={({ field }) => (
+                  <FormItem><FormLabel>{t("purchasing.document_type")}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger data-testid="select-supplier-doc-type"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent><SelectItem value="nit">{t("purchasing.doc_type_nit")}</SelectItem><SelectItem value="cc">{t("purchasing.doc_type_cc")}</SelectItem><SelectItem value="other">{t("purchasing.doc_type_other")}</SelectItem></SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+                <FormField control={supplierForm.control} name="identification" render={({ field }) => (
+                  <FormItem><FormLabel>{t("purchasing.identification")}</FormLabel><FormControl><Input {...field} data-testid="input-supplier-identification" /></FormControl></FormItem>
+                )} />
               </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
+              <FormField control={supplierForm.control} name="contactName" render={({ field }) => (
+                <FormItem><FormLabel>{t("purchasing.contact_name")}</FormLabel><FormControl><Input {...field} data-testid="input-supplier-contact" /></FormControl></FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={supplierForm.control} name="email" render={({ field }) => (
+                  <FormItem><FormLabel>{t("purchasing.email")}</FormLabel><FormControl><Input {...field} type="email" data-testid="input-supplier-email" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={supplierForm.control} name="phone" render={({ field }) => (
+                  <FormItem><FormLabel>{t("purchasing.phone")}</FormLabel><FormControl><Input {...field} data-testid="input-supplier-phone" /></FormControl></FormItem>
+                )} />
+              </div>
+              <FormField control={supplierForm.control} name="address" render={({ field }) => (
+                <FormItem><FormLabel>{t("purchasing.address")}</FormLabel><FormControl><Input {...field} data-testid="input-supplier-address" /></FormControl></FormItem>
+              )} />
+              <FormField control={supplierForm.control} name="taxId" render={({ field }) => (
+                <FormItem><FormLabel>{t("purchasing.tax_id")}</FormLabel><FormControl><Input {...field} data-testid="input-supplier-tax-id" /></FormControl></FormItem>
+              )} />
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={supplierForm.control} name="paymentTermsType" render={({ field }) => (
+                  <FormItem><FormLabel>{t("purchasing.payment_terms")}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger data-testid="select-supplier-payment-terms"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent><SelectItem value="cash">{t("purchasing.payment_terms_cash")}</SelectItem><SelectItem value="credit">{t("purchasing.payment_terms_credit")}</SelectItem></SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+                {supplierForm.watch("paymentTermsType") === "credit" && (
+                  <FormField control={supplierForm.control} name="paymentTermsDays" render={({ field }) => (
+                    <FormItem><FormLabel>{t("purchasing.payment_terms_days")}</FormLabel><FormControl><Input {...field} type="number" data-testid="input-supplier-payment-days" onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl></FormItem>
+                  )} />
+                )}
+              </div>
+              <FormField control={supplierForm.control} name="currency" render={({ field }) => (
+                <FormItem><FormLabel>{t("purchasing.supplier_currency")}</FormLabel><FormControl><Input {...field} placeholder="USD" data-testid="input-supplier-currency" /></FormControl></FormItem>
+              )} />
+              <FormField control={supplierForm.control} name="notes" render={({ field }) => (
+                <FormItem><FormLabel>{t("purchasing.notes")}</FormLabel><FormControl><Textarea {...field} data-testid="input-supplier-notes" /></FormControl></FormItem>
+              )} />
+              <FormField control={supplierForm.control} name="isActive" render={({ field }) => (
+                <FormItem className="flex items-center gap-2"><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} data-testid="switch-supplier-active" /></FormControl><FormLabel className="!mt-0">{t("purchasing.active")}</FormLabel></FormItem>
+              )} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setShowSupplierDialog(false)} data-testid="button-cancel-supplier">{t("purchasing.cancel")}</Button>
+                <Button type="submit" disabled={createSupplierMutation.isPending || updateSupplierMutation.isPending} data-testid="button-save-supplier">
+                  {(createSupplierMutation.isPending || updateSupplierMutation.isPending) && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}{t("purchasing.save")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteSupplierDialog} onOpenChange={setShowDeleteSupplierDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("purchasing.delete_supplier")}</DialogTitle><DialogDescription>{t("purchasing.delete_supplier_confirm")}</DialogDescription></DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteSupplierDialog(false)} data-testid="button-cancel-delete-supplier">{t("purchasing.cancel")}</Button>
+            <Button variant="destructive" onClick={() => supplierToDelete && deleteSupplierMutation.mutate(supplierToDelete.id)} data-testid="button-confirm-delete-supplier">
+              {deleteSupplierMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}{t("purchasing.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showOrderDialog} onOpenChange={setShowOrderDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("purchasing.new_order")}</DialogTitle></DialogHeader>
+          <Form {...orderForm}>
+            <form onSubmit={orderForm.handleSubmit((data) => createOrderMutation.mutate(data))} className="space-y-4">
+              <FormField control={orderForm.control} name="supplierId" render={({ field }) => (
+                <FormItem><FormLabel>{t("purchasing.supplier")}</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger data-testid="select-order-supplier"><SelectValue placeholder={t("purchasing.select_supplier")} /></SelectTrigger></FormControl>
+                    <SelectContent>{suppliers?.filter(s => s.isActive).map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                  </Select><FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={orderForm.control} name="destinationWarehouseId" render={({ field }) => (
+                <FormItem><FormLabel>{t("purchasing.destination_warehouse")}</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger data-testid="select-order-warehouse"><SelectValue placeholder={t("purchasing.select_warehouse")} /></SelectTrigger></FormControl>
+                    <SelectContent>{warehouses?.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </FormItem>
+              )} />
+              <FormField control={orderForm.control} name="expectedDate" render={({ field }) => (
+                <FormItem><FormLabel>{t("purchasing.expected_date")}</FormLabel><FormControl><Input {...field} type="date" data-testid="input-order-expected-date" /></FormControl></FormItem>
+              )} />
+              <FormField control={orderForm.control} name="notes" render={({ field }) => (
+                <FormItem><FormLabel>{t("purchasing.notes")}</FormLabel><FormControl><Textarea {...field} data-testid="input-order-notes" /></FormControl></FormItem>
+              )} />
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setShowOrderDialog(false)} data-testid="button-cancel-order">{t("purchasing.cancel")}</Button>
+                <Button type="submit" disabled={createOrderMutation.isPending} data-testid="button-save-order">
+                  {createOrderMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}{t("purchasing.save")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showOrderDetailsDialog} onOpenChange={(open) => { setShowOrderDetailsDialog(open); if (!open) setSelectedOrder(null); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {selectedOrder && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 flex-wrap">{selectedOrder.orderNumber} {getStatusBadge(selectedOrder.status)}</DialogTitle>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                <div><span className="text-muted-foreground">{t("purchasing.supplier")}:</span> <span className="ml-1 font-medium">{getSupplierName(selectedOrder.supplierId)}</span></div>
+                {(selectedOrder as any).destinationWarehouseId && (
+                  <div><span className="text-muted-foreground">{t("purchasing.destination_warehouse")}:</span> <span className="ml-1 font-medium">{getWarehouseName((selectedOrder as any).destinationWarehouseId)}</span></div>
+                )}
+                {selectedOrder.expectedDate && (
+                  <div><span className="text-muted-foreground">{t("purchasing.expected_date")}:</span> <span className="ml-1">{formatDate(new Date(selectedOrder.expectedDate))}</span></div>
+                )}
+                <div><span className="text-muted-foreground">{t("purchasing.total")}:</span> <span className="ml-1 font-medium">{formatCurrency(parseFloat(selectedOrder.total || "0"))}</span></div>
+              </div>
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                {selectedOrder.status === "draft" && (
+                  <>
+                    <Button size="sm" onClick={() => updateOrderStatusMutation.mutate({ id: selectedOrder.id, status: "sent" })} data-testid="button-send-order"><Send className="w-4 h-4 mr-1" />{t("purchasing.send_order")}</Button>
+                    <Button size="sm" variant="outline" onClick={() => setShowAddItemDialog(true)} data-testid="button-add-item"><Plus className="w-4 h-4 mr-1" />{t("purchasing.add_item")}</Button>
+                  </>
+                )}
+                {(selectedOrder.status === "sent" || selectedOrder.status === "partial") && (
+                  <Button size="sm" onClick={() => { setReceiveQuantities({}); setReceiveNotes(""); setReceiveWarehouseId((selectedOrder as any).destinationWarehouseId || ""); setShowReceiveDialog(true); }} data-testid="button-receive-stock">
+                    <Package className="w-4 h-4 mr-1" />{t("purchasing.receive_stock")}
+                  </Button>
+                )}
+                {selectedOrder.status === "draft" && (
+                  <Button size="sm" variant="destructive" onClick={() => setShowDeleteOrderDialog(true)} data-testid="button-delete-order"><Trash2 className="w-4 h-4 mr-1" />{t("purchasing.delete")}</Button>
+                )}
+                {selectedOrder.status !== "cancelled" && selectedOrder.status !== "received" && (
+                  <Button size="sm" variant="outline" onClick={() => updateOrderStatusMutation.mutate({ id: selectedOrder.id, status: "cancelled" })} data-testid="button-cancel-order-status">{t("purchasing.status_cancelled")}</Button>
+                )}
+              </div>
+
+              <Tabs value={orderDetailTab} onValueChange={setOrderDetailTab}>
+                <TabsList data-testid="tabs-order-detail">
+                  <TabsTrigger value="items" data-testid="tab-order-items">{t("purchasing.items_count")}</TabsTrigger>
+                  <TabsTrigger value="receipts" data-testid="tab-order-receipts">{t("purchasing.receipts")}</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="items">
+                  {selectedOrder.items && selectedOrder.items.length > 0 ? (
+                    <div className="space-y-2">
+                      {selectedOrder.items.map(item => (
+                        <Card key={item.id} data-testid={`card-order-item-${item.id}`}>
+                          <CardContent className="flex items-center justify-between gap-2 p-3 flex-wrap">
+                            <div className="flex-1 min-w-[150px]">
+                              <div className="flex items-center gap-2">
+                                {item.productId ? <Package className="w-4 h-4" /> : <Leaf className="w-4 h-4" />}
+                                <span className="font-medium">{item.productId ? getProductName(item.productId) : getIngredientName(item.ingredientId)}</span>
+                              </div>
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {t("purchasing.quantity")}: {item.quantity} | {t("purchasing.unit_cost")}: {formatCurrency(parseFloat(item.unitCost))} | {t("purchasing.received")}: {item.receivedQuantity || 0}/{item.quantity}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{formatCurrency(item.quantity * parseFloat(item.unitCost))}</span>
+                              {selectedOrder.status === "draft" && (
+                                <Button size="icon" variant="ghost" onClick={() => deleteItemMutation.mutate(item.id)} data-testid={`button-delete-item-${item.id}`}><Trash2 className="w-4 h-4" /></Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      <div className="flex justify-end gap-4 pt-2 text-sm flex-wrap">
+                        <span>{t("purchasing.subtotal")}: {formatCurrency(parseFloat(selectedOrder.subtotal || "0"))}</span>
+                        <span className="font-medium">{t("purchasing.total")}: {formatCurrency(parseFloat(selectedOrder.total || "0"))}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground"><Package className="w-8 h-8 mx-auto mb-2" /><p>{t("purchasing.add_first_order")}</p></div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="receipts">
+                  {receipts && receipts.length > 0 ? (
+                    <div className="space-y-2">
+                      {receipts.map(receipt => (
+                        <Card key={receipt.id} data-testid={`card-receipt-${receipt.id}`}>
+                          <CardContent className="p-3">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2"><FileText className="w-4 h-4" /><span className="font-medium">{receipt.receiptNumber}</span></div>
+                              <span className="text-sm text-muted-foreground">{formatDate(new Date(receipt.receivedAt))}</span>
+                            </div>
+                            {receipt.warehouseId && <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1"><Warehouse className="w-3 h-3" />{getWarehouseName(receipt.warehouseId)}</div>}
+                            {receipt.notes && <p className="text-sm text-muted-foreground mt-1">{receipt.notes}</p>}
+                            <div className="mt-2 space-y-1">
+                              {receipt.items.map(ri => (
+                                <div key={ri.id} className="flex items-center justify-between text-sm">
+                                  <span>{ri.productId ? getProductName(ri.productId) : getIngredientName(ri.ingredientId)}</span>
+                                  <span>{ri.quantityReceived} x {formatCurrency(parseFloat(ri.unitCost))}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground"><FileText className="w-8 h-8 mx-auto mb-2" /><p>{t("purchasing.no_receipts")}</p></div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteOrderDialog} onOpenChange={setShowDeleteOrderDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("purchasing.delete_order")}</DialogTitle><DialogDescription>{t("purchasing.delete_order_confirm")}</DialogDescription></DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteOrderDialog(false)} data-testid="button-cancel-delete-order">{t("purchasing.cancel")}</Button>
+            <Button variant="destructive" onClick={() => { if (selectedOrder) deleteOrderMutation.mutate(selectedOrder.id); setShowDeleteOrderDialog(false); }} data-testid="button-confirm-delete-order">
+              {deleteOrderMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}{t("purchasing.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("purchasing.add_item")}</DialogTitle></DialogHeader>
+          <Form {...itemForm}>
+            <form onSubmit={itemForm.handleSubmit((data) => { if (selectedOrder) addItemMutation.mutate({ orderId: selectedOrder.id, data }); })} className="space-y-4">
+              {tenant?.type === "restaurant" && (
+                <FormField control={itemForm.control} name="itemType" render={({ field }) => (
+                  <FormItem><FormLabel>{t("purchasing.item_type")}</FormLabel>
+                    <Select onValueChange={(val) => { field.onChange(val); setItemType(val as any); }} value={field.value}><FormControl><SelectTrigger data-testid="select-item-type"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent><SelectItem value="product">{t("purchasing.product")}</SelectItem><SelectItem value="ingredient">{t("nav.ingredients")}</SelectItem></SelectContent>
+                    </Select>
+                  </FormItem>
+                )} />
+              )}
+              {itemType === "product" ? (
+                <FormField control={itemForm.control} name="productId" render={({ field }) => (
+                  <FormItem><FormLabel>{t("purchasing.product")}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger data-testid="select-product"><SelectValue placeholder={t("purchasing.select_product")} /></SelectTrigger></FormControl>
+                      <SelectContent>{products?.filter(p => p.isActive).map(p => <SelectItem key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ""}</SelectItem>)}</SelectContent>
+                    </Select><FormMessage />
+                  </FormItem>
+                )} />
+              ) : (
+                <FormField control={itemForm.control} name="ingredientId" render={({ field }) => (
+                  <FormItem><FormLabel>{t("nav.ingredients")}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger data-testid="select-ingredient"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>{ingredients?.map(i => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent>
+                    </Select><FormMessage />
+                  </FormItem>
+                )} />
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={itemForm.control} name="quantity" render={({ field }) => (
+                  <FormItem><FormLabel>{t("purchasing.quantity")}</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} data-testid="input-item-quantity" /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={itemForm.control} name="unitCost" render={({ field }) => (
+                  <FormItem><FormLabel>{t("purchasing.unit_cost")}</FormLabel><FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} data-testid="input-item-cost" /></FormControl><FormMessage /></FormItem>
+                )} />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setShowAddItemDialog(false)} data-testid="button-cancel-add-item">{t("purchasing.cancel")}</Button>
+                <Button type="submit" disabled={addItemMutation.isPending} data-testid="button-save-item">
+                  {addItemMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}{t("purchasing.add_item")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showReceiveDialog} onOpenChange={setShowReceiveDialog}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t("purchasing.receive_stock")}</DialogTitle>
+            <DialogDescription>{selectedOrder?.orderNumber}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>{t("purchasing.destination_warehouse")}</Label>
+              <Select value={receiveWarehouseId} onValueChange={setReceiveWarehouseId}>
+                <SelectTrigger data-testid="select-receive-warehouse"><SelectValue placeholder={t("purchasing.select_warehouse")} /></SelectTrigger>
+                <SelectContent>{warehouses?.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            {selectedOrder?.items?.map(item => {
+              const pending = item.quantity - (item.receivedQuantity || 0);
+              if (pending <= 0) return null;
+              return (
+                <Card key={item.id} data-testid={`card-receive-item-${item.id}`}>
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                      <span className="font-medium">{item.productId ? getProductName(item.productId) : getIngredientName(item.ingredientId)}</span>
+                      <Badge variant="outline">{t("purchasing.pending_qty")}: {pending}</Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm whitespace-nowrap">{t("purchasing.qty_to_receive")}:</Label>
+                      <Input type="number" min={0} max={pending} value={receiveQuantities[item.id] ?? 0}
+                        onChange={(e) => { const val = Math.min(parseInt(e.target.value) || 0, pending); setReceiveQuantities(prev => ({ ...prev, [item.id]: val })); }}
+                        className="w-24" data-testid={`input-receive-qty-${item.id}`} />
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            <div>
+              <Label>{t("purchasing.notes")}</Label>
+              <Textarea value={receiveNotes} onChange={(e) => setReceiveNotes(e.target.value)} data-testid="input-receive-notes" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReceiveDialog(false)} data-testid="button-cancel-receive">{t("purchasing.cancel")}</Button>
+            <Button onClick={handleReceiveStock} disabled={receiveStockMutation.isPending || Object.values(receiveQuantities).every(q => !q || q <= 0)} data-testid="button-confirm-receive">
+              {receiveStockMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}{t("purchasing.create_receipt")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

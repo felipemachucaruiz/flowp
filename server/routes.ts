@@ -3627,103 +3627,163 @@ export async function registerRoutes(
     }
   });
 
-  // Receive stock from purchase order
+  // Get receipts for a purchase order
+  app.get("/api/purchase-orders/:id/receipts", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
+      const order = await storage.getPurchaseOrder(req.params.id);
+      if (!order || order.tenantId !== tenantId) return res.status(404).json({ message: "Purchase order not found" });
+      const receipts = await storage.getReceiptsByPurchaseOrder(req.params.id);
+      const receiptsWithItems = await Promise.all(receipts.map(async (r) => {
+        const items = await storage.getReceiptItems(r.id);
+        return { ...r, items };
+      }));
+      res.json(receiptsWithItems);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch receipts" });
+    }
+  });
+
+  // Receive stock from purchase order (creates a receipt record + stock movements)
   app.post("/api/purchase-orders/:id/receive", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
       const userId = req.headers["x-user-id"] as string;
-      if (!tenantId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
+      if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
       const { id } = req.params;
-      const { items } = req.body; // Array of { itemId, receivedQuantity, expirationDate?, lotCode? }
+      const { items, warehouseId, notes } = req.body;
       
-      // Verify order belongs to tenant
       const order = await storage.getPurchaseOrder(id);
       if (!order || order.tenantId !== tenantId) {
         return res.status(404).json({ message: "Purchase order not found" });
       }
+      if (order.status === "cancelled" || order.status === "received") {
+        return res.status(400).json({ message: "Cannot receive on this order" });
+      }
       
       const orderItems = await storage.getPurchaseOrderItems(id);
+      const effectiveWarehouseId = warehouseId || order.destinationWarehouseId || null;
       
-      // Process received items
+      const receiptNumber = await storage.getNextReceiptNumber(tenantId);
+      const receipt = await storage.createPurchaseReceipt({
+        tenantId,
+        purchaseOrderId: id,
+        receiptNumber,
+        warehouseId: effectiveWarehouseId,
+        receivedBy: userId || null,
+        notes: notes || null,
+        receivedAt: new Date(),
+      });
+      
       for (const received of items) {
         const orderItem = orderItems.find(i => i.id === received.itemId);
-        if (orderItem && received.receivedQuantity > 0) {
-          // Update item received quantity, expiration date and lot code
-          await storage.updatePurchaseOrderItem(received.itemId, {
-            receivedQuantity: (orderItem.receivedQuantity || 0) + received.receivedQuantity,
-            expirationDate: received.expirationDate ? new Date(received.expirationDate) : undefined,
-            lotCode: received.lotCode || undefined,
+        if (!orderItem || received.receivedQuantity <= 0) continue;
+        
+        await storage.createPurchaseReceiptItem({
+          receiptId: receipt.id,
+          purchaseOrderItemId: received.itemId,
+          productId: orderItem.productId || null,
+          ingredientId: orderItem.ingredientId || null,
+          quantityReceived: received.receivedQuantity,
+          unitCost: received.unitCost || orderItem.unitCost,
+        });
+        
+        await storage.updatePurchaseOrderItem(received.itemId, {
+          receivedQuantity: (orderItem.receivedQuantity || 0) + received.receivedQuantity,
+          expirationDate: received.expirationDate ? new Date(received.expirationDate) : undefined,
+          lotCode: received.lotCode || undefined,
+        });
+        
+        if (orderItem.productId) {
+          await storage.createStockMovement({
+            tenantId,
+            productId: orderItem.productId,
+            warehouseId: effectiveWarehouseId,
+            type: "purchase",
+            quantity: received.receivedQuantity,
+            referenceId: receipt.id,
+            notes: `${receiptNumber} - PO ${order.orderNumber}`,
+            userId: userId || null,
           });
           
-          // Check if this is a product or ingredient item
-          if (orderItem.productId) {
-            // Create stock movement for product
-            await storage.createStockMovement({
-              tenantId,
-              productId: orderItem.productId,
-              type: "purchase",
-              quantity: received.receivedQuantity,
-              referenceId: id,
-              notes: `Received from PO ${order.orderNumber}`,
-              userId: userId || null,
+          const product = await storage.getProduct(orderItem.productId);
+          if (product) {
+            const currentStock = await storage.getStockLevel(orderItem.productId);
+            const prevStock = currentStock - received.receivedQuantity;
+            const prevCost = parseFloat(product.cost || "0");
+            const newCost = parseFloat(received.unitCost || orderItem.unitCost);
+            let avgCost = newCost;
+            if (prevStock > 0 && prevCost > 0) {
+              avgCost = ((prevStock * prevCost) + (received.receivedQuantity * newCost)) / currentStock;
+            }
+            await storage.updateProduct(orderItem.productId, {
+              cost: avgCost.toFixed(2),
             });
-          } else if (orderItem.ingredientId) {
-            // Create ingredient lot for ingredient
-            const lotCode = received.lotCode || `PO-${order.orderNumber}-${Date.now()}`;
-            const lot = await storage.createIngredientLot({
-              tenantId,
-              ingredientId: orderItem.ingredientId,
-              qtyReceivedBase: received.receivedQuantity.toString(),
-              qtyRemainingBase: received.receivedQuantity.toString(),
-              expiresAt: received.expirationDate ? new Date(received.expirationDate) : null,
-              costPerBase: orderItem.unitCost || null,
-              supplierId: order.supplierId || null,
-              lotCode,
-              locationId: null,
-              status: "open",
-            });
-            
-            // Create ingredient movement
-            await storage.createIngredientMovement({
-              tenantId,
-              ingredientId: orderItem.ingredientId,
-              lotId: lot.id,
-              locationId: null,
-              movementType: "purchase_receive",
-              qtyDeltaBase: received.receivedQuantity.toString(),
-              sourceType: "purchase_order",
-              sourceId: id,
-              notes: `Received from PO ${order.orderNumber}`,
-              createdBy: userId || null,
+          }
+        } else if (orderItem.ingredientId) {
+          const lotCode = received.lotCode || `PO-${order.orderNumber}-${Date.now()}`;
+          const lot = await storage.createIngredientLot({
+            tenantId,
+            ingredientId: orderItem.ingredientId,
+            qtyReceivedBase: received.receivedQuantity.toString(),
+            qtyRemainingBase: received.receivedQuantity.toString(),
+            expiresAt: received.expirationDate ? new Date(received.expirationDate) : null,
+            costPerBase: orderItem.unitCost || null,
+            supplierId: order.supplierId || null,
+            lotCode,
+            locationId: null,
+            status: "open",
+          });
+          
+          await storage.createIngredientMovement({
+            tenantId,
+            ingredientId: orderItem.ingredientId,
+            lotId: lot.id,
+            locationId: null,
+            movementType: "purchase_receive",
+            qtyDeltaBase: received.receivedQuantity.toString(),
+            sourceType: "purchase_receipt",
+            sourceId: receipt.id,
+            notes: `${receiptNumber} - PO ${order.orderNumber}`,
+            createdBy: userId || null,
+          });
+        }
+        
+        if (orderItem.productId && order.supplierId) {
+          const supplierLinks = await storage.getSupplierProductsByProduct(orderItem.productId);
+          const existingLink = supplierLinks.find(l => l.supplierId === order.supplierId);
+          if (existingLink) {
+            await storage.updateSupplierProduct(existingLink.id, {
+              unitCost: received.unitCost || orderItem.unitCost,
             });
           }
         }
       }
       
-      // Check if all items are fully received
       const updatedItems = await storage.getPurchaseOrderItems(id);
       const allReceived = updatedItems.every(item => 
         (item.receivedQuantity || 0) >= item.quantity
       );
-      const partiallyReceived = updatedItems.some(item =>
-        (item.receivedQuantity || 0) > 0 && (item.receivedQuantity || 0) < item.quantity
+      const anyReceived = updatedItems.some(item =>
+        (item.receivedQuantity || 0) > 0
       );
       
-      // Update order status
-      let newStatus: "received" | "partial" = "received";
-      if (!allReceived && partiallyReceived) {
+      let newStatus = order.status;
+      if (allReceived) {
+        newStatus = "received";
+      } else if (anyReceived) {
         newStatus = "partial";
       }
       
       await storage.updatePurchaseOrder(id, {
-        status: newStatus,
+        status: newStatus as any,
         receivedDate: allReceived ? new Date() : undefined,
       });
       
       const updatedOrder = await storage.getPurchaseOrder(id);
-      res.json({ ...updatedOrder, items: updatedItems });
+      const receiptItems = await storage.getReceiptItems(receipt.id);
+      res.json({ order: updatedOrder, receipt: { ...receipt, items: receiptItems }, items: updatedItems });
     } catch (error) {
       console.error("Receive stock error:", error);
       res.status(400).json({ message: "Failed to receive stock" });

@@ -1,0 +1,112 @@
+Necesito diseñar e implementar el MÓDULO DE ÓRDENES DE COMPRA (Purchase Orders) completamente integrado.
+
+OBJETIVO DEL MÓDULO
+Permitir crear órdenes de compra, recibir mercancía total o parcial y abastecer inventario de forma auditada y trazable.
+
+REQUERIMIENTOS FUNCIONALES
+
+1. PROVEEDORES
+Crear entidad Proveedor con:
+- id
+- tenant_id
+- nombre / razón social
+- tipo_documento (NIT, CC)
+- identificacion
+- telefono
+- email
+- direccion
+- condiciones_pago (contado, crédito, días)
+- moneda
+- notas
+- estado
+- timestamps
+
+2. ORDEN DE COMPRA (OC)
+Entidad PurchaseOrder con:
+- id
+- tenant_id
+- numero_oc (autogenerado)
+- proveedor_id
+- bodega_destino_id
+- fecha_emision
+- fecha_entrega_estimada
+- estado (draft, sent, partial, received, cancelled)
+- subtotal
+- impuestos
+- total
+- created_by
+- timestamps
+
+3. DETALLE DE OC
+Entidad PurchaseOrderItem:
+- purchase_order_id
+- product_id
+- sku
+- costo_unitario
+- cantidad_solicitada
+- cantidad_recibida
+- impuesto
+- subtotal
+
+4. RECEPCIÓN DE MERCANCÍA
+Entidad PurchaseReceipt:
+- id
+- purchase_order_id
+- fecha
+- usuario_id
+- bodega_id
+- observaciones
+
+Entidad PurchaseReceiptItem:
+- receipt_id
+- product_id
+- cantidad_recibida
+- costo_unitario
+
+Debe permitir:
+- Recepciones parciales
+- Múltiples recepciones por OC
+- Cerrar OC solo cuando todo esté recibido
+
+5. INVENTARIO (MUY IMPORTANTE)
+Cada recepción debe generar movimientos en el ledger de inventario:
+- tipo_movimiento = "COMPRA"
+- producto
+- cantidad
+- bodega
+- referencia = OC + Recepción
+- inmutable (no editable)
+
+6. COSTOS
+- Actualizar costo promedio ponderado del producto
+- Guardar historial de costos por proveedor
+
+7. PERMISOS (RBAC)
+Permisos separados para:
+- Crear OC
+- Aprobar OC
+- Recibir mercancía
+- Ver costos
+
+8. REPORTES
+- Compras por proveedor
+- Productos más comprados
+- Diferencias OC vs recibido
+- Historial de costos
+
+ENTREGABLES ESPERADOS
+1. Modelo de datos (SQL o ORM)
+2. Servicios / lógica de negocio
+3. Endpoints API REST
+4. Flujo de estados de la OC
+5. Validaciones clave
+6. Buenas prácticas multi-tenant
+7. Código limpio y escalable
+
+IMPORTANTE
+- No modificar inventario directamente
+- Todo entra por ledger
+- Mantener trazabilidad y auditoría total
+- Pensar en escalabilidad SaaS
+
+Comienza proponiendo la arquitectura y luego genera el código.

@@ -4,7 +4,7 @@ import {
   orders, orderItems, kitchenTickets, payments, returns, returnItems, stockMovements, auditLogs, customers,
   loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions,
   systemSettings, passwordResetTokens, emailTemplates, emailLogs, notifications,
-  suppliers, purchaseOrders, purchaseOrderItems, supplierIngredients, supplierProducts,
+  suppliers, purchaseOrders, purchaseOrderItems, purchaseReceipts, purchaseReceiptItems, supplierIngredients, supplierProducts,
   ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
   saleIngredientConsumptions, ingredientAlerts, matiasDocumentQueue,
   warehouses,
@@ -26,6 +26,8 @@ import {
   type Supplier, type InsertSupplier,
   type PurchaseOrder, type InsertPurchaseOrder,
   type PurchaseOrderItem, type InsertPurchaseOrderItem,
+  type PurchaseReceipt, type InsertPurchaseReceipt,
+  type PurchaseReceiptItem, type InsertPurchaseReceiptItem,
   type SupplierIngredient, type InsertSupplierIngredient,
   type SupplierProduct, type InsertSupplierProduct,
   type SubscriptionPlan, type Subscription,
@@ -184,6 +186,14 @@ export interface IStorage {
   createPurchaseOrderItem(item: InsertPurchaseOrderItem): Promise<PurchaseOrderItem>;
   updatePurchaseOrderItem(id: string, data: Partial<InsertPurchaseOrderItem>): Promise<PurchaseOrderItem | undefined>;
   deletePurchaseOrderItem(id: string): Promise<boolean>;
+  
+  // Purchase Receipts
+  getReceiptsByPurchaseOrder(purchaseOrderId: string): Promise<PurchaseReceipt[]>;
+  getReceipt(id: string): Promise<PurchaseReceipt | undefined>;
+  createPurchaseReceipt(receipt: InsertPurchaseReceipt): Promise<PurchaseReceipt>;
+  getReceiptItems(receiptId: string): Promise<PurchaseReceiptItem[]>;
+  createPurchaseReceiptItem(item: InsertPurchaseReceiptItem): Promise<PurchaseReceiptItem>;
+  getNextReceiptNumber(tenantId: string): Promise<string>;
   
   // Supplier-Ingredient Linking
   getSupplierIngredients(tenantId: string): Promise<SupplierIngredient[]>;
@@ -1034,6 +1044,41 @@ export class DatabaseStorage implements IStorage {
   async deletePurchaseOrderItem(id: string): Promise<boolean> {
     await db.delete(purchaseOrderItems).where(eq(purchaseOrderItems.id, id));
     return true;
+  }
+
+  // Purchase Receipts
+  async getReceiptsByPurchaseOrder(purchaseOrderId: string): Promise<PurchaseReceipt[]> {
+    return db.select().from(purchaseReceipts)
+      .where(eq(purchaseReceipts.purchaseOrderId, purchaseOrderId))
+      .orderBy(desc(purchaseReceipts.receivedAt));
+  }
+
+  async getReceipt(id: string): Promise<PurchaseReceipt | undefined> {
+    const [receipt] = await db.select().from(purchaseReceipts).where(eq(purchaseReceipts.id, id));
+    return receipt;
+  }
+
+  async createPurchaseReceipt(receipt: InsertPurchaseReceipt): Promise<PurchaseReceipt> {
+    const [created] = await db.insert(purchaseReceipts).values(receipt).returning();
+    return created;
+  }
+
+  async getReceiptItems(receiptId: string): Promise<PurchaseReceiptItem[]> {
+    return db.select().from(purchaseReceiptItems)
+      .where(eq(purchaseReceiptItems.receiptId, receiptId));
+  }
+
+  async createPurchaseReceiptItem(item: InsertPurchaseReceiptItem): Promise<PurchaseReceiptItem> {
+    const [created] = await db.insert(purchaseReceiptItems).values(item).returning();
+    return created;
+  }
+
+  async getNextReceiptNumber(tenantId: string): Promise<string> {
+    const [result] = await db.select({ count: sql<number>`count(*)` })
+      .from(purchaseReceipts)
+      .where(eq(purchaseReceipts.tenantId, tenantId));
+    const num = (result?.count || 0) + 1;
+    return `REC-${String(num).padStart(5, '0')}`;
   }
 
   // Supplier-Ingredient Linking
