@@ -21,12 +21,13 @@ export interface TenantPlanInfo {
     users: number;
     products: number;
     locations: number;
+    warehouses: number;
     tables: number;
     recipes: number;
   };
 }
 
-type LimitResource = "registers" | "users" | "products" | "locations" | "tables" | "recipes";
+type LimitResource = "registers" | "users" | "products" | "locations" | "warehouses" | "tables" | "recipes";
 
 export function useSubscription() {
   const { data, isLoading } = useQuery<TenantPlanInfo>({
@@ -39,7 +40,7 @@ export function useSubscription() {
   const businessType = data?.businessType || "retail";
   const features = data?.features || [];
   const limits = data?.limits || { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200, maxTables: 0, maxRecipes: 0 };
-  const usage = data?.usage || { registers: 0, users: 0, products: 0, locations: 0, tables: 0, recipes: 0 };
+  const usage = data?.usage || { registers: 0, users: 0, products: 0, locations: 0, warehouses: 0, tables: 0, recipes: 0 };
 
   const hasFeature = (feature: SubscriptionFeature): boolean => {
     return features.includes(feature);
@@ -51,6 +52,7 @@ export function useSubscription() {
       users: { current: usage.users, max: limits.maxUsers },
       products: { current: usage.products, max: limits.maxProducts },
       locations: { current: usage.locations, max: limits.maxLocations },
+      warehouses: { current: usage.warehouses, max: limits.maxWarehouses },
       tables: { current: usage.tables, max: limits.maxTables },
       recipes: { current: usage.recipes, max: limits.maxRecipes },
     };
@@ -65,6 +67,7 @@ export function useSubscription() {
       users: { current: usage.users, max: limits.maxUsers },
       products: { current: usage.products, max: limits.maxProducts },
       locations: { current: usage.locations, max: limits.maxLocations },
+      warehouses: { current: usage.warehouses, max: limits.maxWarehouses },
       tables: { current: usage.tables, max: limits.maxTables },
       recipes: { current: usage.recipes, max: limits.maxRecipes },
     };

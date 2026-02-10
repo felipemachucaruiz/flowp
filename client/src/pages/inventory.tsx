@@ -30,16 +30,28 @@ import {
   AlertTriangle,
   History,
   Loader2,
+  ArrowLeftRight,
+  Warehouse,
 } from "lucide-react";
 import type { Category } from "@shared/schema";
 
 const adjustmentSchema = z.object({
   type: z.enum(["adjustment", "purchase", "waste"]),
-  quantity: z.number().int().min(1, "Quantity must be at least 1"),
+  quantity: z.number().int().min(1),
   notes: z.string().optional(),
 });
 
 type AdjustmentFormData = z.infer<typeof adjustmentSchema>;
+
+const transferSchema = z.object({
+  productId: z.string().min(1),
+  fromWarehouseId: z.string().min(1),
+  toWarehouseId: z.string().min(1),
+  quantity: z.number().int().min(1),
+  notes: z.string().optional(),
+});
+
+type TransferFormData = z.infer<typeof transferSchema>;
 
 export default function InventoryPage() {
   const { toast } = useToast();
@@ -48,6 +60,8 @@ export default function InventoryPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [adjustmentDirection, setAdjustmentDirection] = useState<"add" | "remove">("add");
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("all");
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
 
   const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -57,21 +71,33 @@ export default function InventoryPage() {
     queryKey: ["/api/categories"],
   });
 
+  const { data: warehouses } = useQuery<any[]>({
+    queryKey: ["/api/warehouses"],
+  });
+
+  const levelsUrl = selectedWarehouseId !== "all"
+    ? `/api/inventory/levels?warehouseId=${selectedWarehouseId}`
+    : "/api/inventory/levels";
+
+  const movementsUrl = selectedWarehouseId !== "all"
+    ? `/api/inventory/movements?warehouseId=${selectedWarehouseId}`
+    : "/api/inventory/movements";
+
   const { data: stockLevels } = useQuery<Record<string, number>>({
-    queryKey: ["/api/inventory/levels"],
+    queryKey: [levelsUrl],
   });
 
   const { data: movements, isLoading: movementsLoading } = useQuery<StockMovement[]>({
-    queryKey: ["/api/inventory/movements"],
+    queryKey: [movementsUrl],
   });
 
-  
   const adjustStockMutation = useMutation({
     mutationFn: async (data: {
       productId: string;
       type: string;
       quantity: number;
       notes?: string;
+      warehouseId?: string;
     }) => {
       return apiRequest("POST", "/api/inventory/adjust", data);
     },
@@ -80,8 +106,8 @@ export default function InventoryPage() {
         title: t("inventory.stock_adjusted"),
         description: t("inventory.stock_updated_success"),
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/levels"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/movements"] });
+      queryClient.invalidateQueries({ predicate: (q) => (q.queryKey[0] as string)?.startsWith("/api/inventory/levels") });
+      queryClient.invalidateQueries({ predicate: (q) => (q.queryKey[0] as string)?.startsWith("/api/inventory/movements") });
       setShowAdjustmentDialog(false);
       setSelectedProduct(null);
     },
@@ -94,10 +120,41 @@ export default function InventoryPage() {
     },
   });
 
+  const transferMutation = useMutation({
+    mutationFn: async (data: TransferFormData) => {
+      return apiRequest("POST", "/api/inventory/transfer", data);
+    },
+    onSuccess: () => {
+      toast({ title: t("inventory.transfer_success") });
+      queryClient.invalidateQueries({ predicate: (q) => (q.queryKey[0] as string)?.startsWith("/api/inventory/levels") });
+      queryClient.invalidateQueries({ predicate: (q) => (q.queryKey[0] as string)?.startsWith("/api/inventory/movements") });
+      setShowTransferDialog(false);
+      transferForm.reset();
+    },
+    onError: () => {
+      toast({
+        title: t("common.error"),
+        description: t("inventory.transfer_error"),
+        variant: "destructive",
+      });
+    },
+  });
+
   const form = useForm<AdjustmentFormData>({
     resolver: zodResolver(adjustmentSchema),
     defaultValues: {
       type: "adjustment",
+      quantity: 1,
+      notes: "",
+    },
+  });
+
+  const transferForm = useForm<TransferFormData>({
+    resolver: zodResolver(transferSchema),
+    defaultValues: {
+      productId: "",
+      fromWarehouseId: "",
+      toWarehouseId: "",
       quantity: 1,
       notes: "",
     },
@@ -136,7 +193,16 @@ export default function InventoryPage() {
       type: data.type,
       quantity: adjustmentDirection === "add" ? data.quantity : -data.quantity,
       notes: data.notes,
+      warehouseId: selectedWarehouseId !== "all" ? selectedWarehouseId : undefined,
     });
+  };
+
+  const onSubmitTransfer = (data: TransferFormData) => {
+    if (data.fromWarehouseId === data.toWarehouseId) {
+      toast({ title: t("common.error"), description: t("inventory.transfer_error"), variant: "destructive" });
+      return;
+    }
+    transferMutation.mutate(data);
   };
 
   const getMovementIcon = (type: string) => {
@@ -149,6 +215,8 @@ export default function InventoryPage() {
         return <TrendingUp className="w-4 h-4 text-blue-500" />;
       case "waste":
         return <TrendingDown className="w-4 h-4 text-orange-500" />;
+      case "transfer":
+        return <ArrowLeftRight className="w-4 h-4 text-purple-500" />;
       default:
         return <History className="w-4 h-4 text-muted-foreground" />;
     }
@@ -160,19 +228,58 @@ export default function InventoryPage() {
     outOfStock: products?.filter((p) => p.trackInventory && getStockLevel(p.id) <= 0).length || 0,
   };
 
-  
+  const hasMultipleWarehouses = warehouses && warehouses.length > 1;
+  const trackedProducts = products?.filter((p) => p.trackInventory) || [];
+
   return (
     <div className="h-full overflow-y-auto touch-scroll overscroll-contain">
     <div className="p-3 sm:p-6 pb-24 sm:pb-6 space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("inventory.title")}</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
-          {t("inventory.subtitle")}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">{t("inventory.title")}</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            {t("inventory.subtitle")}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {warehouses && warehouses.length > 0 && (
+            <Select value={selectedWarehouseId} onValueChange={setSelectedWarehouseId}>
+              <SelectTrigger className="w-[180px]" data-testid="select-warehouse-filter">
+                <Warehouse className="w-4 h-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder={t("inventory.select_warehouse")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" data-testid="select-warehouse-all">{t("inventory.all_warehouses")}</SelectItem>
+                {warehouses.map((wh: any) => (
+                  <SelectItem key={wh.id} value={wh.id} data-testid={`select-warehouse-${wh.id}`}>
+                    {wh.name}{wh.isDefault ? ` (${t("warehouses.default")})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {hasMultipleWarehouses && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                transferForm.reset({
+                  productId: "",
+                  fromWarehouseId: warehouses![0]?.id || "",
+                  toWarehouseId: warehouses![1]?.id || "",
+                  quantity: 1,
+                  notes: "",
+                });
+                setShowTransferDialog(true);
+              }}
+              data-testid="button-transfer-stock"
+            >
+              <ArrowLeftRight className="w-4 h-4 mr-2" />
+              {t("inventory.transfer")}
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-4">
@@ -222,7 +329,6 @@ export default function InventoryPage() {
         </TabsList>
 
         <TabsContent value="products" className="mt-4 space-y-4">
-          {/* Search */}
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -234,14 +340,13 @@ export default function InventoryPage() {
             />
           </div>
 
-          {/* Products List */}
           {productsLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
                 <Skeleton key={i} className="h-20" />
               ))}
             </div>
-          ) : filteredProducts?.length === 0 ? (
+          ) : filteredProducts?.filter((p) => p.trackInventory).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Package className="w-12 h-12 mb-4 opacity-30" />
               <p className="font-medium">{t("inventory.no_products")}</p>
@@ -257,7 +362,7 @@ export default function InventoryPage() {
                   <Card key={product.id} className="p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-medium truncate">{product.name}</h3>
                           <Badge variant="secondary" className="text-xs">
                             {product.sku || t("inventory.no_sku")}
@@ -325,6 +430,7 @@ export default function InventoryPage() {
               <div className="space-y-2">
                 {movements?.slice(0, 50).map((movement) => {
                   const product = products?.find((p) => p.id === movement.productId);
+                  const wh = warehouses?.find((w: any) => w.id === (movement as any).warehouseId);
                   return (
                     <Card key={movement.id} className="p-3">
                       <div className="flex items-center gap-3">
@@ -340,13 +446,18 @@ export default function InventoryPage() {
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium truncate">
                               {product?.name || t("inventory.unknown_product")}
                             </span>
                             <Badge variant="secondary" className="text-xs">
                               {t(`inventory.movement_${movement.type}`)}
                             </Badge>
+                            {wh && (
+                              <Badge variant="outline" className="text-xs">
+                                {wh.name}
+                              </Badge>
+                            )}
                           </div>
                           {movement.notes && (
                             <p className="text-xs text-muted-foreground truncate">
@@ -377,7 +488,6 @@ export default function InventoryPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Adjustment Dialog */}
       <Dialog open={showAdjustmentDialog} onOpenChange={setShowAdjustmentDialog}>
         <DialogContent>
           <DialogHeader>
@@ -394,6 +504,11 @@ export default function InventoryPage() {
                   <p className="text-sm text-muted-foreground">
                     {t("inventory.current_stock")}: {getStockLevel(selectedProduct.id)}
                   </p>
+                  {selectedWarehouseId !== "all" && warehouses && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {warehouses.find((w: any) => w.id === selectedWarehouseId)?.name}
+                    </p>
+                  )}
                 </div>
 
                 <FormField
@@ -498,6 +613,148 @@ export default function InventoryPage() {
               </form>
             </Form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showTransferDialog} onOpenChange={setShowTransferDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowLeftRight className="w-5 h-5" />
+              {t("inventory.transfer_stock")}
+            </DialogTitle>
+          </DialogHeader>
+
+          <Form {...transferForm}>
+            <form onSubmit={transferForm.handleSubmit(onSubmitTransfer)} className="space-y-4">
+              <FormField
+                control={transferForm.control}
+                name="productId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("nav.products")}</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-transfer-product">
+                          <SelectValue placeholder={t("inventory.select_product")} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {trackedProducts.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={transferForm.control}
+                  name="fromWarehouseId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("inventory.from_warehouse")}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-transfer-from">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {warehouses?.map((wh: any) => (
+                            <SelectItem key={wh.id} value={wh.id}>{wh.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={transferForm.control}
+                  name="toWarehouseId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("inventory.to_warehouse")}</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-transfer-to">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {warehouses?.map((wh: any) => (
+                            <SelectItem key={wh.id} value={wh.id}>{wh.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={transferForm.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("inventory.quantity")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        data-testid="input-transfer-quantity"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={transferForm.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("inventory.notes")} ({t("common.optional")})</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder={t("inventory.notes_placeholder")}
+                        {...field}
+                        data-testid="input-transfer-notes"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setShowTransferDialog(false)}>
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={transferMutation.isPending}
+                  data-testid="button-submit-transfer"
+                >
+                  {transferMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <ArrowLeftRight className="w-4 h-4 mr-2" />
+                  )}
+                  {t("inventory.transfer")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

@@ -2898,15 +2898,87 @@ export async function registerRoutes(
     }
   });
 
+  // ===== WAREHOUSE ROUTES =====
+
+  app.get("/api/warehouses", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
+      const whs = await storage.getWarehousesByTenant(tenantId);
+      res.json(whs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch warehouses" });
+    }
+  });
+
+  app.post("/api/warehouses", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
+
+      const existing = await storage.getWarehousesByTenant(tenantId);
+      const planInfo = await storage.getTenantPlanWithLimits(tenantId);
+      if (planInfo.limits.maxWarehouses !== -1 && existing.length >= planInfo.limits.maxWarehouses) {
+        return res.status(403).json({ message: "warehouse_limit_reached" });
+      }
+
+      const isFirst = existing.length === 0;
+      const warehouse = await storage.createWarehouse({
+        ...req.body,
+        tenantId,
+        isDefault: isFirst ? true : (req.body.isDefault || false),
+      });
+      res.json(warehouse);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to create warehouse" });
+    }
+  });
+
+  app.patch("/api/warehouses/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
+      const wh = await storage.getWarehouse(req.params.id);
+      if (!wh || wh.tenantId !== tenantId) return res.status(404).json({ message: "Warehouse not found" });
+
+      if (req.body.isDefault) {
+        const all = await storage.getWarehousesByTenant(tenantId);
+        for (const w of all) {
+          if (w.id !== req.params.id && w.isDefault) {
+            await storage.updateWarehouse(w.id, { isDefault: false });
+          }
+        }
+      }
+
+      const updated = await storage.updateWarehouse(req.params.id, req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update warehouse" });
+    }
+  });
+
+  app.delete("/api/warehouses/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
+      const wh = await storage.getWarehouse(req.params.id);
+      if (!wh || wh.tenantId !== tenantId) return res.status(404).json({ message: "Warehouse not found" });
+      if (wh.isDefault) return res.status(400).json({ message: "Cannot delete default warehouse" });
+      await storage.deleteWarehouse(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ message: "Failed to delete warehouse" });
+    }
+  });
+
   // ===== INVENTORY ROUTES =====
 
   app.get("/api/inventory/levels", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
-      if (!tenantId) {
-        return res.json({});
-      }
-      const levels = await storage.getStockLevels(tenantId);
+      if (!tenantId) return res.json({});
+      const warehouseId = req.query.warehouseId as string | undefined;
+      const levels = await storage.getStockLevels(tenantId, warehouseId);
       res.json(levels);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch stock levels" });
@@ -2916,10 +2988,9 @@ export async function registerRoutes(
   app.get("/api/inventory/movements", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
-      if (!tenantId) {
-        return res.json([]);
-      }
-      const movements = await storage.getStockMovementsByTenant(tenantId);
+      if (!tenantId) return res.json([]);
+      const warehouseId = req.query.warehouseId as string | undefined;
+      const movements = await storage.getStockMovementsByTenant(tenantId, warehouseId);
       res.json(movements);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch stock movements" });
@@ -2930,23 +3001,18 @@ export async function registerRoutes(
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
       const userId = req.headers["x-user-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
 
-      if (!tenantId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
+      const { productId, type, quantity, notes, warehouseId } = req.body;
 
-      const { productId, type, quantity, notes } = req.body;
-
-      // Verify product belongs to tenant
       const products = await storage.getProductsByTenant(tenantId);
       const product = products.find(p => p.id === productId);
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
+      if (!product) return res.status(404).json({ message: "Product not found" });
 
       const movement = await storage.createStockMovement({
         tenantId,
         productId,
+        warehouseId: warehouseId || null,
         type,
         quantity,
         notes: notes || null,
@@ -2957,6 +3023,49 @@ export async function registerRoutes(
       res.json(movement);
     } catch (error) {
       res.status(400).json({ message: "Failed to adjust stock" });
+    }
+  });
+
+  app.post("/api/inventory/transfer", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      const userId = req.headers["x-user-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
+
+      const { productId, fromWarehouseId, toWarehouseId, quantity, notes } = req.body;
+
+      if (!productId || !fromWarehouseId || !toWarehouseId || !quantity || quantity <= 0) {
+        return res.status(400).json({ message: "Invalid transfer data" });
+      }
+      if (fromWarehouseId === toWarehouseId) {
+        return res.status(400).json({ message: "Cannot transfer to the same warehouse" });
+      }
+
+      await storage.createStockMovement({
+        tenantId,
+        productId,
+        warehouseId: fromWarehouseId,
+        type: "transfer",
+        quantity: -quantity,
+        notes: notes || `Transfer to warehouse`,
+        userId: userId || null,
+        referenceId: toWarehouseId,
+      });
+
+      const incoming = await storage.createStockMovement({
+        tenantId,
+        productId,
+        warehouseId: toWarehouseId,
+        type: "transfer",
+        quantity: quantity,
+        notes: notes || `Transfer from warehouse`,
+        userId: userId || null,
+        referenceId: fromWarehouseId,
+      });
+
+      res.json(incoming);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to transfer stock" });
     }
   });
 
@@ -4507,7 +4616,10 @@ export async function registerRoutes(
         plan: planData.plan ? { id: planData.plan.id, name: planData.plan.name } : null,
         limits: planData.limits,
         features: planData.features,
-        usage,
+        usage: {
+          ...usage,
+          warehouses: (await storage.getWarehousesByTenant(tenantId)).length,
+        },
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch plan info" });

@@ -7,6 +7,7 @@ import {
   suppliers, purchaseOrders, purchaseOrderItems, supplierIngredients, supplierProducts,
   ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
   saleIngredientConsumptions, ingredientAlerts, matiasDocumentQueue,
+  warehouses,
   getTierFeaturesForType, getTierLimitsForType,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
@@ -39,6 +40,7 @@ import {
   type RecipeItem, type InsertRecipeItem,
   type IngredientMovement, type InsertIngredientMovement,
   type IngredientAlert, type InsertIngredientAlert,
+  type Warehouse, type InsertWarehouse,
   RETAIL_FEATURES, RESTAURANT_FEATURES, PRO_FEATURES,
 } from "@shared/schema";
 import { db } from "./db";
@@ -149,10 +151,17 @@ export interface IStorage {
   getReturnedQuantityForOrderItem(orderItemId: string): Promise<number>;
   
   // Stock Movements
-  getStockMovementsByTenant(tenantId: string): Promise<StockMovement[]>;
+  getStockMovementsByTenant(tenantId: string, warehouseId?: string): Promise<StockMovement[]>;
   createStockMovement(movement: InsertStockMovement): Promise<StockMovement>;
   getStockLevel(productId: string): Promise<number>;
-  getStockLevels(tenantId: string): Promise<Record<string, number>>;
+  getStockLevels(tenantId: string, warehouseId?: string): Promise<Record<string, number>>;
+
+  // Warehouses
+  getWarehousesByTenant(tenantId: string): Promise<Warehouse[]>;
+  getWarehouse(id: string): Promise<Warehouse | undefined>;
+  createWarehouse(warehouse: InsertWarehouse): Promise<Warehouse>;
+  updateWarehouse(id: string, data: Partial<InsertWarehouse>): Promise<Warehouse | undefined>;
+  deleteWarehouse(id: string): Promise<void>;
   
   // Suppliers
   getSuppliersByTenant(tenantId: string): Promise<Supplier[]>;
@@ -824,11 +833,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Stock Movements
-  async getStockMovementsByTenant(tenantId: string): Promise<StockMovement[]> {
+  async getStockMovementsByTenant(tenantId: string, warehouseId?: string): Promise<StockMovement[]> {
+    const conditions = [eq(stockMovements.tenantId, tenantId)];
+    if (warehouseId) {
+      conditions.push(eq(stockMovements.warehouseId, warehouseId));
+    }
     return db
       .select()
       .from(stockMovements)
-      .where(eq(stockMovements.tenantId, tenantId))
+      .where(and(...conditions))
       .orderBy(desc(stockMovements.createdAt))
       .limit(100);
   }
@@ -846,14 +859,18 @@ export class DatabaseStorage implements IStorage {
     return result?.total || 0;
   }
 
-  async getStockLevels(tenantId: string): Promise<Record<string, number>> {
+  async getStockLevels(tenantId: string, warehouseId?: string): Promise<Record<string, number>> {
+    const conditions = [eq(stockMovements.tenantId, tenantId)];
+    if (warehouseId) {
+      conditions.push(eq(stockMovements.warehouseId, warehouseId));
+    }
     const results = await db
       .select({
         productId: stockMovements.productId,
         total: sql<number>`COALESCE(SUM(quantity), 0)`,
       })
       .from(stockMovements)
-      .where(eq(stockMovements.tenantId, tenantId))
+      .where(and(...conditions))
       .groupBy(stockMovements.productId);
     
     const levels: Record<string, number> = {};
@@ -861,6 +878,30 @@ export class DatabaseStorage implements IStorage {
       levels[r.productId] = r.total;
     }
     return levels;
+  }
+
+  // Warehouses
+  async getWarehousesByTenant(tenantId: string): Promise<Warehouse[]> {
+    return db.select().from(warehouses).where(eq(warehouses.tenantId, tenantId)).orderBy(warehouses.createdAt);
+  }
+
+  async getWarehouse(id: string): Promise<Warehouse | undefined> {
+    const [wh] = await db.select().from(warehouses).where(eq(warehouses.id, id));
+    return wh;
+  }
+
+  async createWarehouse(warehouse: InsertWarehouse): Promise<Warehouse> {
+    const [created] = await db.insert(warehouses).values(warehouse).returning();
+    return created;
+  }
+
+  async updateWarehouse(id: string, data: Partial<InsertWarehouse>): Promise<Warehouse | undefined> {
+    const [updated] = await db.update(warehouses).set(data).where(eq(warehouses.id, id)).returning();
+    return updated;
+  }
+
+  async deleteWarehouse(id: string): Promise<void> {
+    await db.delete(warehouses).where(eq(warehouses.id, id));
   }
 
   // Suppliers

@@ -1084,6 +1084,259 @@ function EmailNotificationPreferences() {
   );
 }
 
+function WarehouseSettings() {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const { tenant } = useAuth();
+  const { canCreate: canCreateWh, usage: whUsage, limits: whLimits } = useSubscription();
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [editingWarehouse, setEditingWarehouse] = useState<{ id: string; name: string; isDefault: boolean } | null>(null);
+  const [warehouseName, setWarehouseName] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const { data: warehousesData, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/warehouses"],
+    enabled: !!tenant?.id,
+  });
+
+  const warehouses = warehousesData || [];
+
+  const createMutation = useMutation({
+    mutationFn: async (name: string) => apiRequest("POST", "/api/warehouses", { name }),
+    onSuccess: () => {
+      toast({ title: t("warehouses.created") });
+      queryClient.invalidateQueries({ queryKey: ["/api/warehouses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription/my-plan"] });
+      setShowDialog(false);
+      setWarehouseName("");
+    },
+    onError: (error: any) => {
+      if (error.message?.includes("warehouse_limit_reached")) {
+        toast({ title: t("warehouses.limit_reached"), variant: "destructive" });
+      } else {
+        toast({ title: t("common.error"), description: error.message, variant: "destructive" });
+      }
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => apiRequest("PATCH", `/api/warehouses/${id}`, { name }),
+    onSuccess: () => {
+      toast({ title: t("warehouses.updated") });
+      queryClient.invalidateQueries({ queryKey: ["/api/warehouses"] });
+      setShowDialog(false);
+      setEditingWarehouse(null);
+      setWarehouseName("");
+    },
+    onError: (error: any) => {
+      toast({ title: t("common.error"), description: error.message, variant: "destructive" });
+    },
+  });
+
+  const setDefaultMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("PATCH", `/api/warehouses/${id}`, { isDefault: true }),
+    onSuccess: () => {
+      toast({ title: t("warehouses.updated") });
+      queryClient.invalidateQueries({ queryKey: ["/api/warehouses"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/warehouses/${id}`),
+    onSuccess: () => {
+      toast({ title: t("warehouses.deleted") });
+      queryClient.invalidateQueries({ queryKey: ["/api/warehouses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription/my-plan"] });
+      setConfirmDeleteId(null);
+    },
+    onError: (error: any) => {
+      if (error.message?.includes("Cannot delete default")) {
+        toast({ title: t("warehouses.cannot_delete_default"), variant: "destructive" });
+      } else {
+        toast({ title: t("common.error"), variant: "destructive" });
+      }
+    },
+  });
+
+  const openCreateDialog = () => {
+    setEditingWarehouse(null);
+    setWarehouseName("");
+    setShowDialog(true);
+  };
+
+  const openEditDialog = (wh: { id: string; name: string; isDefault: boolean }) => {
+    setEditingWarehouse(wh);
+    setWarehouseName(wh.name);
+    setShowDialog(true);
+  };
+
+  const handleSubmit = () => {
+    if (!warehouseName.trim()) return;
+    if (editingWarehouse) {
+      updateMutation.mutate({ id: editingWarehouse.id, name: warehouseName.trim() });
+    } else {
+      createMutation.mutate(warehouseName.trim());
+    }
+  };
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5" />
+              {t("warehouses.title")}
+            </CardTitle>
+            <CardDescription>{t("warehouses.subtitle")}</CardDescription>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="secondary" data-testid="badge-warehouse-count">
+              {warehouses.length} / {whLimits.maxWarehouses === -1 ? "∞" : whLimits.maxWarehouses}
+            </Badge>
+            <Button
+              onClick={openCreateDialog}
+              disabled={!canCreateWh("warehouses")}
+              data-testid="button-add-warehouse"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {t("warehouses.add")}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!canCreateWh("warehouses") && (
+            <div className="mb-4">
+              <UpgradeBanner
+                type="limit"
+                resourceName={t("warehouses.title")}
+                current={whUsage.warehouses}
+                max={whLimits.maxWarehouses}
+                compact
+              />
+            </div>
+          )}
+          {isLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : warehouses.length === 0 ? (
+            <div className="text-center py-8">
+              <Package className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+              <p className="text-muted-foreground">{t("warehouses.no_warehouses")}</p>
+              <p className="text-sm text-muted-foreground">{t("warehouses.no_warehouses_desc")}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {warehouses.map((wh: any) => (
+                <div
+                  key={wh.id}
+                  className="flex items-center justify-between p-3 rounded-lg border"
+                  data-testid={`card-warehouse-${wh.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Package className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <span className="font-medium">{wh.name}</span>
+                      {wh.isDefault && (
+                        <Badge variant="secondary" className="ml-2 text-xs">{t("warehouses.default_badge")}</Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-1">
+                    {!wh.isDefault && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setDefaultMutation.mutate(wh.id)}
+                        disabled={setDefaultMutation.isPending}
+                        data-testid={`button-set-default-warehouse-${wh.id}`}
+                      >
+                        {t("warehouses.set_default")}
+                      </Button>
+                    )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => openEditDialog(wh)}
+                      data-testid={`button-edit-warehouse-${wh.id}`}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    {!wh.isDefault && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-destructive"
+                        onClick={() => setConfirmDeleteId(wh.id)}
+                        data-testid={`button-delete-warehouse-${wh.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingWarehouse ? t("warehouses.edit") : t("warehouses.add")}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("warehouses.name")}</Label>
+              <Input
+                value={warehouseName}
+                onChange={(e) => setWarehouseName(e.target.value)}
+                placeholder={t("warehouses.name_placeholder")}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                data-testid="input-warehouse-name"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)}>{t("common.cancel")}</Button>
+            <Button onClick={handleSubmit} disabled={isPending || !warehouseName.trim()} data-testid="button-save-warehouse">
+              {isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDeleteId} onOpenChange={() => setConfirmDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("common.confirm")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("warehouses.delete_confirm")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>{t("common.cancel")}</Button>
+            <Button
+              variant="destructive"
+              onClick={() => confirmDeleteId && deleteMutation.mutate(confirmDeleteId)}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete-warehouse"
+            >
+              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {t("common.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function RegistersSettings() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -2819,6 +3072,8 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          <WarehouseSettings />
         </TabsContent>
 
         {/* Tables Settings (Restaurant only) */}

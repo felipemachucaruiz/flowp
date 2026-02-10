@@ -452,6 +452,7 @@ export const stockMovements = pgTable("stock_movements", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   productId: varchar("product_id").references(() => products.id).notNull(),
+  warehouseId: varchar("warehouse_id").references(() => warehouses.id),
   type: stockMovementTypeEnum("type").notNull(),
   quantity: integer("quantity").notNull(),
   referenceId: varchar("reference_id"),
