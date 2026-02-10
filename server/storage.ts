@@ -157,6 +157,8 @@ export interface IStorage {
   getStockLevels(tenantId: string, warehouseId?: string): Promise<Record<string, number>>;
 
   // Warehouses
+  getDefaultWarehouse(tenantId: string): Promise<Warehouse | undefined>;
+  assignOrphanedMovements(tenantId: string, warehouseId: string): Promise<number>;
   getWarehousesByTenant(tenantId: string): Promise<Warehouse[]>;
   getWarehouse(id: string): Promise<Warehouse | undefined>;
   createWarehouse(warehouse: InsertWarehouse): Promise<Warehouse>;
@@ -847,6 +849,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createStockMovement(movement: InsertStockMovement): Promise<StockMovement> {
+    if (!movement.warehouseId && movement.tenantId) {
+      const defaultWh = await this.getDefaultWarehouse(movement.tenantId);
+      if (defaultWh) {
+        movement = { ...movement, warehouseId: defaultWh.id };
+      }
+    }
     const [created] = await db.insert(stockMovements).values(movement).returning();
     return created;
   }
@@ -881,6 +889,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Warehouses
+  async getDefaultWarehouse(tenantId: string): Promise<Warehouse | undefined> {
+    const [wh] = await db.select().from(warehouses)
+      .where(and(eq(warehouses.tenantId, tenantId), eq(warehouses.isDefault, true)));
+    if (wh) return wh;
+    const [first] = await db.select().from(warehouses)
+      .where(eq(warehouses.tenantId, tenantId))
+      .orderBy(warehouses.createdAt)
+      .limit(1);
+    return first;
+  }
+
+  async assignOrphanedMovements(tenantId: string, warehouseId: string): Promise<number> {
+    const [countResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(stockMovements)
+      .where(and(
+        eq(stockMovements.tenantId, tenantId),
+        isNull(stockMovements.warehouseId)
+      ));
+    if (!countResult || countResult.count === 0) return 0;
+
+    const result = await db.update(stockMovements)
+      .set({ warehouseId })
+      .where(and(
+        eq(stockMovements.tenantId, tenantId),
+        isNull(stockMovements.warehouseId)
+      ));
+    return result.rowCount || 0;
+  }
+
   async getWarehousesByTenant(tenantId: string): Promise<Warehouse[]> {
     return db.select().from(warehouses).where(eq(warehouses.tenantId, tenantId)).orderBy(warehouses.createdAt);
   }

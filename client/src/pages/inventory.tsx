@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -74,6 +74,15 @@ export default function InventoryPage() {
   const { data: warehouses } = useQuery<any[]>({
     queryKey: ["/api/warehouses"],
   });
+
+  useEffect(() => {
+    if (warehouses && warehouses.length > 0 && selectedWarehouseId === "all") {
+      const defaultWh = warehouses.find((w: any) => w.isDefault) || warehouses[0];
+      if (defaultWh) {
+        setSelectedWarehouseId(defaultWh.id);
+      }
+    }
+  }, [warehouses]);
 
   const levelsUrl = selectedWarehouseId !== "all"
     ? `/api/inventory/levels?warehouseId=${selectedWarehouseId}`

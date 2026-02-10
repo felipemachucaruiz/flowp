@@ -2938,6 +2938,11 @@ export async function registerRoutes(
         tenantId,
         isDefault: isFirst ? true : (req.body.isDefault || false),
       });
+
+      if (isFirst) {
+        await storage.assignOrphanedMovements(tenantId, warehouse.id);
+      }
+
       res.json(warehouse);
     } catch (error) {
       res.status(400).json({ message: "Failed to create warehouse" });
@@ -2987,6 +2992,12 @@ export async function registerRoutes(
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
       if (!tenantId) return res.json({});
+
+      const defaultWh = await storage.getDefaultWarehouse(tenantId);
+      if (defaultWh) {
+        await storage.assignOrphanedMovements(tenantId, defaultWh.id);
+      }
+
       const warehouseId = req.query.warehouseId as string | undefined;
       const levels = await storage.getStockLevels(tenantId, warehouseId);
       res.json(levels);
