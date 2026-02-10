@@ -3,6 +3,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useTheme } from "@/lib/theme-provider";
 import { useI18n } from "@/lib/i18n";
 import { canAccessPage, getRoleLabel, type Permission, hasAnyPermission } from "@/lib/permissions";
+import { useSubscription } from "@/lib/use-subscription";
+import { SUBSCRIPTION_FEATURES, type SubscriptionFeature } from "@shared/schema";
 import {
   Sidebar,
   SidebarContent,
@@ -17,6 +19,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { FlowpLogo } from "@/components/flowp-logo";
 import {
@@ -40,6 +43,7 @@ import {
   FileText,
   Barcode,
   Landmark,
+  Lock,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -94,8 +98,9 @@ export function AppSidebar() {
 
   const isRestaurant = tenant?.type === "restaurant";
   const userRole = user?.role;
+  const { hasFeature, tier } = useSubscription();
 
-  const allMenuItems = [
+  const allMenuItems: { title: string; url: string; icon: any; page: string; requiredFeature?: SubscriptionFeature; minTier?: string }[] = [
     {
       title: t("nav.pos"),
       url: "/pos",
@@ -129,6 +134,8 @@ export function AppSidebar() {
       url: "/labels",
       icon: Barcode,
       page: "labels",
+      requiredFeature: SUBSCRIPTION_FEATURES.LABEL_DESIGNER,
+      minTier: "pro",
     },
     {
       title: t("nav.inventory"),
@@ -143,12 +150,16 @@ export function AppSidebar() {
             url: "/ingredients",
             icon: Package,
             page: "ingredients",
+            requiredFeature: SUBSCRIPTION_FEATURES.INVENTORY_ADVANCED as SubscriptionFeature,
+            minTier: "pro",
           },
           {
             title: t("recipes.title"),
             url: "/recipes",
             icon: ChefHat,
             page: "recipes",
+            requiredFeature: SUBSCRIPTION_FEATURES.INVENTORY_ADVANCED as SubscriptionFeature,
+            minTier: "pro",
           },
           {
             title: t("alerts.title"),
@@ -208,6 +219,8 @@ export function AppSidebar() {
     },
   ];
 
+  const tierOrder: Record<string, number> = { basic: 0, pro: 1, enterprise: 2 };
+  const currentTierLevel = tierOrder[tier] ?? 0;
   const mainMenuItems = allMenuItems.filter(item => canAccessPage(userRole, item.page));
 
   const getInitials = (name: string) => {
@@ -232,24 +245,47 @@ export function AppSidebar() {
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mainMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={location === item.url}
-                    className="h-12 sm:h-9 text-base sm:text-sm"
-                    data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <Link 
-                      href={item.url}
-                      onClick={() => { if (isMobile) setOpenMobile(false); }}
+              {mainMenuItems.map((item) => {
+                const isLocked = item.requiredFeature && !hasFeature(item.requiredFeature);
+                const requiredTierLabel = item.minTier === "enterprise" ? "AVZ" : "PRO";
+
+                if (isLocked) {
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        className="h-12 sm:h-9 text-base sm:text-sm opacity-50 cursor-not-allowed"
+                        data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}-locked`}
+                        onClick={(e) => e.preventDefault()}
+                      >
+                        <item.icon className="w-5 h-5 sm:w-4 sm:h-4" />
+                        <span className="flex-1">{item.title}</span>
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 no-default-hover-elevate no-default-active-elevate">
+                          {requiredTierLabel}
+                        </Badge>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                }
+
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location === item.url}
+                      className="h-12 sm:h-9 text-base sm:text-sm"
+                      data-testid={`nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
                     >
-                      <item.icon className="w-5 h-5 sm:w-4 sm:h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                      <Link 
+                        href={item.url}
+                        onClick={() => { if (isMobile) setOpenMobile(false); }}
+                      >
+                        <item.icon className="w-5 h-5 sm:w-4 sm:h-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

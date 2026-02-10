@@ -9,7 +9,7 @@ import archiver from "archiver";
 import { storage } from "./storage";
 import { emailService } from "./email";
 import { db } from "./db";
-import { orders, payments, registerSessions, cashMovements, tenantIntegrationsMatias } from "@shared/schema";
+import { orders, payments, registerSessions, cashMovements, tenantIntegrationsMatias, SUBSCRIPTION_FEATURES } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 import {
   insertTenantSchema,
@@ -562,6 +562,11 @@ export async function registerRoutes(
       if (!tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
+
+      const limitCheck = await storage.checkSubscriptionLimit(tenantId, "users");
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ message: "user_limit_reached", current: limitCheck.current, max: limitCheck.max, requiresUpgrade: true });
+      }
       
       const { name, email, phone, username, password, role, pin } = req.body;
       
@@ -569,7 +574,6 @@ export async function registerRoutes(
         return res.status(400).json({ message: "All fields are required" });
       }
 
-      // Check if username exists
       const existingUser = await storage.getUserByUsername(tenantId, username);
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
@@ -798,7 +802,12 @@ export async function registerRoutes(
       if (!tenantId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      // Convert empty categoryId to null to avoid foreign key constraint errors
+
+      const limitCheck = await storage.checkSubscriptionLimit(tenantId, "products");
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ message: "product_limit_reached", current: limitCheck.current, max: limitCheck.max, requiresUpgrade: true });
+      }
+
       const body = { ...req.body, tenantId };
       if (body.categoryId === "" || body.categoryId === undefined) {
         body.categoryId = null;
@@ -4477,6 +4486,26 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/subscription/my-plan", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+
+      const planData = await storage.getTenantPlanWithLimits(tenantId);
+      const usage = await storage.getTenantUsageCounts(tenantId);
+
+      res.json({
+        tier: planData.tier,
+        plan: planData.plan ? { id: planData.plan.id, name: planData.plan.name } : null,
+        limits: planData.limits,
+        features: planData.features,
+        usage,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch plan info" });
+    }
+  });
+
   // Subscribe to a plan
   app.post("/api/subscription/subscribe", async (req: Request, res: Response) => {
     try {
@@ -4526,10 +4555,9 @@ export async function registerRoutes(
       const { name } = req.body;
       if (!name || !name.trim()) return res.status(400).json({ error: "Register name is required" });
 
-      const currentCount = await storage.getRegisterCount(tenantId);
-      const maxRegisters = await storage.getTenantMaxRegisters(tenantId);
-      if (currentCount >= maxRegisters) {
-        return res.status(403).json({ error: "register_limit_reached", maxRegisters });
+      const limitCheck = await storage.checkSubscriptionLimit(tenantId, "registers");
+      if (!limitCheck.allowed) {
+        return res.status(403).json({ error: "register_limit_reached", current: limitCheck.current, max: limitCheck.max, requiresUpgrade: true });
       }
 
       const reg = await storage.createRegister({ tenantId, name: name.trim(), deviceId: null, printerConfig: null });
@@ -4882,6 +4910,11 @@ export async function registerRoutes(
           employeeMetrics: [],
           profitAnalysis: { totalRevenue: 0, totalCost: 0, grossProfit: 0, grossMargin: 0, topProfitProducts: [] },
         });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_DETAILED);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true, feature: "reports_detailed" });
       }
       const dateRange = (req.query.range as string) || "7d";
       const startDateStr = req.query.startDate as string | undefined;

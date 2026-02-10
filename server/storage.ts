@@ -7,6 +7,7 @@ import {
   suppliers, purchaseOrders, purchaseOrderItems, supplierIngredients, supplierProducts,
   ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
   saleIngredientConsumptions, ingredientAlerts, matiasDocumentQueue,
+  TIER_FEATURES,
   type Tenant, type InsertTenant, type User, type InsertUser,
   type Register, type InsertRegister, type RegisterSession, type InsertRegisterSession,
   type CashMovement, type InsertCashMovement,
@@ -278,6 +279,19 @@ export interface IStorage {
   
   // Pro Feature Check
   hasTenantProFeature(tenantId: string, feature: string): Promise<boolean>;
+  
+  // Subscription Plan Helpers
+  getTenantPlanWithLimits(tenantId: string): Promise<{
+    plan: SubscriptionPlan | null;
+    tier: string;
+    limits: { maxRegisters: number; maxUsers: number; maxLocations: number; maxProducts: number; maxWarehouses: number; maxDianDocuments: number };
+    features: string[];
+  }>;
+  getTenantUsageCounts(tenantId: string): Promise<{
+    registers: number; users: number; products: number; locations: number;
+  }>;
+  hasSubscriptionFeature(tenantId: string, feature: string): Promise<boolean>;
+  checkSubscriptionLimit(tenantId: string, resource: "registers" | "users" | "products" | "locations"): Promise<{ allowed: boolean; current: number; max: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1853,6 +1867,82 @@ export class DatabaseStorage implements IStorage {
   async createCashMovement(movement: InsertCashMovement): Promise<CashMovement> {
     const [created] = await db.insert(cashMovements).values(movement).returning();
     return created;
+  }
+
+  async getTenantPlanWithLimits(tenantId: string): Promise<{
+    plan: SubscriptionPlan | null;
+    tier: string;
+    limits: { maxRegisters: number; maxUsers: number; maxLocations: number; maxProducts: number; maxWarehouses: number; maxDianDocuments: number };
+    features: string[];
+  }> {
+    const defaults = { maxRegisters: 1, maxUsers: 1, maxLocations: 1, maxProducts: 100, maxWarehouses: 1, maxDianDocuments: 200 };
+    
+    const subscription = await this.getTenantSubscription(tenantId);
+    if (!subscription) {
+      const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+      const tier = tenant?.subscriptionTier || "basic";
+      const tierFeatures = TIER_FEATURES[tier] || [];
+      return { plan: null, tier, limits: defaults, features: tierFeatures as string[] };
+    }
+    
+    const [plan] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, subscription.planId));
+    if (!plan) return { plan: null, tier: "basic", limits: defaults, features: [] };
+    
+    const tier = (plan as any).tier || "basic";
+    const planFeatures = (plan.features as string[]) || [];
+    const effectiveFeatures = planFeatures.length > 0 ? planFeatures : (TIER_FEATURES[tier] || []) as string[];
+    
+    return {
+      plan,
+      tier,
+      limits: {
+        maxRegisters: plan.maxRegisters || defaults.maxRegisters,
+        maxUsers: plan.maxUsers || defaults.maxUsers,
+        maxLocations: plan.maxLocations || defaults.maxLocations,
+        maxProducts: (plan as any).maxProducts || defaults.maxProducts,
+        maxWarehouses: (plan as any).maxWarehouses || defaults.maxWarehouses,
+        maxDianDocuments: (plan as any).maxDianDocuments || defaults.maxDianDocuments,
+      },
+      features: effectiveFeatures,
+    };
+  }
+
+  async getTenantUsageCounts(tenantId: string): Promise<{
+    registers: number; users: number; products: number; locations: number;
+  }> {
+    const [regCount] = await db.select({ count: sql<number>`count(*)::int` }).from(registers).where(eq(registers.tenantId, tenantId));
+    const [userCount] = await db.select({ count: sql<number>`count(*)::int` }).from(users).where(eq(users.tenantId, tenantId));
+    const [prodCount] = await db.select({ count: sql<number>`count(*)::int` }).from(products).where(eq(products.tenantId, tenantId));
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
+    const locationCount = 1;
+    
+    return {
+      registers: regCount?.count || 0,
+      users: userCount?.count || 0,
+      products: prodCount?.count || 0,
+      locations: locationCount,
+    };
+  }
+
+  async hasSubscriptionFeature(tenantId: string, feature: string): Promise<boolean> {
+    const { features } = await this.getTenantPlanWithLimits(tenantId);
+    return features.includes(feature);
+  }
+
+  async checkSubscriptionLimit(tenantId: string, resource: "registers" | "users" | "products" | "locations"): Promise<{ allowed: boolean; current: number; max: number }> {
+    const { limits } = await this.getTenantPlanWithLimits(tenantId);
+    const usage = await this.getTenantUsageCounts(tenantId);
+    
+    const limitMap: Record<string, { current: number; max: number }> = {
+      registers: { current: usage.registers, max: limits.maxRegisters },
+      users: { current: usage.users, max: limits.maxUsers },
+      products: { current: usage.products, max: limits.maxProducts },
+      locations: { current: usage.locations, max: limits.maxLocations },
+    };
+    
+    const { current, max } = limitMap[resource];
+    const unlimited = max === -1;
+    return { allowed: unlimited || current < max, current, max };
   }
 }
 

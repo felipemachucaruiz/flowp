@@ -669,15 +669,52 @@ export const ticketAttachments = pgTable("ticket_attachments", {
 });
 
 // Subscription Plans
+export const SUBSCRIPTION_FEATURES = {
+  USER_MANAGEMENT: "user_management",
+  INVENTORY_ADVANCED: "inventory_advanced",
+  REPORTS_DETAILED: "reports_detailed",
+  LABEL_DESIGNER: "label_designer",
+  MULTI_LOCATION: "multi_location",
+  REPORTS_MANAGEMENT: "reports_management",
+  ECOMMERCE_INTEGRATIONS: "ecommerce_integrations",
+  SECURITY_AUDIT: "security_audit",
+} as const;
+
+export type SubscriptionFeature = typeof SUBSCRIPTION_FEATURES[keyof typeof SUBSCRIPTION_FEATURES];
+
+export const TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
+  basic: [],
+  pro: [
+    SUBSCRIPTION_FEATURES.USER_MANAGEMENT,
+    SUBSCRIPTION_FEATURES.INVENTORY_ADVANCED,
+    SUBSCRIPTION_FEATURES.REPORTS_DETAILED,
+    SUBSCRIPTION_FEATURES.LABEL_DESIGNER,
+  ],
+  enterprise: [
+    SUBSCRIPTION_FEATURES.USER_MANAGEMENT,
+    SUBSCRIPTION_FEATURES.INVENTORY_ADVANCED,
+    SUBSCRIPTION_FEATURES.REPORTS_DETAILED,
+    SUBSCRIPTION_FEATURES.LABEL_DESIGNER,
+    SUBSCRIPTION_FEATURES.MULTI_LOCATION,
+    SUBSCRIPTION_FEATURES.REPORTS_MANAGEMENT,
+    SUBSCRIPTION_FEATURES.ECOMMERCE_INTEGRATIONS,
+    SUBSCRIPTION_FEATURES.SECURITY_AUDIT,
+  ],
+};
+
 export const subscriptionPlans = pgTable("subscription_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  tier: text("tier").default("basic"),
   priceMonthly: decimal("price_monthly", { precision: 10, scale: 2 }).notNull(),
   priceYearly: decimal("price_yearly", { precision: 10, scale: 2 }),
-  currency: text("currency").default("USD"),
+  currency: text("currency").default("COP"),
   maxLocations: integer("max_locations").default(1),
-  maxRegisters: integer("max_registers").default(2),
-  maxUsers: integer("max_users").default(5),
+  maxRegisters: integer("max_registers").default(1),
+  maxUsers: integer("max_users").default(1),
+  maxProducts: integer("max_products").default(100),
+  maxWarehouses: integer("max_warehouses").default(1),
+  maxDianDocuments: integer("max_dian_documents").default(200),
   features: jsonb("features").$type<string[]>().default([]),
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),
