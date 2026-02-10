@@ -4626,6 +4626,76 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/register-sessions/:id/summary", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(400).json({ error: "Missing tenant" });
+
+      const session = await storage.getRegisterSession(req.params.id);
+      if (!session || session.tenantId !== tenantId) return res.status(404).json({ error: "Session not found" });
+
+      const sessionOrders = await db.select({
+        total: orders.total,
+        id: orders.id,
+      }).from(orders).where(
+        and(
+          eq(orders.tenantId, tenantId),
+          eq(orders.registerSessionId, session.id),
+          eq(orders.status, "completed"),
+        )
+      );
+
+      let cashSales = 0;
+      let cardSales = 0;
+      let totalSales = 0;
+
+      for (const order of sessionOrders) {
+        totalSales += parseFloat(order.total || "0");
+        const orderPayments = await db.select().from(payments).where(eq(payments.orderId, order.id));
+        for (const p of orderPayments) {
+          const amount = parseFloat(p.amount || "0");
+          if (p.method === "cash") {
+            cashSales += amount;
+          } else {
+            cardSales += amount;
+          }
+        }
+      }
+
+      const movementsResult = await db.select({
+        type: cashMovements.type,
+        total: sql<string>`SUM(${cashMovements.amount})`,
+      }).from(cashMovements)
+        .where(and(
+          eq(cashMovements.sessionId, session.id),
+          eq(cashMovements.tenantId, tenantId),
+        ))
+        .groupBy(cashMovements.type);
+
+      let movIn = 0, movOut = 0;
+      for (const m of movementsResult) {
+        if (m.type === "cash_in") movIn = parseFloat(m.total || "0");
+        if (m.type === "cash_out") movOut = parseFloat(m.total || "0");
+      }
+
+      const openingCash = parseFloat(session.openingCash || "0");
+      const expectedCash = openingCash + cashSales + movIn - movOut;
+
+      res.json({
+        totalOrders: sessionOrders.length,
+        totalSales,
+        cashSales,
+        cardSales,
+        movementsIn: movIn,
+        movementsOut: movOut,
+        openingCash,
+        expectedCash,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/register-sessions/open", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
@@ -4660,7 +4730,7 @@ export async function registerRoutes(
       if (!tenantId || !userId) return res.status(400).json({ error: "Missing tenant or user" });
 
       const session = await storage.getRegisterSession(req.params.id);
-      if (!session) return res.status(404).json({ error: "Session not found" });
+      if (!session || session.tenantId !== tenantId) return res.status(404).json({ error: "Session not found" });
       if (session.status === "closed") return res.status(400).json({ error: "Session already closed" });
 
       const { countedCash, countedCard, denominationCounts, notes } = req.body;
@@ -4687,11 +4757,10 @@ export async function registerRoutes(
           const amount = parseFloat(p.amount || "0");
           if (p.method === "cash") {
             expectedCashSales += amount;
-          } else if (p.method === "card") {
+          } else if (p.method === "card" || p.method === "credit_card" || p.method === "debit_card") {
             expectedCardSales += amount;
-          } else if (p.method === "split") {
-            expectedCashSales += amount / 2;
-            expectedCardSales += amount / 2;
+          } else if (p.method === "transfer" || p.method === "nequi" || p.method === "daviplata") {
+            expectedCardSales += amount;
           }
         }
       }

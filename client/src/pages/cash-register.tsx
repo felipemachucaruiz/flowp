@@ -118,6 +118,22 @@ export default function CashRegisterPage() {
     enabled: !!activeSession?.id,
   });
 
+  interface SessionSummary {
+    totalOrders: number;
+    totalSales: number;
+    cashSales: number;
+    cardSales: number;
+    movementsIn: number;
+    movementsOut: number;
+    openingCash: number;
+    expectedCash: number;
+  }
+
+  const { data: sessionSummary } = useQuery<SessionSummary>({
+    queryKey: ["/api/register-sessions", activeSession?.id, "summary"],
+    enabled: !!activeSession?.id,
+  });
+
   const openMutation = useMutation({
     mutationFn: async (data: { registerId: string; openingCash: string }) => {
       return apiRequest("POST", "/api/register-sessions/open", data);
@@ -163,6 +179,7 @@ export default function CashRegisterPage() {
     onSuccess: () => {
       toast({ title: t("cash_register.movement_added") });
       queryClient.invalidateQueries({ queryKey: ["/api/register-sessions", activeSession?.id, "movements"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/register-sessions", activeSession?.id, "summary"] });
       setMovementDialog(false);
       setMovementAmount("");
       setMovementReason("");
@@ -260,6 +277,41 @@ export default function CashRegisterPage() {
                   <p className="text-lg font-semibold" data-testid="text-movements-count">{activeMovements.length}</p>
                 </div>
               </div>
+
+              {sessionSummary && (
+                <>
+                  <Separator />
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("cash_register.cash_sales")}</p>
+                      <p className="text-lg font-semibold text-green-600 dark:text-green-400" data-testid="text-cash-sales">{formatCurrency(sessionSummary.cashSales)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("cash_register.card_sales")}</p>
+                      <p className="text-lg font-semibold" data-testid="text-card-sales">{formatCurrency(sessionSummary.cardSales)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("cash_register.total_sales")}</p>
+                      <p className="text-lg font-semibold" data-testid="text-total-sales">{formatCurrency(sessionSummary.totalSales)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("cash_register.total_orders")}</p>
+                      <p className="text-lg font-semibold" data-testid="text-total-orders">{sessionSummary.totalOrders}</p>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-muted/50 rounded-md">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{t("cash_register.expected_in_drawer")}</span>
+                      <span className="text-lg font-bold text-green-600 dark:text-green-400" data-testid="text-expected-cash">
+                        {formatCurrency(sessionSummary.expectedCash)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t("cash_register.expected_formula")}
+                    </p>
+                  </div>
+                </>
+              )}
 
               {activeMovements.length > 0 && (
                 <div className="space-y-2">
@@ -450,6 +502,47 @@ export default function CashRegisterPage() {
             <DialogTitle>{t("cash_register.close_register")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {sessionSummary && (
+              <div className="p-3 border rounded-md space-y-2 bg-muted/30" data-testid="close-dialog-summary">
+                <h4 className="text-sm font-medium">{t("cash_register.system_summary")}</h4>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  <span className="text-muted-foreground">{t("cash_register.opening_cash")}:</span>
+                  <span className="font-medium text-right">{formatCurrency(sessionSummary.openingCash)}</span>
+                  <span className="text-muted-foreground">{t("cash_register.cash_sales")}:</span>
+                  <span className="font-medium text-right text-green-600 dark:text-green-400">+ {formatCurrency(sessionSummary.cashSales)}</span>
+                  {sessionSummary.movementsIn > 0 && (
+                    <>
+                      <span className="text-muted-foreground">{t("cash_register.deposits")}:</span>
+                      <span className="font-medium text-right text-green-600 dark:text-green-400">+ {formatCurrency(sessionSummary.movementsIn)}</span>
+                    </>
+                  )}
+                  {sessionSummary.movementsOut > 0 && (
+                    <>
+                      <span className="text-muted-foreground">{t("cash_register.withdrawals")}:</span>
+                      <span className="font-medium text-right text-red-600 dark:text-red-400">- {formatCurrency(sessionSummary.movementsOut)}</span>
+                    </>
+                  )}
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">{t("cash_register.expected_in_drawer")}:</span>
+                  <span className="text-lg font-bold text-green-600 dark:text-green-400" data-testid="text-close-expected-cash">
+                    {formatCurrency(sessionSummary.expectedCash)}
+                  </span>
+                </div>
+                {sessionSummary.cardSales > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{t("cash_register.expected_card")}:</span>
+                    <span className="font-medium">{formatCurrency(sessionSummary.cardSales)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{t("cash_register.total_orders")}:</span>
+                  <span className="font-medium">{sessionSummary.totalOrders}</span>
+                </div>
+              </div>
+            )}
+
             <p className="text-sm text-muted-foreground">{t("cash_register.enter_counted_amounts")}</p>
 
             <div className="grid grid-cols-2 gap-4">
