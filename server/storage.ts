@@ -260,7 +260,11 @@ export interface IStorage {
   
   // Register Sessions (Cash Register)
   createRegister(data: InsertRegister): Promise<Register>;
+  updateRegister(id: string, data: Partial<InsertRegister>): Promise<Register | undefined>;
+  deleteRegister(id: string): Promise<void>;
   getRegistersByTenant(tenantId: string): Promise<Register[]>;
+  getRegisterCount(tenantId: string): Promise<number>;
+  getTenantMaxRegisters(tenantId: string): Promise<number>;
   getActiveRegisterSession(registerId: string): Promise<RegisterSession | undefined>;
   getActiveSessionByTenant(tenantId: string): Promise<RegisterSession | undefined>;
   getRegisterSessionsByTenant(tenantId: string, limit?: number): Promise<RegisterSession[]>;
@@ -1775,8 +1779,29 @@ export class DatabaseStorage implements IStorage {
     return reg;
   }
 
+  async updateRegister(id: string, data: Partial<InsertRegister>): Promise<Register | undefined> {
+    const [reg] = await db.update(registers).set(data).where(eq(registers.id, id)).returning();
+    return reg || undefined;
+  }
+
+  async deleteRegister(id: string): Promise<void> {
+    await db.delete(registers).where(eq(registers.id, id));
+  }
+
   async getRegistersByTenant(tenantId: string): Promise<Register[]> {
     return db.select().from(registers).where(eq(registers.tenantId, tenantId)).orderBy(asc(registers.name));
+  }
+
+  async getRegisterCount(tenantId: string): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)::int` }).from(registers).where(eq(registers.tenantId, tenantId));
+    return result[0]?.count || 0;
+  }
+
+  async getTenantMaxRegisters(tenantId: string): Promise<number> {
+    const subscription = await this.getTenantSubscription(tenantId);
+    if (!subscription) return 2;
+    const [plan] = await db.select().from(subscriptionPlans).where(eq(subscriptionPlans.id, subscription.planId));
+    return plan?.maxRegisters || 2;
   }
 
   async getActiveRegisterSession(registerId: string): Promise<RegisterSession | undefined> {

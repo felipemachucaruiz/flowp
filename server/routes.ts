@@ -4512,7 +4512,62 @@ export async function registerRoutes(
       const tenantId = req.headers["x-tenant-id"] as string;
       if (!tenantId) return res.status(400).json({ error: "Missing tenant" });
       const regs = await storage.getRegistersByTenant(tenantId);
-      res.json(regs);
+      const maxRegisters = await storage.getTenantMaxRegisters(tenantId);
+      res.json({ registers: regs, maxRegisters, count: regs.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/registers", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(400).json({ error: "Missing tenant" });
+      const { name } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ error: "Register name is required" });
+
+      const currentCount = await storage.getRegisterCount(tenantId);
+      const maxRegisters = await storage.getTenantMaxRegisters(tenantId);
+      if (currentCount >= maxRegisters) {
+        return res.status(403).json({ error: "register_limit_reached", maxRegisters });
+      }
+
+      const reg = await storage.createRegister({ tenantId, name: name.trim(), deviceId: null, printerConfig: null });
+      res.json(reg);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/registers/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(400).json({ error: "Missing tenant" });
+      const { name } = req.body;
+      if (!name || !name.trim()) return res.status(400).json({ error: "Register name is required" });
+      const existingRegs = await storage.getRegistersByTenant(tenantId);
+      const owned = existingRegs.find(r => r.id === req.params.id);
+      if (!owned) return res.status(404).json({ error: "Register not found" });
+      const reg = await storage.updateRegister(req.params.id, { name: name.trim() });
+      res.json(reg);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.delete("/api/registers/:id", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(400).json({ error: "Missing tenant" });
+      const existingRegs = await storage.getRegistersByTenant(tenantId);
+      const owned = existingRegs.find(r => r.id === req.params.id);
+      if (!owned) return res.status(404).json({ error: "Register not found" });
+      const activeSession = await storage.getActiveRegisterSession(req.params.id);
+      if (activeSession) {
+        return res.status(400).json({ error: "Cannot delete a register with an active session" });
+      }
+      await storage.deleteRegister(req.params.id);
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

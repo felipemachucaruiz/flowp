@@ -45,6 +45,8 @@ import {
   Puzzle,
   ShoppingBag,
   MessageSquare,
+  Landmark,
+  AlertTriangle,
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
@@ -1080,6 +1082,228 @@ function EmailNotificationPreferences() {
   );
 }
 
+function RegistersSettings() {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const { tenant } = useAuth();
+
+  const [showDialog, setShowDialog] = useState(false);
+  const [editingRegister, setEditingRegister] = useState<{ id: string; name: string } | null>(null);
+  const [registerName, setRegisterName] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const { data: registersData, isLoading } = useQuery<{ registers: any[]; maxRegisters: number; count: number }>({
+    queryKey: ["/api/registers"],
+    enabled: !!tenant?.id,
+  });
+
+  const registers = registersData?.registers || [];
+  const maxRegisters = registersData?.maxRegisters || 2;
+  const count = registersData?.count || 0;
+
+  const createMutation = useMutation({
+    mutationFn: async (name: string) => apiRequest("POST", "/api/registers", { name }),
+    onSuccess: () => {
+      toast({ title: t("settings.register_created") });
+      queryClient.invalidateQueries({ queryKey: ["/api/registers"] });
+      setShowDialog(false);
+      setRegisterName("");
+    },
+    onError: (error: any) => {
+      if (error.message?.includes("register_limit_reached")) {
+        toast({ title: t("settings.register_limit_reached"), variant: "destructive" });
+      } else {
+        toast({ title: t("common.error"), description: error.message, variant: "destructive" });
+      }
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => apiRequest("PUT", `/api/registers/${id}`, { name }),
+    onSuccess: () => {
+      toast({ title: t("settings.register_updated") });
+      queryClient.invalidateQueries({ queryKey: ["/api/registers"] });
+      setShowDialog(false);
+      setEditingRegister(null);
+      setRegisterName("");
+    },
+    onError: (error: any) => {
+      toast({ title: t("common.error"), description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => apiRequest("DELETE", `/api/registers/${id}`),
+    onSuccess: () => {
+      toast({ title: t("settings.register_deleted") });
+      queryClient.invalidateQueries({ queryKey: ["/api/registers"] });
+      setConfirmDeleteId(null);
+    },
+    onError: (error: any) => {
+      toast({ title: t("settings.cannot_delete_active"), variant: "destructive" });
+    },
+  });
+
+  const openCreateDialog = () => {
+    setEditingRegister(null);
+    setRegisterName("");
+    setShowDialog(true);
+  };
+
+  const openEditDialog = (reg: { id: string; name: string }) => {
+    setEditingRegister(reg);
+    setRegisterName(reg.name);
+    setShowDialog(true);
+  };
+
+  const handleSubmit = () => {
+    if (!registerName.trim()) return;
+    if (editingRegister) {
+      updateMutation.mutate({ id: editingRegister.id, name: registerName.trim() });
+    } else {
+      createMutation.mutate(registerName.trim());
+    }
+  };
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Landmark className="w-5 h-5" />
+              {t("settings.registers")}
+            </CardTitle>
+            <CardDescription>{t("settings.registers_description")}</CardDescription>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="secondary" data-testid="badge-register-count">
+              {count} / {maxRegisters} {t("settings.registers_used")}
+            </Badge>
+            <Button
+              onClick={openCreateDialog}
+              disabled={count >= maxRegisters}
+              data-testid="button-add-register"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              {t("settings.add_register")}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {count >= maxRegisters && (
+            <div className="flex items-center gap-2 p-3 mb-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md text-sm">
+              <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-400 shrink-0" />
+              <span className="text-yellow-700 dark:text-yellow-300">{t("settings.register_limit_reached")}</span>
+            </div>
+          )}
+          {isLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : registers.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">{t("settings.no_registers")}</p>
+          ) : (
+            <div className="space-y-2">
+              {registers.map((reg: any) => (
+                <div
+                  key={reg.id}
+                  className="flex items-center justify-between p-3 border rounded-md"
+                  data-testid={`register-item-${reg.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Landmark className="w-5 h-5 text-muted-foreground" />
+                    <span className="font-medium">{reg.name}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditDialog(reg)}
+                      data-testid={`button-edit-register-${reg.id}`}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    {registers.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setConfirmDeleteId(reg.id)}
+                        data-testid={`button-delete-register-${reg.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent data-testid="dialog-register">
+          <DialogHeader>
+            <DialogTitle>
+              {editingRegister ? t("settings.edit_register") : t("settings.add_register")}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>{t("settings.register_name")}</Label>
+              <Input
+                value={registerName}
+                onChange={(e) => setRegisterName(e.target.value)}
+                placeholder={t("settings.register_name")}
+                data-testid="input-register-name"
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDialog(false)} data-testid="button-cancel-register">
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!registerName.trim() || isPending}
+              data-testid="button-save-register"
+            >
+              {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!confirmDeleteId} onOpenChange={() => setConfirmDeleteId(null)}>
+        <DialogContent data-testid="dialog-delete-register">
+          <DialogHeader>
+            <DialogTitle>{t("settings.delete_register")}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">{t("settings.delete_register_confirm")}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteId(null)} data-testid="button-cancel-delete">
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => confirmDeleteId && deleteMutation.mutate(confirmDeleteId)}
+              disabled={deleteMutation.isPending}
+              data-testid="button-confirm-delete-register"
+            >
+              {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("settings.delete_register")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function AddonsSettings() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -2043,6 +2267,13 @@ export default function SettingsPage() {
                 <Printer className="w-4 h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">{t("settings.printing")}</span>
                 <span className="sm:hidden">{t("settings.printing").split(' ')[0]}</span>
+              </TabsTrigger>
+            )}
+            {isAdmin && (
+              <TabsTrigger value="registers" data-testid="tab-registers" className="text-xs sm:text-sm">
+                <Landmark className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("settings.registers")}</span>
+                <span className="sm:hidden">{t("settings.registers").split(' ')[0]}</span>
               </TabsTrigger>
             )}
             {isOwner && (
@@ -3593,6 +3824,11 @@ export default function SettingsPage() {
         {/* WhatsApp Integration */}
         <TabsContent value="whatsapp" className="mt-6 space-y-6">
           <WhatsAppSettings />
+        </TabsContent>
+
+        {/* Registers */}
+        <TabsContent value="registers" className="mt-6 space-y-6">
+          <RegistersSettings />
         </TabsContent>
 
         {/* Add-ons */}

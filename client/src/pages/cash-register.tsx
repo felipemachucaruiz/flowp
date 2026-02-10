@@ -89,10 +89,11 @@ export default function CashRegisterPage() {
   const [movementReason, setMovementReason] = useState("");
   const [showHistory, setShowHistory] = useState(false);
 
-  const { data: registers = [] } = useQuery<Register[]>({
+  const { data: registersData } = useQuery<{ registers: Register[]; maxRegisters: number; count: number }>({
     queryKey: ["/api/registers"],
     enabled: !!tenant?.id,
   });
+  const registers = registersData?.registers || [];
 
   const { data: activeSession, isLoading: loadingSession } = useQuery<SessionWithUser | null>({
     queryKey: ["/api/register-sessions/active"],
