@@ -354,26 +354,23 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
-        <div className="p-3 space-y-3">
-          <div className="flex items-center gap-3">
-            <Avatar className="w-8 h-8">
+        <div className="p-2 space-y-2">
+          <div className="flex items-center gap-2">
+            <Avatar className="w-7 h-7 shrink-0">
               <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                {user?.name ? getInitials(user.name) : <User className="w-4 h-4" />}
+                {user?.name ? getInitials(user.name) : <User className="w-3 h-3" />}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-xs text-muted-foreground truncate">
-                {tenant?.name || "Store"}
-              </span>
-              <span className="text-sm font-medium truncate">
+              <span className="text-xs font-medium truncate">
                 {user?.name || "User"}
               </span>
-              <span className="text-xs text-muted-foreground truncate">
-                {userRole ? getRoleLabel(userRole) : "Staff"}
+              <span className="text-[11px] text-muted-foreground truncate">
+                {tenant?.name || "Store"} · {userRole ? getRoleLabel(userRole) : "Staff"}
               </span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             <Button
               variant="outline"
               size="sm"
@@ -381,16 +378,7 @@ export function AppSidebar() {
               onClick={toggleTheme}
               data-testid="button-toggle-theme"
             >
-              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setPinDialogOpen(true); setPinForm({ currentPin: "", newPin: "", confirmPin: "" }); setPinError(""); }}
-              data-testid="button-set-pin"
-            >
-              <KeyRound className="w-4 h-4 mr-1" />
-              {userHasPin ? t("pin.change_pin") : t("pin.set_pin")}
+              {theme === "light" ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
             </Button>
             {installPrompt && !isInstalled && (
               <Button
@@ -400,17 +388,27 @@ export function AppSidebar() {
                 onClick={handleInstallClick}
                 data-testid="button-install-app"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-3.5 h-3.5" />
               </Button>
             )}
             <Button
               variant="outline"
               size="sm"
-              className="flex-1 text-destructive hover:text-destructive"
+              className="flex-1 text-xs"
+              onClick={() => { setPinDialogOpen(true); setPinForm({ currentPin: "", newPin: "", confirmPin: "" }); setPinError(""); }}
+              data-testid="button-set-pin"
+            >
+              <KeyRound className="w-3.5 h-3.5 mr-1" />
+              {userHasPin ? t("pin.change_pin") : t("pin.set_pin")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs text-destructive hover:text-destructive"
               onClick={() => { logout(); if (isMobile) setOpenMobile(false); }}
               data-testid="button-logout"
             >
-              <LogOut className="w-4 h-4 mr-1" />
+              <LogOut className="w-3.5 h-3.5 mr-1" />
               {t("nav.logout")}
             </Button>
           </div>
