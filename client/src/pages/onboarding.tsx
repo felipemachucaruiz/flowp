@@ -477,26 +477,6 @@ export default function OnboardingPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="taxRate">{t("settings.tax_rate")}</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    id="taxRate"
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    value={formData.taxRate}
-                    onChange={(e) => setFormData({ ...formData, taxRate: e.target.value })}
-                    className="flex-1"
-                    data-testid="input-tax-rate"
-                  />
-                  <span className="text-muted-foreground">%</span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {t("onboarding.tax_rate_hint")}
-                </p>
-              </div>
               {selectedCountry && (
                 <div>
                   <Label htmlFor="taxId">{selectedCountry.taxIdLabel}</Label>
