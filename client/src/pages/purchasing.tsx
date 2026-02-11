@@ -456,7 +456,10 @@ export default function PurchasingPage() {
                     <Button disabled={!reorderSupplierId || createReorderMutation.isPending} onClick={() => {
                       const items = Array.from(selectedReorderItems).map(key => {
                         const suggestion = reorderSuggestions.find(s => `${s.type}-${s.id}` === key);
-                        return { type: suggestion!.type, id: suggestion!.id, quantity: reorderQuantities[key] || suggestion!.suggestedQty, unitCost: 0 };
+                        let cost = 0;
+                        if (suggestion!.type === "product") { const p = products?.find(pr => pr.id === suggestion!.id); cost = p?.cost ? parseFloat(p.cost.toString()) : 0; }
+                        else { const ing = ingredients?.find(i => i.id === suggestion!.id); cost = ing?.costPerBase ? parseFloat(ing.costPerBase.toString()) : 0; }
+                        return { type: suggestion!.type, id: suggestion!.id, quantity: reorderQuantities[key] || suggestion!.suggestedQty, unitCost: cost };
                       });
                       createReorderMutation.mutate({ supplierId: reorderSupplierId, items });
                     }} data-testid="button-create-reorder-po">
@@ -768,7 +771,7 @@ export default function PurchasingPage() {
               {itemType === "product" ? (
                 <FormField control={itemForm.control} name="productId" render={({ field }) => (
                   <FormItem><FormLabel>{t("purchasing.product")}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger data-testid="select-product"><SelectValue placeholder={t("purchasing.select_product")} /></SelectTrigger></FormControl>
+                    <Select onValueChange={(val) => { field.onChange(val); const p = products?.find(pr => pr.id === val); if (p?.cost) itemForm.setValue("unitCost", parseFloat(p.cost.toString())); }} value={field.value}><FormControl><SelectTrigger data-testid="select-product"><SelectValue placeholder={t("purchasing.select_product")} /></SelectTrigger></FormControl>
                       <SelectContent>{products?.filter(p => p.isActive).map(p => <SelectItem key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ""}</SelectItem>)}</SelectContent>
                     </Select><FormMessage />
                   </FormItem>
@@ -776,7 +779,7 @@ export default function PurchasingPage() {
               ) : (
                 <FormField control={itemForm.control} name="ingredientId" render={({ field }) => (
                   <FormItem><FormLabel>{t("ingredients.title")}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger data-testid="select-ingredient"><SelectValue /></SelectTrigger></FormControl>
+                    <Select onValueChange={(val) => { field.onChange(val); const ing = ingredients?.find(i => i.id === val); if (ing?.costPerBase) itemForm.setValue("unitCost", parseFloat(ing.costPerBase.toString())); }} value={field.value}><FormControl><SelectTrigger data-testid="select-ingredient"><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>{ingredients?.map(i => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent>
                     </Select><FormMessage />
                   </FormItem>
