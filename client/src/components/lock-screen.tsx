@@ -5,6 +5,10 @@ import { Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+export function triggerManualLock() {
+  window.dispatchEvent(new CustomEvent("flowp-manual-lock"));
+}
+
 export function LockScreen() {
   const { user, tenant, logout } = useAuth();
   const { t } = useI18n();
@@ -20,16 +24,27 @@ export function LockScreen() {
   const autoLockTimeout = ((tenant as any)?.autoLockTimeout || 5) * 60 * 1000;
   const userHasPin = !!(user as any)?.hasPin;
 
+  const doLock = useCallback(() => {
+    if (!userHasPin) return;
+    lockedRef.current = true;
+    setIsLocked(true);
+    setPin("");
+    setError("");
+  }, [userHasPin]);
+
   const resetTimer = useCallback(() => {
     if (!autoLockEnabled || !userHasPin || lockedRef.current) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => {
-      lockedRef.current = true;
-      setIsLocked(true);
-      setPin("");
-      setError("");
+      doLock();
     }, autoLockTimeout);
-  }, [autoLockEnabled, autoLockTimeout, userHasPin]);
+  }, [autoLockEnabled, autoLockTimeout, userHasPin, doLock]);
+
+  useEffect(() => {
+    const handleManualLock = () => doLock();
+    window.addEventListener("flowp-manual-lock", handleManualLock);
+    return () => window.removeEventListener("flowp-manual-lock", handleManualLock);
+  }, [doLock]);
 
   useEffect(() => {
     if (!autoLockEnabled || !userHasPin) return;
@@ -87,7 +102,7 @@ export function LockScreen() {
     }
   };
 
-  if (!isLocked || !autoLockEnabled || !userHasPin) return null;
+  if (!isLocked || !userHasPin) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex items-center justify-center">

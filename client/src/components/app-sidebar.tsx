@@ -50,6 +50,7 @@ import {
   Lock,
   KeyRound,
 } from "lucide-react";
+import { triggerManualLock } from "@/components/lock-screen";
 import { useState, useEffect } from "react";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -370,11 +371,43 @@ export function AppSidebar() {
               </span>
             </div>
           </div>
-          <div className="flex gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
             <Button
               variant="outline"
               size="sm"
-              className="flex-1 sm:hidden"
+              className="text-xs"
+              onClick={() => { setPinDialogOpen(true); setPinForm({ currentPin: "", newPin: "", confirmPin: "" }); setPinError(""); }}
+              data-testid="button-set-pin"
+            >
+              <KeyRound className="w-3.5 h-3.5 mr-1 shrink-0" />
+              <span className="truncate">{userHasPin ? t("pin.change_pin") : t("pin.set_pin")}</span>
+            </Button>
+            {userHasPin && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => { triggerManualLock(); if (isMobile) setOpenMobile(false); }}
+                data-testid="button-lock-screen"
+              >
+                <Lock className="w-3.5 h-3.5 mr-1 shrink-0" />
+                <span className="truncate">{t("lock_screen.lock")}</span>
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-xs text-destructive hover:text-destructive"
+              onClick={() => { logout(); if (isMobile) setOpenMobile(false); }}
+              data-testid="button-logout"
+            >
+              <LogOut className="w-3.5 h-3.5 mr-1 shrink-0" />
+              <span className="truncate">{t("nav.logout")}</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="sm:hidden"
               onClick={toggleTheme}
               data-testid="button-toggle-theme"
             >
@@ -384,33 +417,13 @@ export function AppSidebar() {
               <Button
                 variant="outline"
                 size="sm"
-                className="flex-1 sm:hidden"
+                className="sm:hidden"
                 onClick={handleInstallClick}
                 data-testid="button-install-app"
               >
                 <Download className="w-3.5 h-3.5" />
               </Button>
             )}
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 text-xs"
-              onClick={() => { setPinDialogOpen(true); setPinForm({ currentPin: "", newPin: "", confirmPin: "" }); setPinError(""); }}
-              data-testid="button-set-pin"
-            >
-              <KeyRound className="w-3.5 h-3.5 mr-1" />
-              {userHasPin ? t("pin.change_pin") : t("pin.set_pin")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 text-xs text-destructive hover:text-destructive"
-              onClick={() => { logout(); if (isMobile) setOpenMobile(false); }}
-              data-testid="button-logout"
-            >
-              <LogOut className="w-3.5 h-3.5 mr-1" />
-              {t("nav.logout")}
-            </Button>
           </div>
         </div>
       </SidebarFooter>
