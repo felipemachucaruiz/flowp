@@ -613,6 +613,34 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/delete-pin", async (req: Request, res: Response) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+      }
+      const { currentPin } = req.body;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      if (!user.pin) {
+        return res.status(400).json({ success: false, message: "No PIN configured" });
+      }
+      if (!currentPin) {
+        return res.status(400).json({ success: false, message: "Current PIN is required" });
+      }
+      if (currentPin !== user.pin) {
+        return res.status(401).json({ success: false, message: "Current PIN is incorrect" });
+      }
+      await storage.updateUser(userId, { pin: null } as any);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Delete PIN error:", error);
+      res.status(500).json({ success: false, message: "Failed to delete PIN" });
+    }
+  });
+
   // ===== USERS ROUTES =====
 
   app.get("/api/users", async (req: Request, res: Response) => {

@@ -68,9 +68,13 @@ export function AppSidebar() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [deletePinDialogOpen, setDeletePinDialogOpen] = useState(false);
   const [pinForm, setPinForm] = useState({ currentPin: "", newPin: "", confirmPin: "" });
+  const [deletePinValue, setDeletePinValue] = useState("");
   const [pinError, setPinError] = useState("");
+  const [deletePinError, setDeletePinError] = useState("");
   const [pinSaving, setPinSaving] = useState(false);
+  const [deletePinSaving, setDeletePinSaving] = useState(false);
   const userHasPin = !!(user as any)?.hasPin;
 
   const handleSetPin = async () => {
@@ -114,6 +118,43 @@ export function AppSidebar() {
       setPinError("Error");
     } finally {
       setPinSaving(false);
+    }
+  };
+
+  const handleDeletePin = async () => {
+    setDeletePinError("");
+    if (!deletePinValue || deletePinValue.length < 4) {
+      setDeletePinError(t("pin.current_pin"));
+      return;
+    }
+    setDeletePinSaving(true);
+    try {
+      const res = await fetch("/api/auth/delete-pin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user?.id || "",
+          "x-tenant-id": (tenant as any)?.id || "",
+        },
+        body: JSON.stringify({ currentPin: deletePinValue }),
+      });
+      if (res.ok) {
+        toast({ title: t("pin.pin_deleted_success") });
+        setDeletePinDialogOpen(false);
+        setDeletePinValue("");
+        refreshUser();
+      } else {
+        if (res.status === 401) {
+          setDeletePinError(t("pin.current_pin_wrong"));
+        } else {
+          const data = await res.json();
+          setDeletePinError(data.message || "Error");
+        }
+      }
+    } catch {
+      setDeletePinError("Error");
+    } finally {
+      setDeletePinSaving(false);
     }
   };
 
@@ -480,6 +521,52 @@ export function AppSidebar() {
             )}
             <Button className="w-full" onClick={handleSetPin} disabled={pinSaving} data-testid="button-save-pin">
               {pinSaving ? t("common.saving") : (userHasPin ? t("pin.change_pin") : t("pin.set_pin"))}
+            </Button>
+            {userHasPin && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-destructive hover:text-destructive"
+                onClick={() => { setPinDialogOpen(false); setDeletePinDialogOpen(true); setDeletePinValue(""); setDeletePinError(""); }}
+                data-testid="button-open-delete-pin"
+              >
+                {t("pin.delete_pin")}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deletePinDialogOpen} onOpenChange={setDeletePinDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t("pin.delete_pin")}</DialogTitle>
+            <DialogDescription>{t("pin.delete_pin_description")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="delete-current-pin">{t("pin.current_pin")}</Label>
+              <Input
+                id="delete-current-pin"
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                value={deletePinValue}
+                onChange={(e) => { setDeletePinValue(e.target.value.replace(/\D/g, "")); setDeletePinError(""); }}
+                data-testid="input-delete-pin"
+              />
+            </div>
+            {deletePinError && (
+              <p className="text-sm text-destructive" data-testid="text-delete-pin-error">{deletePinError}</p>
+            )}
+            <Button
+              variant="destructive"
+              className="w-full"
+              onClick={handleDeletePin}
+              disabled={deletePinSaving || deletePinValue.length < 4}
+              data-testid="button-confirm-delete-pin"
+            >
+              {deletePinSaving ? t("common.saving") : t("pin.delete_pin")}
             </Button>
           </div>
         </DialogContent>
