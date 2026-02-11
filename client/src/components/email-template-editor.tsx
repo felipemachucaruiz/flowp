@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
 import { VisualEmailEditor, VisualEmailEditorRef } from "@/components/visual-email-editor";
 import {
   Mail,
@@ -213,6 +214,7 @@ function getDefaultTemplates(language: string): Record<string, { subject: string
 export function EmailTemplateEditor() {
   const { t, language } = useI18n();
   const { toast } = useToast();
+  const { tenant } = useAuth();
   const queryClient = useQueryClient();
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
@@ -229,7 +231,8 @@ export function EmailTemplateEditor() {
     
     let result = content;
     for (const [variable, value] of Object.entries(config.sampleData)) {
-      result = result.replace(new RegExp(variable.replace(/[{}]/g, '\\$&'), 'g'), value);
+      const actualValue = variable === "{{storeName}}" && tenant?.name ? tenant.name : value;
+      result = result.replace(new RegExp(variable.replace(/[{}]/g, '\\$&'), 'g'), actualValue);
     }
     return result;
   };
@@ -247,7 +250,10 @@ export function EmailTemplateEditor() {
   const fetchStyledPreview = useCallback(async (htmlBody: string) => {
     setPreviewLoading(true);
     try {
-      const res = await apiRequest("POST", "/api/email-templates/preview", { htmlBody });
+      const res = await apiRequest("POST", "/api/email-templates/preview", {
+        htmlBody,
+        companyName: tenant?.name,
+      });
       const data = await res.json();
       setStyledPreviewHtml(data.html);
     } catch {
@@ -255,7 +261,7 @@ export function EmailTemplateEditor() {
     } finally {
       setPreviewLoading(false);
     }
-  }, []);
+  }, [tenant?.name]);
 
   useEffect(() => {
     if (previewTemplate) {
