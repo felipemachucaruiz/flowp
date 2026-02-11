@@ -230,11 +230,23 @@ export function EmailTemplateEditor() {
     return result;
   };
 
+  const [styledPreviewHtml, setStyledPreviewHtml] = useState<string>("");
+
   const getPreviewContent = (template: EmailTemplate) => {
     if (showFinalPreview) {
       return replaceVariablesWithSampleData(template.htmlBody, template.type);
     }
     return template.htmlBody;
+  };
+
+  const fetchStyledPreview = async (htmlBody: string) => {
+    try {
+      const res = await apiRequest("POST", "/api/email-templates/preview", { htmlBody });
+      const data = await res.json();
+      setStyledPreviewHtml(data.html);
+    } catch {
+      setStyledPreviewHtml(htmlBody);
+    }
   };
 
   const getPreviewSubject = (template: EmailTemplate) => {

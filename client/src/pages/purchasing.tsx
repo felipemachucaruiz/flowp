@@ -364,9 +364,9 @@ export default function PurchasingPage() {
                         {supplier.contactName && <span>{supplier.contactName}</span>}
                         {supplier.phone && <span>{supplier.phone}</span>}
                         {supplier.email && <span>{supplier.email}</span>}
-                        {(supplier as any).documentType && <span>{t(`purchasing.doc_type_${(supplier as any).documentType}`)}: {(supplier as any).identification}</span>}
+                        {(supplier as any).documentType && <span>{t(`purchasing.doc_type_${(supplier as any).documentType}` as any)}: {(supplier as any).identification}</span>}
                         {(supplier as any).paymentTermsType && (
-                          <span>{t(`purchasing.payment_terms_${(supplier as any).paymentTermsType}`)}
+                          <span>{t(`purchasing.payment_terms_${(supplier as any).paymentTermsType}` as any)}
                             {(supplier as any).paymentTermsType === "credit" && ` (${(supplier as any).paymentTermsDays || 0} ${t("purchasing.payment_terms_days")})`}
                           </span>
                         )}
@@ -760,7 +760,7 @@ export default function PurchasingPage() {
                 <FormField control={itemForm.control} name="itemType" render={({ field }) => (
                   <FormItem><FormLabel>{t("purchasing.item_type")}</FormLabel>
                     <Select onValueChange={(val) => { field.onChange(val); setItemType(val as any); }} value={field.value}><FormControl><SelectTrigger data-testid="select-item-type"><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent><SelectItem value="product">{t("purchasing.product")}</SelectItem><SelectItem value="ingredient">{t("nav.ingredients")}</SelectItem></SelectContent>
+                      <SelectContent><SelectItem value="product">{t("purchasing.product")}</SelectItem><SelectItem value="ingredient">{t("ingredients.title")}</SelectItem></SelectContent>
                     </Select>
                   </FormItem>
                 )} />
@@ -775,7 +775,7 @@ export default function PurchasingPage() {
                 )} />
               ) : (
                 <FormField control={itemForm.control} name="ingredientId" render={({ field }) => (
-                  <FormItem><FormLabel>{t("nav.ingredients")}</FormLabel>
+                  <FormItem><FormLabel>{t("ingredients.title")}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger data-testid="select-ingredient"><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>{ingredients?.map(i => <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>)}</SelectContent>
                     </Select><FormMessage />

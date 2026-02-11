@@ -8,6 +8,7 @@ import fs from "fs";
 import archiver from "archiver";
 import { storage } from "./storage";
 import { emailService } from "./email";
+import { getEmailWrapper } from "./email-templates";
 import { db } from "./db";
 import { orders, payments, registerSessions, cashMovements, tenantIntegrationsMatias, SUBSCRIPTION_FEATURES } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
@@ -3665,6 +3666,20 @@ export async function registerRoutes(
       const orderItems = await storage.getPurchaseOrderItems(id);
       const effectiveWarehouseId = warehouseId || order.destinationWarehouseId || null;
       
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: "No items to receive" });
+      }
+      for (const received of items) {
+        const orderItem = orderItems.find(i => i.id === received.itemId);
+        if (!orderItem) {
+          return res.status(400).json({ message: `Item ${received.itemId} not found on this order` });
+        }
+        const pending = orderItem.quantity - (orderItem.receivedQuantity || 0);
+        if (received.receivedQuantity > pending) {
+          return res.status(400).json({ message: `Cannot receive more than pending quantity (${pending}) for item` });
+        }
+      }
+      
       const receiptNumber = await storage.getNextReceiptNumber(tenantId);
       const receipt = await storage.createPurchaseReceipt({
         tenantId,
@@ -5382,6 +5397,17 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Email template update error:", error);
       res.status(500).json({ message: "Failed to update email template" });
+    }
+  });
+
+  app.post("/api/email-templates/preview", async (req: Request, res: Response) => {
+    try {
+      const { htmlBody } = req.body;
+      if (!htmlBody) return res.status(400).json({ message: "htmlBody is required" });
+      const wrappedHtml = getEmailWrapper(htmlBody);
+      res.json({ html: wrappedHtml });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate preview" });
     }
   });
 
