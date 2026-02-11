@@ -2216,6 +2216,7 @@ export async function registerRoutes(
               name: item.product.name || 'Product',
               quantity: item.quantity,
               price: `${tenant?.currencySymbol || '$'}${parseFloat(item.product.price).toFixed(2)}`,
+              imageUrl: item.product.image || undefined,
             }));
             
             // Send order confirmation email (async, don't wait)

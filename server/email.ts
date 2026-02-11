@@ -269,7 +269,7 @@ class EmailService {
     email: string,
     orderId: string,
     orderTotal: string,
-    items: Array<{ name: string; quantity: number; price: string }>,
+    items: Array<{ name: string; quantity: number; price: string; imageUrl?: string }>,
     tenantId?: string,
     language: string = "en",
     tenantData?: { companyName?: string; companyLogo?: string }
@@ -280,9 +280,16 @@ class EmailService {
     let html: string;
 
     if (customTemplate?.isActive && customTemplate.htmlBody) {
-      const itemsHtml = items.map(item => 
-        `<tr><td>${item.name}</td><td>${item.quantity}</td><td>${item.price}</td></tr>`
-      ).join("");
+      const placeholderImg = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Crect fill='%23f4f4f5' width='60' height='60' rx='6'/%3E%3Cpath d='M20 38l6-8 4 5 8-10 8 13H14z' fill='%23d4d4d8'/%3E%3Ccircle cx='22' cy='24' r='4' fill='%23d4d4d8'/%3E%3C/svg%3E`;
+      const itemsHtml = items.map(item => {
+        const imgSrc = item.imageUrl || placeholderImg;
+        return `<tr>
+          <td style="padding:8px 0;vertical-align:middle;width:50px;"><img src="${imgSrc}" alt="${item.name}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #e4e4e7;" /></td>
+          <td style="padding:8px;vertical-align:middle;">${item.name}</td>
+          <td style="padding:8px;vertical-align:middle;text-align:center;">x${item.quantity}</td>
+          <td style="padding:8px 0;vertical-align:middle;text-align:right;font-weight:600;">${item.price}</td>
+        </tr>`;
+      }).join("");
       
       const storeName = tenantData?.companyName || "Flowp";
       subject = customTemplate.subject.replace(/\{\{orderId\}\}/g, orderId).replace(/\{\{storeName\}\}/g, storeName);
