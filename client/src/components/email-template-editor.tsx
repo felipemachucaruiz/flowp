@@ -48,8 +48,9 @@ const templateTypeConfig: Record<string, { icon: any; color: string; name: strin
     color: "text-blue-500",
     name: "Order Confirmation",
     description: "Sent when an order is placed",
-    variables: ["{{orderId}}", "{{orderTotal}}", "{{orderItems}}"],
+    variables: ["{{storeName}}", "{{orderId}}", "{{orderTotal}}", "{{orderItems}}"],
     sampleData: {
+      "{{storeName}}": "Mi Tienda",
       "{{orderId}}": "ORD-2026-0001",
       "{{orderTotal}}": "$156.99",
       "{{orderItems}}": "2x Classic Burger ($24.99), 1x Caesar Salad ($12.50), 3x Soft Drink ($8.97)",
@@ -60,8 +61,9 @@ const templateTypeConfig: Record<string, { icon: any; color: string; name: strin
     color: "text-green-500",
     name: "Payment Received",
     description: "Sent when a payment is processed successfully",
-    variables: ["{{amount}}", "{{paymentMethod}}", "{{transactionId}}"],
+    variables: ["{{storeName}}", "{{amount}}", "{{paymentMethod}}", "{{transactionId}}"],
     sampleData: {
+      "{{storeName}}": "Mi Tienda",
       "{{amount}}": "$156.99",
       "{{paymentMethod}}": "Credit Card (Visa ****4242)",
       "{{transactionId}}": "TXN-8F7A2B3C",
@@ -72,8 +74,9 @@ const templateTypeConfig: Record<string, { icon: any; color: string; name: strin
     color: "text-red-500",
     name: "Low Stock Alert",
     description: "Sent when a product falls below minimum stock level",
-    variables: ["{{productName}}", "{{currentStock}}", "{{minStock}}"],
+    variables: ["{{storeName}}", "{{productName}}", "{{currentStock}}", "{{minStock}}"],
     sampleData: {
+      "{{storeName}}": "Mi Tienda",
       "{{productName}}": "Organic Chicken Breast",
       "{{currentStock}}": "5 units",
       "{{minStock}}": "10 units",
@@ -84,8 +87,9 @@ const templateTypeConfig: Record<string, { icon: any; color: string; name: strin
     color: "text-purple-500",
     name: "Transaction Receipt",
     description: "Digital receipt sent to customers",
-    variables: ["{{receiptNumber}}", "{{date}}", "{{total}}", "{{items}}"],
+    variables: ["{{storeName}}", "{{receiptNumber}}", "{{date}}", "{{total}}", "{{items}}"],
     sampleData: {
+      "{{storeName}}": "Mi Tienda",
       "{{receiptNumber}}": "REC-2026-00847",
       "{{date}}": "January 31, 2026 - 2:45 PM",
       "{{total}}": "$156.99",

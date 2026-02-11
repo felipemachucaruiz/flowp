@@ -284,8 +284,10 @@ class EmailService {
         `<tr><td>${item.name}</td><td>${item.quantity}</td><td>${item.price}</td></tr>`
       ).join("");
       
-      subject = customTemplate.subject.replace(/\{\{orderId\}\}/g, orderId);
+      const storeName = tenantData?.companyName || "Flowp";
+      subject = customTemplate.subject.replace(/\{\{orderId\}\}/g, orderId).replace(/\{\{storeName\}\}/g, storeName);
       const bodyContent = customTemplate.htmlBody
+        .replace(/\{\{storeName\}\}/g, storeName)
         .replace(/\{\{orderId\}\}/g, orderId)
         .replace(/\{\{orderTotal\}\}/g, orderTotal)
         .replace(/\{\{orderItems\}\}/g, itemsHtml);
@@ -330,8 +332,10 @@ class EmailService {
     let html: string;
 
     if (customTemplate?.isActive && customTemplate.htmlBody) {
-      subject = customTemplate.subject;
+      const storeName = tenantData?.companyName || "Flowp";
+      subject = customTemplate.subject.replace(/\{\{storeName\}\}/g, storeName);
       const bodyContent = customTemplate.htmlBody
+        .replace(/\{\{storeName\}\}/g, storeName)
         .replace(/\{\{amount\}\}/g, amount)
         .replace(/\{\{paymentMethod\}\}/g, paymentMethod);
       html = getEmailWrapper(bodyContent, { companyName: tenantData?.companyName, companyLogo: tenantData?.companyLogo });
@@ -376,8 +380,10 @@ class EmailService {
     let html: string;
 
     if (customTemplate?.isActive && customTemplate.htmlBody) {
-      subject = customTemplate.subject.replace(/\{\{productName\}\}/g, productName);
+      const storeName = tenantData?.companyName || "Flowp";
+      subject = customTemplate.subject.replace(/\{\{productName\}\}/g, productName).replace(/\{\{storeName\}\}/g, storeName);
       const bodyContent = customTemplate.htmlBody
+        .replace(/\{\{storeName\}\}/g, storeName)
         .replace(/\{\{productName\}\}/g, productName)
         .replace(/\{\{currentStock\}\}/g, String(currentStock));
       html = getEmailWrapper(bodyContent, { companyName: tenantData?.companyName, companyLogo: tenantData?.companyLogo });
@@ -424,8 +430,10 @@ class EmailService {
         `<tr><td>${item.name}</td><td>${item.quantity}</td><td>${item.price}</td></tr>`
       ).join("");
       
-      subject = customTemplate.subject.replace(/\{\{receiptNumber\}\}/g, data.receiptNumber);
+      const storeName = data.companyName || "Flowp";
+      subject = customTemplate.subject.replace(/\{\{receiptNumber\}\}/g, data.receiptNumber).replace(/\{\{storeName\}\}/g, storeName);
       const bodyContent = customTemplate.htmlBody
+        .replace(/\{\{storeName\}\}/g, storeName)
         .replace(/\{\{receiptNumber\}\}/g, data.receiptNumber)
         .replace(/\{\{date\}\}/g, data.date)
         .replace(/\{\{total\}\}/g, data.total)
