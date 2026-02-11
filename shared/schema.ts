@@ -667,6 +667,7 @@ export const impersonationSessions = pgTable("impersonation_sessions", {
 // Support Tickets
 export const supportTickets = pgTable("support_tickets", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  ticketNumber: integer("ticket_number").notNull(),
   tenantId: varchar("tenant_id").references(() => tenants.id),
   createdBy: varchar("created_by").references(() => users.id).notNull(),
   assignedTo: varchar("assigned_to").references(() => users.id),
@@ -1118,7 +1119,7 @@ export const insertLocationSchema = createInsertSchema(locations).omit({ id: tru
 export const insertWarehouseSchema = createInsertSchema(warehouses).omit({ id: true, createdAt: true });
 export const insertDeviceSchema = createInsertSchema(devices).omit({ id: true, createdAt: true });
 export const insertImpersonationSessionSchema = createInsertSchema(impersonationSessions).omit({ id: true, startedAt: true });
-export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({ id: true, createdAt: true, updatedAt: true, resolvedAt: true });
+export const insertSupportTicketSchema = createInsertSchema(supportTickets).omit({ id: true, ticketNumber: true, createdAt: true, updatedAt: true, resolvedAt: true });
 export const insertTicketCommentSchema = createInsertSchema(ticketComments).omit({ id: true, createdAt: true });
 export const insertTicketAttachmentSchema = createInsertSchema(ticketAttachments).omit({ id: true, createdAt: true });
 export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({ id: true, createdAt: true });
