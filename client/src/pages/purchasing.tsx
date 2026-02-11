@@ -153,6 +153,7 @@ export default function PurchasingPage() {
   const [reorderSupplierId, setReorderSupplierId] = useState<string>("");
   const [orderDetailTab, setOrderDetailTab] = useState<string>("items");
   const [showDeleteOrderDialog, setShowDeleteOrderDialog] = useState(false);
+  const [orderDetailsLoading, setOrderDetailsLoading] = useState(false);
 
   const { data: suppliers, isLoading: suppliersLoading } = useQuery<Supplier[]>({ queryKey: ["/api/suppliers"] });
   const { data: purchaseOrders, isLoading: ordersLoading } = useQuery<PurchaseOrder[]>({ queryKey: ["/api/purchase-orders"] });
@@ -252,8 +253,13 @@ export default function PurchasingPage() {
   });
 
   const fetchOrderDetails = async (orderId: string) => {
-    const res = await fetch(`/api/purchase-orders/${orderId}`, { headers: { "x-tenant-id": localStorage.getItem("tenantId") || "" } });
-    if (res.ok) { const order = await res.json(); setSelectedOrder(order); }
+    setOrderDetailsLoading(true);
+    try {
+      const res = await fetch(`/api/purchase-orders/${orderId}`, { headers: { "x-tenant-id": localStorage.getItem("tenantId") || "" } });
+      if (res.ok) { const order = await res.json(); setSelectedOrder(order); }
+    } finally {
+      setOrderDetailsLoading(false);
+    }
   };
 
   const handleEditSupplier = (supplier: Supplier) => {
@@ -618,7 +624,12 @@ export default function PurchasingPage() {
 
       <Dialog open={showOrderDetailsDialog} onOpenChange={(open) => { setShowOrderDetailsDialog(open); if (!open) setSelectedOrder(null); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          {selectedOrder && (
+          {orderDetailsLoading || !selectedOrder ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mb-4" />
+              <DialogHeader><DialogTitle>{t("purchasing.order_details")}</DialogTitle></DialogHeader>
+            </div>
+          ) : (
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 flex-wrap">{selectedOrder.orderNumber} {getStatusBadge(selectedOrder.status)}</DialogTitle>
