@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useI18n } from "@/lib/i18n";
@@ -231,6 +231,7 @@ export function EmailTemplateEditor() {
   };
 
   const [styledPreviewHtml, setStyledPreviewHtml] = useState<string>("");
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const getPreviewContent = (template: EmailTemplate) => {
     if (showFinalPreview) {
@@ -239,15 +240,25 @@ export function EmailTemplateEditor() {
     return template.htmlBody;
   };
 
-  const fetchStyledPreview = async (htmlBody: string) => {
+  const fetchStyledPreview = useCallback(async (htmlBody: string) => {
+    setPreviewLoading(true);
     try {
       const res = await apiRequest("POST", "/api/email-templates/preview", { htmlBody });
       const data = await res.json();
       setStyledPreviewHtml(data.html);
     } catch {
       setStyledPreviewHtml(htmlBody);
+    } finally {
+      setPreviewLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (previewTemplate) {
+      const content = getPreviewContent(previewTemplate);
+      fetchStyledPreview(content);
+    }
+  }, [previewTemplate, showFinalPreview]);
 
   const getPreviewSubject = (template: EmailTemplate) => {
     if (showFinalPreview) {
@@ -598,12 +609,21 @@ export function EmailTemplateEditor() {
             )}
           </div>
           
-          <ScrollArea className="flex-1 border rounded-lg bg-white">
-            <div 
-              className="p-4 text-black"
-              dangerouslySetInnerHTML={{ __html: previewTemplate ? getPreviewContent(previewTemplate) : "" }}
-            />
-          </ScrollArea>
+          <div className="flex-1 border rounded-lg bg-white overflow-hidden min-h-[300px] relative">
+            {previewLoading ? (
+              <div className="flex items-center justify-center h-full py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <iframe
+                srcDoc={styledPreviewHtml}
+                className="w-full h-full min-h-[400px] border-0"
+                title="Email Preview"
+                sandbox="allow-same-origin"
+                data-testid="iframe-email-preview"
+              />
+            )}
+          </div>
 
           <DialogFooter>
             <Button
