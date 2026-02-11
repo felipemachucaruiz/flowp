@@ -165,9 +165,7 @@ export default function PurchasingPage() {
     queryKey: ["/api/purchase-orders", selectedOrder?.id, "receipts"],
     enabled: !!selectedOrder?.id,
     queryFn: async () => {
-      const res = await fetch(`/api/purchase-orders/${selectedOrder!.id}/receipts`, {
-        headers: { "x-tenant-id": localStorage.getItem("tenantId") || "" },
-      });
+      const res = await apiRequest("GET", `/api/purchase-orders/${selectedOrder!.id}/receipts`);
       return res.json();
     },
   });
@@ -255,8 +253,11 @@ export default function PurchasingPage() {
   const fetchOrderDetails = async (orderId: string) => {
     setOrderDetailsLoading(true);
     try {
-      const res = await fetch(`/api/purchase-orders/${orderId}`, { headers: { "x-tenant-id": localStorage.getItem("tenantId") || "" } });
-      if (res.ok) { const order = await res.json(); setSelectedOrder(order); }
+      const res = await apiRequest("GET", `/api/purchase-orders/${orderId}`);
+      const order = await res.json();
+      setSelectedOrder(order);
+    } catch {
+      toast({ title: t("common.error"), variant: "destructive" });
     } finally {
       setOrderDetailsLoading(false);
     }
