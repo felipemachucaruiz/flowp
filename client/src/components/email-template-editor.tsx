@@ -253,6 +253,7 @@ export function EmailTemplateEditor() {
       const res = await apiRequest("POST", "/api/email-templates/preview", {
         htmlBody,
         companyName: tenant?.name,
+        language,
       });
       const data = await res.json();
       setStyledPreviewHtml(data.html);
@@ -261,7 +262,7 @@ export function EmailTemplateEditor() {
     } finally {
       setPreviewLoading(false);
     }
-  }, [tenant?.name]);
+  }, [tenant?.name, language]);
 
   useEffect(() => {
     if (previewTemplate) {

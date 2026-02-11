@@ -5402,9 +5402,9 @@ export async function registerRoutes(
 
   app.post("/api/email-templates/preview", async (req: Request, res: Response) => {
     try {
-      const { htmlBody, companyName, companyLogo } = req.body;
+      const { htmlBody, companyName, companyLogo, language } = req.body;
       if (!htmlBody) return res.status(400).json({ message: "htmlBody is required" });
-      const wrappedHtml = getEmailWrapper(htmlBody, { companyName, companyLogo });
+      const wrappedHtml = getEmailWrapper(htmlBody, { companyName, companyLogo, language });
       res.json({ html: wrappedHtml });
     } catch (error) {
       res.status(500).json({ message: "Failed to generate preview" });

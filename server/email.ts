@@ -194,7 +194,7 @@ class EmailService {
       const bodyContent = customTemplate.htmlBody
         .replace(/\{\{userName\}\}/g, userName)
         .replace(/\{\{resetUrl\}\}/g, resetUrl);
-      html = getEmailWrapper(bodyContent, { companyName: tenantData?.companyName, companyLogo: tenantData?.companyLogo });
+      html = getEmailWrapper(bodyContent, { companyName: tenantData?.companyName, companyLogo: tenantData?.companyLogo, language });
     } else {
       const template = getPasswordResetTemplate({
         userName,
@@ -240,7 +240,7 @@ class EmailService {
         .replace(/\{\{userName\}\}/g, userName)
         .replace(/\{\{businessName\}\}/g, businessName)
         .replace(/\{\{loginUrl\}\}/g, loginUrl);
-      html = getEmailWrapper(bodyContent);
+      html = getEmailWrapper(bodyContent, { language });
     } else {
       const template = getWelcomeEmailTemplate({
         userName,
@@ -291,7 +291,7 @@ class EmailService {
         .replace(/\{\{orderId\}\}/g, orderId)
         .replace(/\{\{orderTotal\}\}/g, orderTotal)
         .replace(/\{\{orderItems\}\}/g, itemsHtml);
-      html = getEmailWrapper(bodyContent, { companyName: tenantData?.companyName, companyLogo: tenantData?.companyLogo });
+      html = getEmailWrapper(bodyContent, { companyName: tenantData?.companyName, companyLogo: tenantData?.companyLogo, language });
     } else {
       const template = getOrderConfirmationTemplate({
         orderId,
@@ -338,7 +338,7 @@ class EmailService {
         .replace(/\{\{storeName\}\}/g, storeName)
         .replace(/\{\{amount\}\}/g, amount)
         .replace(/\{\{paymentMethod\}\}/g, paymentMethod);
-      html = getEmailWrapper(bodyContent, { companyName: tenantData?.companyName, companyLogo: tenantData?.companyLogo });
+      html = getEmailWrapper(bodyContent, { companyName: tenantData?.companyName, companyLogo: tenantData?.companyLogo, language });
     } else {
       const template = getPaymentReceivedTemplate({
         amount,
@@ -386,7 +386,7 @@ class EmailService {
         .replace(/\{\{storeName\}\}/g, storeName)
         .replace(/\{\{productName\}\}/g, productName)
         .replace(/\{\{currentStock\}\}/g, String(currentStock));
-      html = getEmailWrapper(bodyContent, { companyName: tenantData?.companyName, companyLogo: tenantData?.companyLogo });
+      html = getEmailWrapper(bodyContent, { companyName: tenantData?.companyName, companyLogo: tenantData?.companyLogo, language });
     } else {
       const template = getLowStockAlertTemplate({
         productName,
@@ -438,7 +438,7 @@ class EmailService {
         .replace(/\{\{date\}\}/g, data.date)
         .replace(/\{\{total\}\}/g, data.total)
         .replace(/\{\{items\}\}/g, itemsHtml);
-      html = getEmailWrapper(bodyContent, { companyName: data.companyName, companyLogo: data.companyLogo });
+      html = getEmailWrapper(bodyContent, { companyName: data.companyName, companyLogo: data.companyLogo, language });
     } else {
       const template = getTransactionReceiptTemplate(data, language);
       subject = template.subject;
