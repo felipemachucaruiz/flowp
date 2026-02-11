@@ -338,13 +338,12 @@ export class DatabaseStorage implements IStorage {
   private async generateSupportId(): Promise<string> {
     const result = await db.select({ supportId: tenants.supportId })
       .from(tenants)
-      .where(sql`${tenants.supportId} IS NOT NULL AND ${tenants.supportId} LIKE 'FLP-%'`);
+      .where(sql`${tenants.supportId} IS NOT NULL`);
     
     let maxNum = 0;
     for (const row of result) {
       if (row.supportId) {
-        const numStr = row.supportId.replace("FLP-", "");
-        const num = parseInt(numStr, 10);
+        const num = parseInt(row.supportId, 10);
         if (!isNaN(num) && num > maxNum) {
           maxNum = num;
         }
@@ -352,7 +351,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     const nextNum = maxNum + 1;
-    return `FLP-${String(nextNum).padStart(6, "0")}`;
+    return String(nextNum);
   }
 
   // Users
