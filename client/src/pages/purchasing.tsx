@@ -145,6 +145,7 @@ export default function PurchasingPage() {
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
   const [showReceiveDialog, setShowReceiveDialog] = useState(false);
   const [receiveQuantities, setReceiveQuantities] = useState<Record<string, number>>({});
+  const [receiveCosts, setReceiveCosts] = useState<Record<string, number>>({});
   const [receiveNotes, setReceiveNotes] = useState("");
   const [receiveWarehouseId, setReceiveWarehouseId] = useState<string>("");
   const [itemType, setItemType] = useState<"product" | "ingredient">("product");
@@ -224,7 +225,7 @@ export default function PurchasingPage() {
     onSuccess: () => { toast({ title: t("purchasing.order_updated") }); queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] }); if (selectedOrder) fetchOrderDetails(selectedOrder.id); },
   });
   const receiveStockMutation = useMutation({
-    mutationFn: async ({ orderId, items, warehouseId, notes }: { orderId: string; items: Array<{ itemId: string; receivedQuantity: number }>; warehouseId?: string; notes?: string }) => {
+    mutationFn: async ({ orderId, items, warehouseId, notes }: { orderId: string; items: Array<{ itemId: string; receivedQuantity: number; unitCost?: number }>; warehouseId?: string; notes?: string }) => {
       const res = await apiRequest("POST", `/api/purchase-orders/${orderId}/receive`, { items, warehouseId, notes });
       return res.json();
     },
@@ -233,8 +234,9 @@ export default function PurchasingPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/levels"] });
       queryClient.invalidateQueries({ queryKey: ["/api/ingredients"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders", selectedOrder?.id, "receipts"] });
-      setShowReceiveDialog(false); setReceiveQuantities({}); setReceiveNotes("");
+      setShowReceiveDialog(false); setReceiveQuantities({}); setReceiveCosts({}); setReceiveNotes("");
       if (selectedOrder) fetchOrderDetails(selectedOrder.id);
     },
   });
@@ -289,7 +291,10 @@ export default function PurchasingPage() {
 
   const handleReceiveStock = () => {
     if (!selectedOrder || !selectedOrder.items) return;
-    const itemsToReceive = Object.entries(receiveQuantities).filter(([, qty]) => qty > 0).map(([itemId, receivedQuantity]) => ({ itemId, receivedQuantity }));
+    const itemsToReceive = Object.entries(receiveQuantities).filter(([, qty]) => qty > 0).map(([itemId, receivedQuantity]) => {
+      const unitCost = receiveCosts[itemId];
+      return { itemId, receivedQuantity, ...(unitCost !== undefined ? { unitCost } : {}) };
+    });
     if (itemsToReceive.length === 0) return;
     receiveStockMutation.mutate({ orderId: selectedOrder.id, items: itemsToReceive, warehouseId: receiveWarehouseId || undefined, notes: receiveNotes || undefined });
   };
@@ -656,7 +661,7 @@ export default function PurchasingPage() {
                   </>
                 )}
                 {(selectedOrder.status === "sent" || selectedOrder.status === "partial") && (
-                  <Button size="sm" onClick={() => { setReceiveQuantities({}); setReceiveNotes(""); setReceiveWarehouseId((selectedOrder as any).destinationWarehouseId || ""); setShowReceiveDialog(true); }} data-testid="button-receive-stock">
+                  <Button size="sm" onClick={() => { setReceiveQuantities({}); setReceiveCosts({}); setReceiveNotes(""); setReceiveWarehouseId((selectedOrder as any).destinationWarehouseId || ""); if (selectedOrder?.items) { const costs: Record<string, number> = {}; selectedOrder.items.forEach(item => { costs[item.id] = parseFloat(item.unitCost || "0"); }); setReceiveCosts(costs); } setShowReceiveDialog(true); }} data-testid="button-receive-stock">
                     <Package className="w-4 h-4 mr-1" />{t("purchasing.receive_stock")}
                   </Button>
                 )}
@@ -818,6 +823,7 @@ export default function PurchasingPage() {
                 <SelectContent>{warehouses?.map(w => <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            <p className="text-xs text-muted-foreground">{t("purchasing.cost_auto_update_note")}</p>
             {selectedOrder?.items?.map(item => {
               const pending = item.quantity - (item.receivedQuantity || 0);
               if (pending <= 0) return null;
@@ -828,11 +834,19 @@ export default function PurchasingPage() {
                       <span className="font-medium">{item.productId ? getProductName(item.productId) : getIngredientName(item.ingredientId)}</span>
                       <Badge variant="outline">{t("purchasing.pending_qty")}: {pending}</Badge>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm whitespace-nowrap">{t("purchasing.qty_to_receive")}:</Label>
-                      <Input type="number" min={0} max={pending} value={receiveQuantities[item.id] ?? 0}
-                        onChange={(e) => { const val = Math.min(parseInt(e.target.value) || 0, pending); setReceiveQuantities(prev => ({ ...prev, [item.id]: val })); }}
-                        className="w-24" data-testid={`input-receive-qty-${item.id}`} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm whitespace-nowrap">{t("purchasing.qty_to_receive")}:</Label>
+                        <Input type="number" min={0} max={pending} value={receiveQuantities[item.id] ?? 0}
+                          onChange={(e) => { const val = Math.min(parseInt(e.target.value) || 0, pending); setReceiveQuantities(prev => ({ ...prev, [item.id]: val })); }}
+                          className="w-24" data-testid={`input-receive-qty-${item.id}`} />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm whitespace-nowrap">{t("purchasing.receive_unit_cost")}:</Label>
+                        <Input type="number" step="0.01" min={0} value={receiveCosts[item.id] ?? parseFloat(item.unitCost || "0")}
+                          onChange={(e) => { setReceiveCosts(prev => ({ ...prev, [item.id]: parseFloat(e.target.value) || 0 })); }}
+                          className="w-24" data-testid={`input-receive-cost-${item.id}`} />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
