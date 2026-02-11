@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,86 +52,32 @@ const STEPS = [
   { id: "receipt", icon: Receipt },
 ];
 
+import type { SubscriptionPlan } from "@shared/schema";
+
 type PlanFeature = { key: string; count?: number };
 
-const PLAN_OPTIONS: Array<{
-  tier: string;
-  labelKey: string;
-  descKey: string;
-  recommended?: boolean;
-  color: string;
-  selectedColor: string;
-  features: PlanFeature[];
-  restaurantFeatures: PlanFeature[];
-}> = [
-  {
-    tier: "basic",
-    labelKey: "onboarding.plan_starter",
-    descKey: "onboarding.plan_starter_desc",
-    color: "border-border",
-    selectedColor: "border-primary bg-primary/5",
-    features: [
-      { key: "registers", count: 1 },
-      { key: "users", count: 1 },
-      { key: "products", count: 100 },
-      { key: "warehouses", count: 1 },
-    ],
-    restaurantFeatures: [
-      { key: "registers", count: 1 },
-      { key: "users", count: 2 },
-      { key: "products", count: 50 },
-      { key: "tables", count: 10 },
-    ],
-  },
-  {
-    tier: "pro",
-    labelKey: "onboarding.plan_pro",
-    descKey: "onboarding.plan_pro_desc",
-    recommended: true,
-    color: "border-border",
-    selectedColor: "border-primary bg-primary/5",
-    features: [
-      { key: "registers", count: 2 },
-      { key: "users", count: 3 },
-      { key: "products", count: 250 },
-      { key: "warehouses", count: 2 },
-      { key: "label_designer" },
-      { key: "reports" },
-    ],
-    restaurantFeatures: [
-      { key: "registers", count: 2 },
-      { key: "users", count: 5 },
-      { key: "products", count: 200 },
-      { key: "tables", count: 30 },
-      { key: "recipes", count: 50 },
-      { key: "kds" },
-    ],
-  },
-  {
-    tier: "enterprise",
-    labelKey: "onboarding.plan_advanced",
-    descKey: "onboarding.plan_advanced_desc",
-    color: "border-border",
-    selectedColor: "border-primary bg-primary/5",
-    features: [
-      { key: "registers", count: 5 },
-      { key: "users", count: 10 },
-      { key: "unlimited_products" },
-      { key: "locations", count: 3 },
-      { key: "warehouses", count: 5 },
-      { key: "multi_location" },
-      { key: "ecommerce" },
-    ],
-    restaurantFeatures: [
-      { key: "registers", count: 5 },
-      { key: "users", count: 15 },
-      { key: "unlimited_products" },
-      { key: "tables", count: 100 },
-      { key: "unlimited_recipes" },
-      { key: "multi_location" },
-    ],
-  },
-];
+function buildPlanFeatures(plan: SubscriptionPlan): PlanFeature[] {
+  const features: PlanFeature[] = [];
+  if (plan.maxRegisters && plan.maxRegisters > 0) features.push({ key: "registers", count: plan.maxRegisters });
+  if (plan.maxUsers && plan.maxUsers > 0) features.push({ key: "users", count: plan.maxUsers });
+  if (plan.maxProducts === -1) {
+    features.push({ key: "unlimited_products" });
+  } else if (plan.maxProducts && plan.maxProducts > 0) {
+    features.push({ key: "products", count: plan.maxProducts });
+  }
+  if (plan.maxWarehouses && plan.maxWarehouses > 1) features.push({ key: "warehouses", count: plan.maxWarehouses });
+  if (plan.maxLocations && plan.maxLocations > 1) {
+    features.push({ key: "locations", count: plan.maxLocations });
+    features.push({ key: "multi_location" });
+  }
+  if (plan.maxTables && plan.maxTables > 0) features.push({ key: "tables", count: plan.maxTables });
+  if (plan.maxRecipes === -1) {
+    features.push({ key: "unlimited_recipes" });
+  } else if (plan.maxRecipes && plan.maxRecipes > 0) {
+    features.push({ key: "recipes", count: plan.maxRecipes });
+  }
+  return features;
+}
 
 export default function OnboardingPage() {
   const { t, setLanguage } = useI18n();
@@ -139,7 +85,24 @@ export default function OnboardingPage() {
   const { tenant, refreshTenant } = useAuth();
   const [, navigate] = useLocation();
   const [currentStep, setCurrentStep] = useState(0);
-  
+
+  const isRestaurant = tenant?.type === "restaurant";
+
+  const { data: allPlans = [], isLoading: plansLoading } = useQuery<SubscriptionPlan[]>({
+    queryKey: ["/api/subscription/plans"],
+  });
+
+  const filteredPlans = useMemo(() => {
+    const businessType = isRestaurant ? "restaurant" : "retail";
+    const plans = allPlans
+      .filter((p) => p.isActive && p.businessType === businessType)
+      .sort((a, b) => {
+        const tierOrder: Record<string, number> = { basic: 0, pro: 1, enterprise: 2 };
+        return (tierOrder[a.tier || "basic"] ?? 99) - (tierOrder[b.tier || "basic"] ?? 99);
+      });
+    return plans;
+  }, [allPlans, isRestaurant]);
+
   const [formData, setFormData] = useState({
     language: tenant?.language || "en",
     subscriptionTier: (tenant as any)?.subscriptionTier || "pro",
@@ -228,7 +191,6 @@ export default function OnboardingPage() {
   };
 
   const selectedCountry = COUNTRIES.find(c => c.value === formData.country);
-  const isRestaurant = tenant?.type === "restaurant";
 
   const getFeatureLabel = (feat: PlanFeature): string => {
     const i18nKey = `onboarding.plan_feat_${feat.key}` as any;
@@ -279,52 +241,80 @@ export default function OnboardingPage() {
               <h2 className="text-2xl font-bold mb-2">{t("onboarding.plan_title")}</h2>
               <p className="text-muted-foreground text-sm">{t("onboarding.plan_description")}</p>
             </div>
-            <div className="grid grid-cols-1 gap-3">
-              {PLAN_OPTIONS.map((plan) => {
-                const features = isRestaurant ? plan.restaurantFeatures : plan.features;
-                const isSelected = formData.subscriptionTier === plan.tier;
-                return (
-                  <button
-                    key={plan.tier}
-                    onClick={() => setFormData({ ...formData, subscriptionTier: plan.tier })}
-                    className={cn(
-                      "relative flex flex-col p-4 rounded-lg border-2 transition-all hover-elevate text-left",
-                      isSelected ? plan.selectedColor : plan.color + " hover:border-primary/50"
-                    )}
-                    data-testid={`button-plan-${plan.tier}`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold">{t(plan.labelKey as any)}</span>
-                        {plan.recommended && (
-                          <Badge variant="default" className="text-xs">
-                            {t("onboarding.plan_recommended")}
-                          </Badge>
+            {plansLoading ? (
+              <div className="grid grid-cols-1 gap-3">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-28 rounded-lg border-2 border-border animate-pulse bg-muted" />
+                ))}
+              </div>
+            ) : filteredPlans.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {t("onboarding.no_plans_available" as any)}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {filteredPlans.map((plan) => {
+                  const features = buildPlanFeatures(plan);
+                  const isSelected = formData.subscriptionTier === (plan.tier || "basic");
+                  const isPro = plan.tier === "pro";
+                  const tierLabelKey = plan.tier === "basic" ? "onboarding.plan_starter"
+                    : plan.tier === "pro" ? "onboarding.plan_pro"
+                    : "onboarding.plan_advanced";
+                  const tierDescKey = plan.tier === "basic" ? "onboarding.plan_starter_desc"
+                    : plan.tier === "pro" ? "onboarding.plan_pro_desc"
+                    : "onboarding.plan_advanced_desc";
+                  const priceFormatted = new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: plan.currency || "COP",
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0,
+                  }).format(Number(plan.priceMonthly));
+                  return (
+                    <button
+                      key={plan.id}
+                      onClick={() => setFormData({ ...formData, subscriptionTier: plan.tier || "basic" })}
+                      className={cn(
+                        "relative flex flex-col p-4 rounded-lg border-2 transition-all hover-elevate text-left",
+                        isSelected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                      )}
+                      data-testid={`button-plan-${plan.tier}`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg font-bold">{plan.name || t(tierLabelKey as any)}</span>
+                          {isPro && (
+                            <Badge variant="default" className="text-xs">
+                              {t("onboarding.plan_recommended")}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-muted-foreground">{priceFormatted}/{t("common.month" as any) || "mes"}</span>
+                          {isSelected && (
+                            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                              <Check className="w-4 h-4 text-primary-foreground" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">{t(tierDescKey as any)}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {features.slice(0, 5).map((f, i) => (
+                          <span key={i} className="text-xs bg-muted px-2 py-1 rounded-md">
+                            {getFeatureLabel(f)}
+                          </span>
+                        ))}
+                        {features.length > 5 && (
+                          <span className="text-xs text-muted-foreground">
+                            +{features.length - 5}
+                          </span>
                         )}
                       </div>
-                      {isSelected && (
-                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                          <Check className="w-4 h-4 text-primary-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-3">{t(plan.descKey as any)}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {features.slice(0, 4).map((f, i) => (
-                        <span key={i} className="text-xs bg-muted px-2 py-1 rounded-md">
-                          {getFeatureLabel(f)}
-                        </span>
-                      ))}
-                      {features.length > 4 && (
-                        <span className="text-xs text-muted-foreground">
-                          +{features.length - 4}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <p className="text-center text-xs text-muted-foreground">
               {t("onboarding.plan_trial_note")}
             </p>
