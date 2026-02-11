@@ -442,31 +442,30 @@ export function getOrderConfirmationTemplate(data: OrderConfirmationTemplateData
     <table style="width: 100%; border-collapse: collapse; margin: 24px 0;">
       <thead>
         <tr style="border-bottom: 2px solid #e4e4e7;">
-          <th style="padding: 8px 0; text-align: left; font-size: 12px; font-weight: 600; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;" colspan="2">${t.item}</th>
-          <th style="padding: 8px; text-align: center; font-size: 12px; font-weight: 600; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">${t.qty}</th>
-          <th style="padding: 8px 0; text-align: right; font-size: 12px; font-weight: 600; color: #71717a; text-transform: uppercase; letter-spacing: 0.5px;">${t.price}</th>
+          <th style="padding: 10px 0; text-align: left; font-size: 11px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.8px;" colspan="2">${t.item}</th>
+          <th style="padding: 10px 8px; text-align: center; font-size: 11px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.8px;">${t.qty}</th>
+          <th style="padding: 10px 0; text-align: right; font-size: 11px; font-weight: 700; color: #71717a; text-transform: uppercase; letter-spacing: 0.8px;">${t.price}</th>
         </tr>
       </thead>
       <tbody>
         ${itemsHtml}
       </tbody>
-    </table>
-
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
-      ${data.subtotal ? `
-      <tr>
-        <td style="padding: 6px 0; font-size: 14px; color: #52525b;">${t.subtotal}</td>
-        <td style="padding: 6px 0; text-align: right; font-size: 14px; color: #52525b;">${data.subtotal}</td>
-      </tr>` : ''}
-      ${data.tax ? `
-      <tr>
-        <td style="padding: 6px 0; font-size: 14px; color: #52525b;">${t.tax}</td>
-        <td style="padding: 6px 0; text-align: right; font-size: 14px; color: #52525b;">${data.tax}</td>
-      </tr>` : ''}
-      <tr style="border-top: 2px solid #27272a;">
-        <td style="padding: 12px 0; font-size: 16px; font-weight: 700; color: #27272a;">${t.total}</td>
-        <td style="padding: 12px 0; text-align: right; font-size: 16px; font-weight: 700; color: #27272a;">${data.orderTotal}</td>
-      </tr>
+      <tfoot>
+        ${data.subtotal ? `
+        <tr>
+          <td colspan="3" style="padding: 8px 0 4px; text-align: right; font-size: 13px; color: #52525b;">${t.subtotal}</td>
+          <td style="padding: 8px 0 4px; text-align: right; font-size: 13px; color: #52525b;">${data.subtotal}</td>
+        </tr>` : ''}
+        ${data.tax ? `
+        <tr>
+          <td colspan="3" style="padding: 4px 0; text-align: right; font-size: 13px; color: #52525b;">${t.tax}</td>
+          <td style="padding: 4px 0; text-align: right; font-size: 13px; color: #52525b;">${data.tax}</td>
+        </tr>` : ''}
+        <tr>
+          <td colspan="3" style="padding: 12px 0 4px; text-align: right; font-size: 15px; font-weight: 700; color: #27272a; border-top: 2px solid #27272a;">${t.total}</td>
+          <td style="padding: 12px 0 4px; text-align: right; font-size: 15px; font-weight: 700; color: #27272a; border-top: 2px solid #27272a;">${data.orderTotal}</td>
+        </tr>
+      </tfoot>
     </table>
     
     <p>${t.message}</p>
