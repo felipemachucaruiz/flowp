@@ -71,6 +71,9 @@ export const tenants = pgTable("tenants", {
   couponText: text("coupon_text"),
   // Inventory settings
   allowZeroStockSales: boolean("allow_zero_stock_sales").default(true),
+  // Auto-lock / standby settings
+  autoLockEnabled: boolean("auto_lock_enabled").default(false),
+  autoLockTimeout: integer("auto_lock_timeout").default(5),
   onboardingComplete: boolean("onboarding_complete").default(false),
   trialEndsAt: timestamp("trial_ends_at"),
   suspendedAt: timestamp("suspended_at"),

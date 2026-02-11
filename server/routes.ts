@@ -378,7 +378,7 @@ export async function registerRoutes(
         ).catch(err => console.error('Failed to send welcome email:', err));
       }
 
-      res.json({ tenant, user: { ...user, password: undefined } });
+      res.json({ tenant, user: { ...user, password: undefined, pin: undefined, hasPin: !!user.pin } });
     } catch (error: any) {
       console.error("Registration error:", error);
       res.status(400).json({ message: error.message || "Registration failed" });
@@ -416,7 +416,7 @@ export async function registerRoutes(
         });
         
         return res.json({
-          user: { ...user, password: undefined },
+          user: { ...user, password: undefined, pin: undefined, hasPin: !!user.pin },
           tenant: null,
           isInternal: true,
           redirectTo: "/admin",
@@ -436,7 +436,7 @@ export async function registerRoutes(
       }
 
       res.json({
-        user: { ...user, password: undefined },
+        user: { ...user, password: undefined, pin: undefined, hasPin: !!user.pin },
         tenant,
         isInternal: false,
       });
@@ -552,6 +552,37 @@ export async function registerRoutes(
     }
   });
 
+  const pinAttempts = new Map<string, { count: number; lastAttempt: number }>();
+  app.post("/api/auth/verify-pin", async (req: Request, res: Response) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      const { pin } = req.body;
+      if (!userId || !pin) {
+        return res.status(400).json({ success: false, message: "PIN is required" });
+      }
+      const attempts = pinAttempts.get(userId);
+      if (attempts && attempts.count >= 5 && (Date.now() - attempts.lastAttempt) < 60000) {
+        return res.status(429).json({ success: false, message: "Too many attempts. Wait 1 minute." });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      if (!user.pin) {
+        return res.status(400).json({ success: false, message: "No PIN configured for this user" });
+      }
+      if (user.pin === pin) {
+        pinAttempts.delete(userId);
+        return res.json({ success: true });
+      }
+      const current = pinAttempts.get(userId) || { count: 0, lastAttempt: 0 };
+      pinAttempts.set(userId, { count: current.count + 1, lastAttempt: Date.now() });
+      return res.status(401).json({ success: false, message: "Invalid PIN" });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Failed to verify PIN" });
+    }
+  });
+
   // ===== USERS ROUTES =====
 
   app.get("/api/users", async (req: Request, res: Response) => {
@@ -561,7 +592,7 @@ export async function registerRoutes(
         return res.json([]);
       }
       const users = await storage.getUsersByTenant(tenantId);
-      res.json(users.map(u => ({ ...u, password: undefined })));
+      res.json(users.map(u => ({ ...u, password: undefined, pin: undefined, hasPin: !!u.pin })));
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users" });
     }
@@ -602,7 +633,7 @@ export async function registerRoutes(
         pin: pin || null,
       });
 
-      res.json({ ...user, password: undefined });
+      res.json({ ...user, password: undefined, pin: undefined, hasPin: !!user.pin });
     } catch (error) {
       console.error("User creation error:", error);
       res.status(500).json({ message: "Failed to create user" });
@@ -642,7 +673,7 @@ export async function registerRoutes(
       }
 
       const user = await storage.updateUser(id, updateData);
-      res.json({ ...user, password: undefined });
+      res.json({ ...user, password: undefined, pin: undefined, hasPin: !!user?.pin });
     } catch (error) {
       console.error("User update error:", error);
       res.status(500).json({ message: "Failed to update user" });
@@ -4535,9 +4566,8 @@ export async function registerRoutes(
         return res.status(404).json({ message: "User not found" });
       }
       
-      // Don't return password
-      const { password, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      const { password, pin, ...userWithoutSensitive } = user;
+      res.json({ ...userWithoutSensitive, hasPin: !!pin });
     } catch (error) {
       console.error("Get current user error:", error);
       res.status(500).json({ message: "Failed to fetch user" });
@@ -4557,6 +4587,7 @@ export async function registerRoutes(
         receiptShowAddress, receiptShowPhone, receiptTaxId, receiptLogo, onboardingComplete,
         receiptLogoSize, receiptFontSize, receiptFontFamily,
         couponEnabled, couponText, openCashDrawer, allowZeroStockSales,
+        autoLockEnabled, autoLockTimeout,
         subscriptionTier
       } = req.body;
       
@@ -4585,6 +4616,8 @@ export async function registerRoutes(
         couponText: couponText !== undefined ? couponText : undefined,
         openCashDrawer: openCashDrawer !== undefined ? openCashDrawer : undefined,
         allowZeroStockSales: allowZeroStockSales !== undefined ? allowZeroStockSales : undefined,
+        autoLockEnabled: autoLockEnabled !== undefined ? autoLockEnabled : undefined,
+        autoLockTimeout: autoLockTimeout !== undefined ? autoLockTimeout : undefined,
         subscriptionTier: subscriptionTier && ["basic", "pro", "enterprise"].includes(subscriptionTier) ? subscriptionTier : undefined,
       } as any);
       

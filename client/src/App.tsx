@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LockScreen } from "@/components/lock-screen";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -193,6 +194,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </div>
       <TourOverlay />
+      <LockScreen />
     </SidebarProvider>
   );
 }

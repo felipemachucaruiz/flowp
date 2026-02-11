@@ -2261,6 +2261,19 @@ export default function SettingsPage() {
     },
   });
 
+  const autoLockMutation = useMutation({
+    mutationFn: async (data: { autoLockEnabled?: boolean; autoLockTimeout?: number }) => {
+      return apiRequest("PATCH", "/api/settings", data);
+    },
+    onSuccess: () => {
+      toast({ title: t("settings.updated") });
+      if (refreshTenant) refreshTenant();
+    },
+    onError: () => {
+      toast({ title: t("settings.update_error"), variant: "destructive" });
+    },
+  });
+
   const receiptSettingsMutation = useMutation({
     mutationFn: async (data: z.infer<typeof receiptSettingsSchema>) => {
       return apiRequest("PATCH", "/api/settings", data);
@@ -3070,6 +3083,49 @@ export default function SettingsPage() {
                   data-testid="switch-allow-zero-stock-sales"
                 />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("settings.auto_lock")}</CardTitle>
+              <CardDescription>{t("settings.auto_lock_description")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">{t("settings.auto_lock_enabled")}</Label>
+                  <p className="text-sm text-muted-foreground">{t("settings.auto_lock_requires_pin")}</p>
+                </div>
+                <Switch
+                  checked={(tenant as any)?.autoLockEnabled ?? false}
+                  onCheckedChange={(checked) => { autoLockMutation.mutate({ autoLockEnabled: checked }); }}
+                  disabled={autoLockMutation.isPending}
+                  data-testid="switch-auto-lock-enabled"
+                />
+              </div>
+              {(tenant as any)?.autoLockEnabled && (
+                <div className="flex items-center gap-4">
+                  <Label className="whitespace-nowrap">{t("settings.auto_lock_timeout")}</Label>
+                  <Select
+                    value={String((tenant as any)?.autoLockTimeout || 5)}
+                    onValueChange={(val) => { autoLockMutation.mutate({ autoLockTimeout: parseInt(val) }); }}
+                  >
+                    <SelectTrigger className="w-32" data-testid="select-auto-lock-timeout">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1</SelectItem>
+                      <SelectItem value="2">2</SelectItem>
+                      <SelectItem value="3">3</SelectItem>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="15">15</SelectItem>
+                      <SelectItem value="30">30</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </CardContent>
           </Card>
 
