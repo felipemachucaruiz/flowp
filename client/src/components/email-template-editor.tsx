@@ -54,7 +54,7 @@ const templateTypeConfig: Record<string, { icon: any; color: string; name: strin
       "{{storeName}}": "Mi Tienda",
       "{{orderId}}": "ORD-2026-0001",
       "{{orderTotal}}": "$156.99",
-      "{{orderItems}}": "2x Classic Burger ($24.99), 1x Caesar Salad ($12.50), 3x Soft Drink ($8.97)",
+      "{{orderItems}}": `<tr><td style="padding:8px 0;vertical-align:middle;width:50px;"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect fill='%23fef3c7' width='48' height='48' rx='4'/%3E%3Ctext x='24' y='28' text-anchor='middle' font-size='20'%3E🍔%3C/text%3E%3C/svg%3E" style="width:48px;height:48px;border-radius:4px;border:1px solid #e4e4e7;" /></td><td style="padding:8px;vertical-align:middle;font-size:14px;">Classic Burger</td><td style="padding:8px;vertical-align:middle;text-align:center;font-size:14px;color:#52525b;">x2</td><td style="padding:8px 0;vertical-align:middle;text-align:right;font-size:14px;font-weight:600;">$24.99</td></tr><tr><td style="padding:8px 0;vertical-align:middle;width:50px;"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect fill='%23d1fae5' width='48' height='48' rx='4'/%3E%3Ctext x='24' y='28' text-anchor='middle' font-size='20'%3E🥗%3C/text%3E%3C/svg%3E" style="width:48px;height:48px;border-radius:4px;border:1px solid #e4e4e7;" /></td><td style="padding:8px;vertical-align:middle;font-size:14px;">Caesar Salad</td><td style="padding:8px;vertical-align:middle;text-align:center;font-size:14px;color:#52525b;">x1</td><td style="padding:8px 0;vertical-align:middle;text-align:right;font-size:14px;font-weight:600;">$12.50</td></tr><tr><td style="padding:8px 0;vertical-align:middle;width:50px;"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48'%3E%3Crect fill='%23dbeafe' width='48' height='48' rx='4'/%3E%3Ctext x='24' y='28' text-anchor='middle' font-size='20'%3E🥤%3C/text%3E%3C/svg%3E" style="width:48px;height:48px;border-radius:4px;border:1px solid #e4e4e7;" /></td><td style="padding:8px;vertical-align:middle;font-size:14px;">Soft Drink</td><td style="padding:8px;vertical-align:middle;text-align:center;font-size:14px;color:#52525b;">x3</td><td style="padding:8px 0;vertical-align:middle;text-align:right;font-size:14px;font-weight:600;">$8.97</td></tr>`,
     },
   },
   payment_received: {
@@ -103,10 +103,26 @@ const defaultTemplatesByLanguage: Record<string, Record<string, { subject: strin
   en: {
     order_confirmation: {
       subject: "Order Confirmation - #{{orderId}}",
-      htmlBody: `<h1>Thank you for your order!</h1>
-<p><strong>Order #{{orderId}}</strong></p>
-<p>{{orderItems}}</p>
-<p><strong>Total: {{orderTotal}}</strong></p>
+      htmlBody: `<div style="text-align:center;margin-bottom:24px;">
+  <h1 style="margin:0;">Thank you for your order!</h1>
+  <p style="color:#52525b;">Order <strong>#{{orderId}}</strong></p>
+</div>
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+  <thead>
+    <tr style="border-bottom:2px solid #e4e4e7;">
+      <th style="padding:8px 0;text-align:left;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;" colspan="2">Item</th>
+      <th style="padding:8px;text-align:center;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;">Qty</th>
+      <th style="padding:8px 0;text-align:right;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;">Price</th>
+    </tr>
+  </thead>
+  <tbody>{{orderItems}}</tbody>
+  <tfoot>
+    <tr>
+      <td colspan="3" style="padding:12px 0 4px;text-align:right;font-size:15px;font-weight:700;border-top:2px solid #27272a;">Total</td>
+      <td style="padding:12px 0 4px;text-align:right;font-size:15px;font-weight:700;border-top:2px solid #27272a;">{{orderTotal}}</td>
+    </tr>
+  </tfoot>
+</table>
 <p>We've received your order and it's being processed.</p>`,
     },
     payment_received: {
@@ -138,10 +154,26 @@ const defaultTemplatesByLanguage: Record<string, Record<string, { subject: strin
   es: {
     order_confirmation: {
       subject: "Confirmación de Pedido - #{{orderId}}",
-      htmlBody: `<h1>¡Gracias por tu pedido!</h1>
-<p><strong>Pedido #{{orderId}}</strong></p>
-<p>{{orderItems}}</p>
-<p><strong>Total: {{orderTotal}}</strong></p>
+      htmlBody: `<div style="text-align:center;margin-bottom:24px;">
+  <h1 style="margin:0;">¡Gracias por tu pedido!</h1>
+  <p style="color:#52525b;">Pedido <strong>#{{orderId}}</strong></p>
+</div>
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+  <thead>
+    <tr style="border-bottom:2px solid #e4e4e7;">
+      <th style="padding:8px 0;text-align:left;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;" colspan="2">Artículo</th>
+      <th style="padding:8px;text-align:center;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;">Cant.</th>
+      <th style="padding:8px 0;text-align:right;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;">Precio</th>
+    </tr>
+  </thead>
+  <tbody>{{orderItems}}</tbody>
+  <tfoot>
+    <tr>
+      <td colspan="3" style="padding:12px 0 4px;text-align:right;font-size:15px;font-weight:700;border-top:2px solid #27272a;">Total</td>
+      <td style="padding:12px 0 4px;text-align:right;font-size:15px;font-weight:700;border-top:2px solid #27272a;">{{orderTotal}}</td>
+    </tr>
+  </tfoot>
+</table>
 <p>Hemos recibido tu pedido y está siendo procesado.</p>`,
     },
     payment_received: {
@@ -173,10 +205,26 @@ const defaultTemplatesByLanguage: Record<string, Record<string, { subject: strin
   pt: {
     order_confirmation: {
       subject: "Confirmação de Pedido - #{{orderId}}",
-      htmlBody: `<h1>Obrigado pelo seu pedido!</h1>
-<p><strong>Pedido #{{orderId}}</strong></p>
-<p>{{orderItems}}</p>
-<p><strong>Total: {{orderTotal}}</strong></p>
+      htmlBody: `<div style="text-align:center;margin-bottom:24px;">
+  <h1 style="margin:0;">Obrigado pelo seu pedido!</h1>
+  <p style="color:#52525b;">Pedido <strong>#{{orderId}}</strong></p>
+</div>
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+  <thead>
+    <tr style="border-bottom:2px solid #e4e4e7;">
+      <th style="padding:8px 0;text-align:left;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;" colspan="2">Item</th>
+      <th style="padding:8px;text-align:center;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;">Qtd.</th>
+      <th style="padding:8px 0;text-align:right;font-size:11px;font-weight:700;color:#71717a;text-transform:uppercase;">Preço</th>
+    </tr>
+  </thead>
+  <tbody>{{orderItems}}</tbody>
+  <tfoot>
+    <tr>
+      <td colspan="3" style="padding:12px 0 4px;text-align:right;font-size:15px;font-weight:700;border-top:2px solid #27272a;">Total</td>
+      <td style="padding:12px 0 4px;text-align:right;font-size:15px;font-weight:700;border-top:2px solid #27272a;">{{orderTotal}}</td>
+    </tr>
+  </tfoot>
+</table>
 <p>Recebemos seu pedido e ele está sendo processado.</p>`,
     },
     payment_received: {
