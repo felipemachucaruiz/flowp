@@ -3,8 +3,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { REGEXP_ONLY_DIGITS } from "input-otp";
+import { Input } from "@/components/ui/input";
 
 export function LockScreen() {
   const { user, tenant, logout } = useAuth();
@@ -15,6 +14,7 @@ export function LockScreen() {
   const [isVerifying, setIsVerifying] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lockedRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const autoLockEnabled = (tenant as any)?.autoLockEnabled === true;
   const autoLockTimeout = ((tenant as any)?.autoLockTimeout || 5) * 60 * 1000;
@@ -46,8 +46,15 @@ export function LockScreen() {
     };
   }, [autoLockEnabled, userHasPin, resetTimer]);
 
-  const handlePinComplete = async (value: string) => {
-    if (value.length < 4 || isVerifying) return;
+  useEffect(() => {
+    if (isLocked && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isLocked]);
+
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (pin.length < 4 || isVerifying) return;
     setIsVerifying(true);
     setError("");
     try {
@@ -58,13 +65,16 @@ export function LockScreen() {
           "x-user-id": user?.id || "",
           "x-tenant-id": (tenant as any)?.id || "",
         },
-        body: JSON.stringify({ pin: value }),
+        body: JSON.stringify({ pin }),
       });
       if (res.ok) {
         lockedRef.current = false;
         setIsLocked(false);
         setPin("");
         resetTimer();
+      } else if (res.status === 429) {
+        setError(t("lock_screen.too_many_attempts") || "Too many attempts. Wait 1 minute.");
+        setPin("");
       } else {
         setError(t("lock_screen.invalid_pin"));
         setPin("");
@@ -90,24 +100,26 @@ export function LockScreen() {
           <p className="text-sm text-muted-foreground" data-testid="text-lock-screen-user">{user?.name}</p>
           <p className="text-sm text-muted-foreground">{t("lock_screen.enter_pin")}</p>
         </div>
-        <InputOTP
-          maxLength={4}
-          value={pin}
-          onChange={(val) => {
-            setPin(val);
-            setError("");
-            if (val.length === 4) handlePinComplete(val);
-          }}
-          pattern={REGEXP_ONLY_DIGITS}
-          data-testid="input-lock-pin"
-        >
-          <InputOTPGroup>
-            <InputOTPSlot index={0} />
-            <InputOTPSlot index={1} />
-            <InputOTPSlot index={2} />
-            <InputOTPSlot index={3} />
-          </InputOTPGroup>
-        </InputOTP>
+        <form onSubmit={handleSubmit} className="w-full max-w-[200px]">
+          <Input
+            ref={inputRef}
+            type="password"
+            inputMode="numeric"
+            maxLength={6}
+            value={pin}
+            onChange={(e) => {
+              const val = e.target.value.replace(/\D/g, "");
+              setPin(val);
+              setError("");
+            }}
+            className="text-center text-2xl tracking-[0.5em]"
+            autoFocus
+            data-testid="input-lock-pin"
+          />
+          <Button type="submit" className="w-full mt-3" disabled={pin.length < 4 || isVerifying} data-testid="button-unlock">
+            {t("lock_screen.unlock") || "Unlock"}
+          </Button>
+        </form>
         {error && (
           <div className="flex items-center gap-2 text-destructive text-sm" data-testid="text-lock-error">
             <AlertCircle className="w-4 h-4" />

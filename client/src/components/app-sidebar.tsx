@@ -22,6 +22,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { FlowpLogo } from "@/components/flowp-logo";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 import {
   ShoppingCart,
   LayoutGrid,
@@ -44,6 +48,7 @@ import {
   Barcode,
   Landmark,
   Lock,
+  KeyRound,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -54,12 +59,62 @@ interface BeforeInstallPromptEvent extends Event {
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user, tenant, logout } = useAuth();
+  const { user, tenant, logout, refreshUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { t } = useI18n();
+  const { toast } = useToast();
   const { isMobile, setOpenMobile } = useSidebar();
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinForm, setPinForm] = useState({ currentPin: "", newPin: "", confirmPin: "" });
+  const [pinError, setPinError] = useState("");
+  const [pinSaving, setPinSaving] = useState(false);
+  const userHasPin = !!(user as any)?.hasPin;
+
+  const handleSetPin = async () => {
+    setPinError("");
+    if (pinForm.newPin.length < 4 || pinForm.newPin.length > 6 || !/^\d+$/.test(pinForm.newPin)) {
+      setPinError(t("pin.pin_description"));
+      return;
+    }
+    if (pinForm.newPin !== pinForm.confirmPin) {
+      setPinError(t("pin.pin_mismatch"));
+      return;
+    }
+    setPinSaving(true);
+    try {
+      const res = await fetch("/api/auth/set-pin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": user?.id || "",
+          "x-tenant-id": (tenant as any)?.id || "",
+        },
+        body: JSON.stringify({
+          pin: pinForm.newPin,
+          ...(userHasPin ? { currentPin: pinForm.currentPin } : {}),
+        }),
+      });
+      if (res.ok) {
+        toast({ title: userHasPin ? t("pin.pin_changed_success") : t("pin.pin_set_success") });
+        setPinDialogOpen(false);
+        setPinForm({ currentPin: "", newPin: "", confirmPin: "" });
+        refreshUser();
+      } else {
+        const data = await res.json();
+        if (res.status === 401) {
+          setPinError(t("pin.current_pin_wrong"));
+        } else {
+          setPinError(data.message || "Error");
+        }
+      }
+    } catch {
+      setPinError("Error");
+    } finally {
+      setPinSaving(false);
+    }
+  };
 
   useEffect(() => {
     // Check if already installed
@@ -233,6 +288,7 @@ export function AppSidebar() {
   };
 
   return (
+    <>
     <Sidebar data-tour="sidebar">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-3">
@@ -327,6 +383,15 @@ export function AppSidebar() {
             >
               {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
             </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setPinDialogOpen(true); setPinForm({ currentPin: "", newPin: "", confirmPin: "" }); setPinError(""); }}
+              data-testid="button-set-pin"
+            >
+              <KeyRound className="w-4 h-4 mr-1" />
+              {userHasPin ? t("pin.change_pin") : t("pin.set_pin")}
+            </Button>
             {installPrompt && !isInstalled && (
               <Button
                 variant="outline"
@@ -351,6 +416,63 @@ export function AppSidebar() {
           </div>
         </div>
       </SidebarFooter>
+
     </Sidebar>
+
+      <Dialog open={pinDialogOpen} onOpenChange={setPinDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{userHasPin ? t("pin.change_pin") : t("pin.set_pin")}</DialogTitle>
+            <DialogDescription>{t("pin.pin_description")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {userHasPin && (
+              <div className="space-y-2">
+                <Label htmlFor="current-pin">{t("pin.current_pin")}</Label>
+                <Input
+                  id="current-pin"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={pinForm.currentPin}
+                  onChange={(e) => setPinForm(p => ({ ...p, currentPin: e.target.value.replace(/\D/g, "") }))}
+                  data-testid="input-current-pin"
+                />
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="new-pin">{t("pin.new_pin")}</Label>
+              <Input
+                id="new-pin"
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                value={pinForm.newPin}
+                onChange={(e) => setPinForm(p => ({ ...p, newPin: e.target.value.replace(/\D/g, "") }))}
+                data-testid="input-new-pin"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-pin">{t("pin.confirm_pin")}</Label>
+              <Input
+                id="confirm-pin"
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                value={pinForm.confirmPin}
+                onChange={(e) => setPinForm(p => ({ ...p, confirmPin: e.target.value.replace(/\D/g, "") }))}
+                data-testid="input-confirm-pin"
+              />
+            </div>
+            {pinError && (
+              <p className="text-sm text-destructive" data-testid="text-pin-error">{pinError}</p>
+            )}
+            <Button className="w-full" onClick={handleSetPin} disabled={pinSaving} data-testid="button-save-pin">
+              {pinSaving ? t("common.saving") : (userHasPin ? t("pin.change_pin") : t("pin.set_pin"))}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

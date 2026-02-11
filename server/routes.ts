@@ -583,6 +583,36 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/set-pin", async (req: Request, res: Response) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) {
+        return res.status(401).json({ success: false, message: "Unauthorized" });
+      }
+      const { pin, currentPin } = req.body;
+      if (!pin || pin.length < 4 || pin.length > 6 || !/^\d+$/.test(pin)) {
+        return res.status(400).json({ success: false, message: "PIN must be 4-6 digits" });
+      }
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+      if (user.pin) {
+        if (!currentPin) {
+          return res.status(400).json({ success: false, message: "Current PIN is required" });
+        }
+        if (currentPin !== user.pin) {
+          return res.status(401).json({ success: false, message: "Current PIN is incorrect" });
+        }
+      }
+      await storage.updateUser(userId, { pin });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Set PIN error:", error);
+      res.status(500).json({ success: false, message: "Failed to set PIN" });
+    }
+  });
+
   // ===== USERS ROUTES =====
 
   app.get("/api/users", async (req: Request, res: Response) => {
