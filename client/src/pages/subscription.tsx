@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
+import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import PayPalButton from "@/components/PayPalButton";
 import type { SubscriptionPlan } from "@shared/schema";
 
 export default function SubscriptionPage() {
+  const { t } = useI18n();
   const { tenant, refreshTenant } = useAuth();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);

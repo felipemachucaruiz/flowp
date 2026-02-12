@@ -56,6 +56,7 @@ import AdminWhatsAppPackages from "@/pages/admin/whatsapp-packages";
 import AdminWhatsAppConfig from "@/pages/admin/whatsapp-config";
 import AdminShopifyConfig from "@/pages/admin/shopify-config";
 import LabelDesignerPage from "@/pages/label-designer";
+import SubscriptionPage from "@/pages/subscription";
 import CashRegisterPage from "@/pages/cash-register";
 import OnboardingPage from "@/pages/onboarding";
 import ForgotPasswordPage from "@/pages/forgot-password";
@@ -345,6 +346,9 @@ function TenantRouter() {
         </Route>
         <Route path="/labels">
           <ProtectedRoute component={LabelDesignerPage} />
+        </Route>
+        <Route path="/subscription">
+          <ProtectedRoute component={SubscriptionPage} />
         </Route>
         <Route path="/electronic-billing">
           <ProtectedRoute component={ElectronicBillingPage} />
