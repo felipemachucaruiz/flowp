@@ -1588,6 +1588,33 @@ function RegistersSettings() {
   );
 }
 
+const FEATURE_TRANSLATION_KEYS: Record<string, string> = {
+  user_management: "subscription.feature_user_management",
+  inventory_advanced: "subscription.feature_advanced_inventory",
+  reports_detailed: "subscription.feature_detailed_reports",
+  label_designer: "subscription.feature_label_designer",
+  multi_location: "subscription.feature_multi_location",
+  reports_management: "subscription.feature_management_reports",
+  ecommerce_integrations: "subscription.feature_ecommerce",
+  security_audit: "subscription.feature_security_audit",
+  kds_advanced: "subscription.feature_advanced_kds",
+  floor_management: "subscription.feature_floor_management",
+  modifiers_advanced: "subscription.feature_advanced_modifiers",
+  ingredients_recipes: "subscription.feature_ingredients_recipes",
+  tips_analytics: "subscription.feature_tips_analytics",
+  "pos.core": "subscription.feature_pos_core",
+  "inventory.core": "subscription.feature_inventory_core",
+  "purchasing.core": "subscription.feature_purchasing_core",
+  "customers.core": "subscription.feature_customers_core",
+  "reporting.core": "subscription.feature_reporting_core",
+  electronic_invoicing: "subscription.feature_electronic_invoicing",
+  loyalty_program: "subscription.feature_loyalty_program",
+  advanced_reporting: "subscription.feature_advanced_reporting",
+  "retail.barcode": "subscription.feature_barcode",
+  "retail.returns": "subscription.feature_returns",
+  "retail.bulk_discounts": "subscription.feature_bulk_discounts",
+};
+
 function MyPlanTab() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -1803,7 +1830,12 @@ function MyPlanTab() {
             <CardContent>
               <div className={`grid gap-4 ${matchingPlans.length === 1 ? "max-w-md" : matchingPlans.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
                 {matchingPlans.map((plan: any) => (
-                  <Card key={plan.id} className={plan.tier === tier ? "border-primary" : ""} data-testid={`card-available-plan-${plan.tier}`}>
+                  <Card key={plan.id} className={plan.tier === tier ? "border-primary relative" : ""} data-testid={`card-available-plan-${plan.tier}`}>
+                    {plan.tier === tier && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <Badge>{t("subscription.current_plan" as any)}</Badge>
+                      </div>
+                    )}
                     <CardHeader className="text-center pb-2">
                       <CardTitle className="text-lg">{plan.name}</CardTitle>
                       <CardDescription>
@@ -1813,8 +1845,13 @@ function MyPlanTab() {
                         <span className="text-muted-foreground">/{t("subscription.per_month" as any)}</span>
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent className="space-y-4">
                       <div className="grid grid-cols-3 gap-2 text-sm text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <Building2 className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{plan.maxLocations}</span>
+                          <span className="text-xs text-muted-foreground">{t("subscription.limit_locations" as any)}</span>
+                        </div>
                         <div className="flex flex-col items-center gap-1">
                           <Monitor className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">{plan.maxRegisters}</span>
@@ -1826,11 +1863,39 @@ function MyPlanTab() {
                           <span className="text-xs text-muted-foreground">{t("subscription.limit_users" as any)}</span>
                         </div>
                         <div className="flex flex-col items-center gap-1">
+                          <Warehouse className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{plan.maxWarehouses ?? 1}</span>
+                          <span className="text-xs text-muted-foreground">{t("subscription.limit_warehouses" as any)}</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
                           <ShoppingBag className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">{plan.maxProducts === -1 ? "\u221e" : (plan.maxProducts ?? 100)}</span>
                           <span className="text-xs text-muted-foreground">{t("subscription.limit_products" as any)}</span>
                         </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <FileText className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{plan.maxDianDocuments ?? 200}</span>
+                          <span className="text-xs text-muted-foreground">DIAN/{t("subscription.per_month" as any)}</span>
+                        </div>
                       </div>
+
+                      {plan.features && plan.features.length > 0 && (
+                        <div className="space-y-2 pt-4 border-t">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            {t("subscription.included_features" as any)}
+                          </p>
+                          {plan.features.map((feature: string, i: number) => {
+                            const featureKey = FEATURE_TRANSLATION_KEYS[feature];
+                            const label = featureKey ? t(featureKey as any) : feature.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+                            return (
+                              <div key={i} className="flex items-center gap-2 text-sm">
+                                <Check className="h-4 w-4 text-primary shrink-0" />
+                                <span>{label}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </CardContent>
                     <CardFooter>
                       <Button
