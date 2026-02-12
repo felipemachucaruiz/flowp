@@ -57,7 +57,7 @@ export default function SubscriptionPage() {
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const { tenant, refreshTenant } = useAuth();
-  const { tier: currentTier, businessType, isLoading: subLoading } = useSubscription();
+  const { tier: currentTier, businessType, isLoading: subLoading, trial } = useSubscription();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
@@ -375,6 +375,7 @@ export default function SubscriptionPage() {
             const monthlyEquivalent = getMonthlyEquivalent(plan);
             const discount = getDiscount(plan);
             const isCurrentPlan = (plan.tier || "basic") === currentTier;
+            const isTrialing = trial?.isTrialing === true;
             const isUpgrade = (TIER_ORDER[plan.tier || "basic"] ?? 0) > (TIER_ORDER[currentTier] ?? 0);
 
             return (
@@ -476,16 +477,18 @@ export default function SubscriptionPage() {
                 <CardFooter>
                   <Button
                     className="w-full"
-                    variant={isCurrentPlan ? "secondary" : isUpgrade ? "default" : "outline"}
+                    variant={isCurrentPlan && !isTrialing ? "secondary" : isCurrentPlan && isTrialing ? "default" : isUpgrade ? "default" : "outline"}
                     onClick={() => handleSelectPlan(plan)}
-                    disabled={isCurrentPlan}
+                    disabled={isCurrentPlan && !isTrialing}
                     data-testid={`button-select-plan-${plan.tier}`}
                   >
-                    {isCurrentPlan
-                      ? t("subscription.current_plan" as any)
-                      : isUpgrade
-                        ? `${t("subscription.upgrade_to" as any)} ${plan.name}`
-                        : `${t("subscription.select_plan" as any)}`}
+                    {isCurrentPlan && isTrialing
+                      ? t("subscription.subscribe_now" as any)
+                      : isCurrentPlan
+                        ? t("subscription.current_plan" as any)
+                        : isUpgrade
+                          ? `${t("subscription.upgrade_to" as any)} ${plan.name}`
+                          : `${t("subscription.select_plan" as any)}`}
                   </Button>
                 </CardFooter>
               </Card>
