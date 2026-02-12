@@ -4819,23 +4819,32 @@ export async function registerRoutes(
         trialExpired: false,
       };
 
-      if (tenant?.status === "trial" && tenant.trialEndsAt) {
-        const now = new Date();
-        const trialEnd = new Date(tenant.trialEndsAt);
-        const msRemaining = trialEnd.getTime() - now.getTime();
-        const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
-        const trialExpired = msRemaining <= 0;
+      if (tenant?.status === "trial") {
+        if (tenant.trialEndsAt) {
+          const now = new Date();
+          const trialEnd = new Date(tenant.trialEndsAt);
+          const msRemaining = trialEnd.getTime() - now.getTime();
+          const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+          const trialExpired = msRemaining <= 0;
 
-        trialInfo = {
-          isTrialing: true,
-          trialEndsAt: tenant.trialEndsAt.toISOString(),
-          daysRemaining,
-          trialExpired,
-        };
+          trialInfo = {
+            isTrialing: true,
+            trialEndsAt: tenant.trialEndsAt.toISOString(),
+            daysRemaining,
+            trialExpired,
+          };
 
-        if (trialExpired && !planData.plan) {
-          await storage.updateTenant(tenantId, { status: "suspended", suspendedReason: "Trial expired" } as any);
-          trialInfo.trialExpired = true;
+          if (trialExpired && !planData.plan) {
+            await storage.updateTenant(tenantId, { status: "suspended", suspendedReason: "Trial expired" } as any);
+            trialInfo.trialExpired = true;
+          }
+        } else {
+          trialInfo = {
+            isTrialing: true,
+            trialEndsAt: null,
+            daysRemaining: 0,
+            trialExpired: false,
+          };
         }
       }
 
