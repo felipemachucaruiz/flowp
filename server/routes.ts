@@ -9,6 +9,7 @@ import archiver from "archiver";
 import { storage } from "./storage";
 import { emailService } from "./email";
 import { getEmailWrapper } from "./email-templates";
+import { getMercadoPagoPublicKey, isMercadoPagoEnabled, createSubscriptionPreapproval, getPreapprovalStatus, cancelPreapproval } from "./mercadopago";
 import { db } from "./db";
 import { orders, payments, registerSessions, cashMovements, tenantIntegrationsMatias, SUBSCRIPTION_FEATURES } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
@@ -4859,7 +4860,7 @@ export async function registerRoutes(
   // ===== MERCADOPAGO SUBSCRIPTION ROUTES =====
 
   app.get("/api/mercadopago/public-key", (req: Request, res: Response) => {
-    const { getMercadoPagoPublicKey, isMercadoPagoEnabled } = require("./mercadopago");
+    
     res.json({ publicKey: getMercadoPagoPublicKey(), enabled: isMercadoPagoEnabled() });
   });
 
@@ -4882,7 +4883,7 @@ export async function registerRoutes(
         : parseFloat(plan.priceMonthly);
       const currency = plan.currency || "COP";
 
-      const { createSubscriptionPreapproval } = require("./mercadopago");
+      
 
       const baseUrl = `${req.protocol}://${req.get("host")}`;
       const backUrl = `${baseUrl}/subscription?mp_status=returned&plan_id=${planId}&billing_period=${billingPeriod}`;
@@ -4952,7 +4953,7 @@ export async function registerRoutes(
       const { preapprovalId } = req.body;
       if (!preapprovalId) return res.status(400).json({ message: "Preapproval ID required" });
 
-      const { getPreapprovalStatus } = require("./mercadopago");
+      
       let mpData;
       try {
         mpData = await getPreapprovalStatus(preapprovalId);
@@ -5036,7 +5037,7 @@ export async function registerRoutes(
         const preapprovalId = data?.id;
         if (preapprovalId) {
           try {
-            const { getPreapprovalStatus } = require("./mercadopago");
+            
             const status = await getPreapprovalStatus(preapprovalId);
             
             if (status.status === "authorized") {
@@ -5069,7 +5070,7 @@ export async function registerRoutes(
 
       if (subscription.mpPreapprovalId) {
         try {
-          const { cancelPreapproval } = require("./mercadopago");
+          
           await cancelPreapproval(subscription.mpPreapprovalId);
         } catch (e) {
           console.warn("Could not cancel MercadoPago preapproval:", e);
