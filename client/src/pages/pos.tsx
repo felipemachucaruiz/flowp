@@ -42,6 +42,7 @@ import {
   UserPlus,
   Check,
   UserCheck,
+  Lock,
 } from "lucide-react";
 import { NetworkStatusIndicator } from "@/components/network-status-indicator";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
@@ -70,6 +71,14 @@ export default function POSPage() {
     getTaxAmount,
     getTotal,
   } = usePOS();
+
+  const { data: activeSession, isLoading: sessionLoading, isError: sessionError } = useQuery({
+    queryKey: ["/api/register-sessions/active"],
+    refetchInterval: 30000,
+    retry: 2,
+  });
+
+  const registerOpen = !!activeSession && !sessionError;
 
   const isMobile = useIsMobile();
   const [showMobileCart, setShowMobileCart] = useState(false);
@@ -1068,6 +1077,40 @@ export default function POSPage() {
       )}
     </>
   );
+
+  if (sessionLoading) {
+    return (
+      <div className="flex h-full items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!registerOpen) {
+    return (
+      <div className="flex h-full items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-6 text-center max-w-md px-6">
+          <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+            <Lock className="w-10 h-10 text-muted-foreground" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold" data-testid="text-register-closed-title">
+              {t("pos.register_closed_title" as any)}
+            </h2>
+            <p className="text-muted-foreground" data-testid="text-register-closed-description">
+              {t("pos.register_closed_description" as any)}
+            </p>
+          </div>
+          <Button
+            onClick={() => navigate("/cash-register")}
+            data-testid="button-open-register"
+          >
+            {t("pos.open_register" as any)}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full relative overflow-hidden bg-background">

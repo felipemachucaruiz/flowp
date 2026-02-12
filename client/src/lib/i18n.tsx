@@ -1177,6 +1177,9 @@ const translations = {
     "form.business_phone": "Business phone",
     
     // POS
+    "pos.register_closed_title": "Cash Register Closed",
+    "pos.register_closed_description": "You need to open the cash register before making any sales. Go to the Cash Register page to start a new session.",
+    "pos.open_register": "Open Cash Register",
     "pos.barcode_ready": "Barcode scanner ready - just scan!",
     "pos.customer_created": "Customer created",
     "pos.customer_error": "Failed to create customer",
@@ -3394,6 +3397,9 @@ const translations = {
     "form.business_phone": "Teléfono del negocio",
     
     // POS
+    "pos.register_closed_title": "Caja Registradora Cerrada",
+    "pos.register_closed_description": "Necesitas abrir la caja registradora antes de realizar ventas. Ve a la página de Caja Registradora para iniciar una nueva sesión.",
+    "pos.open_register": "Abrir Caja Registradora",
     "pos.barcode_ready": "Escáner de códigos listo - ¡solo escanea!",
     "pos.customer_created": "Cliente creado",
     "pos.customer_error": "Error al crear cliente",
@@ -5539,6 +5545,9 @@ const translations = {
     "form.business_phone": "Telefone comercial",
     
     // POS
+    "pos.register_closed_title": "Caixa Registradora Fechada",
+    "pos.register_closed_description": "Você precisa abrir a caixa registradora antes de realizar vendas. Vá para a página da Caixa Registradora para iniciar uma nova sessão.",
+    "pos.open_register": "Abrir Caixa Registradora",
     "pos.barcode_ready": "Scanner de código de barras pronto - apenas escaneie!",
     "pos.customer_created": "Cliente criado",
     "pos.customer_error": "Erro ao criar cliente",

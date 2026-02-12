@@ -1655,6 +1655,11 @@ export async function registerRoutes(
       }
       
       const { tableId, customerId } = req.body;
+
+      const activeSession = await storage.getActiveSessionByTenant(tenantId);
+      if (!activeSession) {
+        return res.status(403).json({ message: "REGISTER_NOT_OPEN", error: "No active register session. Please open the cash register first." });
+      }
       
       // Verify table belongs to tenant
       const tables = await storage.getTablesByTenant(tenantId);
@@ -1684,6 +1689,8 @@ export async function registerRoutes(
         taxAmount: "0",
         discountAmount: "0",
         total: "0",
+        registerId: activeSession.registerId,
+        registerSessionId: activeSession.id,
       });
       
       // Update table status to occupied
@@ -2141,10 +2148,13 @@ export async function registerRoutes(
 
       const { items, paymentMethod, subtotal, taxAmount, total, customerId, salesRepId, appliedRewardId, appliedRewardPoints } = req.body;
 
+      const activeSession = await storage.getActiveSessionByTenant(tenantId);
+      if (!activeSession) {
+        return res.status(403).json({ message: "REGISTER_NOT_OPEN", error: "No active register session. Please open the cash register before making sales." });
+      }
+
       // Get next order number
       const orderNumber = await storage.getNextOrderNumber(tenantId);
-
-      const activeSession = await storage.getActiveSessionByTenant(tenantId);
 
       // Create order
       const order = await storage.createOrder({
