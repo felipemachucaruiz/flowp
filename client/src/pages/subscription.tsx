@@ -208,6 +208,12 @@ export default function SubscriptionPage() {
     }
   }, [selectPlanId, plans]);
 
+  useEffect(() => {
+    if (billingPeriod === "yearly") {
+      setPaymentMethod("onetime");
+    }
+  }, [billingPeriod]);
+
   const getPrice = (plan: SubscriptionPlan) => {
     if (billingPeriod === "yearly" && plan.priceYearly) {
       return parseFloat(plan.priceYearly);
@@ -538,41 +544,50 @@ export default function SubscriptionPage() {
               </RadioGroup>
             </div>
 
-            <div className="space-y-2">
-              <Label>{t("subscription.payment_method" as any)}</Label>
-              <RadioGroup
-                value={paymentMethod}
-                onValueChange={(v) => setPaymentMethod(v as "recurring" | "onetime")}
-                className="grid gap-3"
-              >
-                <label
-                  htmlFor="pm-recurring"
-                  className={`flex items-start space-x-3 border rounded-md p-3 cursor-pointer ${paymentMethod === "recurring" ? "border-primary bg-primary/5" : ""}`}
-                  data-testid="radio-payment-recurring"
+            {billingPeriod === "monthly" ? (
+              <div className="space-y-2">
+                <Label>{t("subscription.payment_method" as any)}</Label>
+                <RadioGroup
+                  value={paymentMethod}
+                  onValueChange={(v) => setPaymentMethod(v as "recurring" | "onetime")}
+                  className="grid gap-3"
                 >
-                  <RadioGroupItem value="recurring" id="pm-recurring" className="mt-0.5" />
-                  <div className="flex-1">
-                    <span className="font-medium text-sm">{t("subscription.pm_recurring_title" as any)}</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {t("subscription.pm_recurring_desc" as any)}
-                    </p>
-                  </div>
-                </label>
-                <label
-                  htmlFor="pm-onetime"
-                  className={`flex items-start space-x-3 border rounded-md p-3 cursor-pointer ${paymentMethod === "onetime" ? "border-primary bg-primary/5" : ""}`}
-                  data-testid="radio-payment-onetime"
-                >
-                  <RadioGroupItem value="onetime" id="pm-onetime" className="mt-0.5" />
-                  <div className="flex-1">
-                    <span className="font-medium text-sm">{t("subscription.pm_onetime_title" as any)}</span>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {t("subscription.pm_onetime_desc" as any)}
-                    </p>
-                  </div>
-                </label>
-              </RadioGroup>
-            </div>
+                  <label
+                    htmlFor="pm-recurring"
+                    className={`flex items-start space-x-3 border rounded-md p-3 cursor-pointer ${paymentMethod === "recurring" ? "border-primary bg-primary/5" : ""}`}
+                    data-testid="radio-payment-recurring"
+                  >
+                    <RadioGroupItem value="recurring" id="pm-recurring" className="mt-0.5" />
+                    <div className="flex-1">
+                      <span className="font-medium text-sm">{t("subscription.pm_recurring_title" as any)}</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {t("subscription.pm_recurring_desc" as any)}
+                      </p>
+                    </div>
+                  </label>
+                  <label
+                    htmlFor="pm-onetime"
+                    className={`flex items-start space-x-3 border rounded-md p-3 cursor-pointer ${paymentMethod === "onetime" ? "border-primary bg-primary/5" : ""}`}
+                    data-testid="radio-payment-onetime"
+                  >
+                    <RadioGroupItem value="onetime" id="pm-onetime" className="mt-0.5" />
+                    <div className="flex-1">
+                      <span className="font-medium text-sm">{t("subscription.pm_onetime_title" as any)}</span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {t("subscription.pm_onetime_desc" as any)}
+                      </p>
+                    </div>
+                  </label>
+                </RadioGroup>
+              </div>
+            ) : (
+              <div className="border rounded-md p-3 bg-muted/30">
+                <p className="text-sm font-medium">{t("subscription.pm_onetime_title" as any)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t("subscription.pm_onetime_desc" as any)}
+                </p>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="payer-email">{t("subscription.payer_email" as any)}</Label>
