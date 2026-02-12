@@ -328,7 +328,7 @@ export default function SubscriptionPage() {
         </CardContent>
       </Card>
 
-      {upgradePlans.length > 0 && (
+      {activePlans.length > 0 && (
         <div className="flex justify-center">
           <div className="inline-flex items-center gap-4 p-1 bg-muted rounded-lg">
             <Button
@@ -346,9 +346,9 @@ export default function SubscriptionPage() {
               data-testid="button-billing-yearly"
             >
               {t("subscription.yearly" as any)}
-              {upgradePlans.some((p) => getDiscount(p) > 0) && (
+              {activePlans.some((p) => getDiscount(p) > 0) && (
                 <Badge variant="secondary" className="ml-2">
-                  {t("subscription.save_up_to" as any)} {Math.max(...upgradePlans.map(getDiscount))}%
+                  {t("subscription.save_up_to" as any)} {Math.max(...activePlans.map(getDiscount))}%
                 </Badge>
               )}
             </Button>
@@ -356,7 +356,7 @@ export default function SubscriptionPage() {
         </div>
       )}
 
-      {upgradePlans.length === 0 ? (
+      {activePlans.length === 0 ? (
         <Card data-testid="card-max-plan">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Crown className="h-12 w-12 text-primary mb-4" />
@@ -369,22 +369,23 @@ export default function SubscriptionPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className={`grid gap-6 ${upgradePlans.length === 1 ? "max-w-md mx-auto" : "md:grid-cols-2"}`}>
-          {upgradePlans.map((plan, index) => {
+        <div className={`grid gap-6 ${activePlans.length === 1 ? "max-w-md mx-auto" : activePlans.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
+          {activePlans.map((plan) => {
             const price = getPrice(plan);
             const monthlyEquivalent = getMonthlyEquivalent(plan);
             const discount = getDiscount(plan);
-            const isRecommended = index === 0;
+            const isCurrentPlan = (plan.tier || "basic") === currentTier;
+            const isUpgrade = (TIER_ORDER[plan.tier || "basic"] ?? 0) > (TIER_ORDER[currentTier] ?? 0);
 
             return (
               <Card
                 key={plan.id}
-                className={isRecommended ? "border-primary relative" : ""}
+                className={`relative ${isCurrentPlan ? "border-primary" : ""}`}
                 data-testid={`card-plan-${plan.tier}`}
               >
-                {isRecommended && (
+                {isCurrentPlan && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge>{t("subscription.recommended" as any)}</Badge>
+                    <Badge>{t("subscription.current_plan" as any)}</Badge>
                   </div>
                 )}
                 <CardHeader className="text-center pb-2">
@@ -475,11 +476,16 @@ export default function SubscriptionPage() {
                 <CardFooter>
                   <Button
                     className="w-full"
-                    variant={isRecommended ? "default" : "outline"}
+                    variant={isCurrentPlan ? "secondary" : isUpgrade ? "default" : "outline"}
                     onClick={() => handleSelectPlan(plan)}
+                    disabled={isCurrentPlan}
                     data-testid={`button-select-plan-${plan.tier}`}
                   >
-                    {t("subscription.upgrade_to" as any)} {plan.name}
+                    {isCurrentPlan
+                      ? t("subscription.current_plan" as any)
+                      : isUpgrade
+                        ? `${t("subscription.upgrade_to" as any)} ${plan.name}`
+                        : `${t("subscription.select_plan" as any)}`}
                   </Button>
                 </CardFooter>
               </Card>
