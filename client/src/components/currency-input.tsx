@@ -4,7 +4,7 @@ import { formatCurrencyInput, getCurrencyDecimals, getDecimalSeparator, getThous
 
 function getCurrencySymbol(currency: string): string {
   try {
-    const parts = new Intl.NumberFormat("en", { style: "currency", currency }).formatToParts(0);
+    const parts = new Intl.NumberFormat("en", { style: "currency", currency, currencyDisplay: "narrowSymbol" }).formatToParts(0);
     const symbolPart = parts.find(p => p.type === "currency");
     return symbolPart?.value || "";
   } catch {
