@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -18,9 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, Crown, Building2, Monitor, Users, CreditCard, Loader2, ShoppingBag, FileText, UtensilsCrossed, CookingPot, Warehouse, ArrowLeft } from "lucide-react";
-import { useLocation } from "wouter";
-import PayPalButton from "@/components/PayPalButton";
+import { Check, Crown, Building2, Monitor, Users, CreditCard, Loader2, ShoppingBag, FileText, UtensilsCrossed, CookingPot, Warehouse, ArrowLeft, ExternalLink } from "lucide-react";
+import { useLocation, useSearch } from "wouter";
 import type { SubscriptionPlan } from "@shared/schema";
 
 const TIER_ORDER: Record<string, number> = { basic: 0, pro: 1, enterprise: 2 };
@@ -55,12 +55,15 @@ const FEATURE_TRANSLATION_KEYS: Record<string, string> = {
 export default function SubscriptionPage() {
   const { t } = useI18n();
   const [, navigate] = useLocation();
+  const searchString = useSearch();
   const { tenant, refreshTenant } = useAuth();
   const { tier: currentTier, businessType, isLoading: subLoading } = useSubscription();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [payerEmail, setPayerEmail] = useState("");
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const { data: plans = [], isLoading } = useQuery<SubscriptionPlan[]>({
     queryKey: ["/api/subscription/plans"],
@@ -74,23 +77,59 @@ export default function SubscriptionPage() {
     return planTierOrder > currentTierOrder;
   });
 
-  const subscribeMutation = useMutation({
-    mutationFn: async (data: { planId: string; billingPeriod: string; paypalOrderId: string }) => {
-      const res = await apiRequest("POST", "/api/subscription/subscribe", data);
+  const createPreferenceMutation = useMutation({
+    mutationFn: async (data: { planId: string; billingPeriod: string; payerEmail: string }) => {
+      const res = await apiRequest("POST", "/api/subscription/create-preference", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.initPoint) {
+        setIsRedirecting(true);
+        window.location.href = data.initPoint;
+      } else {
+        toast({ title: t("subscription.payment_failed" as any), variant: "destructive" });
+      }
+    },
+    onError: () => {
+      toast({ title: t("subscription.payment_failed" as any), variant: "destructive" });
+    },
+  });
+
+  const confirmPaymentMutation = useMutation({
+    mutationFn: async (data: { preapprovalId: string; planId: string; billingPeriod: string; payerEmail: string }) => {
+      const res = await apiRequest("POST", "/api/subscription/confirm-payment", data);
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/subscription/current"] });
       queryClient.invalidateQueries({ queryKey: ["/api/subscription/my-plan"] });
       refreshTenant();
-      setShowPaymentDialog(false);
-      setSelectedPlan(null);
       toast({ title: t("subscription.activated_success" as any) });
+      navigate("/pos");
     },
     onError: () => {
       toast({ title: t("subscription.activated_error" as any), variant: "destructive" });
     },
   });
+
+  useEffect(() => {
+    if (!searchString) return;
+    const params = new URLSearchParams(searchString);
+    const mpStatus = params.get("mp_status");
+    const preapprovalId = params.get("preapproval_id");
+    const planId = params.get("plan_id");
+    const period = params.get("billing_period");
+
+    if (mpStatus === "returned" && preapprovalId && planId && period) {
+      confirmPaymentMutation.mutate({
+        preapprovalId,
+        planId,
+        billingPeriod: period,
+        payerEmail: "",
+      });
+      navigate("/subscription", { replace: true });
+    }
+  }, [searchString]);
 
   const getPrice = (plan: SubscriptionPlan) => {
     if (billingPeriod === "yearly" && plan.priceYearly) {
@@ -115,17 +154,17 @@ export default function SubscriptionPage() {
 
   const handleSelectPlan = (plan: SubscriptionPlan) => {
     setSelectedPlan(plan);
+    setPayerEmail(tenant?.email || "");
     setShowPaymentDialog(true);
   };
 
-  const handlePaymentSuccess = (orderData: any) => {
-    if (selectedPlan) {
-      subscribeMutation.mutate({
-        planId: selectedPlan.id,
-        billingPeriod,
-        paypalOrderId: orderData.id,
-      });
-    }
+  const handlePayWithMercadoPago = () => {
+    if (!selectedPlan || !payerEmail) return;
+    createPreferenceMutation.mutate({
+      planId: selectedPlan.id,
+      billingPeriod,
+      payerEmail,
+    });
   };
 
   const translateFeature = (featureId: string): string => {
@@ -153,6 +192,16 @@ export default function SubscriptionPage() {
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (confirmPaymentMutation.isPending) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-lg font-medium">{t("subscription.confirming_payment" as any)}</p>
+        <p className="text-sm text-muted-foreground">{t("subscription.please_wait" as any)}</p>
       </div>
     );
   }
@@ -395,6 +444,18 @@ export default function SubscriptionPage() {
               </RadioGroup>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="payer-email">{t("subscription.payer_email" as any)}</Label>
+              <Input
+                id="payer-email"
+                type="email"
+                value={payerEmail}
+                onChange={(e) => setPayerEmail(e.target.value)}
+                placeholder="correo@ejemplo.com"
+                data-testid="input-payer-email"
+              />
+            </div>
+
             <div className="border rounded-md p-4 bg-muted/50">
               <div className="flex flex-wrap justify-between items-center gap-2">
                 <span>{t("subscription.total")}</span>
@@ -407,28 +468,32 @@ export default function SubscriptionPage() {
               </div>
             </div>
 
-            {subscribeMutation.isPending ? (
+            {(createPreferenceMutation.isPending || isRedirecting) ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-6 w-6 animate-spin" />
-                <span className="ml-2">{t("subscription.processing" as any)}</span>
+                <span className="ml-2">
+                  {isRedirecting ? t("subscription.redirecting_to_payment" as any) : t("subscription.processing" as any)}
+                </span>
               </div>
             ) : (
-              <div className="pt-4">
-                <p className="text-sm text-muted-foreground mb-4 text-center">
-                  {t("subscription.pay_with_paypal" as any)}
+              <div className="pt-4 space-y-3">
+                <p className="text-sm text-muted-foreground text-center">
+                  {t("subscription.pay_with_mercadopago" as any)}
                 </p>
-                {selectedPlan && (
-                  <PayPalButton
-                    amount={getPrice(selectedPlan).toFixed(2)}
-                    currency={selectedPlan.currency || "USD"}
-                    intent="CAPTURE"
-                    onSuccess={handlePaymentSuccess}
-                    onError={(error) => {
-                      console.error("Payment error:", error);
-                      toast({ title: t("subscription.payment_failed" as any), variant: "destructive" });
-                    }}
-                  />
-                )}
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handlePayWithMercadoPago}
+                  disabled={!payerEmail || !selectedPlan}
+                  data-testid="button-pay-mercadopago"
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  {t("subscription.pay_now" as any)}
+                  <ExternalLink className="w-4 h-4 ml-2" />
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  {t("subscription.mp_redirect_notice" as any)}
+                </p>
               </div>
             )}
           </div>

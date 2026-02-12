@@ -2,7 +2,7 @@ import {
   tenants, users, registers, registerSessions, cashMovements, categories, products,
   modifierGroups, modifiers, productModifierGroups, floors, tables,
   orders, orderItems, kitchenTickets, payments, returns, returnItems, stockMovements, auditLogs, customers,
-  loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions,
+  loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions, saasPayments,
   systemSettings, passwordResetTokens, emailTemplates, emailLogs, notifications,
   suppliers, purchaseOrders, purchaseOrderItems, purchaseReceipts, purchaseReceiptItems, supplierIngredients, supplierProducts,
   ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
@@ -232,7 +232,10 @@ export interface IStorage {
   // Subscription Plans
   getActiveSubscriptionPlans(): Promise<SubscriptionPlan[]>;
   getTenantSubscription(tenantId: string): Promise<Subscription | null>;
-  createSubscription(data: { tenantId: string; planId: string; billingPeriod: string; paypalOrderId: string }): Promise<Subscription>;
+  createSubscription(data: { tenantId: string; planId: string; billingPeriod: string; paypalOrderId?: string; mpPreapprovalId?: string; mpPayerEmail?: string; paymentGateway?: string }): Promise<Subscription>;
+  updateSubscriptionByMpId(mpPreapprovalId: string, data: Partial<{ status: string; currentPeriodStart: Date; currentPeriodEnd: Date }>): Promise<Subscription | null>;
+  getSubscriptionPayments(tenantId: string): Promise<any[]>;
+  createSaasPayment(data: { tenantId: string; invoiceId?: string; amount: string; method: string; providerRef: string; status: string }): Promise<any>;
   
   // Ingredients (Pro feature)
   getIngredientsByTenant(tenantId: string): Promise<Ingredient[]>;
@@ -1562,7 +1565,7 @@ export class DatabaseStorage implements IStorage {
     return subscription || null;
   }
 
-  async createSubscription(data: { tenantId: string; planId: string; billingPeriod: string; paypalOrderId: string }): Promise<Subscription> {
+  async createSubscription(data: { tenantId: string; planId: string; billingPeriod: string; paypalOrderId?: string; mpPreapprovalId?: string; mpPayerEmail?: string; paymentGateway?: string }): Promise<Subscription> {
     const now = new Date();
     const periodEnd = new Date(now);
     periodEnd.setMonth(periodEnd.getMonth() + (data.billingPeriod === "yearly" ? 12 : 1));
@@ -1574,6 +1577,40 @@ export class DatabaseStorage implements IStorage {
       status: "active",
       currentPeriodStart: now,
       currentPeriodEnd: periodEnd,
+      mpPreapprovalId: data.mpPreapprovalId || null,
+      mpPayerEmail: data.mpPayerEmail || null,
+      paymentGateway: data.paymentGateway || "mercadopago",
+    }).returning();
+    return created;
+  }
+
+  async updateSubscriptionByMpId(mpPreapprovalId: string, data: Partial<{ status: string; currentPeriodStart: Date; currentPeriodEnd: Date }>): Promise<Subscription | null> {
+    const updateData: any = {};
+    if (data.status) updateData.status = data.status;
+    if (data.currentPeriodStart) updateData.currentPeriodStart = data.currentPeriodStart;
+    if (data.currentPeriodEnd) updateData.currentPeriodEnd = data.currentPeriodEnd;
+    
+    const [updated] = await db.update(subscriptions)
+      .set(updateData)
+      .where(eq(subscriptions.mpPreapprovalId, mpPreapprovalId))
+      .returning();
+    return updated || null;
+  }
+
+  async getSubscriptionPayments(tenantId: string): Promise<any[]> {
+    return db.select().from(saasPayments)
+      .where(eq(saasPayments.tenantId, tenantId))
+      .orderBy(desc(saasPayments.createdAt));
+  }
+
+  async createSaasPayment(data: { tenantId: string; invoiceId?: string; amount: string; method: string; providerRef: string; status: string }): Promise<any> {
+    const [created] = await db.insert(saasPayments).values({
+      tenantId: data.tenantId,
+      invoiceId: data.invoiceId || null,
+      amount: data.amount,
+      method: data.method,
+      providerRef: data.providerRef,
+      status: data.status,
     }).returning();
     return created;
   }

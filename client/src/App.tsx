@@ -17,7 +17,7 @@ import { NotificationCenter } from "@/components/notification-center";
 import { useSubscription } from "@/lib/use-subscription";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, AlertTriangle } from "lucide-react";
+import { Clock, AlertTriangle, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LockScreen } from "@/components/lock-screen";
 
@@ -153,11 +153,37 @@ function TrialBanner() {
       <Button
         variant={trial.trialExpired ? "destructive" : "outline"}
         size="sm"
-        onClick={() => navigate("/settings")}
+        onClick={() => navigate("/subscription")}
         data-testid="button-trial-upgrade"
       >
         {t("trial.upgrade_now")}
       </Button>
+    </div>
+  );
+}
+
+function TrialExpiredGate() {
+  const { trial, status } = useSubscription();
+  const { t } = useI18n();
+  const [, navigate] = useLocation();
+
+  if (!(status === "suspended" && trial.trialExpired)) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm" data-testid="gate-trial-expired">
+      <div className="max-w-md text-center space-y-6 p-8">
+        <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+          <AlertTriangle className="w-8 h-8 text-destructive" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold">{t("trial.expired_title" as any)}</h2>
+          <p className="text-muted-foreground">{t("trial.expired_description" as any)}</p>
+        </div>
+        <Button onClick={() => navigate("/subscription")} className="w-full" data-testid="button-upgrade-from-gate">
+          <Crown className="w-4 h-4 mr-2" />
+          {t("trial.choose_plan" as any)}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -194,6 +220,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           <main className="flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
+      <TrialExpiredGate />
       <TourOverlay />
       <LockScreen />
     </SidebarProvider>

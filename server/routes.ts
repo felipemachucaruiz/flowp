@@ -4856,31 +4856,232 @@ export async function registerRoutes(
     }
   });
 
-  // Subscribe to a plan
+  // ===== MERCADOPAGO SUBSCRIPTION ROUTES =====
+
+  app.get("/api/mercadopago/public-key", (req: Request, res: Response) => {
+    const { getMercadoPagoPublicKey, isMercadoPagoEnabled } = require("./mercadopago");
+    res.json({ publicKey: getMercadoPagoPublicKey(), enabled: isMercadoPagoEnabled() });
+  });
+
+  app.post("/api/subscription/create-preference", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+
+      const { planId, billingPeriod, payerEmail } = req.body;
+      if (!planId || !billingPeriod || !payerEmail) {
+        return res.status(400).json({ message: "Plan ID, billing period, and payer email are required" });
+      }
+
+      const plans = await storage.getActiveSubscriptionPlans();
+      const plan = plans.find((p) => p.id === planId);
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+
+      const amount = billingPeriod === "yearly"
+        ? parseFloat(plan.priceYearly || plan.priceMonthly)
+        : parseFloat(plan.priceMonthly);
+      const currency = plan.currency || "COP";
+
+      const { createSubscriptionPreapproval } = require("./mercadopago");
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const backUrl = `${baseUrl}/subscription?mp_status=returned&plan_id=${planId}&billing_period=${billingPeriod}`;
+
+      const result = await createSubscriptionPreapproval({
+        planName: `Flowp ${plan.name} - ${billingPeriod === "yearly" ? "Annual" : "Monthly"}`,
+        amount,
+        currency,
+        frequency: billingPeriod === "yearly" ? 12 : 1,
+        frequencyType: "months",
+        payerEmail,
+        externalReference: `${tenantId}|${planId}|${billingPeriod}`,
+        backUrl,
+      });
+
+      res.json({
+        preapprovalId: result.id,
+        initPoint: result.initPoint,
+        status: result.status,
+      });
+    } catch (error: any) {
+      console.error("MercadoPago preference error:", error);
+      res.status(500).json({ message: "Failed to create payment preference", error: error.message });
+    }
+  });
+
   app.post("/api/subscription/subscribe", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
-      if (!tenantId) {
-        return res.status(401).json({ message: "Tenant ID required" });
-      }
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
 
-      const { planId, billingPeriod, paypalOrderId } = req.body;
-
-      if (!planId || !billingPeriod || !paypalOrderId) {
-        return res.status(400).json({ message: "Plan ID, billing period, and PayPal order ID are required" });
+      const { planId, billingPeriod, mpPreapprovalId, payerEmail } = req.body;
+      if (!planId || !billingPeriod) {
+        return res.status(400).json({ message: "Plan ID and billing period are required" });
       }
 
       const subscription = await storage.createSubscription({
         tenantId,
         planId,
         billingPeriod,
-        paypalOrderId,
+        mpPreapprovalId: mpPreapprovalId || null,
+        mpPayerEmail: payerEmail || null,
+        paymentGateway: "mercadopago",
       });
+
+      const plans = await storage.getActiveSubscriptionPlans();
+      const plan = plans.find((p) => p.id === planId);
+      if (plan) {
+        await storage.updateTenant(tenantId, {
+          status: "active",
+          subscriptionTier: plan.tier || "basic",
+        } as any);
+      }
 
       res.status(201).json(subscription);
     } catch (error) {
       console.error("Subscription error:", error);
       res.status(500).json({ message: "Failed to create subscription" });
+    }
+  });
+
+  app.post("/api/subscription/confirm-payment", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+
+      const { preapprovalId } = req.body;
+      if (!preapprovalId) return res.status(400).json({ message: "Preapproval ID required" });
+
+      const { getPreapprovalStatus } = require("./mercadopago");
+      let mpData;
+      try {
+        mpData = await getPreapprovalStatus(preapprovalId);
+      } catch (e: any) {
+        console.error("MercadoPago verification failed:", e);
+        return res.status(400).json({ message: "Could not verify payment with MercadoPago" });
+      }
+
+      const mpStatus = mpData.status;
+      if (mpStatus !== "authorized" && mpStatus !== "pending") {
+        return res.status(400).json({ message: `Payment not authorized. Status: ${mpStatus}` });
+      }
+
+      const externalRef = mpData.externalReference || "";
+      const [refTenantId, refPlanId, refBillingPeriod] = externalRef.split("|");
+
+      if (refTenantId && refTenantId !== tenantId) {
+        return res.status(403).json({ message: "Preapproval does not belong to this tenant" });
+      }
+
+      const planId = refPlanId || req.body.planId;
+      const billingPeriod = refBillingPeriod || req.body.billingPeriod;
+
+      if (!planId || !billingPeriod) {
+        return res.status(400).json({ message: "Could not determine plan from payment data" });
+      }
+
+      const plans = await storage.getActiveSubscriptionPlans();
+      const plan = plans.find((p) => p.id === planId);
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+
+      const subscription = await storage.createSubscription({
+        tenantId,
+        planId,
+        billingPeriod,
+        mpPreapprovalId: preapprovalId,
+        mpPayerEmail: mpData.payerEmail || "",
+        paymentGateway: "mercadopago",
+      });
+
+      const amount = billingPeriod === "yearly"
+        ? (plan.priceYearly || plan.priceMonthly)
+        : plan.priceMonthly;
+
+      await storage.createSaasPayment({
+        tenantId,
+        amount: amount,
+        method: "mercadopago",
+        providerRef: preapprovalId,
+        status: mpStatus === "authorized" ? "completed" : "pending",
+      });
+
+      await storage.updateTenant(tenantId, {
+        status: "active",
+        subscriptionTier: plan.tier || "basic",
+      } as any);
+
+      res.status(201).json({ subscription, mpStatus });
+    } catch (error: any) {
+      console.error("Payment confirmation error:", error);
+      res.status(500).json({ message: "Failed to confirm payment" });
+    }
+  });
+
+  app.get("/api/subscription/payments", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+      const payments = await storage.getSubscriptionPayments(tenantId);
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payments" });
+    }
+  });
+
+  app.post("/api/webhooks/mercadopago", async (req: Request, res: Response) => {
+    try {
+      const { type, data } = req.body;
+
+      if (type === "subscription_preapproval") {
+        const preapprovalId = data?.id;
+        if (preapprovalId) {
+          try {
+            const { getPreapprovalStatus } = require("./mercadopago");
+            const status = await getPreapprovalStatus(preapprovalId);
+            
+            if (status.status === "authorized") {
+              await storage.updateSubscriptionByMpId(preapprovalId, { status: "active" });
+            } else if (status.status === "cancelled") {
+              await storage.updateSubscriptionByMpId(preapprovalId, { status: "cancelled" });
+            } else if (status.status === "paused") {
+              await storage.updateSubscriptionByMpId(preapprovalId, { status: "past_due" });
+            }
+          } catch (e) {
+            console.error("Webhook processing error:", e);
+          }
+        }
+      }
+
+      res.status(200).json({ received: true });
+    } catch (error) {
+      console.error("Webhook error:", error);
+      res.status(200).json({ received: true });
+    }
+  });
+
+  app.post("/api/subscription/cancel", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+
+      const subscription = await storage.getTenantSubscription(tenantId);
+      if (!subscription) return res.status(404).json({ message: "No active subscription" });
+
+      if (subscription.mpPreapprovalId) {
+        try {
+          const { cancelPreapproval } = require("./mercadopago");
+          await cancelPreapproval(subscription.mpPreapprovalId);
+        } catch (e) {
+          console.warn("Could not cancel MercadoPago preapproval:", e);
+        }
+      }
+
+      await storage.updateSubscriptionByMpId(subscription.mpPreapprovalId || "", { status: "cancelled" });
+
+      res.json({ message: "Subscription cancelled" });
+    } catch (error) {
+      console.error("Cancel subscription error:", error);
+      res.status(500).json({ message: "Failed to cancel subscription" });
     }
   });
 

@@ -842,6 +842,9 @@ export const subscriptions = pgTable("subscriptions", {
   currentPeriodEnd: timestamp("current_period_end"),
   trialEndsAt: timestamp("trial_ends_at"),
   cancelledAt: timestamp("cancelled_at"),
+  mpPreapprovalId: text("mp_preapproval_id"),
+  mpPayerEmail: text("mp_payer_email"),
+  paymentGateway: text("payment_gateway").default("mercadopago"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
