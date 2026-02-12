@@ -12,6 +12,7 @@ Flowp is a production-ready, multi-tenant Point of Sale (POS) and Inventory mana
 - **Admin Panel**: ALL SaaS administration options (tenant management, MATIAS credentials, billing, etc.) must be located under `/admin`. Do not create separate internal admin pages elsewhere.
 - **Add-on Integrations**: When completing a new add-on integration, always add its key to `INTEGRATION_KEY_OPTIONS` in `client/src/pages/admin/addon-store.tsx` so admins can select it from the dropdown instead of typing the internal ID manually.
 - **Add-on Store Architecture**: The customer-side add-on settings (`/settings` → Add-ons tab) must only display add-ons that have been configured in the admin-side addon store (`/admin` → Add-on Store). Customer add-ons are fetched from the `addon_definitions` table, which is populated exclusively by admin configuration. Never hardcode add-on definitions on the customer side.
+- **Payment Gateway**: Use MercadoPago (not PayPal or Stripe) for subscription checkout and recurring billing. MercadoPago is preferred for the Latin American market (COP, PSE, Nequi, credit cards).
 
 ## System Architecture
 Flowp is built with a React + TypeScript frontend and an Express + PostgreSQL backend. It is designed to be responsive, optimized for various screen sizes from mobile to large desktops, with a primary optimization for 1024x768.
