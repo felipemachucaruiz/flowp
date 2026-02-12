@@ -48,6 +48,14 @@ import {
   Landmark,
   AlertTriangle,
   SlidersHorizontal,
+  CreditCard,
+  Crown,
+  Building2,
+  Monitor,
+  Warehouse,
+  UtensilsCrossed,
+  CookingPot,
+  AlertCircle,
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
@@ -58,6 +66,20 @@ import { ShopifySettings } from "@/components/shopify-settings";
 import { WhatsAppSettings } from "@/components/whatsapp-settings";
 import { useSubscription } from "@/lib/use-subscription";
 import { UpgradeBanner } from "@/components/upgrade-banner";
+import { formatCurrency } from "@/lib/currency";
+import { useLocation } from "wouter";
+import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const businessSettingsSchema = z.object({
   name: z.string().min(1, "Company name is required"),
@@ -1566,6 +1588,294 @@ function RegistersSettings() {
   );
 }
 
+function MyPlanTab() {
+  const { t } = useI18n();
+  const { toast } = useToast();
+  const { tenant } = useAuth();
+  const [, navigate] = useLocation();
+  const { tier, limits, usage, trial, status, isLoading: subLoading } = useSubscription();
+
+  const { data: subscription, isLoading: subDataLoading } = useQuery<any>({
+    queryKey: ["/api/subscription/current"],
+  });
+
+  const { data: payments = [], isLoading: paymentsLoading } = useQuery<any[]>({
+    queryKey: ["/api/subscription/payments"],
+  });
+
+  const { data: plans = [] } = useQuery<any[]>({
+    queryKey: ["/api/subscription/plans"],
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/subscription/cancel");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription/current"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription/my-plan"] });
+      toast({ title: t("subscription.cancel_success" as any) });
+    },
+    onError: () => {
+      toast({ title: t("subscription.cancel_error" as any), variant: "destructive" });
+    },
+  });
+
+  const getTierLabel = (t_tier: string) => {
+    if (t_tier === "enterprise") return t("subscription.tier_enterprise" as any);
+    if (t_tier === "pro") return "Pro";
+    return "Starter";
+  };
+
+  const getStatusBadge = (s: string) => {
+    const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      active: { label: t("subscription.status_active" as any), variant: "default" },
+      trial: { label: t("subscription.status_trial" as any), variant: "secondary" },
+      cancelled: { label: t("subscription.status_cancelled" as any), variant: "destructive" },
+      past_due: { label: t("subscription.status_past_due" as any), variant: "destructive" },
+      suspended: { label: t("subscription.status_suspended" as any), variant: "destructive" },
+    };
+    const info = map[s] || { label: s, variant: "secondary" as const };
+    return <Badge variant={info.variant}>{info.label}</Badge>;
+  };
+
+  const getPaymentStatusBadge = (s: string) => {
+    if (s === "completed") return <Badge variant="default">{t("subscription.status_completed" as any)}</Badge>;
+    if (s === "pending") return <Badge variant="secondary">{t("subscription.status_pending" as any)}</Badge>;
+    return <Badge variant="outline">{s}</Badge>;
+  };
+
+  const usageLimitItems = [
+    { icon: Monitor, label: t("subscription.limit_registers" as any), used: usage.registers, max: limits.maxRegisters },
+    { icon: Users, label: t("subscription.limit_users" as any), used: usage.users, max: limits.maxUsers },
+    { icon: Building2, label: t("subscription.limit_locations" as any), used: usage.locations, max: limits.maxLocations },
+    { icon: Warehouse, label: t("subscription.limit_warehouses" as any), used: usage.warehouses, max: limits.maxWarehouses },
+    { icon: ShoppingBag, label: t("subscription.limit_products" as any), used: usage.products, max: limits.maxProducts },
+  ];
+
+  if (limits.maxTables > 0) {
+    usageLimitItems.push({ icon: UtensilsCrossed, label: t("subscription.limit_tables" as any), used: usage.tables, max: limits.maxTables });
+  }
+  if (limits.maxRecipes !== 0) {
+    usageLimitItems.push({ icon: CookingPot, label: t("subscription.limit_recipes" as any), used: usage.recipes, max: limits.maxRecipes });
+  }
+
+  const currentPlan = plans.find((p: any) => p.id === subscription?.planId);
+  const currency = currentPlan?.currency || tenant?.currency || "COP";
+
+  if (subLoading || subDataLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
+  }
+
+  const hasActiveSub = subscription && subscription.status === "active";
+
+  return (
+    <div className="space-y-6">
+      <Card data-testid="card-plan-details">
+        <CardHeader className="flex flex-row items-center justify-between gap-4 flex-wrap">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Crown className="w-5 h-5 text-primary" />
+              {t("subscription.plan_details" as any)}
+            </CardTitle>
+            <CardDescription>{t("subscription.plan_details_desc" as any)}</CardDescription>
+          </div>
+          {getStatusBadge(status)}
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {trial.isTrialing && (
+            <div className="flex items-center gap-3 p-3 rounded-md bg-muted">
+              <AlertCircle className="w-5 h-5 text-muted-foreground shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">{t("subscription.trial_period" as any)}</p>
+                <p className="text-sm text-muted-foreground">
+                  {trial.daysRemaining} {t("subscription.days_left" as any)}
+                  {trial.trialEndsAt && ` - ${new Date(trial.trialEndsAt).toLocaleDateString()}`}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">{t("subscription.plan_name" as any)}</p>
+              <p className="font-medium text-lg" data-testid="text-plan-name">{currentPlan?.name || getTierLabel(tier)}</p>
+            </div>
+            {subscription?.billingPeriod && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">{t("subscription.billing_cycle" as any)}</p>
+                <p className="font-medium" data-testid="text-billing-cycle">
+                  {subscription.billingPeriod === "yearly" ? t("subscription.yearly" as any) : t("subscription.monthly" as any)}
+                </p>
+              </div>
+            )}
+            {subscription?.currentPeriodEnd && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">{t("subscription.next_payment" as any)}</p>
+                <p className="font-medium" data-testid="text-next-payment">{new Date(subscription.currentPeriodEnd).toLocaleDateString()}</p>
+              </div>
+            )}
+            {subscription?.mpPayerEmail && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">{t("subscription.payment_email" as any)}</p>
+                <p className="font-medium" data-testid="text-payer-email">{subscription.mpPayerEmail}</p>
+              </div>
+            )}
+            {subscription?.paymentGateway && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">{t("subscription.payment_method" as any)}</p>
+                <p className="font-medium capitalize" data-testid="text-payment-method">{subscription.paymentGateway}</p>
+              </div>
+            )}
+            {currentPlan && (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">{t("subscription.payment_amount" as any)}</p>
+                <p className="font-medium text-lg" data-testid="text-plan-price">
+                  {formatCurrency(
+                    parseFloat(subscription?.billingPeriod === "yearly" ? currentPlan.priceYearly || currentPlan.priceMonthly : currentPlan.priceMonthly),
+                    currency
+                  )}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    /{subscription?.billingPeriod === "yearly" ? t("subscription.per_year" as any) : t("subscription.per_month" as any)}
+                  </span>
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-2">
+            <Button variant="outline" onClick={() => navigate("/subscription")} data-testid="button-change-plan">
+              <Crown className="w-4 h-4 mr-2" />
+              {t("subscription.change_plan" as any)}
+            </Button>
+            {hasActiveSub && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" data-testid="button-cancel-subscription">
+                    {t("subscription.cancel_subscription" as any)}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("subscription.cancel_subscription" as any)}</AlertDialogTitle>
+                    <AlertDialogDescription>{t("subscription.cancel_confirm" as any)}</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel data-testid="button-cancel-dialog-dismiss">{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => cancelMutation.mutate()}
+                      className="bg-destructive text-destructive-foreground"
+                      data-testid="button-cancel-dialog-confirm"
+                    >
+                      {cancelMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      {t("subscription.cancel_subscription" as any)}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {!hasActiveSub && !trial.isTrialing && (
+        <Card data-testid="card-no-plan">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Crown className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">{t("subscription.no_active_plan" as any)}</h3>
+            <p className="text-muted-foreground text-center mb-4">{t("subscription.no_active_plan_desc" as any)}</p>
+            <Button onClick={() => navigate("/subscription")} data-testid="button-choose-plan">
+              {t("subscription.choose_plan" as any)}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card data-testid="card-usage-overview">
+        <CardHeader>
+          <CardTitle>{t("subscription.usage_overview" as any)}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {usageLimitItems.map((item) => {
+              const isUnlimited = item.max === -1;
+              const percentage = isUnlimited ? 0 : item.max > 0 ? Math.min((item.used / item.max) * 100, 100) : 0;
+              const isNearLimit = !isUnlimited && item.max > 0 && percentage >= 80;
+              return (
+                <div key={item.label} className="space-y-2" data-testid={`usage-${item.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <item.icon className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{item.label}</span>
+                    </div>
+                    <span className={`text-sm ${isNearLimit ? "text-destructive font-medium" : "text-muted-foreground"}`} data-testid={`text-usage-value-${item.label.toLowerCase().replace(/\s+/g, "-")}`}>
+                      {item.used} {t("subscription.used_of" as any)} {isUnlimited ? t("subscription.unlimited" as any) : item.max}
+                    </span>
+                  </div>
+                  {!isUnlimited && item.max > 0 && (
+                    <Progress value={percentage} className={`h-2 ${isNearLimit ? "[&>div]:bg-destructive" : ""}`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card data-testid="card-payment-history">
+        <CardHeader>
+          <CardTitle>{t("subscription.payment_history" as any)}</CardTitle>
+          <CardDescription>{t("subscription.payment_history_desc" as any)}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {paymentsLoading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+            </div>
+          ) : payments.length === 0 ? (
+            <div className="text-center py-8">
+              <CreditCard className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              <p className="font-medium">{t("subscription.no_payments" as any)}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t("subscription.no_payments_desc" as any)}</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm" data-testid="table-payment-history">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 pr-4 font-medium text-muted-foreground">{t("subscription.payment_date" as any)}</th>
+                    <th className="text-left py-2 pr-4 font-medium text-muted-foreground">{t("subscription.payment_amount" as any)}</th>
+                    <th className="text-left py-2 pr-4 font-medium text-muted-foreground">{t("subscription.payment_method" as any)}</th>
+                    <th className="text-left py-2 pr-4 font-medium text-muted-foreground">{t("subscription.payment_status" as any)}</th>
+                    <th className="text-left py-2 font-medium text-muted-foreground">{t("subscription.payment_reference" as any)}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((payment: any) => (
+                    <tr key={payment.id} className="border-b last:border-0" data-testid={`row-payment-${payment.id}`}>
+                      <td className="py-3 pr-4">{payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : "-"}</td>
+                      <td className="py-3 pr-4 font-medium">{formatCurrency(parseFloat(payment.amount), currency)}</td>
+                      <td className="py-3 pr-4 capitalize">{payment.method || "-"}</td>
+                      <td className="py-3 pr-4">{getPaymentStatusBadge(payment.status)}</td>
+                      <td className="py-3 font-mono text-xs text-muted-foreground">{payment.providerRef ? payment.providerRef.slice(0, 16) + "..." : "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function AddonsSettings() {
   const { t } = useI18n();
   const { toast } = useToast();
@@ -2612,6 +2922,13 @@ export default function SettingsPage() {
                 <Puzzle className="w-4 h-4 mr-1 sm:mr-2" />
                 <span className="hidden sm:inline">{t("settings.addons")}</span>
                 <span className="sm:hidden">{t("settings.addons_short")}</span>
+              </TabsTrigger>
+            )}
+            {isOwner && (
+              <TabsTrigger value="myplan" data-testid="tab-myplan" className="text-xs sm:text-sm">
+                <CreditCard className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t("subscription.my_plan" as any)}</span>
+                <span className="sm:hidden">{t("subscription.my_plan_short" as any)}</span>
               </TabsTrigger>
             )}
             {isAdmin && (
@@ -4177,6 +4494,11 @@ export default function SettingsPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* My Plan */}
+        <TabsContent value="myplan" className="mt-6 space-y-6">
+          <MyPlanTab />
         </TabsContent>
       </Tabs>
 
