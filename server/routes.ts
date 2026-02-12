@@ -4894,7 +4894,8 @@ export async function registerRoutes(
 
       
 
-      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const proto = req.get("x-forwarded-proto") || req.protocol;
+      const baseUrl = `${proto}://${req.get("host")}`;
       const backUrl = `${baseUrl}/subscription?mp_status=returned&plan_id=${planId}&billing_period=${billingPeriod}`;
 
       const result = await createSubscriptionPreapproval({
@@ -4938,7 +4939,8 @@ export async function registerRoutes(
         : parseFloat(plan.priceMonthly);
       const currency = plan.currency || "COP";
 
-      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const proto = req.get("x-forwarded-proto") || req.protocol;
+      const baseUrl = `${proto}://${req.get("host")}`;
       const externalReference = `onetime|${tenantId}|${planId}|${billingPeriod}`;
 
       const result = await createOneTimePaymentPreference({
