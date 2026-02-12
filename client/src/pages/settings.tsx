@@ -10,7 +10,7 @@ import { usePermissions } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
@@ -1705,7 +1705,10 @@ function MyPlanTab() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">{t("subscription.plan_name" as any)}</p>
-              <p className="font-medium text-lg" data-testid="text-plan-name">{currentPlan?.name || getTierLabel(tier)}</p>
+              <p className="font-medium text-lg" data-testid="text-plan-name">
+                {currentPlan?.name || getTierLabel(tier)}
+                {trial.isTrialing && ` (${t("subscription.trial_suffix" as any)})`}
+              </p>
             </div>
             {subscription?.billingPeriod && (
               <div className="space-y-1">
@@ -1784,18 +1787,79 @@ function MyPlanTab() {
         </CardContent>
       </Card>
 
-      {!hasActiveSub && !trial.isTrialing && (
-        <Card data-testid="card-no-plan">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Crown className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">{t("subscription.no_active_plan" as any)}</h3>
-            <p className="text-muted-foreground text-center mb-4">{t("subscription.no_active_plan_desc" as any)}</p>
-            <Button onClick={() => navigate("/subscription?from=myplan")} data-testid="button-choose-plan">
-              {t("subscription.choose_plan" as any)}
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {!hasActiveSub && (() => {
+        const activePlans = plans.filter((p: any) => p.isActive);
+        const tenantBizType = tenant?.businessType || "retail";
+        const matchingPlans = activePlans.filter((p: any) => {
+          if (!p.businessType) return true;
+          return p.businessType === tenantBizType;
+        });
+        return matchingPlans.length > 0 ? (
+          <Card data-testid="card-available-plans">
+            <CardHeader>
+              <CardTitle>{t("subscription.available_plans" as any)}</CardTitle>
+              <CardDescription>{t("subscription.available_plans_desc" as any)}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className={`grid gap-4 ${matchingPlans.length === 1 ? "max-w-md" : matchingPlans.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3"}`}>
+                {matchingPlans.map((plan: any) => (
+                  <Card key={plan.id} className={plan.tier === tier ? "border-primary" : ""} data-testid={`card-available-plan-${plan.tier}`}>
+                    <CardHeader className="text-center pb-2">
+                      <CardTitle className="text-lg">{plan.name}</CardTitle>
+                      <CardDescription>
+                        <span className="text-2xl font-bold text-foreground">
+                          {formatCurrency(parseFloat(plan.priceMonthly), plan.currency || currency)}
+                        </span>
+                        <span className="text-muted-foreground">/{t("subscription.per_month" as any)}</span>
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-3 gap-2 text-sm text-center">
+                        <div className="flex flex-col items-center gap-1">
+                          <Monitor className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{plan.maxRegisters}</span>
+                          <span className="text-xs text-muted-foreground">{t("subscription.limit_registers" as any)}</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{plan.maxUsers}</span>
+                          <span className="text-xs text-muted-foreground">{t("subscription.limit_users" as any)}</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{plan.maxProducts === -1 ? "\u221e" : (plan.maxProducts ?? 100)}</span>
+                          <span className="text-xs text-muted-foreground">{t("subscription.limit_products" as any)}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Button
+                        className="w-full"
+                        variant={plan.tier === tier ? "default" : "outline"}
+                        onClick={() => navigate(`/subscription?from=myplan&select=${plan.id}`)}
+                        data-testid={`button-subscribe-plan-${plan.tier}`}
+                      >
+                        {t("subscription.subscribe_to" as any)}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card data-testid="card-no-plan">
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Crown className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">{t("subscription.no_active_plan" as any)}</h3>
+              <p className="text-muted-foreground text-center mb-4">{t("subscription.no_active_plan_desc" as any)}</p>
+              <Button onClick={() => navigate("/subscription?from=myplan")} data-testid="button-choose-plan">
+                {t("subscription.choose_plan" as any)}
+              </Button>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       <Card data-testid="card-usage-overview">
         <CardHeader>

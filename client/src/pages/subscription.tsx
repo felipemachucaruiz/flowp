@@ -115,6 +115,8 @@ export default function SubscriptionPage() {
     },
   });
 
+  const selectPlanId = new URLSearchParams(searchString || "").get("select");
+
   useEffect(() => {
     if (!searchString) return;
     const params = new URLSearchParams(searchString);
@@ -133,6 +135,17 @@ export default function SubscriptionPage() {
       navigate("/subscription", { replace: true });
     }
   }, [searchString]);
+
+  useEffect(() => {
+    if (selectPlanId && plans.length > 0 && !selectedPlan) {
+      const plan = plans.find((p) => p.id === selectPlanId);
+      if (plan) {
+        setSelectedPlan(plan);
+        setPayerEmail(tenant?.email || "");
+        setShowPaymentDialog(true);
+      }
+    }
+  }, [selectPlanId, plans]);
 
   const getPrice = (plan: SubscriptionPlan) => {
     if (billingPeriod === "yearly" && plan.priceYearly) {
