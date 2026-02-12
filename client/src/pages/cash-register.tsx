@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
+import { formatCurrency } from "@/lib/currency";
+import { CurrencyInput } from "@/components/currency-input";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/lib/permissions";
@@ -42,24 +44,15 @@ interface SessionWithUser extends RegisterSession {
   movements?: any[];
 }
 
-const COP_DENOMINATIONS = [
-  { label: "$100,000", value: 100000 },
-  { label: "$50,000", value: 50000 },
-  { label: "$20,000", value: 20000 },
-  { label: "$10,000", value: 10000 },
-  { label: "$5,000", value: 5000 },
-  { label: "$2,000", value: 2000 },
-  { label: "$1,000", value: 1000 },
-  { label: "$500", value: 500 },
-  { label: "$200", value: 200 },
-  { label: "$100", value: 100 },
-  { label: "$50", value: 50 },
-];
+const DENOMINATION_VALUES = [100000, 50000, 20000, 10000, 5000, 2000, 1000, 500, 200, 100, 50];
 
-function formatCurrency(value: string | number | null | undefined): string {
-  const num = parseFloat(String(value || "0"));
-  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+function getDenominations(currency: string) {
+  return DENOMINATION_VALUES.map(value => ({
+    label: formatCurrency(value, currency),
+    value,
+  }));
 }
+
 
 function formatDate(date: string | Date | null | undefined, locale: string): string {
   if (!date) return "-";
@@ -71,6 +64,7 @@ export default function CashRegisterPage() {
   const { t, language } = useI18n();
   const { toast } = useToast();
   const { can } = usePermissions();
+  const currency = tenant?.currency || "USD";
   const locale = language === "es" ? "es-CO" : language === "pt" ? "pt-BR" : "en-US";
 
   const [openDialog, setOpenDialog] = useState(false);
@@ -189,8 +183,9 @@ export default function CashRegisterPage() {
     },
   });
 
+  const currentDenominations = getDenominations(currency);
   const denominationTotal = Object.entries(denominations).reduce((sum, [key, count]) => {
-    const denom = COP_DENOMINATIONS.find(d => String(d.value) === key);
+    const denom = currentDenominations.find(d => String(d.value) === key);
     return sum + (denom ? denom.value * count : 0);
   }, 0);
 
@@ -262,7 +257,7 @@ export default function CashRegisterPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">{t("cash_register.opening_cash")}</p>
-                  <p className="text-lg font-semibold" data-testid="text-opening-cash">{formatCurrency(activeSession.openingCash)}</p>
+                  <p className="text-lg font-semibold" data-testid="text-opening-cash">{formatCurrency(parseFloat(String(activeSession.openingCash || "0")), currency)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{t("cash_register.opened_by")}</p>
@@ -284,15 +279,15 @@ export default function CashRegisterPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">{t("cash_register.cash_sales")}</p>
-                      <p className="text-lg font-semibold text-green-600 dark:text-green-400" data-testid="text-cash-sales">{formatCurrency(sessionSummary.cashSales)}</p>
+                      <p className="text-lg font-semibold text-green-600 dark:text-green-400" data-testid="text-cash-sales">{formatCurrency(sessionSummary.cashSales, currency)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">{t("cash_register.card_sales")}</p>
-                      <p className="text-lg font-semibold" data-testid="text-card-sales">{formatCurrency(sessionSummary.cardSales)}</p>
+                      <p className="text-lg font-semibold" data-testid="text-card-sales">{formatCurrency(sessionSummary.cardSales, currency)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">{t("cash_register.total_sales")}</p>
-                      <p className="text-lg font-semibold" data-testid="text-total-sales">{formatCurrency(sessionSummary.totalSales)}</p>
+                      <p className="text-lg font-semibold" data-testid="text-total-sales">{formatCurrency(sessionSummary.totalSales, currency)}</p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">{t("cash_register.total_orders")}</p>
@@ -303,7 +298,7 @@ export default function CashRegisterPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">{t("cash_register.expected_in_drawer")}</span>
                       <span className="text-lg font-bold text-green-600 dark:text-green-400" data-testid="text-expected-cash">
-                        {formatCurrency(sessionSummary.expectedCash)}
+                        {formatCurrency(sessionSummary.expectedCash, currency)}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -330,7 +325,7 @@ export default function CashRegisterPage() {
                           {m.reason && <span className="text-muted-foreground">- {m.reason}</span>}
                         </div>
                         <span className={m.type === "cash_in" ? "text-green-600 dark:text-green-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
-                          {m.type === "cash_in" ? "+" : "-"}{formatCurrency(m.amount)}
+                          {m.type === "cash_in" ? "+" : "-"}{formatCurrency(parseFloat(String(m.amount || "0")), currency)}
                         </span>
                       </div>
                     ))}
@@ -403,13 +398,13 @@ export default function CashRegisterPage() {
                             <span className="flex items-center gap-1">
                               <Banknote className="w-4 h-4" />
                               <span className={getVarianceColor(session.cashVariance)}>
-                                {formatCurrency(session.cashVariance)}
+                                {formatCurrency(parseFloat(String(session.cashVariance || "0")), currency)}
                               </span>
                             </span>
                             <span className="flex items-center gap-1">
                               <CreditCard className="w-4 h-4" />
                               <span className={getVarianceColor(session.cardVariance)}>
-                                {formatCurrency(session.cardVariance)}
+                                {formatCurrency(parseFloat(String(session.cardVariance || "0")), currency)}
                               </span>
                             </span>
                           </div>
@@ -427,7 +422,7 @@ export default function CashRegisterPage() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">{t("cash_register.total_sales")}: </span>
-                        <span className="font-medium">{formatCurrency(session.totalSales)}</span>
+                        <span className="font-medium">{formatCurrency(parseFloat(String(session.totalSales || "0")), currency)}</span>
                       </div>
                       <div>
                         <span className="text-muted-foreground">{t("cash_register.total_orders")}: </span>
@@ -435,7 +430,7 @@ export default function CashRegisterPage() {
                       </div>
                       <div>
                         <span className="text-muted-foreground">{t("cash_register.opening_cash")}: </span>
-                        <span className="font-medium">{formatCurrency(session.openingCash)}</span>
+                        <span className="font-medium">{formatCurrency(parseFloat(String(session.openingCash || "0")), currency)}</span>
                       </div>
                     </div>
                   </div>
@@ -469,13 +464,10 @@ export default function CashRegisterPage() {
             <div>
               <Label>{t("cash_register.opening_cash")}</Label>
               <p className="text-sm text-muted-foreground mb-2">{t("cash_register.enter_opening_cash")}</p>
-              <Input
-                type="number"
-                min="0"
-                step="100"
+              <CurrencyInput
                 value={openingCash}
-                onChange={(e) => setOpeningCash(e.target.value)}
-                placeholder="0"
+                onChange={(val) => setOpeningCash(val)}
+                currency={currency}
                 data-testid="input-opening-cash"
               />
             </div>
@@ -507,19 +499,19 @@ export default function CashRegisterPage() {
                 <h4 className="text-sm font-medium">{t("cash_register.system_summary")}</h4>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                   <span className="text-muted-foreground">{t("cash_register.opening_cash")}:</span>
-                  <span className="font-medium text-right">{formatCurrency(sessionSummary.openingCash)}</span>
+                  <span className="font-medium text-right">{formatCurrency(sessionSummary.openingCash, currency)}</span>
                   <span className="text-muted-foreground">{t("cash_register.cash_sales")}:</span>
-                  <span className="font-medium text-right text-green-600 dark:text-green-400">+ {formatCurrency(sessionSummary.cashSales)}</span>
+                  <span className="font-medium text-right text-green-600 dark:text-green-400">+ {formatCurrency(sessionSummary.cashSales, currency)}</span>
                   {sessionSummary.movementsIn > 0 && (
                     <>
                       <span className="text-muted-foreground">{t("cash_register.deposits")}:</span>
-                      <span className="font-medium text-right text-green-600 dark:text-green-400">+ {formatCurrency(sessionSummary.movementsIn)}</span>
+                      <span className="font-medium text-right text-green-600 dark:text-green-400">+ {formatCurrency(sessionSummary.movementsIn, currency)}</span>
                     </>
                   )}
                   {sessionSummary.movementsOut > 0 && (
                     <>
                       <span className="text-muted-foreground">{t("cash_register.withdrawals")}:</span>
-                      <span className="font-medium text-right text-red-600 dark:text-red-400">- {formatCurrency(sessionSummary.movementsOut)}</span>
+                      <span className="font-medium text-right text-red-600 dark:text-red-400">- {formatCurrency(sessionSummary.movementsOut, currency)}</span>
                     </>
                   )}
                 </div>
@@ -527,13 +519,13 @@ export default function CashRegisterPage() {
                 <div className="flex items-center justify-between">
                   <span className="font-semibold">{t("cash_register.expected_in_drawer")}:</span>
                   <span className="text-lg font-bold text-green-600 dark:text-green-400" data-testid="text-close-expected-cash">
-                    {formatCurrency(sessionSummary.expectedCash)}
+                    {formatCurrency(sessionSummary.expectedCash, currency)}
                   </span>
                 </div>
                 {sessionSummary.cardSales > 0 && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">{t("cash_register.expected_card")}:</span>
-                    <span className="font-medium">{formatCurrency(sessionSummary.cardSales)}</span>
+                    <span className="font-medium">{formatCurrency(sessionSummary.cardSales, currency)}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between text-sm">
@@ -551,13 +543,10 @@ export default function CashRegisterPage() {
                   <Banknote className="w-4 h-4" />
                   {t("cash_register.counted_cash")}
                 </Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="100"
+                <CurrencyInput
                   value={countedCash}
-                  onChange={(e) => setCountedCash(e.target.value)}
-                  placeholder="0"
+                  onChange={(val) => setCountedCash(val)}
+                  currency={currency}
                   data-testid="input-counted-cash"
                 />
               </div>
@@ -566,13 +555,10 @@ export default function CashRegisterPage() {
                   <CreditCard className="w-4 h-4" />
                   {t("cash_register.counted_card")}
                 </Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="100"
+                <CurrencyInput
                   value={countedCard}
-                  onChange={(e) => setCountedCard(e.target.value)}
-                  placeholder="0"
+                  onChange={(val) => setCountedCard(val)}
+                  currency={currency}
                   data-testid="input-counted-card"
                 />
               </div>
@@ -583,7 +569,7 @@ export default function CashRegisterPage() {
             <div>
               <Label className="mb-2 block">{t("cash_register.denomination_counts")}</Label>
               <div className="grid grid-cols-3 gap-2">
-                {COP_DENOMINATIONS.map((d) => (
+                {currentDenominations.map((d) => (
                   <div key={d.value} className="flex items-center gap-2">
                     <span className="text-xs w-16 text-right text-muted-foreground">{d.label}</span>
                     <Input
@@ -600,7 +586,7 @@ export default function CashRegisterPage() {
               </div>
               {denominationTotal > 0 && (
                 <div className="flex items-center justify-between mt-2 p-2 bg-muted/50 rounded-md">
-                  <span className="text-sm font-medium">{formatCurrency(denominationTotal)}</span>
+                  <span className="text-sm font-medium">{formatCurrency(denominationTotal, currency)}</span>
                   <Button variant="outline" size="sm" onClick={applyDenominationTotal} data-testid="button-apply-denominations">
                     <DollarSign className="w-3 h-3 mr-1" />
                     {"Apply"}
@@ -661,13 +647,10 @@ export default function CashRegisterPage() {
             </div>
             <div>
               <Label>{t("cash_register.movement_amount")}</Label>
-              <Input
-                type="number"
-                min="0"
-                step="100"
+              <CurrencyInput
                 value={movementAmount}
-                onChange={(e) => setMovementAmount(e.target.value)}
-                placeholder="0"
+                onChange={(val) => setMovementAmount(val)}
+                currency={currency}
                 data-testid="input-movement-amount"
               />
             </div>
@@ -732,11 +715,11 @@ export default function CashRegisterPage() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-muted-foreground">{t("cash_register.opening_cash")}</span>
-                  <p className="font-medium">{formatCurrency(selectedSessionDetail.openingCash)}</p>
+                  <p className="font-medium">{formatCurrency(parseFloat(String(selectedSessionDetail.openingCash || "0")), currency)}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">{t("cash_register.total_sales")}</span>
-                  <p className="font-medium">{formatCurrency(selectedSessionDetail.totalSales)}</p>
+                  <p className="font-medium">{formatCurrency(parseFloat(String(selectedSessionDetail.totalSales || "0")), currency)}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">{t("cash_register.total_orders")}</span>
@@ -744,8 +727,8 @@ export default function CashRegisterPage() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">{t("cash_register.cash_in")}/{t("cash_register.cash_out")}</span>
-                  <p className="font-medium text-green-600 dark:text-green-400">+{formatCurrency(selectedSessionDetail.cashMovementsIn)}</p>
-                  <p className="font-medium text-red-600 dark:text-red-400">-{formatCurrency(selectedSessionDetail.cashMovementsOut)}</p>
+                  <p className="font-medium text-green-600 dark:text-green-400">+{formatCurrency(parseFloat(String(selectedSessionDetail.cashMovementsIn || "0")), currency)}</p>
+                  <p className="font-medium text-red-600 dark:text-red-400">-{formatCurrency(parseFloat(String(selectedSessionDetail.cashMovementsOut || "0")), currency)}</p>
                 </div>
               </div>
 
@@ -757,14 +740,14 @@ export default function CashRegisterPage() {
                     <Banknote className="w-4 h-4" />
                     {t("cash_register.expected_cash")}
                   </span>
-                  <span className="font-medium">{formatCurrency(selectedSessionDetail.expectedCash)}</span>
+                  <span className="font-medium">{formatCurrency(parseFloat(String(selectedSessionDetail.expectedCash || "0")), currency)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <Banknote className="w-4 h-4" />
                     {t("cash_register.counted_cash")}
                   </span>
-                  <span className="font-medium">{formatCurrency(selectedSessionDetail.countedCash)}</span>
+                  <span className="font-medium">{formatCurrency(parseFloat(String(selectedSessionDetail.countedCash || "0")), currency)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
@@ -772,7 +755,7 @@ export default function CashRegisterPage() {
                     {t("cash_register.cash_variance")}
                   </span>
                   <span className={`font-bold ${getVarianceColor(selectedSessionDetail.cashVariance)}`}>
-                    {formatCurrency(selectedSessionDetail.cashVariance)}
+                    {formatCurrency(parseFloat(String(selectedSessionDetail.cashVariance || "0")), currency)}
                   </span>
                 </div>
               </div>
@@ -783,14 +766,14 @@ export default function CashRegisterPage() {
                     <CreditCard className="w-4 h-4" />
                     {t("cash_register.expected_card")}
                   </span>
-                  <span className="font-medium">{formatCurrency(selectedSessionDetail.expectedCard)}</span>
+                  <span className="font-medium">{formatCurrency(parseFloat(String(selectedSessionDetail.expectedCard || "0")), currency)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <CreditCard className="w-4 h-4" />
                     {t("cash_register.counted_card")}
                   </span>
-                  <span className="font-medium">{formatCurrency(selectedSessionDetail.countedCard)}</span>
+                  <span className="font-medium">{formatCurrency(parseFloat(String(selectedSessionDetail.countedCard || "0")), currency)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="flex items-center gap-2">
@@ -798,7 +781,7 @@ export default function CashRegisterPage() {
                     {t("cash_register.card_variance")}
                   </span>
                   <span className={`font-bold ${getVarianceColor(selectedSessionDetail.cardVariance)}`}>
-                    {formatCurrency(selectedSessionDetail.cardVariance)}
+                    {formatCurrency(parseFloat(String(selectedSessionDetail.cardVariance || "0")), currency)}
                   </span>
                 </div>
               </div>
@@ -821,7 +804,7 @@ export default function CashRegisterPage() {
                             {m.reason && <span className="text-muted-foreground">- {m.reason}</span>}
                           </div>
                           <span className={m.type === "cash_in" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
-                            {m.type === "cash_in" ? "+" : "-"}{formatCurrency(m.amount)}
+                            {m.type === "cash_in" ? "+" : "-"}{formatCurrency(parseFloat(String(m.amount || "0")), currency)}
                           </span>
                         </div>
                       ))}

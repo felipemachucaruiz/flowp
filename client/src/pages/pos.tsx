@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { printReceipt } from "@/lib/print-receipt";
 import { printBridge } from "@/lib/print-bridge";
+import { formatCurrency } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -821,37 +822,7 @@ export default function POSPage() {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    const currency = tenant?.currency || "USD";
-    // Map currency codes to locales for proper formatting
-    const localeMap: Record<string, string> = {
-      COP: "es-CO",
-      MXN: "es-MX",
-      ARS: "es-AR",
-      PEN: "es-PE",
-      CLP: "es-CL",
-      EUR: "de-DE",
-      GBP: "en-GB",
-      JPY: "ja-JP",
-      CNY: "zh-CN",
-      KRW: "ko-KR",
-      USD: "en-US",
-      CAD: "en-CA",
-      AUD: "en-AU",
-      BRL: "pt-BR",
-    };
-    const locale = localeMap[currency] || "en-US";
-    try {
-      return new Intl.NumberFormat(locale, {
-        style: "currency",
-        currency: currency,
-        minimumFractionDigits: currency === "COP" || currency === "CLP" || currency === "JPY" || currency === "KRW" ? 0 : 2,
-        maximumFractionDigits: currency === "COP" || currency === "CLP" || currency === "JPY" || currency === "KRW" ? 0 : 2,
-      }).format(amount);
-    } catch {
-      return `${currency} ${amount.toFixed(2)}`;
-    }
-  };
+  const currency = tenant?.currency || "USD";
 
   
   const CartContent = () => (
@@ -910,7 +881,7 @@ export default function POSPage() {
                         {item.product.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {formatCurrency(parseFloat(item.product.price))} {t("pos.each")}
+                        {formatCurrency(parseFloat(item.product.price), currency)} {t("pos.each")}
                       </p>
                       {item.modifiers.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -957,7 +928,7 @@ export default function POSPage() {
                       </Button>
                     </div>
                     <span className="font-semibold text-sm">
-                      {formatCurrency(parseFloat(item.product.price) * item.quantity)}
+                      {formatCurrency(parseFloat(item.product.price) * item.quantity, currency)}
                     </span>
                   </div>
                 </Card>
@@ -969,7 +940,7 @@ export default function POSPage() {
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("pos.subtotal")}</span>
-                <span>{formatCurrency(getSubtotal())}</span>
+                <span>{formatCurrency(getSubtotal(), currency)}</span>
               </div>
               <div className="flex justify-between items-center gap-1">
                 <span className="text-muted-foreground shrink-0">{t("pos.discount")}</span>
@@ -994,14 +965,14 @@ export default function POSPage() {
                       return (
                         <div key={tax.id} className="flex justify-between text-sm">
                           <span className="text-muted-foreground">{tax.name} ({tax.rate}%)</span>
-                          <span>{formatCurrency(taxAmount)}</span>
+                          <span>{formatCurrency(taxAmount, currency)}</span>
                         </div>
                       );
                     })
                   ) : (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{t("pos.tax")} ({taxRate.toFixed(2)}%)</span>
-                      <span>{formatCurrency(getTaxAmountWithDiscount(taxRate))}</span>
+                      <span>{formatCurrency(getTaxAmountWithDiscount(taxRate), currency)}</span>
                     </div>
                   )}
                 </div>
@@ -1009,7 +980,7 @@ export default function POSPage() {
               <Separator />
               <div className="flex justify-between text-base font-bold">
                 <span>{t("pos.total")}</span>
-                <span className="text-primary">{formatCurrency(getTotalWithDiscount(taxRate))}</span>
+                <span className="text-primary">{formatCurrency(getTotalWithDiscount(taxRate), currency)}</span>
               </div>
             </div>
 
@@ -1231,7 +1202,7 @@ export default function POSPage() {
                       {product.name}
                     </span>
                     <span className="text-primary font-semibold text-sm sm:text-sm">
-                      {formatCurrency(parseFloat(product.price))}
+                      {formatCurrency(parseFloat(product.price), currency)}
                     </span>
                     {showOutOfStock && (
                       <span className="text-xs text-destructive font-medium">
@@ -1337,11 +1308,11 @@ export default function POSPage() {
             <div className="text-center mb-6">
               <p className="text-sm text-muted-foreground">{t("pos.amount_due")}</p>
               <p className="text-4xl font-bold text-primary">
-                {formatCurrency(getTotalWithDiscount(taxRate))}
+                {formatCurrency(getTotalWithDiscount(taxRate), currency)}
               </p>
               {discountRate > 0 && (
                 <p className="text-sm text-muted-foreground mt-1">
-                  {t("pos.discount")}: {discountRate}% (-{formatCurrency(getDiscountAmount())})
+                  {t("pos.discount")}: {discountRate}% (-{formatCurrency(getDiscountAmount(), currency)})
                 </p>
               )}
             </div>
@@ -1599,7 +1570,7 @@ export default function POSPage() {
                         ) : (
                           <CreditCard className="w-4 h-4 text-blue-600" />
                         )}
-                        <span className="font-medium">{formatCurrency(parseFloat(entry.amount))}</span>
+                        <span className="font-medium">{formatCurrency(parseFloat(entry.amount), currency)}</span>
                         {entry.transactionId && (
                           <span className="text-xs text-muted-foreground">
                             (ID: {entry.transactionId})
@@ -1623,14 +1594,14 @@ export default function POSPage() {
                   <div className="p-2 rounded-lg bg-orange-500/10 text-center">
                     <p className="text-sm text-muted-foreground">{t("pos.remaining")}</p>
                     <p className="text-xl font-bold text-orange-600">
-                      {formatCurrency(getRemainingAmount())}
+                      {formatCurrency(getRemainingAmount(), currency)}
                     </p>
                   </div>
                 ) : getChangeAmount() > 0 ? (
                   <div className="p-2 rounded-lg bg-green-500/10 text-center">
                     <p className="text-sm text-muted-foreground">{t("pos.change")}</p>
                     <p className="text-xl font-bold text-green-600">
-                      {formatCurrency(getChangeAmount())}
+                      {formatCurrency(getChangeAmount(), currency)}
                     </p>
                   </div>
                 ) : null}
@@ -1677,7 +1648,7 @@ export default function POSPage() {
                 <div className="flex gap-2">
                   <Input
                     type="number"
-                    placeholder={formatCurrency(getRemainingAmount())}
+                    placeholder={formatCurrency(getRemainingAmount(), currency)}
                     value={currentPaymentAmount}
                     onChange={(e) => setCurrentPaymentAmount(e.target.value)}
                     className="flex-1"

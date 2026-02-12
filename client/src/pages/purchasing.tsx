@@ -6,6 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth-context";
+import { formatCurrency } from "@/lib/currency";
+import { CurrencyInput } from "@/components/currency-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -96,10 +98,7 @@ export default function PurchasingPage() {
   const { t, formatDate, language } = useI18n();
   const { tenant } = useAuth();
 
-  const formatCurrency = (amount: number) => {
-    const locale = localeMap[language] || "en-US";
-    return new Intl.NumberFormat(locale, { style: "currency", currency: tenant?.currency || "USD" }).format(amount);
-  };
+  const currency = tenant?.currency || "USD";
 
   const supplierSchema = z.object({
     name: z.string().min(1, t("common.required")),
@@ -424,7 +423,7 @@ export default function PurchasingPage() {
                         )}
                       </div>
                     </div>
-                    <div className="text-right"><span className="font-medium">{formatCurrency(parseFloat(order.total || "0"))}</span></div>
+                    <div className="text-right"><span className="font-medium">{formatCurrency(parseFloat(order.total || "0"), currency)}</span></div>
                   </CardContent>
                 </Card>
               ))}
@@ -651,7 +650,7 @@ export default function PurchasingPage() {
                 {selectedOrder.expectedDate && (
                   <div><span className="text-muted-foreground">{t("purchasing.expected_date")}:</span> <span className="ml-1">{formatDate(new Date(selectedOrder.expectedDate))}</span></div>
                 )}
-                <div><span className="text-muted-foreground">{t("purchasing.total")}:</span> <span className="ml-1 font-medium">{formatCurrency(parseFloat(selectedOrder.total || "0"))}</span></div>
+                <div><span className="text-muted-foreground">{t("purchasing.total")}:</span> <span className="ml-1 font-medium">{formatCurrency(parseFloat(selectedOrder.total || "0"), currency)}</span></div>
               </div>
               <div className="flex items-center gap-2 mb-4 flex-wrap">
                 {selectedOrder.status === "draft" && (
@@ -691,11 +690,11 @@ export default function PurchasingPage() {
                                 <span className="font-medium">{item.productId ? getProductName(item.productId) : getIngredientName(item.ingredientId)}</span>
                               </div>
                               <div className="text-sm text-muted-foreground mt-1">
-                                {t("purchasing.quantity")}: {item.quantity} | {t("purchasing.unit_cost")}: {formatCurrency(parseFloat(item.unitCost))} | {t("purchasing.received")}: {item.receivedQuantity || 0}/{item.quantity}
+                                {t("purchasing.quantity")}: {item.quantity} | {t("purchasing.unit_cost")}: {formatCurrency(parseFloat(item.unitCost), currency)} | {t("purchasing.received")}: {item.receivedQuantity || 0}/{item.quantity}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{formatCurrency(item.quantity * parseFloat(item.unitCost))}</span>
+                              <span className="font-medium">{formatCurrency(item.quantity * parseFloat(item.unitCost), currency)}</span>
                               {selectedOrder.status === "draft" && (
                                 <Button size="icon" variant="ghost" onClick={() => deleteItemMutation.mutate(item.id)} data-testid={`button-delete-item-${item.id}`}><Trash2 className="w-4 h-4" /></Button>
                               )}
@@ -704,8 +703,8 @@ export default function PurchasingPage() {
                         </Card>
                       ))}
                       <div className="flex justify-end gap-4 pt-2 text-sm flex-wrap">
-                        <span>{t("purchasing.subtotal")}: {formatCurrency(parseFloat(selectedOrder.subtotal || "0"))}</span>
-                        <span className="font-medium">{t("purchasing.total")}: {formatCurrency(parseFloat(selectedOrder.total || "0"))}</span>
+                        <span>{t("purchasing.subtotal")}: {formatCurrency(parseFloat(selectedOrder.subtotal || "0"), currency)}</span>
+                        <span className="font-medium">{t("purchasing.total")}: {formatCurrency(parseFloat(selectedOrder.total || "0"), currency)}</span>
                       </div>
                     </div>
                   ) : (
@@ -729,7 +728,7 @@ export default function PurchasingPage() {
                               {receipt.items.map(ri => (
                                 <div key={ri.id} className="flex items-center justify-between text-sm">
                                   <span>{ri.productId ? getProductName(ri.productId) : getIngredientName(ri.ingredientId)}</span>
-                                  <span>{ri.quantityReceived} x {formatCurrency(parseFloat(ri.unitCost))}</span>
+                                  <span>{ri.quantityReceived} x {formatCurrency(parseFloat(ri.unitCost), currency)}</span>
                                 </div>
                               ))}
                             </div>
@@ -795,7 +794,7 @@ export default function PurchasingPage() {
                   <FormItem><FormLabel>{t("purchasing.quantity")}</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} data-testid="input-item-quantity" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={itemForm.control} name="unitCost" render={({ field }) => (
-                  <FormItem><FormLabel>{t("purchasing.unit_cost")}</FormLabel><FormControl><Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} data-testid="input-item-cost" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>{t("purchasing.unit_cost")}</FormLabel><FormControl><CurrencyInput value={field.value} onChange={(val) => field.onChange(parseFloat(val) || 0)} currency={currency} data-testid="input-item-cost" /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
               <DialogFooter>

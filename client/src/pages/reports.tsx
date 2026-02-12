@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/lib/auth-context";
+import { formatCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { useState, useMemo } from "react";
 import { CalendarIcon } from "lucide-react";
@@ -99,25 +100,7 @@ export default function ReportsPage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    const currency = tenant?.currency || "USD";
-    const localeMap: Record<string, string> = {
-      COP: "es-CO", MXN: "es-MX", ARS: "es-AR", PEN: "es-PE", CLP: "es-CL",
-      EUR: "de-DE", GBP: "en-GB", JPY: "ja-JP", CNY: "zh-CN", KRW: "ko-KR",
-      USD: "en-US", CAD: "en-CA", AUD: "en-AU", BRL: "pt-BR",
-    };
-    const locale = localeMap[currency] || "en-US";
-    try {
-      return new Intl.NumberFormat(locale, {
-        style: "currency",
-        currency: currency,
-        minimumFractionDigits: ["COP", "CLP", "JPY", "KRW"].includes(currency) ? 0 : 2,
-        maximumFractionDigits: ["COP", "CLP", "JPY", "KRW"].includes(currency) ? 0 : 2,
-      }).format(amount);
-    } catch {
-      return `${currency} ${amount.toFixed(2)}`;
-    }
-  };
+  const currency = tenant?.currency || "USD";
 
   const formatChartDate = (dateStr: string) => {
     return formatDate(dateStr, { month: "short", day: "numeric" });
@@ -243,7 +226,7 @@ export default function ReportsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">{t("reports.today_sales")}</p>
                 <p className="text-2xl font-bold">
-                  {formatCurrency(defaultStats.todaySales)}
+                  {formatCurrency(defaultStats.todaySales, currency)}
                 </p>
                 {defaultStats.recentTrend !== 0 && (
                   <div className={`flex items-center gap-1 text-xs mt-1 ${
@@ -270,7 +253,7 @@ export default function ReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">{t("reports.gross_profit")}</p>
-                <p className="text-2xl font-bold">{formatCurrency(defaultAnalytics.profitAnalysis.grossProfit)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(defaultAnalytics.profitAnalysis.grossProfit, currency)}</p>
                 <p className="text-xs text-muted-foreground mt-1">{t("reports.period_total")}</p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
@@ -350,7 +333,7 @@ export default function ReportsPage() {
                           border: "1px solid hsl(var(--border))",
                           borderRadius: "var(--radius)",
                         }}
-                        formatter={(value: number) => [formatCurrency(value), t("reports.sales")]}
+                        formatter={(value: number) => [formatCurrency(value, currency), t("reports.sales")]}
                       />
                       <Bar
                         dataKey="sales"
@@ -402,7 +385,7 @@ export default function ReportsPage() {
                           border: "1px solid hsl(var(--border))",
                           borderRadius: "var(--radius)",
                         }}
-                        formatter={(value: number) => [formatCurrency(value), t("reports.sales")]}
+                        formatter={(value: number) => [formatCurrency(value, currency), t("reports.sales")]}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -461,7 +444,7 @@ export default function ReportsPage() {
                         borderRadius: "var(--radius)",
                       }}
                       formatter={(value: number, name: string) => [
-                        formatCurrency(value),
+                        formatCurrency(value, currency),
                         name === "revenue" ? t("reports.revenue") : t("reports.profit"),
                       ]}
                       labelFormatter={formatChartDate}
@@ -580,11 +563,11 @@ export default function ReportsPage() {
                             </div>
                           </td>
                           <td className="text-right py-3 px-2">{product.quantity}</td>
-                          <td className="text-right py-3 px-2">{formatCurrency(product.revenue)}</td>
-                          <td className="text-right py-3 px-2 text-muted-foreground">{formatCurrency(product.cost)}</td>
+                          <td className="text-right py-3 px-2">{formatCurrency(product.revenue, currency)}</td>
+                          <td className="text-right py-3 px-2 text-muted-foreground">{formatCurrency(product.cost, currency)}</td>
                           <td className="text-right py-3 px-2">
                             <span className={product.profit >= 0 ? "text-green-600" : "text-red-500"}>
-                              {formatCurrency(product.profit)}
+                              {formatCurrency(product.profit, currency)}
                             </span>
                           </td>
                           <td className="text-right py-3 px-2">
@@ -644,9 +627,9 @@ export default function ReportsPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold">{formatCurrency(employee.revenue)}</p>
+                        <p className="font-bold">{formatCurrency(employee.revenue, currency)}</p>
                         <p className="text-xs text-muted-foreground">
-                          {t("reports.avg")}: {formatCurrency(employee.avgOrderValue)}
+                          {t("reports.avg")}: {formatCurrency(employee.avgOrderValue, currency)}
                         </p>
                       </div>
                     </div>
@@ -668,19 +651,19 @@ export default function ReportsPage() {
             <Card>
               <CardContent className="pt-4">
                 <p className="text-sm text-muted-foreground">{t("reports.total_revenue")}</p>
-                <p className="text-2xl font-bold">{formatCurrency(defaultAnalytics.profitAnalysis.totalRevenue)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(defaultAnalytics.profitAnalysis.totalRevenue, currency)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4">
                 <p className="text-sm text-muted-foreground">{t("reports.total_cost")}</p>
-                <p className="text-2xl font-bold text-muted-foreground">{formatCurrency(defaultAnalytics.profitAnalysis.totalCost)}</p>
+                <p className="text-2xl font-bold text-muted-foreground">{formatCurrency(defaultAnalytics.profitAnalysis.totalCost, currency)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4">
                 <p className="text-sm text-muted-foreground">{t("reports.gross_profit")}</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(defaultAnalytics.profitAnalysis.grossProfit)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(defaultAnalytics.profitAnalysis.grossProfit, currency)}</p>
               </CardContent>
             </Card>
           </div>
@@ -710,7 +693,7 @@ export default function ReportsPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-green-600">{formatCurrency(product.profit)}</p>
+                        <p className="font-bold text-green-600">{formatCurrency(product.profit, currency)}</p>
                         <p className="text-xs text-muted-foreground">{t("reports.profit")}</p>
                       </div>
                     </div>

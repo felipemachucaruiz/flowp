@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth-context";
+import { formatCurrency } from "@/lib/currency";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,6 +19,8 @@ import type { Ingredient, IngredientLot } from "@shared/schema";
 
 export default function LotsPage() {
   const { t, formatDate } = useI18n();
+  const { tenant } = useAuth();
+  const currency = tenant?.currency || "USD";
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { ingredientId } = useParams<{ ingredientId: string }>();
@@ -271,7 +275,7 @@ export default function LotsPage() {
                       )}
                       {lot.costPerBase && (
                         <span>
-                          {t("lots.cost")}: ${parseFloat(lot.costPerBase).toFixed(2)}/{ingredient?.uomBase}
+                          {t("lots.cost")}: {formatCurrency(parseFloat(lot.costPerBase), currency)}/{ingredient?.uomBase}
                         </span>
                       )}
                     </div>

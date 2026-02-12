@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { useAuth } from "@/lib/auth-context";
+import { formatCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -157,26 +158,7 @@ export default function CustomersPage() {
     });
   };
 
-  const formatCurrency = (amount: number | string) => {
-    const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
-    const currency = tenant?.currency || "USD";
-    const localeMap: Record<string, string> = {
-      COP: "es-CO", MXN: "es-MX", ARS: "es-AR", PEN: "es-PE", CLP: "es-CL",
-      EUR: "de-DE", GBP: "en-GB", JPY: "ja-JP", CNY: "zh-CN", KRW: "ko-KR",
-      USD: "en-US", CAD: "en-CA", AUD: "en-AU", BRL: "pt-BR",
-    };
-    const locale = localeMap[currency] || "en-US";
-    try {
-      return new Intl.NumberFormat(locale, {
-        style: "currency",
-        currency: currency,
-        minimumFractionDigits: ["COP", "CLP", "JPY", "KRW"].includes(currency) ? 0 : 2,
-        maximumFractionDigits: ["COP", "CLP", "JPY", "KRW"].includes(currency) ? 0 : 2,
-      }).format(numAmount);
-    } catch {
-      return `${currency} ${numAmount.toFixed(2)}`;
-    }
-  };
+  const currency = tenant?.currency || "USD";
 
   const handleEditCustomer = (customer: Customer) => {
     setEditingCustomer(customer);
@@ -373,7 +355,7 @@ export default function CustomersPage() {
                       <span className="text-xs">{t("customers.total_spent")}</span>
                     </div>
                     <p className="text-2xl font-bold">
-                      {formatCurrency(selectedCustomer.totalSpent || 0)}
+                      {formatCurrency(Number(selectedCustomer.totalSpent || 0), currency)}
                     </p>
                   </CardContent>
                 </Card>
@@ -442,7 +424,7 @@ export default function CustomersPage() {
                               </p>
                             </div>
                             <div className="text-right">
-                              <p className="font-bold text-lg">{formatCurrency(order.total || 0)}</p>
+                              <p className="font-bold text-lg">{formatCurrency(parseFloat(String(order.total || 0)), currency)}</p>
                               <Badge variant={order.status === "completed" ? "default" : "secondary"}>
                                 {t(`customers.status_${order.status}`)}
                               </Badge>
@@ -648,7 +630,7 @@ export default function CustomersPage() {
                 <Card>
                   <CardContent className="p-3">
                     <p className="text-sm text-muted-foreground mb-1">{t("customers.total_spent")}</p>
-                    <p className="text-xl font-bold">{formatCurrency(selectedCustomer.totalSpent || 0)}</p>
+                    <p className="text-xl font-bold">{formatCurrency(Number(selectedCustomer.totalSpent || 0), currency)}</p>
                   </CardContent>
                 </Card>
                 <div className="flex gap-2">

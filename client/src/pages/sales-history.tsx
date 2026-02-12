@@ -17,6 +17,7 @@ import { usePermissions } from "@/lib/permissions";
 import { printReceipt } from "@/lib/print-receipt";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { formatCurrency } from "@/lib/currency";
 import type { Order, Customer } from "@shared/schema";
 import {
   Search,
@@ -108,26 +109,7 @@ export default function SalesHistoryPage() {
     enabled: !!tenant?.id,
   });
 
-  const formatCurrency = (amount: number | string) => {
-    const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
-    const currency = tenant?.currency || "USD";
-    const localeMap: Record<string, string> = {
-      COP: "es-CO", MXN: "es-MX", ARS: "es-AR", PEN: "es-PE", CLP: "es-CL",
-      EUR: "de-DE", GBP: "en-GB", JPY: "ja-JP", CNY: "zh-CN", KRW: "ko-KR",
-      USD: "en-US", CAD: "en-CA", AUD: "en-AU", BRL: "pt-BR",
-    };
-    const locale = localeMap[currency] || "en-US";
-    try {
-      return new Intl.NumberFormat(locale, {
-        style: "currency",
-        currency: currency,
-        minimumFractionDigits: ["COP", "CLP", "JPY", "KRW"].includes(currency) ? 0 : 2,
-        maximumFractionDigits: ["COP", "CLP", "JPY", "KRW"].includes(currency) ? 0 : 2,
-      }).format(numAmount);
-    } catch {
-      return `${currency} ${numAmount.toFixed(2)}`;
-    }
-  };
+  const currency = tenant?.currency || "USD";
 
   const toggleOrderExpansion = (orderId: string) => {
     setExpandedOrders((prev) => {
@@ -424,7 +406,7 @@ export default function SalesHistoryPage() {
             <div>
               <p className="text-sm text-muted-foreground">{t("sales.total_revenue")}</p>
               <p className="text-2xl font-bold">
-                {formatCurrency(filteredOrders?.reduce((sum, o) => sum + parseFloat(o.total), 0) || 0)}
+                {formatCurrency(filteredOrders?.reduce((sum, o) => sum + parseFloat(o.total), 0) || 0, currency)}
               </p>
             </div>
           </CardContent>
@@ -495,7 +477,7 @@ export default function SalesHistoryPage() {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-bold text-base">{formatCurrency(order.total)}</p>
+                      <p className="font-bold text-base">{formatCurrency(parseFloat(String(order.total)), currency)}</p>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
                         {order.payments?.[0]?.method === "card" ? (
                           <CreditCard className="w-3 h-3" />
@@ -556,7 +538,7 @@ export default function SalesHistoryPage() {
                         </div>
                       )}
                       <div className="text-right">
-                        <p className="font-bold text-lg">{formatCurrency(order.total)}</p>
+                        <p className="font-bold text-lg">{formatCurrency(parseFloat(String(order.total)), currency)}</p>
                         <div className="flex items-center gap-1 text-xs text-muted-foreground justify-end">
                           {order.payments?.[0]?.method === "card" ? (
                             <CreditCard className="w-3 h-3" />
@@ -585,7 +567,7 @@ export default function SalesHistoryPage() {
                                 {item.quantity}x {item.productName || "Product"}
                               </span>
                               <span className="font-medium">
-                                {formatCurrency(parseFloat(item.unitPrice) * item.quantity)}
+                                {formatCurrency(parseFloat(item.unitPrice) * item.quantity, currency)}
                               </span>
                             </div>
                           ))}
@@ -596,15 +578,15 @@ export default function SalesHistoryPage() {
                       <Separator />
                       <div className="flex justify-between text-sm">
                         <span>{t("sales.subtotal")}</span>
-                        <span>{formatCurrency(order.subtotal)}</span>
+                        <span>{formatCurrency(parseFloat(String(order.subtotal)), currency)}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>{t("sales.tax")}</span>
-                        <span>{formatCurrency(order.taxAmount || "0")}</span>
+                        <span>{formatCurrency(parseFloat(String(order.taxAmount || "0")), currency)}</span>
                       </div>
                       <div className="flex justify-between font-bold">
                         <span>{t("sales.total")}</span>
-                        <span>{formatCurrency(order.total)}</span>
+                        <span>{formatCurrency(parseFloat(String(order.total)), currency)}</span>
                       </div>
                       <div className="pt-2 flex flex-wrap gap-2">
                         <Button
@@ -699,7 +681,7 @@ export default function SalesHistoryPage() {
                     <div className="flex-1">
                       <p className="font-medium text-sm">{item.productName}</p>
                       <p className="text-xs text-muted-foreground">
-                        {t("returns.max_returnable")}: {item.returnableQuantity} @ {formatCurrency(item.unitPrice)}
+                        {t("returns.max_returnable")}: {item.returnableQuantity} @ {formatCurrency(parseFloat(String(item.unitPrice)), currency)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -801,7 +783,7 @@ export default function SalesHistoryPage() {
 
               <div className="flex justify-between items-center font-bold">
                 <span>{t("returns.refund_total")}</span>
-                <span className="text-lg">{formatCurrency(calculateReturnTotal())}</span>
+                <span className="text-lg">{formatCurrency(calculateReturnTotal(), currency)}</span>
               </div>
             </div>
           )}
@@ -841,7 +823,7 @@ export default function SalesHistoryPage() {
                 </div>
                 <div className="flex justify-between text-sm mt-1">
                   <span>{t("creditNote.amount")}</span>
-                  <span className="font-bold">{formatCurrency(creditNoteOrder.total)}</span>
+                  <span className="font-bold">{formatCurrency(parseFloat(String(creditNoteOrder.total)), currency)}</span>
                 </div>
               </div>
 
@@ -889,7 +871,7 @@ export default function SalesHistoryPage() {
 
               <div className="flex justify-between items-center font-bold">
                 <span>{t("creditNote.refund_total")}</span>
-                <span className="text-lg">{formatCurrency(creditNoteOrder.total)}</span>
+                <span className="text-lg">{formatCurrency(parseFloat(String(creditNoteOrder.total)), currency)}</span>
               </div>
 
               <p className="text-xs text-muted-foreground">

@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth-context";
+import { formatCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
@@ -460,7 +461,7 @@ function PrintPreview({
                   )}
                   {el.type === "price" && (
                     <div className="w-full h-full flex items-center overflow-hidden" style={{ fontSize: `${el.fontSize || 10}px`, fontWeight: el.fontWeight || "bold", textAlign: el.textAlign || "left" }}>
-                      <span className="truncate w-full" style={{ textAlign: el.textAlign, display: "block" }}>{formatCurrency(Number(product.price))}</span>
+                      <span className="truncate w-full" style={{ textAlign: el.textAlign, display: "block" }}>{formatCurrency(Number(product.price), currency)}</span>
                     </div>
                   )}
                   {el.type === "sku" && (
@@ -498,16 +499,7 @@ export default function LabelDesignerPage() {
   const { t } = useI18n();
   const { toast } = useToast();
 
-  const formatCurrency = (amount: number) => {
-    const currency = tenant?.currency || "USD";
-    const localeMap: Record<string, string> = { COP: "es-CO", MXN: "es-MX", USD: "en-US", EUR: "de-DE", BRL: "pt-BR" };
-    const locale = localeMap[currency] || "en-US";
-    try {
-      return new Intl.NumberFormat(locale, { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
-    } catch {
-      return `${currency} ${amount.toLocaleString()}`;
-    }
-  };
+  const currency = tenant?.currency || "USD";
 
   const [template, setTemplate] = useState<LabelTemplate>({
     id: generateId(),
@@ -1170,7 +1162,7 @@ export default function LabelDesignerPage() {
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs font-medium truncate">{product.name}</p>
                                 <p className="text-xs text-muted-foreground truncate">
-                                  {product.sku || "-"} | {formatCurrency(Number(product.price))}
+                                  {product.sku || "-"} | {formatCurrency(Number(product.price), currency)}
                                 </p>
                               </div>
                             </div>
@@ -1252,7 +1244,7 @@ export default function LabelDesignerPage() {
             <PrintPreview
               template={template}
               selectedProducts={selectedProducts}
-              formatCurrency={formatCurrency}
+              formatCurrency={(n: number) => formatCurrency(n, currency)}
               logoUrl={logoUrl}
               t={t}
             />

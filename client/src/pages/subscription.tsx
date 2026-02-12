@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { formatCurrency } from "@/lib/currency";
 import { useSubscription } from "@/lib/use-subscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -38,6 +39,17 @@ const FEATURE_TRANSLATION_KEYS: Record<string, string> = {
   modifiers_advanced: "subscription.feature_advanced_modifiers",
   ingredients_recipes: "subscription.feature_ingredients_recipes",
   tips_analytics: "subscription.feature_tips_analytics",
+  "pos.core": "subscription.feature_pos_core",
+  "inventory.core": "subscription.feature_inventory_core",
+  "purchasing.core": "subscription.feature_purchasing_core",
+  "customers.core": "subscription.feature_customers_core",
+  "reporting.core": "subscription.feature_reporting_core",
+  electronic_invoicing: "subscription.feature_electronic_invoicing",
+  loyalty_program: "subscription.feature_loyalty_program",
+  advanced_reporting: "subscription.feature_advanced_reporting",
+  "retail.barcode": "subscription.feature_barcode",
+  "retail.returns": "subscription.feature_returns",
+  "retail.bulk_discounts": "subscription.feature_bulk_discounts",
 };
 
 export default function SubscriptionPage() {
@@ -246,14 +258,14 @@ export default function SubscriptionPage() {
                   <CardDescription>
                     <div className="mt-2">
                       <span className="text-3xl font-bold text-foreground">
-                        ${billingPeriod === "yearly" ? monthlyEquivalent.toFixed(2) : price.toFixed(2)}
+                        {formatCurrency(billingPeriod === "yearly" ? monthlyEquivalent : price, plan.currency || "COP")}
                       </span>
                       <span className="text-muted-foreground">/{t("subscription.per_month" as any)}</span>
                     </div>
                     {billingPeriod === "yearly" && (
                       <div className="text-sm mt-1">
                         <span className="text-muted-foreground">
-                          ${price.toFixed(2)} {t("subscription.billed_annually" as any)}
+                          {formatCurrency(price, plan.currency || "COP")} {t("subscription.billed_annually" as any)}
                         </span>
                         {discount > 0 && (
                           <Badge variant="secondary" className="ml-2">
@@ -350,7 +362,7 @@ export default function SubscriptionPage() {
               {selectedPlan && (
                 <>
                   {t("subscription.subscribing_to" as any)} <strong>{selectedPlan.name}</strong> {t("subscription.for" as any)}{" "}
-                  <strong>${getPrice(selectedPlan).toFixed(2)}</strong>{" "}
+                  <strong>{formatCurrency(getPrice(selectedPlan), selectedPlan.currency || "COP")}</strong>{" "}
                   {billingPeriod === "yearly" ? t("subscription.per_year" as any) : t("subscription.per_month" as any)}
                 </>
               )}
@@ -387,7 +399,7 @@ export default function SubscriptionPage() {
               <div className="flex flex-wrap justify-between items-center gap-2">
                 <span>{t("subscription.total")}</span>
                 <span className="text-xl font-bold">
-                  ${selectedPlan ? getPrice(selectedPlan).toFixed(2) : "0.00"}{" "}
+                  {selectedPlan ? formatCurrency(getPrice(selectedPlan), selectedPlan.currency || "COP") : formatCurrency(0, "COP")}{" "}
                   <span className="text-sm font-normal text-muted-foreground">
                     /{billingPeriod === "yearly" ? t("subscription.per_year" as any) : t("subscription.per_month" as any)}
                   </span>

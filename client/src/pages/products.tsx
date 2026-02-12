@@ -18,6 +18,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { Category, Product } from "@shared/schema";
 import { Plus, Pencil, Trash2, Package, Tag, X, ImageIcon, Search, Filter } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
+import { CurrencyInput } from "@/components/currency-input";
+import { formatCurrency } from "@/lib/currency";
 import { useSubscription } from "@/lib/use-subscription";
 import { UpgradeBanner } from "@/components/upgrade-banner";
 
@@ -28,18 +30,7 @@ export default function ProductsPage() {
   const { can } = usePermissions();
   const { canCreate, usage, limits } = useSubscription();
 
-  const formatCurrency = (amount: number) => {
-    const currency = tenant?.currency || "USD";
-    const localeMap: Record<string, string> = {
-      COP: "es-CO", MXN: "es-MX", USD: "en-US", EUR: "de-DE", BRL: "pt-BR",
-    };
-    const locale = localeMap[currency] || "en-US";
-    try {
-      return new Intl.NumberFormat(locale, { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount);
-    } catch {
-      return `${currency} ${amount.toLocaleString()}`;
-    }
-  };
+  const currency = tenant?.currency || "USD";
   
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
@@ -360,7 +351,7 @@ export default function ProductsPage() {
                         <div className="flex-1 min-w-0 space-y-1">
                           <h3 className="font-semibold truncate">{product.name}</h3>
                           <p className="text-lg font-bold text-primary">
-                            {formatCurrency(parseFloat(product.price))}
+                            {formatCurrency(parseFloat(product.price, currency))}
                           </p>
                           <div className="flex items-center gap-2 flex-wrap">
                             {getCategoryName(product.categoryId) && (
@@ -587,12 +578,10 @@ export default function ProductsPage() {
                 <Label className={productFormErrors.price ? "text-destructive" : ""}>
                   {t("products.price")} *
                 </Label>
-                <Input
-                  type="number"
+                <CurrencyInput
                   value={productForm.price}
-                  onChange={(e) => setProductForm({ ...productForm, price: e.target.value })}
-                  placeholder="0.00"
-                  step="0.01"
+                  onChange={(val) => setProductForm({ ...productForm, price: val })}
+                  currency={currency}
                   className={productFormErrors.price ? "border-destructive" : ""}
                   data-testid="input-product-price"
                 />
@@ -602,12 +591,10 @@ export default function ProductsPage() {
               </div>
               <div className="space-y-2">
                 <Label>{t("products.cost")}</Label>
-                <Input
-                  type="number"
+                <CurrencyInput
                   value={productForm.cost}
-                  onChange={(e) => setProductForm({ ...productForm, cost: e.target.value })}
-                  placeholder="0.00"
-                  step="0.01"
+                  onChange={(val) => setProductForm({ ...productForm, cost: val })}
+                  currency={currency}
                   data-testid="input-product-cost"
                 />
               </div>

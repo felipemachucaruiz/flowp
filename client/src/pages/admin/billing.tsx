@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
+import { formatCurrency } from "@/lib/currency";
 import {
   Dialog,
   DialogContent,
@@ -565,12 +566,12 @@ export default function AdminBilling() {
                     </CardTitle>
                     <CardDescription className="mt-1">
                       <span className="text-2xl font-bold text-foreground">
-                        ${parseFloat(plan.priceMonthly).toFixed(2)}
+                        {formatCurrency(parseFloat(plan.priceMonthly), plan.currency || "COP")}
                       </span>
                       <span className="text-muted-foreground">/{t("admin.billing_month")}</span>
                       {plan.priceYearly && (
                         <span className="ml-2 text-sm">
-                          (${parseFloat(plan.priceYearly).toFixed(2)}/{t("admin.billing_year")})
+                          ({formatCurrency(parseFloat(plan.priceYearly), plan.currency || "COP")}/{t("admin.billing_year")})
                         </span>
                       )}
                     </CardDescription>

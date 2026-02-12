@@ -15,6 +15,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useI18n } from "@/lib/i18n";
+import { formatCurrency } from "@/lib/currency";
 
 export default function AdminTenantDetail() {
   const { tenantId } = useParams<{ tenantId: string }>();
@@ -413,7 +414,7 @@ export default function AdminTenantDetail() {
                             {isIncludedInTier ? (
                               <Badge variant="secondary">{t("admin.addon_included_in")} {tenant?.subscriptionTier}</Badge>
                             ) : addon.monthlyPrice ? (
-                              `$${(addon.monthlyPrice / 100).toFixed(2)}${t("admin.addon_per_month")}`
+                              `${formatCurrency(addon.monthlyPrice / 100, tenant?.currency || "COP")}${t("admin.addon_per_month")}`
                             ) : (
                               t("admin.addon_free")
                             )}

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth-context";
+import { formatCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -52,21 +53,7 @@ export default function LoyaltyRewardsPage() {
     enabled: !!tenant?.id,
   });
 
-  const formatCurrency = (amount: number | string) => {
-    const numAmount = typeof amount === "string" ? parseFloat(amount) : amount;
-    const currency = tenant?.currency || "USD";
-    const localeMap: Record<string, string> = {
-      COP: "es-CO", MXN: "es-MX", ARS: "es-AR", PEN: "es-PE", CLP: "es-CL",
-      USD: "en-US", EUR: "de-DE", GBP: "en-GB", BRL: "pt-BR",
-    };
-    const locale = localeMap[currency] || "en-US";
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency: currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(numAmount);
-  };
+  const currency = tenant?.currency || "USD";
 
   const createRewardMutation = useMutation({
     mutationFn: async (data: typeof rewardForm) => {
@@ -234,7 +221,7 @@ export default function LoyaltyRewardsPage() {
                           ? t("loyalty.free_product")
                           : reward.discountType === "percentage"
                             ? `${reward.discountValue}% ${t("loyalty.off")}`
-                            : formatCurrency(reward.discountValue || 0)}
+                            : formatCurrency(Number(reward.discountValue || 0), currency)}
                       </span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -364,7 +351,7 @@ export default function LoyaltyRewardsPage() {
                   <SelectContent>
                     {products?.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.name} - {formatCurrency(product.price)}
+                        {product.name} - {formatCurrency(Number(product.price), currency)}
                       </SelectItem>
                     ))}
                   </SelectContent>
