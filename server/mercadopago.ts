@@ -1,4 +1,4 @@
-import { MercadoPagoConfig, PreApproval, Preference } from "mercadopago";
+import { MercadoPagoConfig, PreApproval, Preference, Payment } from "mercadopago";
 
 const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN || "";
 const publicKey = process.env.MERCADOPAGO_PUBLIC_KEY || "";
@@ -6,6 +6,7 @@ const publicKey = process.env.MERCADOPAGO_PUBLIC_KEY || "";
 const client = new MercadoPagoConfig({ accessToken });
 const preapproval = new PreApproval(client);
 const preference = new Preference(client);
+const payment = new Payment(client);
 
 export function getMercadoPagoPublicKey() {
   return publicKey;
@@ -106,5 +107,20 @@ export async function createOneTimePaymentPreference(params: {
     id: result.id,
     initPoint: result.init_point,
     sandboxInitPoint: result.sandbox_init_point,
+  };
+}
+
+export async function getPaymentStatus(paymentId: string) {
+  const result = await payment.get({ id: paymentId });
+  return {
+    id: result.id,
+    status: result.status,
+    statusDetail: result.status_detail,
+    externalReference: result.external_reference,
+    transactionAmount: result.transaction_amount,
+    currencyId: result.currency_id,
+    payerEmail: result.payer?.email,
+    dateApproved: result.date_approved,
+    dateCreated: result.date_created,
   };
 }

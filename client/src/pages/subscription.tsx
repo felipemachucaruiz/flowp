@@ -64,6 +64,7 @@ export default function SubscriptionPage() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [payerEmail, setPayerEmail] = useState("");
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"recurring" | "onetime">("recurring");
 
   const fromParam = new URLSearchParams(searchString || "").get("from");
   const backPath = fromParam === "myplan" ? "/settings?tab=myplan" : "/pos";
@@ -98,9 +99,44 @@ export default function SubscriptionPage() {
     },
   });
 
+  const createOnetimeMutation = useMutation({
+    mutationFn: async (data: { planId: string; billingPeriod: string; payerEmail: string }) => {
+      const res = await apiRequest("POST", "/api/subscription/create-onetime-preference", data);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.initPoint) {
+        setIsRedirecting(true);
+        window.location.href = data.initPoint;
+      } else {
+        toast({ title: t("subscription.payment_failed" as any), variant: "destructive" });
+      }
+    },
+    onError: () => {
+      toast({ title: t("subscription.payment_failed" as any), variant: "destructive" });
+    },
+  });
+
   const confirmPaymentMutation = useMutation({
     mutationFn: async (data: { preapprovalId: string; planId: string; billingPeriod: string; payerEmail: string }) => {
       const res = await apiRequest("POST", "/api/subscription/confirm-payment", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription/current"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription/my-plan"] });
+      refreshTenant();
+      toast({ title: t("subscription.activated_success" as any) });
+      navigate(backPath);
+    },
+    onError: () => {
+      toast({ title: t("subscription.activated_error" as any), variant: "destructive" });
+    },
+  });
+
+  const confirmOnetimeMutation = useMutation({
+    mutationFn: async (data: { planId: string; billingPeriod: string; payerEmail: string; paymentId?: string; status?: string }) => {
+      const res = await apiRequest("POST", "/api/subscription/confirm-onetime-payment", data);
       return res.json();
     },
     onSuccess: () => {
@@ -120,6 +156,7 @@ export default function SubscriptionPage() {
   useEffect(() => {
     if (!searchString) return;
     const params = new URLSearchParams(searchString);
+
     const mpStatus = params.get("mp_status");
     const preapprovalId = params.get("preapproval_id");
     const planId = params.get("plan_id");
@@ -132,6 +169,30 @@ export default function SubscriptionPage() {
         billingPeriod: period,
         payerEmail: "",
       });
+      navigate("/subscription", { replace: true });
+      return;
+    }
+
+    const mpOnetime = params.get("mp_onetime");
+    const onetimePlanId = params.get("plan_id");
+    const onetimePeriod = params.get("billing_period");
+    const onetimeEmail = params.get("payer_email") || "";
+    const onetimePaymentId = params.get("payment_id") || params.get("collection_id") || "";
+
+    if ((mpOnetime === "success" || mpOnetime === "pending") && onetimePlanId && onetimePeriod) {
+      confirmOnetimeMutation.mutate({
+        planId: onetimePlanId,
+        billingPeriod: onetimePeriod,
+        payerEmail: decodeURIComponent(onetimeEmail),
+        paymentId: onetimePaymentId,
+        status: mpOnetime === "success" ? "approved" : "pending",
+      });
+      navigate("/subscription", { replace: true });
+      return;
+    }
+
+    if (mpOnetime === "failure") {
+      toast({ title: t("subscription.payment_failed" as any), variant: "destructive" });
       navigate("/subscription", { replace: true });
     }
   }, [searchString]);
@@ -176,11 +237,19 @@ export default function SubscriptionPage() {
 
   const handlePayWithMercadoPago = () => {
     if (!selectedPlan || !payerEmail) return;
-    createPreferenceMutation.mutate({
-      planId: selectedPlan.id,
-      billingPeriod,
-      payerEmail,
-    });
+    if (paymentMethod === "onetime") {
+      createOnetimeMutation.mutate({
+        planId: selectedPlan.id,
+        billingPeriod,
+        payerEmail,
+      });
+    } else {
+      createPreferenceMutation.mutate({
+        planId: selectedPlan.id,
+        billingPeriod,
+        payerEmail,
+      });
+    }
   };
 
   const translateFeature = (featureId: string): string => {
@@ -461,6 +530,42 @@ export default function SubscriptionPage() {
             </div>
 
             <div className="space-y-2">
+              <Label>{t("subscription.payment_method" as any)}</Label>
+              <RadioGroup
+                value={paymentMethod}
+                onValueChange={(v) => setPaymentMethod(v as "recurring" | "onetime")}
+                className="grid gap-3"
+              >
+                <label
+                  htmlFor="pm-recurring"
+                  className={`flex items-start space-x-3 border rounded-md p-3 cursor-pointer ${paymentMethod === "recurring" ? "border-primary bg-primary/5" : ""}`}
+                  data-testid="radio-payment-recurring"
+                >
+                  <RadioGroupItem value="recurring" id="pm-recurring" className="mt-0.5" />
+                  <div className="flex-1">
+                    <span className="font-medium text-sm">{t("subscription.pm_recurring_title" as any)}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t("subscription.pm_recurring_desc" as any)}
+                    </p>
+                  </div>
+                </label>
+                <label
+                  htmlFor="pm-onetime"
+                  className={`flex items-start space-x-3 border rounded-md p-3 cursor-pointer ${paymentMethod === "onetime" ? "border-primary bg-primary/5" : ""}`}
+                  data-testid="radio-payment-onetime"
+                >
+                  <RadioGroupItem value="onetime" id="pm-onetime" className="mt-0.5" />
+                  <div className="flex-1">
+                    <span className="font-medium text-sm">{t("subscription.pm_onetime_title" as any)}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t("subscription.pm_onetime_desc" as any)}
+                    </p>
+                  </div>
+                </label>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="payer-email">{t("subscription.payer_email" as any)}</Label>
               <Input
                 id="payer-email"
@@ -482,9 +587,14 @@ export default function SubscriptionPage() {
                   </span>
                 </span>
               </div>
+              {paymentMethod === "onetime" && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  {t("subscription.onetime_renewal_notice" as any)}
+                </p>
+              )}
             </div>
 
-            {(createPreferenceMutation.isPending || isRedirecting) ? (
+            {(createPreferenceMutation.isPending || createOnetimeMutation.isPending || isRedirecting) ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-6 w-6 animate-spin" />
                 <span className="ml-2">
@@ -504,7 +614,7 @@ export default function SubscriptionPage() {
                   data-testid="button-pay-mercadopago"
                 >
                   <CreditCard className="w-4 h-4 mr-2" />
-                  {t("subscription.pay_now" as any)}
+                  {paymentMethod === "onetime" ? t("subscription.pay_onetime" as any) : t("subscription.pay_now" as any)}
                   <ExternalLink className="w-4 h-4 ml-2" />
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">

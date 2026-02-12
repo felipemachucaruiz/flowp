@@ -9,7 +9,7 @@ import archiver from "archiver";
 import { storage } from "./storage";
 import { emailService } from "./email";
 import { getEmailWrapper } from "./email-templates";
-import { getMercadoPagoPublicKey, isMercadoPagoEnabled, createSubscriptionPreapproval, getPreapprovalStatus, cancelPreapproval } from "./mercadopago";
+import { getMercadoPagoPublicKey, isMercadoPagoEnabled, createSubscriptionPreapproval, getPreapprovalStatus, cancelPreapproval, createOneTimePaymentPreference, getPaymentStatus } from "./mercadopago";
 import { db } from "./db";
 import { orders, payments, registerSessions, cashMovements, tenantIntegrationsMatias, SUBSCRIPTION_FEATURES } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
@@ -4910,6 +4910,124 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/subscription/create-onetime-preference", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+
+      const { planId, billingPeriod, payerEmail } = req.body;
+      if (!planId || !billingPeriod || !payerEmail) {
+        return res.status(400).json({ message: "Plan ID, billing period, and payer email are required" });
+      }
+
+      const plans = await storage.getActiveSubscriptionPlans();
+      const plan = plans.find((p) => p.id === planId);
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+
+      const amount = billingPeriod === "yearly"
+        ? parseFloat(plan.priceYearly || plan.priceMonthly)
+        : parseFloat(plan.priceMonthly);
+      const currency = plan.currency || "COP";
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const externalReference = `onetime|${tenantId}|${planId}|${billingPeriod}`;
+
+      const result = await createOneTimePaymentPreference({
+        title: `Flowp ${plan.name} - ${billingPeriod === "yearly" ? "Annual" : "Monthly"}`,
+        amount,
+        currency,
+        externalReference,
+        payerEmail,
+        backUrls: {
+          success: `${baseUrl}/subscription?mp_onetime=success&plan_id=${planId}&billing_period=${billingPeriod}&payer_email=${encodeURIComponent(payerEmail)}`,
+          failure: `${baseUrl}/subscription?mp_onetime=failure`,
+          pending: `${baseUrl}/subscription?mp_onetime=pending&plan_id=${planId}&billing_period=${billingPeriod}&payer_email=${encodeURIComponent(payerEmail)}`,
+        },
+        notificationUrl: `${baseUrl}/api/webhooks/mercadopago`,
+      });
+
+      res.json({
+        preferenceId: result.id,
+        initPoint: result.initPoint,
+        sandboxInitPoint: result.sandboxInitPoint,
+      });
+    } catch (error: any) {
+      console.error("MercadoPago one-time preference error:", error);
+      res.status(500).json({ message: "Failed to create payment preference", error: error.message });
+    }
+  });
+
+  app.post("/api/subscription/confirm-onetime-payment", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+
+      const { planId, billingPeriod, payerEmail, paymentId } = req.body;
+      if (!planId || !billingPeriod) {
+        return res.status(400).json({ message: "Plan ID and billing period are required" });
+      }
+
+      const plans = await storage.getActiveSubscriptionPlans();
+      const plan = plans.find((p) => p.id === planId);
+      if (!plan) return res.status(404).json({ message: "Plan not found" });
+
+      let verifiedStatus = "pending";
+      let verifiedAmount = 0;
+      let verifiedEmail = payerEmail || "";
+      let providerRef = `onetime_${Date.now()}`;
+
+      if (paymentId) {
+        try {
+          const mpPayment = await getPaymentStatus(paymentId);
+          const expectedRef = `onetime|${tenantId}|${planId}|${billingPeriod}`;
+          if (mpPayment.externalReference && mpPayment.externalReference !== expectedRef) {
+            return res.status(400).json({ message: "Payment reference mismatch" });
+          }
+          verifiedStatus = mpPayment.status === "approved" ? "completed" : "pending";
+          verifiedAmount = mpPayment.transactionAmount || 0;
+          verifiedEmail = mpPayment.payerEmail || payerEmail || "";
+          providerRef = String(mpPayment.id || paymentId);
+        } catch (verifyError) {
+          console.warn("Could not verify payment with MercadoPago, proceeding as pending:", verifyError);
+          verifiedStatus = "pending";
+        }
+      }
+
+      const subscription = await storage.createSubscription({
+        tenantId,
+        planId,
+        billingPeriod,
+        mpPreapprovalId: providerRef,
+        mpPayerEmail: verifiedEmail,
+        paymentGateway: "mercadopago_onetime",
+      });
+
+      const amount = billingPeriod === "yearly"
+        ? (plan.priceYearly || plan.priceMonthly)
+        : plan.priceMonthly;
+
+      await storage.createSaasPayment({
+        tenantId,
+        amount: amount,
+        method: "mercadopago_onetime",
+        providerRef,
+        status: verifiedStatus,
+      });
+
+      if (verifiedStatus === "completed") {
+        await storage.updateTenant(tenantId, {
+          status: "active",
+          subscriptionTier: plan.tier || "basic",
+        } as any);
+      }
+
+      res.status(201).json({ subscription, status: verifiedStatus === "completed" ? "success" : "pending" });
+    } catch (error: any) {
+      console.error("One-time payment confirmation error:", error);
+      res.status(500).json({ message: "Failed to confirm payment" });
+    }
+  });
+
   app.post("/api/subscription/subscribe", async (req: Request, res: Response) => {
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
@@ -5037,9 +5155,7 @@ export async function registerRoutes(
         const preapprovalId = data?.id;
         if (preapprovalId) {
           try {
-            
             const status = await getPreapprovalStatus(preapprovalId);
-            
             if (status.status === "authorized") {
               await storage.updateSubscriptionByMpId(preapprovalId, { status: "active" });
             } else if (status.status === "cancelled") {
@@ -5048,7 +5164,34 @@ export async function registerRoutes(
               await storage.updateSubscriptionByMpId(preapprovalId, { status: "past_due" });
             }
           } catch (e) {
-            console.error("Webhook processing error:", e);
+            console.error("Webhook preapproval processing error:", e);
+          }
+        }
+      }
+
+      if (type === "payment") {
+        const paymentIdStr = data?.id;
+        if (paymentIdStr) {
+          try {
+            const mpPayment = await getPaymentStatus(String(paymentIdStr));
+            const extRef = mpPayment.externalReference || "";
+            if (extRef.startsWith("onetime|")) {
+              const parts = extRef.split("|");
+              const tenantId = parts[1];
+              const planId = parts[2];
+              if (mpPayment.status === "approved" && tenantId && planId) {
+                const plans = await storage.getActiveSubscriptionPlans();
+                const plan = plans.find((p) => p.id === planId);
+                if (plan) {
+                  await storage.updateTenant(tenantId, {
+                    status: "active",
+                    subscriptionTier: plan.tier || "basic",
+                  } as any);
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Webhook payment processing error:", e);
           }
         }
       }
