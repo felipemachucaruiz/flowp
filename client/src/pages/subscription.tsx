@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
+import { useSubscription } from "@/lib/use-subscription";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,13 +17,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, Building2, Monitor, Users, CreditCard, Loader2, ShoppingBag, FileText, UtensilsCrossed, CookingPot, Warehouse } from "lucide-react";
+import { Check, Crown, Building2, Monitor, Users, CreditCard, Loader2, ShoppingBag, FileText, UtensilsCrossed, CookingPot, Warehouse, ArrowLeft } from "lucide-react";
+import { useLocation } from "wouter";
 import PayPalButton from "@/components/PayPalButton";
 import type { SubscriptionPlan } from "@shared/schema";
 
+const TIER_ORDER: Record<string, number> = { basic: 0, pro: 1, enterprise: 2 };
+
+const FEATURE_TRANSLATION_KEYS: Record<string, string> = {
+  user_management: "subscription.feature_user_management",
+  inventory_advanced: "subscription.feature_advanced_inventory",
+  reports_detailed: "subscription.feature_detailed_reports",
+  label_designer: "subscription.feature_label_designer",
+  multi_location: "subscription.feature_multi_location",
+  reports_management: "subscription.feature_management_reports",
+  ecommerce_integrations: "subscription.feature_ecommerce",
+  security_audit: "subscription.feature_security_audit",
+  kds_advanced: "subscription.feature_advanced_kds",
+  floor_management: "subscription.feature_floor_management",
+  modifiers_advanced: "subscription.feature_advanced_modifiers",
+  ingredients_recipes: "subscription.feature_ingredients_recipes",
+  tips_analytics: "subscription.feature_tips_analytics",
+};
+
 export default function SubscriptionPage() {
   const { t } = useI18n();
+  const [, navigate] = useLocation();
   const { tenant, refreshTenant } = useAuth();
+  const { tier: currentTier, businessType, isLoading: subLoading } = useSubscription();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
@@ -34,6 +56,12 @@ export default function SubscriptionPage() {
 
   const activePlans = plans.filter((p) => p.isActive);
 
+  const upgradePlans = activePlans.filter((p) => {
+    const planTierOrder = TIER_ORDER[p.tier || "basic"] ?? 0;
+    const currentTierOrder = TIER_ORDER[currentTier] ?? 0;
+    return planTierOrder > currentTierOrder;
+  });
+
   const subscribeMutation = useMutation({
     mutationFn: async (data: { planId: string; billingPeriod: string; paypalOrderId: string }) => {
       const res = await apiRequest("POST", "/api/subscription/subscribe", data);
@@ -41,13 +69,14 @@ export default function SubscriptionPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/subscription/current"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/subscription/my-plan"] });
       refreshTenant();
       setShowPaymentDialog(false);
       setSelectedPlan(null);
-      toast({ title: "Subscription activated successfully!" });
+      toast({ title: t("subscription.activated_success" as any) });
     },
     onError: () => {
-      toast({ title: "Failed to activate subscription", variant: "destructive" });
+      toast({ title: t("subscription.activated_error" as any), variant: "destructive" });
     },
   });
 
@@ -87,13 +116,27 @@ export default function SubscriptionPage() {
     }
   };
 
-  if (isLoading) {
+  const translateFeature = (featureId: string): string => {
+    const key = FEATURE_TRANSLATION_KEYS[featureId];
+    if (key) {
+      return t(key as any);
+    }
+    return featureId.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  const getTierLabel = (tier: string) => {
+    if (tier === "enterprise") return t("subscription.tier_enterprise" as any);
+    if (tier === "pro") return "Pro";
+    return "Starter";
+  };
+
+  if (isLoading || subLoading) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-muted rounded w-48" />
-          <div className="grid gap-4 md:grid-cols-3">
-            {[1, 2, 3].map((i) => (
+          <div className="grid gap-4 md:grid-cols-2">
+            {[1, 2].map((i) => (
               <div key={i} className="h-80 bg-muted rounded" />
             ))}
           </div>
@@ -103,67 +146,99 @@ export default function SubscriptionPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold" data-testid="text-subscription-title">
-          Choose Your Plan
+    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate("/pos")}
+        data-testid="button-back-to-pos"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        {t("common.back" as any)}
+      </Button>
+
+      <div className="text-center space-y-3">
+        <div className="flex items-center justify-center gap-2">
+          <Crown className="w-8 h-8 text-primary" />
+        </div>
+        <h1 className="text-2xl font-bold" data-testid="text-subscription-title">
+          {t("subscription.upgrade_title" as any)}
         </h1>
         <p className="text-muted-foreground">
-          Select the perfect plan for your business
+          {t("subscription.upgrade_description" as any)}
         </p>
       </div>
 
-      <div className="flex justify-center">
-        <div className="inline-flex items-center gap-4 p-1 bg-muted rounded-lg">
-          <Button
-            variant={billingPeriod === "monthly" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setBillingPeriod("monthly")}
-            data-testid="button-billing-monthly"
-          >
-            Monthly
-          </Button>
-          <Button
-            variant={billingPeriod === "yearly" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setBillingPeriod("yearly")}
-            data-testid="button-billing-yearly"
-          >
-            Yearly
-            {activePlans.some((p) => getDiscount(p) > 0) && (
-              <Badge variant="secondary" className="ml-2">Save up to {Math.max(...activePlans.map(getDiscount))}%</Badge>
-            )}
-          </Button>
-        </div>
-      </div>
+      <Card data-testid="card-current-plan">
+        <CardContent className="flex items-center gap-4 p-4">
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+            <CreditCard className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-muted-foreground">{t("subscription.current_plan" as any)}</p>
+            <p className="font-semibold text-lg">{getTierLabel(currentTier)}</p>
+          </div>
+          <Badge variant="secondary">{getTierLabel(currentTier)}</Badge>
+        </CardContent>
+      </Card>
 
-      {activePlans.length === 0 ? (
-        <Card>
+      {upgradePlans.length > 0 && (
+        <div className="flex justify-center">
+          <div className="inline-flex items-center gap-4 p-1 bg-muted rounded-lg">
+            <Button
+              variant={billingPeriod === "monthly" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setBillingPeriod("monthly")}
+              data-testid="button-billing-monthly"
+            >
+              {t("subscription.monthly" as any)}
+            </Button>
+            <Button
+              variant={billingPeriod === "yearly" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setBillingPeriod("yearly")}
+              data-testid="button-billing-yearly"
+            >
+              {t("subscription.yearly" as any)}
+              {upgradePlans.some((p) => getDiscount(p) > 0) && (
+                <Badge variant="secondary" className="ml-2">
+                  {t("subscription.save_up_to" as any)} {Math.max(...upgradePlans.map(getDiscount))}%
+                </Badge>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {upgradePlans.length === 0 ? (
+        <Card data-testid="card-max-plan">
           <CardContent className="flex flex-col items-center justify-center py-12">
-            <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Plans Available</h3>
+            <Crown className="h-12 w-12 text-primary mb-4" />
+            <h3 className="text-lg font-medium mb-2" data-testid="text-max-plan">
+              {t("subscription.already_max" as any)}
+            </h3>
             <p className="text-muted-foreground text-center">
-              Subscription plans are being configured. Please check back later.
+              {t("subscription.already_max_description" as any)}
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
-          {activePlans.map((plan, index) => {
+        <div className={`grid gap-6 ${upgradePlans.length === 1 ? "max-w-md mx-auto" : "md:grid-cols-2"}`}>
+          {upgradePlans.map((plan, index) => {
             const price = getPrice(plan);
             const monthlyEquivalent = getMonthlyEquivalent(plan);
             const discount = getDiscount(plan);
-            const isPopular = index === 1 && activePlans.length >= 3;
+            const isRecommended = index === 0;
 
             return (
               <Card
                 key={plan.id}
-                className={isPopular ? "border-primary shadow-lg relative" : ""}
-                data-testid={`card-plan-${plan.id}`}
+                className={isRecommended ? "border-primary relative" : ""}
+                data-testid={`card-plan-${plan.tier}`}
               >
-                {isPopular && (
+                {isRecommended && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <Badge>{t("subscription.most_popular")}</Badge>
+                    <Badge>{t("subscription.recommended" as any)}</Badge>
                   </div>
                 )}
                 <CardHeader className="text-center pb-2">
@@ -173,16 +248,16 @@ export default function SubscriptionPage() {
                       <span className="text-3xl font-bold text-foreground">
                         ${billingPeriod === "yearly" ? monthlyEquivalent.toFixed(2) : price.toFixed(2)}
                       </span>
-                      <span className="text-muted-foreground">/month</span>
+                      <span className="text-muted-foreground">/{t("subscription.per_month" as any)}</span>
                     </div>
                     {billingPeriod === "yearly" && (
                       <div className="text-sm mt-1">
                         <span className="text-muted-foreground">
-                          ${price.toFixed(2)} billed annually
+                          ${price.toFixed(2)} {t("subscription.billed_annually" as any)}
                         </span>
                         {discount > 0 && (
                           <Badge variant="secondary" className="ml-2">
-                            Save {discount}%
+                            {t("subscription.save" as any)} {discount}%
                           </Badge>
                         )}
                       </div>
@@ -194,55 +269,58 @@ export default function SubscriptionPage() {
                     <div className="flex flex-col items-center gap-1">
                       <Building2 className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">{plan.maxLocations}</span>
-                      <span className="text-xs text-muted-foreground">Locations</span>
+                      <span className="text-xs text-muted-foreground">{t("subscription.limit_locations" as any)}</span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <Monitor className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">{plan.maxRegisters}</span>
-                      <span className="text-xs text-muted-foreground">Registers</span>
+                      <span className="text-xs text-muted-foreground">{t("subscription.limit_registers" as any)}</span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <Users className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">{plan.maxUsers}</span>
-                      <span className="text-xs text-muted-foreground">Users</span>
+                      <span className="text-xs text-muted-foreground">{t("subscription.limit_users" as any)}</span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <Warehouse className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{(plan as any).maxWarehouses ?? 1}</span>
-                      <span className="text-xs text-muted-foreground">Warehouses</span>
+                      <span className="font-medium">{plan.maxWarehouses ?? 1}</span>
+                      <span className="text-xs text-muted-foreground">{t("subscription.limit_warehouses" as any)}</span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{(plan as any).maxProducts === -1 ? "\u221e" : ((plan as any).maxProducts ?? 100)}</span>
-                      <span className="text-xs text-muted-foreground">Products</span>
+                      <span className="font-medium">{plan.maxProducts === -1 ? "\u221e" : (plan.maxProducts ?? 100)}</span>
+                      <span className="text-xs text-muted-foreground">{t("subscription.limit_products" as any)}</span>
                     </div>
                     <div className="flex flex-col items-center gap-1">
                       <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{(plan as any).maxDianDocuments ?? 200}</span>
-                      <span className="text-xs text-muted-foreground">DIAN/mo</span>
+                      <span className="font-medium">{plan.maxDianDocuments ?? 200}</span>
+                      <span className="text-xs text-muted-foreground">DIAN/{t("subscription.per_month" as any)}</span>
                     </div>
-                    {((plan as any).maxTables > 0 || (plan as any).businessType === "restaurant") && (
+                    {(plan.maxTables != null && plan.maxTables > 0) && (
                       <div className="flex flex-col items-center gap-1">
                         <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{(plan as any).maxTables ?? 0}</span>
-                        <span className="text-xs text-muted-foreground">Tables</span>
+                        <span className="font-medium">{plan.maxTables}</span>
+                        <span className="text-xs text-muted-foreground">{t("subscription.limit_tables" as any)}</span>
                       </div>
                     )}
-                    {(plan as any).businessType === "restaurant" && (
+                    {plan.maxRecipes !== undefined && plan.maxRecipes !== 0 && (
                       <div className="flex flex-col items-center gap-1">
                         <CookingPot className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{(plan as any).maxRecipes === -1 ? "\u221e" : ((plan as any).maxRecipes ?? 0)}</span>
-                        <span className="text-xs text-muted-foreground">Recipes</span>
+                        <span className="font-medium">{plan.maxRecipes === -1 ? "\u221e" : plan.maxRecipes}</span>
+                        <span className="text-xs text-muted-foreground">{t("subscription.limit_recipes" as any)}</span>
                       </div>
                     )}
                   </div>
 
                   {plan.features && plan.features.length > 0 && (
                     <div className="space-y-2 pt-4 border-t">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        {t("subscription.included_features" as any)}
+                      </p>
                       {plan.features.map((feature, i) => (
                         <div key={i} className="flex items-center gap-2 text-sm">
-                          <Check className="h-4 w-4 text-green-500 shrink-0" />
-                          <span>{feature}</span>
+                          <Check className="h-4 w-4 text-primary shrink-0" />
+                          <span>{translateFeature(feature)}</span>
                         </div>
                       ))}
                     </div>
@@ -251,11 +329,11 @@ export default function SubscriptionPage() {
                 <CardFooter>
                   <Button
                     className="w-full"
-                    variant={isPopular ? "default" : "outline"}
+                    variant={isRecommended ? "default" : "outline"}
                     onClick={() => handleSelectPlan(plan)}
-                    data-testid={`button-select-plan-${plan.id}`}
+                    data-testid={`button-select-plan-${plan.tier}`}
                   >
-                    Select Plan
+                    {t("subscription.upgrade_to" as any)} {plan.name}
                   </Button>
                 </CardFooter>
               </Card>
@@ -271,9 +349,9 @@ export default function SubscriptionPage() {
             <DialogDescription>
               {selectedPlan && (
                 <>
-                  You're subscribing to <strong>{selectedPlan.name}</strong> for{" "}
+                  {t("subscription.subscribing_to" as any)} <strong>{selectedPlan.name}</strong> {t("subscription.for" as any)}{" "}
                   <strong>${getPrice(selectedPlan).toFixed(2)}</strong>{" "}
-                  {billingPeriod === "yearly" ? "per year" : "per month"}
+                  {billingPeriod === "yearly" ? t("subscription.per_year" as any) : t("subscription.per_month" as any)}
                 </>
               )}
             </DialogDescription>
@@ -294,10 +372,10 @@ export default function SubscriptionPage() {
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="yearly" id="yearly" />
                   <Label htmlFor="yearly">
-                    Yearly
+                    {t("subscription.yearly" as any)}
                     {selectedPlan && getDiscount(selectedPlan) > 0 && (
                       <Badge variant="secondary" className="ml-2">
-                        Save {getDiscount(selectedPlan)}%
+                        {t("subscription.save" as any)} {getDiscount(selectedPlan)}%
                       </Badge>
                     )}
                   </Label>
@@ -305,13 +383,13 @@ export default function SubscriptionPage() {
               </RadioGroup>
             </div>
 
-            <div className="border rounded-lg p-4 bg-muted/50">
-              <div className="flex justify-between items-center">
+            <div className="border rounded-md p-4 bg-muted/50">
+              <div className="flex flex-wrap justify-between items-center gap-2">
                 <span>{t("subscription.total")}</span>
                 <span className="text-xl font-bold">
                   ${selectedPlan ? getPrice(selectedPlan).toFixed(2) : "0.00"}{" "}
                   <span className="text-sm font-normal text-muted-foreground">
-                    {billingPeriod === "yearly" ? "/year" : "/month"}
+                    /{billingPeriod === "yearly" ? t("subscription.per_year" as any) : t("subscription.per_month" as any)}
                   </span>
                 </span>
               </div>
@@ -320,12 +398,12 @@ export default function SubscriptionPage() {
             {subscribeMutation.isPending ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-6 w-6 animate-spin" />
-                <span className="ml-2">Processing...</span>
+                <span className="ml-2">{t("subscription.processing" as any)}</span>
               </div>
             ) : (
               <div className="pt-4">
                 <p className="text-sm text-muted-foreground mb-4 text-center">
-                  Pay securely with PayPal
+                  {t("subscription.pay_with_paypal" as any)}
                 </p>
                 {selectedPlan && (
                   <PayPalButton
@@ -335,7 +413,7 @@ export default function SubscriptionPage() {
                     onSuccess={handlePaymentSuccess}
                     onError={(error) => {
                       console.error("Payment error:", error);
-                      toast({ title: "Payment failed", variant: "destructive" });
+                      toast({ title: t("subscription.payment_failed" as any), variant: "destructive" });
                     }}
                   />
                 )}
