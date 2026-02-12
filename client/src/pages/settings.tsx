@@ -1750,7 +1750,7 @@ function MyPlanTab() {
           </div>
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button variant="outline" onClick={() => navigate("/subscription")} data-testid="button-change-plan">
+            <Button variant="outline" onClick={() => navigate("/subscription?from=myplan")} data-testid="button-change-plan">
               <Crown className="w-4 h-4 mr-2" />
               {t("subscription.change_plan" as any)}
             </Button>
@@ -1790,7 +1790,7 @@ function MyPlanTab() {
             <Crown className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">{t("subscription.no_active_plan" as any)}</h3>
             <p className="text-muted-foreground text-center mb-4">{t("subscription.no_active_plan_desc" as any)}</p>
-            <Button onClick={() => navigate("/subscription")} data-testid="button-choose-plan">
+            <Button onClick={() => navigate("/subscription?from=myplan")} data-testid="button-choose-plan">
               {t("subscription.choose_plan" as any)}
             </Button>
           </CardContent>
@@ -2245,9 +2245,13 @@ export default function SettingsPage() {
   // Determine initial tab from URL path and query params
   const getInitialTab = () => {
     if (typeof window !== "undefined") {
-      // Check if on /settings/shopify route
       if (window.location.pathname === "/settings/shopify") {
         return "shopify";
+      }
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab === "myplan") {
+        return "myplan";
       }
     }
     return "business";

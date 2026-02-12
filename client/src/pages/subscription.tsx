@@ -65,6 +65,9 @@ export default function SubscriptionPage() {
   const [payerEmail, setPayerEmail] = useState("");
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  const fromParam = new URLSearchParams(searchString || "").get("from");
+  const backPath = fromParam === "myplan" ? "/settings?tab=myplan" : "/pos";
+
   const { data: plans = [], isLoading } = useQuery<SubscriptionPlan[]>({
     queryKey: ["/api/subscription/plans"],
   });
@@ -105,7 +108,7 @@ export default function SubscriptionPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/subscription/my-plan"] });
       refreshTenant();
       toast({ title: t("subscription.activated_success" as any) });
-      navigate("/pos");
+      navigate(backPath);
     },
     onError: () => {
       toast({ title: t("subscription.activated_error" as any), variant: "destructive" });
@@ -211,8 +214,8 @@ export default function SubscriptionPage() {
       <Button
         variant="ghost"
         size="sm"
-        onClick={() => navigate("/pos")}
-        data-testid="button-back-to-pos"
+        onClick={() => navigate(backPath)}
+        data-testid="button-back"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         {t("common.back" as any)}
