@@ -845,6 +845,10 @@ export const subscriptions = pgTable("subscriptions", {
   mpPreapprovalId: text("mp_preapproval_id"),
   mpPayerEmail: text("mp_payer_email"),
   paymentGateway: text("payment_gateway").default("mercadopago"),
+  isComped: boolean("is_comped").default(false),
+  compedBy: text("comped_by"),
+  compedAt: timestamp("comped_at"),
+  compedReason: text("comped_reason"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
