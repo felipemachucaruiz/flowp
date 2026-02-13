@@ -49,6 +49,9 @@ import {
   XCircle,
   Clock,
   AlertTriangle,
+  Info,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 interface WhatsappTemplate {
@@ -144,6 +147,7 @@ export function WhatsAppTemplateManager() {
   const [formBody, setFormBody] = useState("");
   const [formFooter, setFormFooter] = useState("");
   const [formVariables, setFormVariables] = useState<Record<string, string>>({});
+  const [showVarReference, setShowVarReference] = useState(false);
 
   const [triggerEvent, setTriggerEvent] = useState("");
   const [triggerTemplateId, setTriggerTemplateId] = useState("");
@@ -671,6 +675,38 @@ export function WhatsAppTemplateManager() {
               <p className="text-xs text-muted-foreground">
                 {t("whatsapp.body_hint" as any) || "Usa {{1}}, {{2}}, {{3}} para variables dinámicas"}
               </p>
+              <button
+                type="button"
+                onClick={() => setShowVarReference(!showVarReference)}
+                className="flex items-center gap-1 text-xs text-primary hover-elevate rounded px-1.5 py-0.5 mt-1"
+                data-testid="button-toggle-var-reference"
+              >
+                <Info className="w-3 h-3" />
+                {t("whatsapp.var_reference_title" as any) || "Variable reference per event"}
+                {showVarReference ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+              {showVarReference && (
+                <div className="mt-2 p-3 rounded-md bg-muted/50 space-y-3 text-xs">
+                  {TRIGGER_EVENTS.map((ev) => {
+                    const vars = EVENT_VARIABLES[ev.value] || [];
+                    return (
+                      <div key={ev.value}>
+                        <p className="font-medium mb-1">{t(ev.labelKey) || ev.defaultLabel}</p>
+                        <div className="flex flex-wrap gap-1">
+                          {vars.map((v, idx) => (
+                            <Badge key={v.key} variant="secondary" className="text-xs font-mono">
+                              {`{{${idx + 1}}}`} = {t(v.labelKey as any) || v.key}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-muted-foreground italic">
+                    {t("whatsapp.var_reference_note" as any) || "The variable number ({{1}}, {{2}}, etc.) maps to each event's fields in order when you assign the template to a trigger."}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">

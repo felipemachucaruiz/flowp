@@ -422,6 +422,8 @@ const translations = {
     "whatsapp.var_total_sales": "Total sales",
     "whatsapp.var_order_count": "Order count",
     "whatsapp.var_top_product": "Top selling product",
+    "whatsapp.var_reference_title": "Variable reference per event",
+    "whatsapp.var_reference_note": "The variable number ({{1}}, {{2}}, etc.) maps to each event's fields in order when you assign the template to a trigger.",
     "whatsapp.available_variables": "Available variables for this event:",
     "whatsapp.already_mapped": "already mapped",
 
@@ -2824,6 +2826,8 @@ const translations = {
     "whatsapp.var_total_sales": "Total ventas",
     "whatsapp.var_order_count": "Número de órdenes",
     "whatsapp.var_top_product": "Producto más vendido",
+    "whatsapp.var_reference_title": "Referencia de variables por evento",
+    "whatsapp.var_reference_note": "El número de variable ({{1}}, {{2}}, etc.) se asigna a los campos de cada evento en orden al vincular la plantilla a un disparador.",
     "whatsapp.available_variables": "Variables disponibles para este evento:",
     "whatsapp.already_mapped": "ya asignado",
 
@@ -5162,6 +5166,8 @@ const translations = {
     "whatsapp.var_total_sales": "Total de vendas",
     "whatsapp.var_order_count": "Número de pedidos",
     "whatsapp.var_top_product": "Produto mais vendido",
+    "whatsapp.var_reference_title": "Referência de variáveis por evento",
+    "whatsapp.var_reference_note": "O número da variável ({{1}}, {{2}}, etc.) é mapeado para os campos de cada evento em ordem ao vincular o modelo a um gatilho.",
     "whatsapp.available_variables": "Variáveis disponíveis para este evento:",
     "whatsapp.already_mapped": "já atribuído",
 
