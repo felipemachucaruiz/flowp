@@ -33,6 +33,22 @@ import { shopifyRouter } from "./integrations/shopify/routes";
 import { whatsappRouter } from "./integrations/gupshup/routes";
 import { sendReceiptNotification, sendLowStockNotification } from "./integrations/gupshup/service";
 import { internalAdminRouter } from "./routes/internalAdmin";
+
+function getCurrencySymbol(currency: string | null | undefined): string {
+  const map: Record<string, string> = {
+    USD: "$", EUR: "€", COP: "$", MXN: "$", BRL: "R$",
+    ARS: "$", PEN: "S/", CLP: "$", GBP: "£",
+  };
+  return map[currency || "USD"] || "$";
+}
+
+function makeAbsoluteUrl(path: string | null | undefined): string | undefined {
+  if (!path) return undefined;
+  if (path.startsWith("http")) return path;
+  if (path.startsWith("data:")) return path;
+  const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "flowp.replit.app"}`;
+  return `${appUrl}${path.startsWith("/") ? "" : "/"}${path}`;
+}
 import { generateInternalToken } from "./middleware/internalAuth";
 import { generateReceiptPDF } from "./pdf-receipt";
 
@@ -477,7 +493,7 @@ export async function registerRoutes(
       let displayLanguage = "en";
       if (user.tenantId) {
         const tenant = await storage.getTenant(user.tenantId);
-        displayLanguage = tenant?.displayLanguage || "en";
+        displayLanguage = tenant?.language || "en";
       }
 
       // Send email (non-blocking)
@@ -2046,7 +2062,7 @@ export async function registerRoutes(
             fullPhone,
             updatedTab?.orderNumber || id.slice(0, 8),
             tab.total,
-            tenant?.companyName || "Flowp",
+            tenant?.name || "Flowp",
             tenant?.currency || "COP",
             pointsEarned,
             receiptPdfUrl
@@ -2217,9 +2233,9 @@ export async function registerRoutes(
                   product.name,
                   currentStock,
                   tenantId,
-                  tenant?.displayLanguage || 'en',
+                  tenant?.language || 'en',
                   {
-                    companyName: tenant?.companyName || undefined,
+                    companyName: tenant?.name || undefined,
                     minStock: product.lowStockThreshold,
                     sku: product.sku || undefined,
                   }
@@ -2315,36 +2331,36 @@ export async function registerRoutes(
             const emailItems = items.map((item: any) => ({
               name: item.product.name || 'Product',
               quantity: item.quantity,
-              price: `${tenant?.currencySymbol || '$'}${parseFloat(item.product.price).toFixed(2)}`,
-              imageUrl: item.product.image || undefined,
+              price: `${getCurrencySymbol(tenant?.currency)}${parseFloat(item.product.price).toFixed(2)}`,
+              imageUrl: makeAbsoluteUrl(item.product.image) || undefined,
             }));
             
             // Send order confirmation email (async, don't wait)
             emailService.sendOrderConfirmation(
               customer.email,
               order.orderNumber.toString(),
-              `${tenant?.currencySymbol || '$'}${parseFloat(order.total).toFixed(2)}`,
+              `${getCurrencySymbol(tenant?.currency)}${parseFloat(order.total).toFixed(2)}`,
               emailItems,
               tenantId,
-              tenant?.displayLanguage || 'en',
+              tenant?.language || 'en',
               {
-                companyName: tenant?.companyName || 'Flowp POS',
-                companyLogo: tenant?.companyLogo || undefined,
+                companyName: tenant?.name || 'Flowp POS',
+                companyLogo: makeAbsoluteUrl(tenant?.logo) || undefined,
               }
             ).catch(err => console.error('Failed to send order confirmation email:', err));
 
             // Send payment received email (async, don't wait)
             emailService.sendPaymentReceivedEmail(
               customer.email,
-              `${tenant?.currencySymbol || '$'}${parseFloat(order.total).toFixed(2)}`,
+              `${getCurrencySymbol(tenant?.currency)}${parseFloat(order.total).toFixed(2)}`,
               paymentMethod,
               tenantId,
-              tenant?.displayLanguage || 'en',
+              tenant?.language || 'en',
               {
-                companyName: tenant?.companyName || 'Flowp POS',
-                companyLogo: tenant?.companyLogo || undefined,
+                companyName: tenant?.name || 'Flowp POS',
+                companyLogo: makeAbsoluteUrl(tenant?.logo) || undefined,
                 transactionId: order.orderNumber,
-                date: new Date().toLocaleDateString(tenant?.displayLanguage || 'en', { year: 'numeric', month: 'long', day: 'numeric' }),
+                date: new Date().toLocaleDateString(tenant?.language || 'en', { year: 'numeric', month: 'long', day: 'numeric' }),
               }
             ).catch(err => console.error('Failed to send payment received email:', err));
           }
@@ -2360,7 +2376,7 @@ export async function registerRoutes(
               fullPhone,
               order.orderNumber.toString(),
               order.total,
-              tenantForWa?.companyName || "Flowp",
+              tenantForWa?.name || "Flowp",
               tenantForWa?.currency || "COP",
               pointsEarned,
               receiptPdfUrl
@@ -2387,9 +2403,9 @@ export async function registerRoutes(
             cashierName: undefined,
           },
           tenantId,
-          tenant?.displayLanguage || 'en',
+          tenant?.language || 'en',
           {
-            companyName: tenant?.companyName || undefined,
+            companyName: tenant?.name || undefined,
             currency: tenant?.currency || 'USD',
           }
         ).catch(err => console.error('Failed to send new sale notification:', err));
@@ -2469,7 +2485,7 @@ export async function registerRoutes(
         return {
           name: product?.name || 'Product',
           quantity: item.quantity,
-          price: `${tenant?.currency || '$'}${parseFloat(item.unitPrice).toFixed(2)}`,
+          price: `${getCurrencySymbol(tenant?.currency)}${parseFloat(item.unitPrice).toFixed(2)}`,
         };
       }));
 
@@ -2482,15 +2498,15 @@ export async function registerRoutes(
           date: orderDate.toLocaleDateString(),
           cashier: undefined,
           items: itemsWithNames,
-          subtotal: `${tenant?.currency || '$'}${parseFloat(order.subtotal).toFixed(2)}`,
-          tax: `${tenant?.currency || '$'}${parseFloat(order.taxAmount).toFixed(2)}`,
-          total: `${tenant?.currency || '$'}${parseFloat(order.total).toFixed(2)}`,
+          subtotal: `${getCurrencySymbol(tenant?.currency)}${parseFloat(order.subtotal).toFixed(2)}`,
+          tax: `${getCurrencySymbol(tenant?.currency)}${parseFloat(order.taxAmount).toFixed(2)}`,
+          total: `${getCurrencySymbol(tenant?.currency)}${parseFloat(order.total).toFixed(2)}`,
           paymentMethod: paymentMethod,
-          companyName: tenant?.companyName || 'Flowp POS',
-          companyLogo: tenant?.companyLogo || undefined,
+          companyName: tenant?.name || 'Flowp POS',
+          companyLogo: makeAbsoluteUrl(tenant?.logo) || undefined,
         },
         tenantId,
-        tenant?.displayLanguage || 'en'
+        tenant?.language || 'en'
       );
 
       if (sent) {
@@ -2521,8 +2537,8 @@ export async function registerRoutes(
       const tenant = await storage.getTenant(tokenData.tenantId);
       const items = await storage.getOrderItems(tokenData.orderId);
       const payments = await storage.getPaymentsByOrder(tokenData.orderId);
-      const currencySymbol = tenant?.currencySymbol || "$";
-      const lang = tenant?.displayLanguage || "es";
+      const currencySymbol = getCurrencySymbol(tenant?.currency);
+      const lang = tenant?.language || "es";
 
       const itemsForPdf = await Promise.all(items.map(async (item) => {
         const product = await storage.getProduct(item.productId);
@@ -2544,7 +2560,7 @@ export async function registerRoutes(
         tax: `${currencySymbol}${parseFloat(order.taxAmount).toFixed(0)}`,
         total: `${currencySymbol}${parseFloat(order.total).toFixed(0)}`,
         paymentMethod: payments[0]?.method || "cash",
-        companyName: tenant?.companyName || "Flowp POS",
+        companyName: tenant?.name || "Flowp POS",
         companyAddress: tenant?.address || undefined,
         companyPhone: tenant?.phone || undefined,
         currency: tenant?.currency || "COP",
