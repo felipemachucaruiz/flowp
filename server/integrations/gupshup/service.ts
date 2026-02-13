@@ -350,6 +350,7 @@ export async function sendSessionMessage(
 
   try {
     const client = createGupshupClient(globalCreds.apiKey);
+    console.log(`[whatsapp] Sending text to ${destinationPhone} from ${globalCreds.senderPhone} (app: ${globalCreds.appName})`);
     const data = await client.message.send({
       channel: "whatsapp",
       source: globalCreds.senderPhone,
@@ -362,6 +363,8 @@ export async function sendSessionMessage(
       },
     });
 
+    console.log(`[whatsapp] Gupshup response:`, JSON.stringify(data));
+
     if (data && (data.status === "submitted" || data.messageId)) {
       await deductMessage(tenantId);
       await db.update(whatsappMessageLogs)
@@ -370,6 +373,7 @@ export async function sendSessionMessage(
       return { success: true, messageId: data.messageId };
     } else {
       const errorMsg = data?.message || JSON.stringify(data);
+      console.error(`[whatsapp] Send failed:`, errorMsg);
       await db.update(whatsappMessageLogs)
         .set({ status: "failed", errorMessage: errorMsg, updatedAt: new Date() })
         .where(eq(whatsappMessageLogs.id, logEntry.id));
@@ -377,6 +381,7 @@ export async function sendSessionMessage(
     }
   } catch (error: any) {
     const errMsg = extractErrorMessage(error);
+    console.error(`[whatsapp] Send exception:`, errMsg);
     await db.update(whatsappMessageLogs)
       .set({ status: "failed", errorMessage: errMsg, updatedAt: new Date() })
       .where(eq(whatsappMessageLogs.id, logEntry.id));
@@ -483,6 +488,7 @@ export async function sendDocumentMessage(
 
   try {
     const client = createGupshupClient(globalCreds.apiKey);
+    console.log(`[whatsapp] Sending document to ${destinationPhone}: ${documentUrl}`);
     const data = await client.message.send({
       channel: "whatsapp",
       source: globalCreds.senderPhone,
@@ -496,6 +502,8 @@ export async function sendDocumentMessage(
       },
     });
 
+    console.log(`[whatsapp] Gupshup doc response:`, JSON.stringify(data));
+
     if (data && (data.status === "submitted" || data.messageId)) {
       await deductMessage(tenantId);
       await db.update(whatsappMessageLogs)
@@ -504,6 +512,7 @@ export async function sendDocumentMessage(
       return { success: true, messageId: data.messageId };
     } else {
       const errorMsg = data?.message || JSON.stringify(data);
+      console.error(`[whatsapp] Doc send failed:`, errorMsg);
       await db.update(whatsappMessageLogs)
         .set({ status: "failed", errorMessage: errorMsg, updatedAt: new Date() })
         .where(eq(whatsappMessageLogs.id, logEntry.id));
@@ -511,6 +520,7 @@ export async function sendDocumentMessage(
     }
   } catch (error: any) {
     const errMsg = extractErrorMessage(error);
+    console.error(`[whatsapp] Doc send exception:`, errMsg);
     await db.update(whatsappMessageLogs)
       .set({ status: "failed", errorMessage: errMsg, updatedAt: new Date() })
       .where(eq(whatsappMessageLogs.id, logEntry.id));
@@ -552,7 +562,7 @@ export async function sendReceiptNotification(
     message += `\n\nGracias por su compra.`;
 
     if (receiptPdfUrl) {
-      await sendDocumentMessage(
+      const docResult = await sendDocumentMessage(
         tenantId,
         customerPhone,
         receiptPdfUrl,
@@ -560,8 +570,18 @@ export async function sendReceiptNotification(
         message,
         "receipt"
       );
+      if (!docResult.success) {
+        console.warn(`[whatsapp] Document send failed for tenant ${tenantId}, falling back to text: ${docResult.error}`);
+        const textResult = await sendSessionMessage(tenantId, customerPhone, message, "receipt");
+        if (!textResult.success) {
+          console.error(`[whatsapp] Text fallback also failed for tenant ${tenantId}: ${textResult.error}`);
+        }
+      }
     } else {
-      await sendSessionMessage(tenantId, customerPhone, message, "receipt");
+      const result = await sendSessionMessage(tenantId, customerPhone, message, "receipt");
+      if (!result.success) {
+        console.error(`[whatsapp] Session message failed for tenant ${tenantId}: ${result.error}`);
+      }
     }
   } catch (err) {
     console.error(`[whatsapp] Failed to send receipt notification for tenant ${tenantId}:`, err);
