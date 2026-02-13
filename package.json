@@ -80,6 +80,7 @@
     "express-session": "^1.18.1",
     "framer-motion": "^11.13.1",
     "google-auth-library": "^10.5.0",
+    "gupshup-whatsapp-api": "^1.0.2",
     "idb": "^8.0.3",
     "input-otp": "^1.4.2",
     "jsbarcode": "^3.12.3",

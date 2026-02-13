@@ -3,7 +3,7 @@ import { internalAuth, requireRole, verifyInternalUser, createInternalUser } fro
 import * as ebillingService from "../services/internal-admin/ebillingService";
 import * as documentOpsService from "../services/internal-admin/documentOpsService";
 import * as integrationService from "../services/internal-admin/integrationService";
-import { encrypt as gupshupEncrypt, decrypt as gupshupDecrypt } from "../integrations/gupshup/service";
+import { encrypt as gupshupEncrypt, decrypt as gupshupDecrypt, createGupshupClient } from "../integrations/gupshup/service";
 import { encrypt as shopifyEncrypt, decrypt as shopifyDecrypt } from "../integrations/shopify/shopifyClient";
 import { db } from "../db";
 import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans, whatsappPackages, tenantWhatsappSubscriptions, whatsappMessageLogs, tenantWhatsappIntegrations } from "@shared/schema";
@@ -1226,31 +1226,44 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
     }
 
     const apiKey = gupshupDecrypt(apiKeyConfig.encryptedValue).trim();
-    
+
     const appNameConfig = await db.query.platformConfig.findFirst({
       where: eq(platformConfig.key, "gupshup_app_name"),
     });
     const appName = (appNameConfig?.value || "").trim();
 
-    const response = await fetch(`https://api.gupshup.io/wa/app/${encodeURIComponent(appName)}`, {
-      headers: { "apikey": apiKey },
+    const senderPhoneConfig = await db.query.platformConfig.findFirst({
+      where: eq(platformConfig.key, "gupshup_sender_phone"),
     });
-    const text = await response.text();
-    let data: any = {};
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      data = { message: text || `HTTP ${response.status}` };
+    const senderPhone = (senderPhoneConfig?.value || "").trim();
+
+    const client = createGupshupClient(apiKey);
+    const data = await client.message.send({
+      channel: "whatsapp",
+      source: senderPhone,
+      destination: senderPhone,
+      "src.name": appName,
+      message: {
+        isHSM: "false",
+        type: "text",
+        text: "Flowp connection test - OK",
+      },
+    });
+
+    if (data && (data.status === "submitted" || data.messageId)) {
+      return res.json({ success: true, appName });
     }
-    if (response.ok) {
-      return res.json({ success: true, appName: data?.app?.name || appName });
-    }
-    if (response.status === 401 || response.status === 403) {
+    const errorMsg = data?.message || JSON.stringify(data);
+    if (errorMsg.toLowerCase().includes("authentication") || errorMsg.toLowerCase().includes("unauthorized")) {
       return res.json({ success: false, error: "Invalid API key - authentication failed. Verify your key and app name in the Gupshup dashboard." });
     }
-    return res.json({ success: false, error: data.message || `HTTP ${response.status}: ${text.substring(0, 200)}` });
+    return res.json({ success: false, error: errorMsg });
   } catch (error: any) {
-    res.json({ success: false, error: error.message });
+    const msg = error.message || String(error);
+    if (msg.toLowerCase().includes("authentication") || msg.toLowerCase().includes("401")) {
+      return res.json({ success: false, error: "Invalid API key - authentication failed. Verify your key and app name in the Gupshup dashboard." });
+    }
+    res.json({ success: false, error: msg });
   }
 });
 

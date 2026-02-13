@@ -1,4 +1,7 @@
 import crypto from "crypto";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const Gupshup = require("gupshup-whatsapp-api");
 import { db } from "../../db";
 import {
   tenantWhatsappIntegrations,
@@ -12,9 +15,6 @@ import {
   PAID_ADDONS,
 } from "@shared/schema";
 import { eq, and, or, desc, sql, inArray } from "drizzle-orm";
-
-const GUPSHUP_TEMPLATE_URL = "https://api.gupshup.io/sm/api/v1/template/msg";
-const GUPSHUP_SESSION_URL = "https://api.gupshup.io/sm/api/v1/msg";
 
 function getEncryptionKey(): string {
   const key = process.env.WHATSAPP_ENCRYPTION_KEY || process.env.SESSION_SECRET;
@@ -109,6 +109,10 @@ export async function getGlobalGupshupCredentials(): Promise<{
   }
 }
 
+export function createGupshupClient(apiKey: string) {
+  return new Gupshup({ apiKey });
+}
+
 export async function getActiveSubscription(tenantId: string) {
   return db.query.tenantWhatsappSubscriptions.findFirst({
     where: and(
@@ -183,24 +187,20 @@ export async function sendTemplateMessage(
   }).returning();
 
   try {
-    const body = new URLSearchParams({
+    const client = createGupshupClient(globalCreds.apiKey);
+    const data = await client.message.send({
+      channel: "whatsapp",
       source: globalCreds.senderPhone,
       destination: destinationPhone,
-      template: JSON.stringify({ id: templateId, params: templateParams }),
-    });
-
-    const response = await fetch(GUPSHUP_TEMPLATE_URL, {
-      method: "POST",
-      headers: {
-        "apikey": globalCreds.apiKey,
-        "Content-Type": "application/x-www-form-urlencoded",
+      "src.name": globalCreds.appName,
+      message: {
+        isHSM: "true",
+        type: "text",
+        text: JSON.stringify({ id: templateId, params: templateParams }),
       },
-      body: body.toString(),
     });
 
-    const data = await response.json();
-
-    if (response.ok && data.status === "submitted") {
+    if (data && (data.status === "submitted" || data.messageId)) {
       await deductMessage(tenantId);
       await db.update(whatsappMessageLogs)
         .set({ status: "sent", providerMessageId: data.messageId, updatedAt: new Date() })
@@ -210,7 +210,7 @@ export async function sendTemplateMessage(
         .where(eq(tenantWhatsappIntegrations.tenantId, tenantId));
       return { success: true, messageId: data.messageId };
     } else {
-      const errorMsg = data.message || JSON.stringify(data);
+      const errorMsg = data?.message || JSON.stringify(data);
       await db.update(whatsappMessageLogs)
         .set({ status: "failed", errorMessage: errorMsg, updatedAt: new Date() })
         .where(eq(whatsappMessageLogs.id, logEntry.id));
@@ -262,33 +262,27 @@ export async function sendSessionMessage(
   }).returning();
 
   try {
-    const body = new URLSearchParams({
+    const client = createGupshupClient(globalCreds.apiKey);
+    const data = await client.message.send({
       channel: "whatsapp",
       source: globalCreds.senderPhone,
       destination: destinationPhone,
       "src.name": globalCreds.appName,
-      message: JSON.stringify({ type: "text", text: messageText }),
-    });
-
-    const response = await fetch(GUPSHUP_SESSION_URL, {
-      method: "POST",
-      headers: {
-        "apikey": globalCreds.apiKey,
-        "Content-Type": "application/x-www-form-urlencoded",
+      message: {
+        isHSM: "false",
+        type: "text",
+        text: messageText,
       },
-      body: body.toString(),
     });
 
-    const data = await response.json();
-
-    if (response.ok && data.status === "submitted") {
+    if (data && (data.status === "submitted" || data.messageId)) {
       await deductMessage(tenantId);
       await db.update(whatsappMessageLogs)
         .set({ status: "sent", providerMessageId: data.messageId, updatedAt: new Date() })
         .where(eq(whatsappMessageLogs.id, logEntry.id));
       return { success: true, messageId: data.messageId };
     } else {
-      const errorMsg = data.message || JSON.stringify(data);
+      const errorMsg = data?.message || JSON.stringify(data);
       await db.update(whatsappMessageLogs)
         .set({ status: "failed", errorMessage: errorMsg, updatedAt: new Date() })
         .where(eq(whatsappMessageLogs.id, logEntry.id));
@@ -309,14 +303,22 @@ export async function testConnection(tenantId: string): Promise<{ success: boole
   }
 
   try {
-    const response = await fetch("https://api.gupshup.io/sm/api/v1/wallet/balance", {
-      headers: { "apikey": globalCreds.apiKey },
+    const client = createGupshupClient(globalCreds.apiKey);
+    const data = await client.message.send({
+      channel: "whatsapp",
+      source: globalCreds.senderPhone,
+      destination: globalCreds.senderPhone,
+      "src.name": globalCreds.appName,
+      message: {
+        isHSM: "false",
+        type: "text",
+        text: "Flowp connection test",
+      },
     });
-    const data = await response.json();
-    if (response.ok) {
+    if (data && (data.status === "submitted" || data.messageId)) {
       return { success: true };
     }
-    return { success: false, error: data.message || "Connection test failed" };
+    return { success: false, error: data?.message || "Connection test failed" };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -392,38 +394,28 @@ export async function sendDocumentMessage(
   }).returning();
 
   try {
-    const body = new URLSearchParams({
+    const client = createGupshupClient(globalCreds.apiKey);
+    const data = await client.message.send({
       channel: "whatsapp",
       source: globalCreds.senderPhone,
       destination: destinationPhone,
       "src.name": globalCreds.appName,
-      message: JSON.stringify({
+      message: {
         type: "file",
         url: documentUrl,
         filename: filename,
         caption: caption,
-      }),
-    });
-
-    const response = await fetch(GUPSHUP_SESSION_URL, {
-      method: "POST",
-      headers: {
-        "apikey": globalCreds.apiKey,
-        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: body.toString(),
     });
 
-    const data = await response.json();
-
-    if (response.ok && data.status === "submitted") {
+    if (data && (data.status === "submitted" || data.messageId)) {
       await deductMessage(tenantId);
       await db.update(whatsappMessageLogs)
         .set({ status: "sent", providerMessageId: data.messageId, updatedAt: new Date() })
         .where(eq(whatsappMessageLogs.id, logEntry.id));
       return { success: true, messageId: data.messageId };
     } else {
-      const errorMsg = data.message || JSON.stringify(data);
+      const errorMsg = data?.message || JSON.stringify(data);
       await db.update(whatsappMessageLogs)
         .set({ status: "failed", errorMessage: errorMsg, updatedAt: new Date() })
         .where(eq(whatsappMessageLogs.id, logEntry.id));
