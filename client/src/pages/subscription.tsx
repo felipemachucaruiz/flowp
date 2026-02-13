@@ -57,7 +57,7 @@ export default function SubscriptionPage() {
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const { tenant, refreshTenant } = useAuth();
-  const { tier: currentTier, businessType, isLoading: subLoading, trial } = useSubscription();
+  const { tier: currentTier, businessType, isLoading: subLoading, trial, status: tenantStatus } = useSubscription();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
@@ -382,6 +382,7 @@ export default function SubscriptionPage() {
             const discount = getDiscount(plan);
             const isCurrentPlan = (plan.tier || "basic") === currentTier;
             const isTrialing = trial?.isTrialing === true;
+            const isSuspended = tenantStatus === "suspended";
             const isUpgrade = (TIER_ORDER[plan.tier || "basic"] ?? 0) > (TIER_ORDER[currentTier] ?? 0);
 
             return (
@@ -483,12 +484,12 @@ export default function SubscriptionPage() {
                 <CardFooter>
                   <Button
                     className="w-full"
-                    variant={isCurrentPlan && !isTrialing ? "secondary" : isCurrentPlan && isTrialing ? "default" : isUpgrade ? "default" : "outline"}
+                    variant={isCurrentPlan && !isTrialing && !isSuspended ? "secondary" : isCurrentPlan && (isTrialing || isSuspended) ? "default" : isUpgrade ? "default" : "outline"}
                     onClick={() => handleSelectPlan(plan)}
-                    disabled={isCurrentPlan && !isTrialing}
+                    disabled={isCurrentPlan && !isTrialing && !isSuspended}
                     data-testid={`button-select-plan-${plan.tier}`}
                   >
-                    {isCurrentPlan && isTrialing
+                    {isCurrentPlan && (isTrialing || isSuspended)
                       ? t("subscription.subscribe_now" as any)
                       : isCurrentPlan
                         ? t("subscription.current_plan" as any)
