@@ -509,7 +509,7 @@ export default function SubscriptionPage() {
                     {isCurrentPlan && (isTrialing || isSuspended)
                       ? t("subscription.subscribe_now" as any)
                       : isCurrentPlan
-                        ? t("subscription.current_plan" as any)
+                        ? t("subscription.you_have_this_plan" as any)
                         : isUpgrade
                           ? `${t("subscription.upgrade_to" as any)} ${plan.name}`
                           : `${t("subscription.select_plan" as any)}`}
