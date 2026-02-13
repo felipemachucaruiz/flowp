@@ -425,14 +425,23 @@ internalAdminRouter.post("/tenants/:tenantId/suspend", requireRole(["superadmin"
       })
       .where(eq(tenants.id, tenantId));
 
-    await db.insert(internalAuditLogs).values({
-      actorInternalUserId: req.internalUser!.id,
-      actionType: "TENANT_SUSPEND",
-      tenantId,
-      entityType: "tenant",
-      entityId: tenantId,
-      metadata: { reason },
-    });
+    try {
+      const internalUserExists = await db.query.internalUsers.findFirst({
+        where: eq(internalUsers.id, req.internalUser!.id),
+      });
+      if (internalUserExists) {
+        await db.insert(internalAuditLogs).values({
+          actorInternalUserId: req.internalUser!.id,
+          actionType: "TENANT_SUSPEND",
+          tenantId,
+          entityType: "tenant",
+          entityId: tenantId,
+          metadata: { reason },
+        });
+      }
+    } catch (auditErr) {
+      console.warn("[suspend] Audit log failed:", auditErr);
+    }
 
     res.json({ success: true });
   } catch (error: any) {
@@ -453,14 +462,23 @@ internalAdminRouter.post("/tenants/:tenantId/unsuspend", requireRole(["superadmi
       })
       .where(eq(tenants.id, tenantId));
 
-    await db.insert(internalAuditLogs).values({
-      actorInternalUserId: req.internalUser!.id,
-      actionType: "TENANT_UNSUSPEND",
-      tenantId,
-      entityType: "tenant",
-      entityId: tenantId,
-      metadata: {},
-    });
+    try {
+      const internalUserExists = await db.query.internalUsers.findFirst({
+        where: eq(internalUsers.id, req.internalUser!.id),
+      });
+      if (internalUserExists) {
+        await db.insert(internalAuditLogs).values({
+          actorInternalUserId: req.internalUser!.id,
+          actionType: "TENANT_UNSUSPEND",
+          tenantId,
+          entityType: "tenant",
+          entityId: tenantId,
+          metadata: {},
+        });
+      }
+    } catch (auditErr) {
+      console.warn("[unsuspend] Audit log failed:", auditErr);
+    }
 
     res.json({ success: true });
   } catch (error: any) {
@@ -492,16 +510,24 @@ internalAdminRouter.patch("/tenants/:tenantId", requireRole(["superadmin"]), asy
       await db.update(tenants).set(updateData).where(eq(tenants.id, tenantId));
     }
 
-    // Log audit only if we have a valid user ID
     if (req.internalUser?.id) {
-      await db.insert(internalAuditLogs).values({
-        actorInternalUserId: req.internalUser.id,
-        actionType: "TENANT_UPDATE",
-        tenantId,
-        entityType: "tenant",
-        entityId: tenantId,
-        metadata: updateData,
-      });
+      try {
+        const internalUserExists = await db.query.internalUsers.findFirst({
+          where: eq(internalUsers.id, req.internalUser.id),
+        });
+        if (internalUserExists) {
+          await db.insert(internalAuditLogs).values({
+            actorInternalUserId: req.internalUser.id,
+            actionType: "TENANT_UPDATE",
+            tenantId,
+            entityType: "tenant",
+            entityId: tenantId,
+            metadata: updateData,
+          });
+        }
+      } catch (auditErr) {
+        console.warn("[PATCH /tenants/:tenantId] Audit log failed:", auditErr);
+      }
     }
 
     res.json({ success: true });
@@ -542,14 +568,23 @@ internalAdminRouter.post("/tenants/:tenantId/users/:userId/reset-password", requ
       and(eq(users.id, userId), eq(users.tenantId, tenantId))
     );
 
-    await db.insert(internalAuditLogs).values({
-      actorInternalUserId: req.internalUser!.id,
-      actionType: "TENANT_UPDATE" as const,
-      tenantId,
-      entityType: "user",
-      entityId: userId,
-      metadata: { action: "password_reset" },
-    });
+    try {
+      const internalUserExists = await db.query.internalUsers.findFirst({
+        where: eq(internalUsers.id, req.internalUser!.id),
+      });
+      if (internalUserExists) {
+        await db.insert(internalAuditLogs).values({
+          actorInternalUserId: req.internalUser!.id,
+          actionType: "TENANT_UPDATE" as const,
+          tenantId,
+          entityType: "user",
+          entityId: userId,
+          metadata: { action: "password_reset" },
+        });
+      }
+    } catch (auditErr) {
+      console.warn("[reset-password] Audit log failed:", auditErr);
+    }
 
     res.json({ success: true });
   } catch (error: any) {
