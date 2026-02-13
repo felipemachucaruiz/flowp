@@ -400,7 +400,9 @@ export default function SubscriptionPage() {
             const isCurrentPlan = (plan.tier || "basic") === currentTier;
             const isTrialing = trial?.isTrialing === true;
             const isSuspended = tenantStatus === "suspended";
+            const isActive = tenantStatus === "active";
             const isUpgrade = (TIER_ORDER[plan.tier || "basic"] ?? 0) > (TIER_ORDER[currentTier] ?? 0);
+            const hasActiveSub = isActive || isComped;
 
             return (
               <Card
@@ -501,15 +503,15 @@ export default function SubscriptionPage() {
                 <CardFooter>
                   <Button
                     className="w-full"
-                    variant={isCurrentPlan && !isTrialing && !isSuspended ? "secondary" : isCurrentPlan && (isTrialing || isSuspended) ? "default" : isUpgrade ? "default" : "outline"}
+                    variant={isCurrentPlan && hasActiveSub ? "secondary" : isCurrentPlan && (isTrialing || isSuspended) ? "default" : isUpgrade ? "default" : "outline"}
                     onClick={() => handleSelectPlan(plan)}
-                    disabled={isCurrentPlan && !isTrialing && !isSuspended}
+                    disabled={isCurrentPlan && hasActiveSub}
                     data-testid={`button-select-plan-${plan.tier}`}
                   >
-                    {isCurrentPlan && (isTrialing || isSuspended)
-                      ? t("subscription.subscribe_now" as any)
-                      : isCurrentPlan
-                        ? t("subscription.you_have_this_plan" as any)
+                    {isCurrentPlan && hasActiveSub
+                      ? t("subscription.you_have_this_plan" as any)
+                      : isCurrentPlan && (isTrialing || isSuspended)
+                        ? t("subscription.subscribe_now" as any)
                         : isUpgrade
                           ? `${t("subscription.upgrade_to" as any)} ${plan.name}`
                           : `${t("subscription.select_plan" as any)}`}
