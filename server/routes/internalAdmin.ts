@@ -1232,37 +1232,32 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
     });
     const appName = (appNameConfig?.value || "").trim();
 
-    const senderPhoneConfig = await db.query.platformConfig.findFirst({
-      where: eq(platformConfig.key, "gupshup_sender_phone"),
-    });
-    const senderPhone = (senderPhoneConfig?.value || "").trim();
-
-    const client = createGupshupClient(apiKey);
-    const data = await client.message.send({
-      channel: "whatsapp",
-      source: senderPhone,
-      destination: senderPhone,
-      "src.name": appName,
-      message: {
-        isHSM: "false",
-        type: "text",
-        text: "Flowp connection test - OK",
+    const response = await fetch(`https://api.gupshup.io/sm/api/v1/users/${encodeURIComponent(appName)}`, {
+      headers: {
+        "apikey": apiKey,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
     });
 
-    if (data && (data.status === "submitted" || data.messageId)) {
+    if (response.ok) {
       return res.json({ success: true, appName });
     }
-    const errorMsg = data?.message || JSON.stringify(data);
-    if (errorMsg.toLowerCase().includes("authentication") || errorMsg.toLowerCase().includes("unauthorized")) {
+
+    const text = await response.text();
+    if (response.status === 401 || response.status === 403) {
       return res.json({ success: false, error: "Invalid API key - authentication failed. Verify your key and app name in the Gupshup dashboard." });
     }
-    return res.json({ success: false, error: errorMsg });
+    let errorDetail = text;
+    try {
+      const parsed = JSON.parse(text);
+      errorDetail = parsed.message || parsed.error || text;
+    } catch {}
+    if (typeof errorDetail === "object") errorDetail = JSON.stringify(errorDetail);
+    return res.json({ success: false, error: `HTTP ${response.status}: ${errorDetail}` });
   } catch (error: any) {
-    const msg = error.message || String(error);
-    if (msg.toLowerCase().includes("authentication") || msg.toLowerCase().includes("401")) {
-      return res.json({ success: false, error: "Invalid API key - authentication failed. Verify your key and app name in the Gupshup dashboard." });
-    }
+    const msg = typeof error === "object" && error !== null
+      ? (error.message || (error.error ? (typeof error.error === "string" ? error.error : JSON.stringify(error.error)) : JSON.stringify(error)))
+      : String(error);
     res.json({ success: false, error: msg });
   }
 });

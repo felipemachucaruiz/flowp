@@ -113,6 +113,19 @@ export function createGupshupClient(apiKey: string) {
   return new Gupshup({ apiKey });
 }
 
+function extractErrorMessage(error: any): string {
+  if (!error) return "Unknown error";
+  if (typeof error === "string") return error;
+  if (error.message && typeof error.message === "string") return error.message;
+  if (error.statusCode && error.error) {
+    const innerError = error.error;
+    if (typeof innerError === "string") return `HTTP ${error.statusCode}: ${innerError}`;
+    if (innerError.message) return `HTTP ${error.statusCode}: ${innerError.message}`;
+    return `HTTP ${error.statusCode}: ${JSON.stringify(innerError)}`;
+  }
+  return JSON.stringify(error);
+}
+
 export async function getActiveSubscription(tenantId: string) {
   return db.query.tenantWhatsappSubscriptions.findFirst({
     where: and(
@@ -224,10 +237,11 @@ export async function sendTemplateMessage(
       return { success: false, error: errorMsg };
     }
   } catch (error: any) {
+    const errMsg = extractErrorMessage(error);
     await db.update(whatsappMessageLogs)
-      .set({ status: "failed", errorMessage: error.message, updatedAt: new Date() })
+      .set({ status: "failed", errorMessage: errMsg, updatedAt: new Date() })
       .where(eq(whatsappMessageLogs.id, logEntry.id));
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg };
   }
 }
 
@@ -289,10 +303,11 @@ export async function sendSessionMessage(
       return { success: false, error: errorMsg };
     }
   } catch (error: any) {
+    const errMsg = extractErrorMessage(error);
     await db.update(whatsappMessageLogs)
-      .set({ status: "failed", errorMessage: error.message, updatedAt: new Date() })
+      .set({ status: "failed", errorMessage: errMsg, updatedAt: new Date() })
       .where(eq(whatsappMessageLogs.id, logEntry.id));
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg };
   }
 }
 
@@ -320,7 +335,7 @@ export async function testConnection(tenantId: string): Promise<{ success: boole
     }
     return { success: false, error: data?.message || "Connection test failed" };
   } catch (error: any) {
-    return { success: false, error: error.message };
+    return { success: false, error: extractErrorMessage(error) };
   }
 }
 
@@ -422,10 +437,11 @@ export async function sendDocumentMessage(
       return { success: false, error: errorMsg };
     }
   } catch (error: any) {
+    const errMsg = extractErrorMessage(error);
     await db.update(whatsappMessageLogs)
-      .set({ status: "failed", errorMessage: error.message, updatedAt: new Date() })
+      .set({ status: "failed", errorMessage: errMsg, updatedAt: new Date() })
       .where(eq(whatsappMessageLogs.id, logEntry.id));
-    return { success: false, error: error.message };
+    return { success: false, error: errMsg };
   }
 }
 
