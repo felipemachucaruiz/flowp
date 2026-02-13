@@ -694,15 +694,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getNextOrderNumber(tenantId: string): Promise<number> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
     const [result] = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ maxNum: sql<number>`coalesce(max(order_number), 0)` })
       .from(orders)
-      .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, today)));
+      .where(eq(orders.tenantId, tenantId));
     
-    return (result?.count || 0) + 1;
+    return (result?.maxNum || 0) + 1;
   }
 
   // Order Items
