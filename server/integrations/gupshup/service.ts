@@ -561,7 +561,7 @@ export async function sendReceiptNotification(
     }
     message += `\n\nGracias por su compra.`;
 
-    if (receiptPdfUrl) {
+    if (receiptPdfUrl && !receiptPdfUrl.includes('.replit.dev') && !receiptPdfUrl.includes('localhost')) {
       const docResult = await sendDocumentMessage(
         tenantId,
         customerPhone,
@@ -578,6 +578,9 @@ export async function sendReceiptNotification(
         }
       }
     } else {
+      if (receiptPdfUrl) {
+        console.log(`[whatsapp] Skipping PDF attachment (URL not publicly accessible), sending text only`);
+      }
       const result = await sendSessionMessage(tenantId, customerPhone, message, "receipt");
       if (!result.success) {
         console.error(`[whatsapp] Session message failed for tenant ${tenantId}: ${result.error}`);
