@@ -660,11 +660,9 @@ internalAdminRouter.get("/tenants/:tenantId/subscription", requireRole(["superad
 internalAdminRouter.patch("/tenants/:tenantId", requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
     const tenantId = req.params.tenantId as string;
-    const { status, featureFlags } = req.body;
+    const { status, featureFlags, planId } = req.body;
     console.log("[PATCH /tenants/:tenantId] Request body:", JSON.stringify(req.body));
-    console.log("[PATCH /tenants/:tenantId] tenantId:", tenantId, "status:", status, "featureFlags:", featureFlags);
 
-    // Validate tenant exists
     const tenant = await db.query.tenants.findFirst({
       where: eq(tenants.id, tenantId),
     });
@@ -675,6 +673,53 @@ internalAdminRouter.patch("/tenants/:tenantId", requireRole(["superadmin"]), asy
     const updateData: any = {};
     if (status) updateData.status = status;
     if (featureFlags !== undefined) updateData.featureFlags = featureFlags;
+
+    if (status === "active" && !planId) {
+      return res.status(400).json({ error: "A subscription plan must be selected when setting status to active" });
+    }
+
+    if (status === "active" && planId) {
+      const plan = await db.query.subscriptionPlans.findFirst({ where: eq(subscriptionPlans.id, planId) });
+      if (!plan) {
+        return res.status(404).json({ error: "Plan not found" });
+      }
+
+      if ((plan as any).businessType && (plan as any).businessType !== tenant.type) {
+        return res.status(400).json({ error: "Plan business type does not match tenant type" });
+      }
+
+      const tier = (plan as any).tier || "basic";
+      updateData.subscriptionTier = tier;
+
+      const existingSub = await db.select().from(subscriptions)
+        .where(eq(subscriptions.tenantId, tenantId))
+        .orderBy(desc(subscriptions.createdAt))
+        .limit(1);
+
+      const now = new Date();
+      if (existingSub.length > 0) {
+        await db.update(subscriptions)
+          .set({
+            planId,
+            status: "active",
+            currentPeriodStart: now,
+            cancelledAt: null,
+          })
+          .where(eq(subscriptions.id, existingSub[0].id));
+      } else {
+        await db.insert(subscriptions).values({
+          tenantId,
+          planId,
+          status: "active",
+          billingPeriod: "monthly",
+          currentPeriodStart: now,
+          paymentGateway: "manual",
+        });
+      }
+
+      updateData.suspendedAt = null;
+      updateData.suspendedReason = null;
+    }
 
     if (Object.keys(updateData).length > 0) {
       await db.update(tenants).set(updateData).where(eq(tenants.id, tenantId));
@@ -692,7 +737,7 @@ internalAdminRouter.patch("/tenants/:tenantId", requireRole(["superadmin"]), asy
             tenantId,
             entityType: "tenant",
             entityId: tenantId,
-            metadata: updateData,
+            metadata: { ...updateData, planId: planId || undefined },
           });
         }
       } catch (auditErr) {

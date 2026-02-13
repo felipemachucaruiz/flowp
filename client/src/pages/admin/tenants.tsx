@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Building2, Search, MoreHorizontal, Ban, CheckCircle, Settings, Key, Gift, XCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -101,6 +101,7 @@ export default function AdminTenants() {
   const [showCompDialog, setShowCompDialog] = useState(false);
   const [compPlanId, setCompPlanId] = useState("");
   const [compReason, setCompReason] = useState("");
+  const [selectedPlanId, setSelectedPlanId] = useState("");
 
   const AVAILABLE_FEATURES = [
     { id: "restaurant_bom", label: t("admin.feature_bom"), description: t("admin.feature_bom_desc") },
@@ -138,7 +139,7 @@ export default function AdminTenants() {
       if (!res.ok) return [];
       return res.json();
     },
-    enabled: showCompDialog,
+    enabled: showCompDialog || showFeaturesDialog,
   });
 
   const { data: tenantSubData } = useQuery<{ subscription: TenantSubscription | null }>({
@@ -148,7 +149,7 @@ export default function AdminTenants() {
       if (!res.ok) return { subscription: null };
       return res.json();
     },
-    enabled: !!selectedTenant && showCompDialog,
+    enabled: !!selectedTenant && (showCompDialog || showFeaturesDialog),
   });
 
   const suspendMutation = useMutation({
@@ -187,7 +188,7 @@ export default function AdminTenants() {
   });
 
   const updateTenantMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { status?: string; featureFlags?: string[] } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: { status?: string; featureFlags?: string[]; planId?: string } }) => {
       const res = await adminFetch(`/api/internal-admin/tenants/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
@@ -275,6 +276,7 @@ export default function AdminTenants() {
     setSelectedTenant(tenant);
     setSelectedFeatures(tenant.featureFlags || []);
     setSelectedStatus(tenant.status);
+    setSelectedPlanId("");
     setShowFeaturesDialog(true);
   };
 
@@ -307,6 +309,7 @@ export default function AdminTenants() {
         data: {
           status: selectedStatus,
           featureFlags: selectedFeatures,
+          ...(selectedStatus === "active" && selectedPlanId ? { planId: selectedPlanId } : {}),
         },
       });
     }
@@ -364,6 +367,12 @@ export default function AdminTenants() {
   };
 
   const currentSub = tenantSubData?.subscription;
+
+  useEffect(() => {
+    if (showFeaturesDialog && currentSub?.planId && selectedStatus === "active" && !selectedPlanId) {
+      setSelectedPlanId(currentSub.planId);
+    }
+  }, [showFeaturesDialog, currentSub, selectedStatus]);
 
   if (isLoading) {
     return (
@@ -524,19 +533,45 @@ export default function AdminTenants() {
           <div className="space-y-6 py-4">
             <div className="space-y-2">
               <Label>{t("admin.subscription_status")}</Label>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <Select value={selectedStatus} onValueChange={(val) => {
+                setSelectedStatus(val);
+                if (val !== "active") setSelectedPlanId("");
+              }}>
                 <SelectTrigger data-testid="select-tenant-status">
                   <SelectValue placeholder={t("admin.status")} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="trial">{t("admin.trial")}</SelectItem>
-                  <SelectItem value="active">{t("admin.active_pro")}</SelectItem>
+                  <SelectItem value="active">{t("admin.active")}</SelectItem>
                   <SelectItem value="past_due">{t("admin.past_due")}</SelectItem>
                   <SelectItem value="suspended">{t("admin.suspended")}</SelectItem>
                   <SelectItem value="cancelled">{t("admin.cancelled")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+
+            {selectedStatus === "active" && (
+              <div className="space-y-2">
+                <Label>{t("admin.assign_plan" as any)}</Label>
+                <Select value={selectedPlanId} onValueChange={setSelectedPlanId}>
+                  <SelectTrigger data-testid="select-tenant-plan">
+                    <SelectValue placeholder={t("admin.select_plan" as any)} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(availablePlans || [])
+                      .filter((p) => p.isActive && p.businessType === selectedTenant?.type)
+                      .map((plan) => (
+                        <SelectItem key={plan.id} value={plan.id}>
+                          {plan.name} ({plan.tier})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {t("admin.assign_plan_desc" as any)}
+                </p>
+              </div>
+            )}
 
             <div className="space-y-3">
               <Label>{t("admin.pro_features")}</Label>
@@ -572,7 +607,7 @@ export default function AdminTenants() {
             </Button>
             <Button 
               onClick={handleSaveFeatures}
-              disabled={updateTenantMutation.isPending}
+              disabled={updateTenantMutation.isPending || (selectedStatus === "active" && !selectedPlanId)}
               data-testid="button-save-features"
             >
               {updateTenantMutation.isPending ? t("admin.saving") : t("admin.save_changes")}
