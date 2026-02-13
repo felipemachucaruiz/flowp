@@ -57,7 +57,7 @@ export default function SubscriptionPage() {
   const [, navigate] = useLocation();
   const searchString = useSearch();
   const { tenant, refreshTenant } = useAuth();
-  const { tier: currentTier, businessType, isLoading: subLoading, trial, status: tenantStatus } = useSubscription();
+  const { tier: currentTier, businessType, isLoading: subLoading, trial, status: tenantStatus, isComped } = useSubscription();
   const { toast } = useToast();
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
   const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
@@ -330,9 +330,26 @@ export default function SubscriptionPage() {
             <p className="text-sm text-muted-foreground">{t("subscription.current_plan" as any)}</p>
             <p className="font-semibold text-lg">{getTierLabel(currentTier)}</p>
           </div>
-          <Badge variant="secondary">{getTierLabel(currentTier)}</Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            {isComped && (
+              <Badge className="bg-green-600 text-white" data-testid="badge-comped-plan">
+                {t("subscription.comped_badge" as any) || "Free (Comped)"}
+              </Badge>
+            )}
+            <Badge variant="secondary">{getTierLabel(currentTier)}</Badge>
+          </div>
         </CardContent>
       </Card>
+
+      {isComped && (
+        <Card className="border-green-500/30 bg-green-500/5" data-testid="card-comped-notice">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">
+              {t("subscription.comped_notice" as any) || "Your subscription has been granted for free by the Flowp team. No payment is required."}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {activePlans.length > 0 && (
         <div className="flex justify-center">

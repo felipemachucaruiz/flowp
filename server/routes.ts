@@ -4884,6 +4884,9 @@ export async function registerRoutes(
         }
       }
 
+      const currentSubscription = await storage.getTenantSubscription(tenantId);
+      const isComped = currentSubscription?.isComped || false;
+
       res.json({
         tier: planData.tier,
         businessType: planData.businessType,
@@ -4896,6 +4899,7 @@ export async function registerRoutes(
         },
         trial: trialInfo,
         status: tenant?.status || "trial",
+        isComped,
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch plan info" });

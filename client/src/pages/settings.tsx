@@ -59,7 +59,7 @@ import {
 } from "lucide-react";
 import { useUpload } from "@/hooks/use-upload";
 import { printBridge, type PrintBridgeStatus, type PrinterInfo } from "@/lib/print-bridge";
-import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw, Smartphone, Bell } from "lucide-react";
+import { Wifi, WifiOff, Download, ChevronDown, DoorOpen, RefreshCw, Smartphone, Bell, Gift } from "lucide-react";
 import { CouponEditor, renderCouponContent } from "@/components/coupon-editor";
 import { EmailTemplateEditor } from "@/components/email-template-editor";
 import { ShopifySettings } from "@/components/shopify-settings";
@@ -1620,7 +1620,7 @@ function MyPlanTab() {
   const { toast } = useToast();
   const { tenant } = useAuth();
   const [, navigate] = useLocation();
-  const { tier, limits, usage, trial, status, isLoading: subLoading } = useSubscription();
+  const { tier, limits, usage, trial, status, isComped, isLoading: subLoading } = useSubscription();
 
   const { data: subscription, isLoading: subDataLoading } = useQuery<any>({
     queryKey: ["/api/subscription/current"],
@@ -1713,9 +1713,24 @@ function MyPlanTab() {
             </CardTitle>
             <CardDescription>{t("subscription.plan_details_desc" as any)}</CardDescription>
           </div>
-          {getStatusBadge(status)}
+          <div className="flex items-center gap-2 flex-wrap">
+            {isComped && (
+              <Badge className="bg-green-600 text-white" data-testid="badge-myplan-comped">
+                {t("subscription.comped_badge" as any)}
+              </Badge>
+            )}
+            {getStatusBadge(status)}
+          </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {isComped && (
+            <div className="flex items-center gap-3 p-3 rounded-md bg-green-500/10 border border-green-500/20">
+              <Gift className="w-5 h-5 text-green-600 shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                {t("subscription.comped_notice" as any)}
+              </p>
+            </div>
+          )}
           {trial.isTrialing && (
             <div className="flex items-center gap-3 p-3 rounded-md bg-muted">
               <AlertCircle className="w-5 h-5 text-muted-foreground shrink-0" />

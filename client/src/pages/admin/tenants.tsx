@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Building2, Search, MoreHorizontal, Ban, CheckCircle, Settings, Key, Users } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Building2, Search, MoreHorizontal, Ban, CheckCircle, Settings, Key, Gift, XCircle } from "lucide-react";
 import { useState } from "react";
 import {
   DropdownMenu,
@@ -52,6 +53,7 @@ interface Tenant {
   currency: string;
   featureFlags: string[];
   createdAt: string;
+  subscriptionTier?: string;
 }
 
 interface TenantUser {
@@ -62,21 +64,43 @@ interface TenantUser {
   role: string;
 }
 
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  tier: string;
+  businessType: string;
+  isActive: boolean;
+}
+
+interface TenantSubscription {
+  id: string;
+  planId: string;
+  status: string;
+  isComped: boolean;
+  compedBy: string | null;
+  compedAt: string | null;
+  compedReason: string | null;
+  paymentGateway: string | null;
+  plan: SubscriptionPlan | null;
+}
+
 export default function AdminTenants() {
   const [search, setSearch] = useState("");
   const { toast } = useToast();
   const { t, formatDate } = useI18n();
   
-  // Feature management dialog
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [showFeaturesDialog, setShowFeaturesDialog] = useState(false);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   
-  // Password reset dialog
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<TenantUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
+
+  const [showCompDialog, setShowCompDialog] = useState(false);
+  const [compPlanId, setCompPlanId] = useState("");
+  const [compReason, setCompReason] = useState("");
 
   const AVAILABLE_FEATURES = [
     { id: "restaurant_bom", label: t("admin.feature_bom"), description: t("admin.feature_bom_desc") },
@@ -105,6 +129,26 @@ export default function AdminTenants() {
       return res.json();
     },
     enabled: !!selectedTenant && showPasswordDialog,
+  });
+
+  const { data: availablePlans } = useQuery<SubscriptionPlan[]>({
+    queryKey: ["/api/subscription/plans"],
+    queryFn: async () => {
+      const res = await fetch("/api/subscription/plans");
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: showCompDialog,
+  });
+
+  const { data: tenantSubData } = useQuery<{ subscription: TenantSubscription | null }>({
+    queryKey: ["/api/internal-admin/tenants", selectedTenant?.id, "subscription"],
+    queryFn: async () => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${selectedTenant?.id}/subscription`);
+      if (!res.ok) return { subscription: null };
+      return res.json();
+    },
+    enabled: !!selectedTenant && showCompDialog,
   });
 
   const suspendMutation = useMutation({
@@ -184,6 +228,49 @@ export default function AdminTenants() {
     },
   });
 
+  const compSubscriptionMutation = useMutation({
+    mutationFn: async ({ tenantId, planId, reason }: { tenantId: string; planId: string; reason: string }) => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${tenantId}/comp-subscription`, {
+        method: "POST",
+        body: JSON.stringify({ planId, reason }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to grant free subscription");
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/tenants", selectedTenant?.id, "subscription"] });
+      toast({ title: t("admin.comp_granted" as any) });
+      setShowCompDialog(false);
+      setCompPlanId("");
+      setCompReason("");
+    },
+    onError: (error: Error) => {
+      toast({ title: t("admin.comp_granted_error" as any), description: error.message, variant: "destructive" });
+    },
+  });
+
+  const revokeCompMutation = useMutation({
+    mutationFn: async (tenantId: string) => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${tenantId}/revoke-comp`, {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed to revoke free subscription");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/tenants"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/tenants", selectedTenant?.id, "subscription"] });
+      toast({ title: t("admin.comp_revoked" as any) });
+    },
+    onError: () => {
+      toast({ title: t("admin.comp_revoked_error" as any), variant: "destructive" });
+    },
+  });
+
   const openFeaturesDialog = (tenant: Tenant) => {
     setSelectedTenant(tenant);
     setSelectedFeatures(tenant.featureFlags || []);
@@ -196,6 +283,13 @@ export default function AdminTenants() {
     setShowPasswordDialog(true);
     setSelectedUser(null);
     setNewPassword("");
+  };
+
+  const openCompDialog = (tenant: Tenant) => {
+    setSelectedTenant(tenant);
+    setCompPlanId("");
+    setCompReason("");
+    setShowCompDialog(true);
   };
 
   const handleFeatureToggle = (featureId: string) => {
@@ -224,6 +318,16 @@ export default function AdminTenants() {
         tenantId: selectedTenant.id,
         userId: selectedUser.id,
         newPassword,
+      });
+    }
+  };
+
+  const handleGrantComp = () => {
+    if (selectedTenant && compPlanId) {
+      compSubscriptionMutation.mutate({
+        tenantId: selectedTenant.id,
+        planId: compPlanId,
+        reason: compReason,
       });
     }
   };
@@ -258,6 +362,8 @@ export default function AdminTenants() {
       </Badge>
     );
   };
+
+  const currentSub = tenantSubData?.subscription;
 
   if (isLoading) {
     return (
@@ -358,6 +464,10 @@ export default function AdminTenants() {
                           <Settings className="h-4 w-4 mr-2" />
                           {t("admin.manage_subscription")}
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openCompDialog(tenant)} data-testid={`button-comp-${tenant.id}`}>
+                          <Gift className="h-4 w-4 mr-2" />
+                          {t("admin.grant_free_subscription" as any)}
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => openPasswordDialog(tenant)}>
                           <Key className="h-4 w-4 mr-2" />
                           {t("admin.reset_user_password")}
@@ -391,7 +501,7 @@ export default function AdminTenants() {
               ))}
               {(!filteredTenants || filteredTenants.length === 0) && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     {t("admin.no_tenants")}
                   </TableCell>
                 </TableRow>
@@ -466,6 +576,108 @@ export default function AdminTenants() {
               data-testid="button-save-features"
             >
               {updateTenantMutation.isPending ? t("admin.saving") : t("admin.save_changes")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Grant Free Subscription Dialog */}
+      <Dialog open={showCompDialog} onOpenChange={setShowCompDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{t("admin.grant_free_subscription" as any)} - {selectedTenant?.name}</DialogTitle>
+            <DialogDescription>
+              {t("admin.grant_free_desc" as any)}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {currentSub?.isComped && (
+              <div className="border rounded-lg p-4 space-y-2 bg-muted/50">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label className="text-sm font-medium">{t("admin.current_subscription" as any)}</Label>
+                  <Badge className="bg-green-600 text-white" data-testid="badge-comped">
+                    {t("admin.comped_badge" as any)}
+                  </Badge>
+                </div>
+                <div className="text-sm space-y-1">
+                  <p><span className="text-muted-foreground">{t("admin.select_plan" as any)}:</span> {currentSub.plan?.name || "—"}</p>
+                  <p><span className="text-muted-foreground">{t("admin.subscription_tier" as any)}:</span> <span className="capitalize">{currentSub.plan?.tier || "—"}</span></p>
+                  {currentSub.compedBy && (
+                    <p><span className="text-muted-foreground">{t("admin.comped_by" as any)}:</span> {currentSub.compedBy}</p>
+                  )}
+                  {currentSub.compedAt && (
+                    <p><span className="text-muted-foreground">{t("admin.comped_at" as any)}:</span> {formatDate(new Date(currentSub.compedAt))}</p>
+                  )}
+                  {currentSub.compedReason && (
+                    <p><span className="text-muted-foreground">{t("admin.comped_reason" as any)}:</span> {currentSub.compedReason}</p>
+                  )}
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="mt-2"
+                  onClick={() => selectedTenant && revokeCompMutation.mutate(selectedTenant.id)}
+                  disabled={revokeCompMutation.isPending}
+                  data-testid="button-revoke-comp"
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {revokeCompMutation.isPending ? t("admin.revoking" as any) : t("admin.revoke_comp" as any)}
+                </Button>
+              </div>
+            )}
+
+            {!currentSub?.isComped && currentSub && (
+              <div className="border rounded-lg p-4 space-y-1 bg-muted/50">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <Label className="text-sm font-medium">{t("admin.current_subscription" as any)}</Label>
+                  <Badge variant="secondary">{currentSub.status}</Badge>
+                </div>
+                <p className="text-sm"><span className="text-muted-foreground">{t("admin.select_plan" as any)}:</span> {currentSub.plan?.name || "—"}</p>
+                <p className="text-sm"><span className="text-muted-foreground">{t("admin.subscription_tier" as any)}:</span> <span className="capitalize">{currentSub.plan?.tier || "—"}</span></p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>{t("admin.select_plan" as any)}</Label>
+              <Select value={compPlanId} onValueChange={setCompPlanId}>
+                <SelectTrigger data-testid="select-comp-plan">
+                  <SelectValue placeholder={t("admin.select_plan_placeholder" as any)} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(availablePlans || []).filter(p => p.isActive).map((plan) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name} ({plan.tier}) - {plan.businessType}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>{t("admin.comp_reason" as any)}</Label>
+              <Textarea
+                placeholder={t("admin.comp_reason_placeholder" as any)}
+                value={compReason}
+                onChange={(e) => setCompReason(e.target.value)}
+                className="resize-none"
+                rows={2}
+                data-testid="input-comp-reason"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCompDialog(false)}>
+              {t("admin.cancel")}
+            </Button>
+            <Button
+              onClick={handleGrantComp}
+              disabled={!compPlanId || compSubscriptionMutation.isPending}
+              data-testid="button-grant-comp"
+            >
+              <Gift className="h-4 w-4 mr-2" />
+              {compSubscriptionMutation.isPending ? t("admin.granting" as any) : t("admin.grant_free" as any)}
             </Button>
           </DialogFooter>
         </DialogContent>

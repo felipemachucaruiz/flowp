@@ -6,7 +6,7 @@ import * as integrationService from "../services/internal-admin/integrationServi
 import { encrypt as gupshupEncrypt, decrypt as gupshupDecrypt, createGupshupClient, clearPartnerTokenCache, getPartnerToken, getGupshupAppId } from "../integrations/gupshup/service";
 import { encrypt as shopifyEncrypt, decrypt as shopifyDecrypt } from "../integrations/shopify/shopifyClient";
 import { db } from "../db";
-import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans, whatsappPackages, tenantWhatsappSubscriptions, whatsappMessageLogs, tenantWhatsappIntegrations } from "@shared/schema";
+import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans, subscriptions, whatsappPackages, tenantWhatsappSubscriptions, whatsappMessageLogs, tenantWhatsappIntegrations } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { eq, like, or, desc, and, sql, inArray } from "drizzle-orm";
 import crypto from "crypto";
@@ -481,6 +481,176 @@ internalAdminRouter.post("/tenants/:tenantId/unsuspend", requireRole(["superadmi
     }
 
     res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Grant comped (free) subscription to tenant
+internalAdminRouter.post("/tenants/:tenantId/comp-subscription", requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.params.tenantId as string;
+    const { planId, reason } = req.body;
+
+    if (!planId) {
+      return res.status(400).json({ error: "Plan ID is required" });
+    }
+
+    const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+    if (!tenant) {
+      return res.status(404).json({ error: "Tenant not found" });
+    }
+
+    const plan = await db.query.subscriptionPlans.findFirst({ where: eq(subscriptionPlans.id, planId) });
+    if (!plan) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    const existingSub = await db.select().from(subscriptions)
+      .where(eq(subscriptions.tenantId, tenantId))
+      .orderBy(desc(subscriptions.createdAt))
+      .limit(1);
+
+    const now = new Date();
+
+    if (existingSub.length > 0) {
+      await db.update(subscriptions)
+        .set({
+          planId,
+          status: "active",
+          isComped: true,
+          compedBy: req.internalUser?.email || req.internalUser?.id || "admin",
+          compedAt: now,
+          compedReason: reason || null,
+          currentPeriodStart: now,
+          currentPeriodEnd: null,
+          mpPreapprovalId: null,
+          mpPayerEmail: null,
+          paymentGateway: "comped",
+          cancelledAt: null,
+        })
+        .where(eq(subscriptions.id, existingSub[0].id));
+    } else {
+      await db.insert(subscriptions).values({
+        tenantId,
+        planId,
+        status: "active",
+        billingPeriod: "monthly",
+        isComped: true,
+        compedBy: req.internalUser?.email || req.internalUser?.id || "admin",
+        compedAt: now,
+        compedReason: reason || null,
+        currentPeriodStart: now,
+        currentPeriodEnd: null,
+        paymentGateway: "comped",
+      });
+    }
+
+    const tier = (plan as any).tier || "basic";
+    await db.update(tenants).set({
+      status: "active",
+      subscriptionTier: tier,
+      suspendedAt: null,
+      suspendedReason: null,
+    }).where(eq(tenants.id, tenantId));
+
+    try {
+      const internalUserExists = await db.query.internalUsers.findFirst({
+        where: eq(internalUsers.id, req.internalUser!.id),
+      });
+      if (internalUserExists) {
+        await db.insert(internalAuditLogs).values({
+          actorInternalUserId: req.internalUser!.id,
+          actionType: "TENANT_UPDATE",
+          tenantId,
+          entityType: "subscription",
+          entityId: tenantId,
+          metadata: { action: "comp_subscription", planId, planName: plan.name, tier, reason },
+        });
+      }
+    } catch (auditErr) {
+      console.warn("[comp-subscription] Audit log failed:", auditErr);
+    }
+
+    res.json({ success: true, plan: plan.name, tier });
+  } catch (error: any) {
+    console.error("[comp-subscription] Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Revoke comped subscription
+internalAdminRouter.post("/tenants/:tenantId/revoke-comp", requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.params.tenantId as string;
+
+    const existingSub = await db.select().from(subscriptions)
+      .where(eq(subscriptions.tenantId, tenantId))
+      .orderBy(desc(subscriptions.createdAt))
+      .limit(1);
+
+    if (existingSub.length > 0 && existingSub[0].isComped) {
+      await db.update(subscriptions)
+        .set({
+          status: "cancelled",
+          isComped: false,
+          cancelledAt: new Date(),
+        })
+        .where(eq(subscriptions.id, existingSub[0].id));
+    }
+
+    await db.update(tenants).set({
+      subscriptionTier: "basic",
+    }).where(eq(tenants.id, tenantId));
+
+    try {
+      const internalUserExists = await db.query.internalUsers.findFirst({
+        where: eq(internalUsers.id, req.internalUser!.id),
+      });
+      if (internalUserExists) {
+        await db.insert(internalAuditLogs).values({
+          actorInternalUserId: req.internalUser!.id,
+          actionType: "TENANT_UPDATE",
+          tenantId,
+          entityType: "subscription",
+          entityId: tenantId,
+          metadata: { action: "revoke_comp" },
+        });
+      }
+    } catch (auditErr) {
+      console.warn("[revoke-comp] Audit log failed:", auditErr);
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("[revoke-comp] Error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get tenant subscription details (for admin)
+internalAdminRouter.get("/tenants/:tenantId/subscription", requireRole(["superadmin", "supportagent"]), async (req: Request, res: Response) => {
+  try {
+    const tenantId = req.params.tenantId as string;
+
+    const [sub] = await db.select().from(subscriptions)
+      .where(eq(subscriptions.tenantId, tenantId))
+      .orderBy(desc(subscriptions.createdAt))
+      .limit(1);
+
+    if (!sub) {
+      return res.json({ subscription: null });
+    }
+
+    const [plan] = await db.select().from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, sub.planId));
+
+    res.json({
+      subscription: {
+        ...sub,
+        plan: plan || null,
+      },
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

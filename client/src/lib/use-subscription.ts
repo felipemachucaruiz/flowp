@@ -34,6 +34,7 @@ export interface TenantPlanInfo {
   };
   trial?: TrialInfo;
   status?: string;
+  isComped?: boolean;
 }
 
 type LimitResource = "registers" | "users" | "products" | "locations" | "warehouses" | "tables" | "recipes";
@@ -52,6 +53,7 @@ export function useSubscription() {
   const usage = data?.usage || { registers: 0, users: 0, products: 0, locations: 0, warehouses: 0, tables: 0, recipes: 0 };
   const trial: TrialInfo = data?.trial || { isTrialing: false, trialEndsAt: null, daysRemaining: 0, trialExpired: false };
   const status = data?.status || "trial";
+  const isComped = data?.isComped || false;
 
   const hasFeature = (feature: SubscriptionFeature): boolean => {
     return features.includes(feature);
@@ -93,6 +95,7 @@ export function useSubscription() {
     tier,
     businessType,
     status,
+    isComped,
     isRetail: businessType === "retail",
     isRestaurant: businessType === "restaurant",
     isBasic: tier === "basic",
