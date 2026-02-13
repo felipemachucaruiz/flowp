@@ -106,6 +106,7 @@ const RESTAURANT_BASE_FEATURES = [
 ];
 
 const PRO_FEATURES = [
+  { id: "label_designer", label: "Label Designer", description: "Design and print custom product labels" },
   { id: "restaurant_bom", label: "Ingredient Inventory (BOM)", description: "Recipe management with FIFO auto-consumption" },
   { id: "advanced_reporting", label: "Advanced Reporting", description: "Detailed analytics and custom reports" },
   { id: "multi_location", label: "Multi-Location", description: "Manage multiple store locations" },
