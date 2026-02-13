@@ -4855,12 +4855,28 @@ export async function registerRoutes(
             trialInfo.trialExpired = true;
           }
         } else {
+          const TRIAL_DAYS = 14;
+          const createdAt = tenant.createdAt ? new Date(tenant.createdAt) : new Date();
+          const impliedTrialEnd = new Date(createdAt);
+          impliedTrialEnd.setDate(impliedTrialEnd.getDate() + TRIAL_DAYS);
+          const now = new Date();
+          const msRemaining = impliedTrialEnd.getTime() - now.getTime();
+          const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+          const trialExpired = msRemaining <= 0;
+
+          await storage.updateTenant(tenantId, { trialEndsAt: impliedTrialEnd } as any);
+
           trialInfo = {
             isTrialing: true,
-            trialEndsAt: null,
-            daysRemaining: 0,
-            trialExpired: false,
+            trialEndsAt: impliedTrialEnd.toISOString(),
+            daysRemaining,
+            trialExpired,
           };
+
+          if (trialExpired && !planData.plan) {
+            await storage.updateTenant(tenantId, { status: "suspended", suspendedReason: "Trial expired" } as any);
+            trialInfo.trialExpired = true;
+          }
         }
       }
 
