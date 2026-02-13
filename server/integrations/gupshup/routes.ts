@@ -22,6 +22,8 @@ import {
   processDeliveryStatus,
   getActiveSubscription,
   getGlobalGupshupCredentials,
+  getPartnerToken,
+  getGupshupAppId,
 } from "./service";
 
 export const whatsappRouter = Router();
@@ -423,17 +425,26 @@ whatsappRouter.post("/templates/:id/submit", whatsappAddonGate, async (req: Requ
       return res.status(400).json({ error: "Template is already pending approval" });
     }
 
-    const globalCreds = await getGlobalGupshupCredentials();
-    if (!globalCreds) {
-      return res.status(400).json({ error: "Global WhatsApp service not configured" });
+    const tokenResult = await getPartnerToken();
+    const appId = await getGupshupAppId();
+    if (tokenResult.status === "not_configured" || !appId) {
+      return res.status(400).json({ error: "Partner API credentials not configured. Please configure Partner Email, Client Secret, and App ID in the admin panel." });
     }
+    if (tokenResult.status === "auth_failed") {
+      return res.status(400).json({ error: `Partner API authentication failed: ${tokenResult.error}` });
+    }
+    const partnerToken = tokenResult.token;
 
     const templatePayload: any = {
       elementName: template.name,
       languageCode: template.language,
       category: template.category.toUpperCase(),
       templateType: "TEXT",
-      body: template.bodyText,
+      content: template.bodyText,
+      vertical: template.category === "utility" ? "account update" : "marketing",
+      appId,
+      allowTemplateCategoryChange: "false",
+      enableSample: "true",
     };
 
     if (template.headerText) {
@@ -457,11 +468,11 @@ whatsappRouter.post("/templates/:id/submit", whatsappAddonGate, async (req: Requ
     }
 
     const response = await fetch(
-      `https://api.gupshup.io/wa/app/${globalCreds.appName}/template`,
+      `https://partner.gupshup.io/partner/app/${encodeURIComponent(appId)}/templates`,
       {
         method: "POST",
         headers: {
-          "apikey": globalCreds.apiKey,
+          "Authorization": partnerToken,
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: body.toString(),
@@ -483,31 +494,38 @@ whatsappRouter.post("/templates/:id/submit", whatsappAddonGate, async (req: Requ
 
       return res.json({ success: true, gupshupTemplateId: gupshupId });
     } else {
-      const errorMsg = data.message || JSON.stringify(data);
+      const errorMsg = typeof data === "string" ? data : (data.message || JSON.stringify(data));
       return res.status(400).json({ error: `Gupshup rejected: ${errorMsg}` });
     }
   } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+    const msg = error?.message || (typeof error === "object" ? JSON.stringify(error) : String(error));
+    return res.status(500).json({ error: msg });
   }
 });
 
 whatsappRouter.post("/templates/sync-status", whatsappAddonGate, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   try {
-    const globalCreds = await getGlobalGupshupCredentials();
-    if (!globalCreds) {
-      return res.status(400).json({ error: "Global WhatsApp service not configured" });
+    const tokenResult = await getPartnerToken();
+    const appId = await getGupshupAppId();
+    if (tokenResult.status === "not_configured" || !appId) {
+      return res.status(400).json({ error: "Partner API credentials not configured" });
     }
+    if (tokenResult.status === "auth_failed") {
+      return res.status(400).json({ error: `Partner API authentication failed: ${tokenResult.error}` });
+    }
+    const partnerToken = tokenResult.token;
 
     const response = await fetch(
-      `https://api.gupshup.io/wa/app/${globalCreds.appName}/template`,
+      `https://partner.gupshup.io/partner/app/${encodeURIComponent(appId)}/templates`,
       {
-        headers: { "apikey": globalCreds.apiKey },
+        headers: { "Authorization": partnerToken },
       }
     );
 
     if (!response.ok) {
-      return res.status(400).json({ error: "Failed to fetch templates from Gupshup" });
+      const text = await response.text();
+      return res.status(400).json({ error: `Failed to fetch templates from Gupshup: ${text.substring(0, 200)}` });
     }
 
     const data = await response.json();

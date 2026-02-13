@@ -25,6 +25,9 @@ interface GlobalConfig {
   appName: string;
   senderPhone: string;
   enabled: boolean;
+  partnerEmail: string;
+  hasPartnerSecret: boolean;
+  appId: string;
 }
 
 export default function AdminWhatsAppConfig() {
@@ -36,6 +39,9 @@ export default function AdminWhatsAppConfig() {
   const [appName, setAppName] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
   const [enabled, setEnabled] = useState(false);
+  const [partnerEmail, setPartnerEmail] = useState("");
+  const [partnerSecret, setPartnerSecret] = useState("");
+  const [appId, setAppId] = useState("");
   const { data: config, isLoading } = useQuery<GlobalConfig>({
     queryKey: ["/api/internal-admin/whatsapp/global-config"],
     queryFn: async () => {
@@ -50,6 +56,8 @@ export default function AdminWhatsAppConfig() {
       setAppName(config.appName || "");
       setSenderPhone(config.senderPhone || "");
       setEnabled(config.enabled);
+      setPartnerEmail(config.partnerEmail || "");
+      setAppId(config.appId || "");
     }
   }, [config]);
 
@@ -59,9 +67,14 @@ export default function AdminWhatsAppConfig() {
         appName,
         senderPhone,
         enabled,
+        partnerEmail,
+        appId,
       };
       if (apiKey) {
         payload.gupshupApiKey = apiKey;
+      }
+      if (partnerSecret) {
+        payload.partnerSecret = partnerSecret;
       }
       const res = await adminFetch("/api/internal-admin/whatsapp/global-config", {
         method: "POST",
@@ -73,6 +86,7 @@ export default function AdminWhatsAppConfig() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/whatsapp/global-config"] });
       setApiKey("");
+      setPartnerSecret("");
       toast({
         title: t("common.success" as any) || "Success",
         description: t("admin.whatsapp_config_saved" as any) || "Global WhatsApp configuration saved.",
@@ -97,11 +111,19 @@ export default function AdminWhatsAppConfig() {
     },
     onSuccess: (data: any) => {
       if (data.success) {
+        let description = t("whatsapp.connectionSuccessDesc" as any) || "Gupshup Messaging API verified.";
+        if (data.partnerStatus === "ok") {
+          description += " " + (t("admin.whatsapp_partner_ok" as any) || "Partner API (templates): OK");
+        } else if (data.partnerStatus === "auth_failed") {
+          description += " " + (t("admin.whatsapp_partner_auth_failed" as any) || "Partner API: Authentication failed - check email/secret");
+        } else if (data.partnerStatus === "failed") {
+          description += " " + (t("admin.whatsapp_partner_failed" as any) || "Partner API (templates): Failed - check App ID");
+        } else {
+          description += " " + (t("admin.whatsapp_partner_not_configured" as any) || "Partner API (templates): Not configured");
+        }
         toast({
           title: t("whatsapp.connectionSuccess" as any) || "Connection Successful",
-          description: data.balance
-            ? `${t("admin.whatsapp_balance" as any) || "Wallet balance"}: ${data.balance}`
-            : t("whatsapp.connectionSuccessDesc" as any) || "Gupshup API verified.",
+          description,
         });
       } else {
         toast({
@@ -232,6 +254,75 @@ export default function AdminWhatsAppConfig() {
                   />
                 </div>
               </div>
+
+              <Separator />
+
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">
+                  {t("admin.whatsapp_partner_api" as any) || "Partner API (Template Management)"}
+                </span>
+              </div>
+
+              <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
+                <Shield className="w-4 h-4 text-muted-foreground mt-0.5" />
+                <p className="text-xs text-muted-foreground">
+                  {t("admin.whatsapp_partner_note" as any) || "Partner API credentials are required for creating and managing WhatsApp message templates. Get these from the Gupshup Partner Portal (Settings > Generate Secret)."}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium" htmlFor="partner-email">
+                  {t("admin.whatsapp_partner_email" as any) || "Partner Email"}
+                </label>
+                <Input
+                  id="partner-email"
+                  type="email"
+                  value={partnerEmail}
+                  onChange={(e) => setPartnerEmail(e.target.value)}
+                  placeholder="admin@yourcompany.com"
+                  data-testid="input-partner-email"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium" htmlFor="partner-secret">
+                  {t("admin.whatsapp_partner_secret" as any) || "Client Secret"}
+                </label>
+                <Input
+                  id="partner-secret"
+                  type="password"
+                  value={partnerSecret}
+                  onChange={(e) => setPartnerSecret(e.target.value)}
+                  placeholder={
+                    config?.hasPartnerSecret
+                      ? "********** (stored encrypted)"
+                      : "Enter Gupshup client secret"
+                  }
+                  data-testid="input-partner-secret"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("admin.whatsapp_partner_secret_note" as any) || "Generated from Settings page in the Gupshup Partner Portal"}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium" htmlFor="gupshup-app-id">
+                  {t("admin.whatsapp_app_id" as any) || "Gupshup App ID"}
+                </label>
+                <Input
+                  id="gupshup-app-id"
+                  value={appId}
+                  onChange={(e) => setAppId(e.target.value)}
+                  placeholder="a1b2c3d4-e5f6-..."
+                  data-testid="input-gupshup-app-id"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("admin.whatsapp_app_id_note" as any) || "Found in your Gupshup WhatsApp Dashboard under App Settings"}
+                </p>
+              </div>
+
+              <Separator />
 
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">

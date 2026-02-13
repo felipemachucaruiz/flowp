@@ -3,7 +3,7 @@ import { internalAuth, requireRole, verifyInternalUser, createInternalUser } fro
 import * as ebillingService from "../services/internal-admin/ebillingService";
 import * as documentOpsService from "../services/internal-admin/documentOpsService";
 import * as integrationService from "../services/internal-admin/integrationService";
-import { encrypt as gupshupEncrypt, decrypt as gupshupDecrypt, createGupshupClient } from "../integrations/gupshup/service";
+import { encrypt as gupshupEncrypt, decrypt as gupshupDecrypt, createGupshupClient, clearPartnerTokenCache, getPartnerToken, getGupshupAppId } from "../integrations/gupshup/service";
 import { encrypt as shopifyEncrypt, decrypt as shopifyDecrypt } from "../integrations/shopify/shopifyClient";
 import { db } from "../db";
 import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans, whatsappPackages, tenantWhatsappSubscriptions, whatsappMessageLogs, tenantWhatsappIntegrations } from "@shared/schema";
@@ -1148,14 +1148,14 @@ internalAdminRouter.get("/whatsapp/usage", internalAuth, async (req: Request, re
 
 internalAdminRouter.get("/whatsapp/global-config", internalAuth, async (req: Request, res: Response) => {
   try {
-    const keys = ["gupshup_api_key", "gupshup_app_name", "gupshup_sender_phone", "whatsapp_global_enabled"];
+    const keys = ["gupshup_api_key", "gupshup_app_name", "gupshup_sender_phone", "whatsapp_global_enabled", "gupshup_partner_email", "gupshup_partner_secret", "gupshup_app_id"];
     const configs = await db.select()
       .from(platformConfig)
       .where(inArray(platformConfig.key, keys));
 
     const configMap: Record<string, string | null> = {};
     for (const c of configs) {
-      if (c.key === "gupshup_api_key") {
+      if (c.key === "gupshup_api_key" || c.key === "gupshup_partner_secret") {
         configMap[c.key] = c.encryptedValue ? "configured" : null;
       } else {
         configMap[c.key] = c.value;
@@ -1167,6 +1167,9 @@ internalAdminRouter.get("/whatsapp/global-config", internalAuth, async (req: Req
       appName: configMap["gupshup_app_name"] || "",
       senderPhone: configMap["gupshup_sender_phone"] || "",
       enabled: configMap["whatsapp_global_enabled"] === "true",
+      partnerEmail: configMap["gupshup_partner_email"] || "",
+      hasPartnerSecret: configMap["gupshup_partner_secret"] === "configured",
+      appId: configMap["gupshup_app_id"] || "",
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -1175,7 +1178,7 @@ internalAdminRouter.get("/whatsapp/global-config", internalAuth, async (req: Req
 
 internalAdminRouter.post("/whatsapp/global-config", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
-    const { gupshupApiKey, appName, senderPhone, enabled } = req.body;
+    const { gupshupApiKey, appName, senderPhone, enabled, partnerEmail, partnerSecret, appId } = req.body;
 
     const upsertConfig = async (key: string, value?: string, encryptedValue?: string) => {
       const existing = await db.query.platformConfig.findFirst({
@@ -1209,6 +1212,23 @@ internalAdminRouter.post("/whatsapp/global-config", internalAuth, requireRole(["
     if (enabled !== undefined) {
       await upsertConfig("whatsapp_global_enabled", String(enabled));
     }
+    let shouldClearPartnerCache = false;
+    if (partnerEmail !== undefined) {
+      await upsertConfig("gupshup_partner_email", partnerEmail);
+      shouldClearPartnerCache = true;
+    }
+    if (partnerSecret) {
+      const trimmedSecret = partnerSecret.trim();
+      await upsertConfig("gupshup_partner_secret", null, gupshupEncrypt(trimmedSecret));
+      shouldClearPartnerCache = true;
+    }
+    if (appId !== undefined) {
+      await upsertConfig("gupshup_app_id", appId);
+      shouldClearPartnerCache = true;
+    }
+    if (shouldClearPartnerCache) {
+      clearPartnerTokenCache();
+    }
 
     res.json({ success: true });
   } catch (error: any) {
@@ -1239,21 +1259,42 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
       },
     });
 
-    if (response.ok) {
-      return res.json({ success: true, appName });
+    if (!response.ok) {
+      const text = await response.text();
+      if (response.status === 401 || response.status === 403) {
+        return res.json({ success: false, error: "Invalid API key - authentication failed. Verify your key and app name in the Gupshup dashboard." });
+      }
+      let errorDetail = text;
+      try {
+        const parsed = JSON.parse(text);
+        errorDetail = parsed.message || parsed.error || text;
+      } catch {}
+      if (typeof errorDetail === "object") errorDetail = JSON.stringify(errorDetail);
+      return res.json({ success: false, error: `Messaging API: HTTP ${response.status}: ${errorDetail}` });
     }
 
-    const text = await response.text();
-    if (response.status === 401 || response.status === 403) {
-      return res.json({ success: false, error: "Invalid API key - authentication failed. Verify your key and app name in the Gupshup dashboard." });
+    let partnerStatus = "not_configured";
+    let partnerError = "";
+    const tokenResult = await getPartnerToken();
+    const appIdVal = await getGupshupAppId();
+    if (tokenResult.status === "ok" && appIdVal) {
+      try {
+        const partnerResp = await fetch(
+          `https://partner.gupshup.io/partner/app/${encodeURIComponent(appIdVal)}/templates?pageSize=1`,
+          { headers: { "Authorization": tokenResult.token } }
+        );
+        partnerStatus = partnerResp.ok ? "ok" : "failed";
+        if (!partnerResp.ok) partnerError = `HTTP ${partnerResp.status}`;
+      } catch (e: any) {
+        partnerStatus = "failed";
+        partnerError = e.message;
+      }
+    } else if (tokenResult.status === "auth_failed") {
+      partnerStatus = "auth_failed";
+      partnerError = tokenResult.error;
     }
-    let errorDetail = text;
-    try {
-      const parsed = JSON.parse(text);
-      errorDetail = parsed.message || parsed.error || text;
-    } catch {}
-    if (typeof errorDetail === "object") errorDetail = JSON.stringify(errorDetail);
-    return res.json({ success: false, error: `HTTP ${response.status}: ${errorDetail}` });
+
+    return res.json({ success: true, appName, partnerStatus, partnerError });
   } catch (error: any) {
     const msg = typeof error === "object" && error !== null
       ? (error.message || (error.error ? (typeof error.error === "string" ? error.error : JSON.stringify(error.error)) : JSON.stringify(error)))

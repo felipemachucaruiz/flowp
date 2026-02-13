@@ -113,6 +113,79 @@ export function createGupshupClient(apiKey: string) {
   return new Gupshup({ apiKey });
 }
 
+let cachedPartnerToken: { token: string; expiresAt: number } | null = null;
+
+export type PartnerTokenResult =
+  | { status: "ok"; token: string }
+  | { status: "not_configured" }
+  | { status: "auth_failed"; error: string };
+
+export async function getPartnerToken(): Promise<PartnerTokenResult> {
+  if (cachedPartnerToken && Date.now() < cachedPartnerToken.expiresAt) {
+    return { status: "ok", token: cachedPartnerToken.token };
+  }
+
+  try {
+    const keys = ["gupshup_partner_email", "gupshup_partner_secret"];
+    const configs = await db.select()
+      .from(platformConfig)
+      .where(inArray(platformConfig.key, keys));
+
+    const configMap: Record<string, any> = {};
+    for (const c of configs) {
+      configMap[c.key] = c;
+    }
+
+    const emailRow = configMap["gupshup_partner_email"];
+    const secretRow = configMap["gupshup_partner_secret"];
+    if (!emailRow?.value || !secretRow?.encryptedValue) {
+      return { status: "not_configured" };
+    }
+
+    const email = emailRow.value;
+    const secret = decrypt(secretRow.encryptedValue);
+
+    const body = new URLSearchParams({ email, password: secret });
+    const response = await fetch("https://partner.gupshup.io/partner/account/login", {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: body.toString(),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      return { status: "auth_failed", error: `Partner login failed (HTTP ${response.status}): ${text.substring(0, 200)}` };
+    }
+
+    const data = await response.json();
+    if (!data.token) {
+      return { status: "auth_failed", error: "Partner login returned no token" };
+    }
+
+    cachedPartnerToken = {
+      token: data.token,
+      expiresAt: Date.now() + 23 * 60 * 60 * 1000,
+    };
+    return { status: "ok", token: data.token };
+  } catch (error: any) {
+    return { status: "auth_failed", error: `Partner login error: ${error.message}` };
+  }
+}
+
+export async function getGupshupAppId(): Promise<string | null> {
+  const config = await db.query.platformConfig.findFirst({
+    where: eq(platformConfig.key, "gupshup_app_id"),
+  });
+  return config?.value || null;
+}
+
+export function clearPartnerTokenCache() {
+  cachedPartnerToken = null;
+}
+
 function extractErrorMessage(error: any): string {
   if (!error) return "Unknown error";
   if (typeof error === "string") return error;
