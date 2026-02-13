@@ -1700,7 +1700,7 @@ function MyPlanTab() {
     );
   }
 
-  const hasActiveSub = subscription && subscription.status === "active";
+  const hasActiveSub = subscription && (subscription.status === "active" || isComped);
 
   return (
     <div className="space-y-6">
@@ -1915,11 +1915,14 @@ function MyPlanTab() {
                     <CardFooter>
                       <Button
                         className="w-full"
-                        variant={plan.tier === tier ? "default" : "outline"}
+                        variant={plan.tier === tier ? "secondary" : "outline"}
                         onClick={() => navigate(`/subscription?from=myplan&select=${plan.id}`)}
+                        disabled={plan.tier === tier}
                         data-testid={`button-subscribe-plan-${plan.tier}`}
                       >
-                        {t("subscription.subscribe_to" as any)}
+                        {plan.tier === tier
+                          ? t("subscription.you_have_this_plan" as any)
+                          : t("subscription.subscribe_to" as any)}
                       </Button>
                     </CardFooter>
                   </Card>
