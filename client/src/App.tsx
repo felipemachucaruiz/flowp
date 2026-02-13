@@ -165,9 +165,10 @@ function TrialBanner() {
 function TrialExpiredGate() {
   const { trial, status } = useSubscription();
   const { t } = useI18n();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
   if (!(status === "suspended" && trial.trialExpired)) return null;
+  if (location === "/subscription") return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm" data-testid="gate-trial-expired">
