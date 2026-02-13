@@ -2176,3 +2176,63 @@ export const insertWhatsappMessageLogSchema = createInsertSchema(whatsappMessage
 });
 export type WhatsappMessageLog = typeof whatsappMessageLogs.$inferSelect;
 export type InsertWhatsappMessageLog = z.infer<typeof insertWhatsappMessageLogSchema>;
+
+// ==========================================
+// WHATSAPP TEMPLATE MANAGER
+// ==========================================
+
+export const whatsappTemplateCategoryEnum = pgEnum("whatsapp_template_category", ["utility", "marketing", "authentication"]);
+export const whatsappTemplateStatusEnum = pgEnum("whatsapp_template_status", ["draft", "pending", "approved", "rejected"]);
+
+export const whatsappTemplates = pgTable("whatsapp_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  name: varchar("name", { length: 512 }).notNull(),
+  category: whatsappTemplateCategoryEnum("category").notNull().default("utility"),
+  language: varchar("language", { length: 10 }).notNull().default("es"),
+  headerText: text("header_text"),
+  bodyText: text("body_text").notNull(),
+  footerText: text("footer_text"),
+  buttons: jsonb("buttons").$type<Array<{ type: string; text: string; url?: string; phoneNumber?: string }>>().default([]),
+  variablesSample: jsonb("variables_sample").$type<Record<string, string>>().default({}),
+  gupshupTemplateId: varchar("gupshup_template_id", { length: 255 }),
+  status: whatsappTemplateStatusEnum("status").notNull().default("draft"),
+  rejectionReason: text("rejection_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWhatsappTemplateSchema = createInsertSchema(whatsappTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type WhatsappTemplate = typeof whatsappTemplates.$inferSelect;
+export type InsertWhatsappTemplate = z.infer<typeof insertWhatsappTemplateSchema>;
+
+export const whatsappTriggerEventEnum = pgEnum("whatsapp_trigger_event", [
+  "sale_completed",
+  "low_stock_alert",
+  "order_ready",
+  "payment_received",
+  "daily_summary",
+]);
+
+export const whatsappTemplateTriggers = pgTable("whatsapp_template_triggers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  templateId: varchar("template_id").notNull().references(() => whatsappTemplates.id, { onDelete: "cascade" }),
+  event: whatsappTriggerEventEnum("event").notNull(),
+  enabled: boolean("enabled").default(true),
+  variableMapping: jsonb("variable_mapping").$type<Record<string, string>>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWhatsappTemplateTriggerSchema = createInsertSchema(whatsappTemplateTriggers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type WhatsappTemplateTrigger = typeof whatsappTemplateTriggers.$inferSelect;
+export type InsertWhatsappTemplateTrigger = z.infer<typeof insertWhatsappTemplateTriggerSchema>;

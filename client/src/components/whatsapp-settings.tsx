@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { WhatsAppTemplateManager } from "@/components/whatsapp-template-manager";
 import {
   Table,
   TableBody,
@@ -631,6 +632,8 @@ export function WhatsAppSettings() {
           </CardContent>
         </Card>
       )}
+
+      {config?.configured && <WhatsAppTemplateManager />}
     </div>
   );
 }

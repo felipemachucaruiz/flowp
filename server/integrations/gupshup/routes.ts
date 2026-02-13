@@ -6,6 +6,8 @@ import {
   tenantWhatsappSubscriptions,
   whatsappPackages,
   tenantAddons,
+  whatsappTemplates,
+  whatsappTemplateTriggers,
   PAID_ADDONS,
 } from "@shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
@@ -19,6 +21,7 @@ import {
   validateQuota,
   processDeliveryStatus,
   getActiveSubscription,
+  getGlobalGupshupCredentials,
 } from "./service";
 
 export const whatsappRouter = Router();
@@ -294,6 +297,372 @@ whatsappRouter.get("/logs", whatsappAddonGate, async (req: Request, res: Respons
       .where(eq(whatsappMessageLogs.tenantId, tenantId));
 
     return res.json({ logs, total: countResult?.count || 0 });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// TEMPLATE MANAGEMENT ROUTES
+// ==========================================
+
+whatsappRouter.get("/templates", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const templates = await db.select()
+      .from(whatsappTemplates)
+      .where(eq(whatsappTemplates.tenantId, tenantId))
+      .orderBy(desc(whatsappTemplates.createdAt));
+    return res.json(templates);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.post("/templates", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const { name, category, language, headerText, bodyText, footerText, buttons, variablesSample } = req.body;
+    if (!name || !bodyText) {
+      return res.status(400).json({ error: "Name and body text are required" });
+    }
+
+    const [template] = await db.insert(whatsappTemplates).values({
+      tenantId,
+      name: name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, ""),
+      category: category || "utility",
+      language: language || "es",
+      headerText: headerText || null,
+      bodyText,
+      footerText: footerText || null,
+      buttons: buttons || [],
+      variablesSample: variablesSample || {},
+      status: "draft",
+    }).returning();
+
+    return res.json(template);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.put("/templates/:id", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  const templateId = req.params.id;
+  try {
+    const existing = await db.query.whatsappTemplates.findFirst({
+      where: and(eq(whatsappTemplates.id, templateId), eq(whatsappTemplates.tenantId, tenantId)),
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "Template not found" });
+    }
+    if (existing.status === "pending") {
+      return res.status(400).json({ error: "Cannot edit a template that is pending approval" });
+    }
+
+    const { name, category, language, headerText, bodyText, footerText, buttons, variablesSample } = req.body;
+    const updateData: any = { updatedAt: new Date() };
+
+    if (name !== undefined) updateData.name = name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    if (category !== undefined) updateData.category = category;
+    if (language !== undefined) updateData.language = language;
+    if (headerText !== undefined) updateData.headerText = headerText;
+    if (bodyText !== undefined) updateData.bodyText = bodyText;
+    if (footerText !== undefined) updateData.footerText = footerText;
+    if (buttons !== undefined) updateData.buttons = buttons;
+    if (variablesSample !== undefined) updateData.variablesSample = variablesSample;
+
+    if (existing.status === "approved" || existing.status === "rejected") {
+      updateData.status = "draft";
+      updateData.gupshupTemplateId = null;
+      updateData.rejectionReason = null;
+    }
+
+    const [updated] = await db.update(whatsappTemplates)
+      .set(updateData)
+      .where(and(eq(whatsappTemplates.id, templateId), eq(whatsappTemplates.tenantId, tenantId)))
+      .returning();
+
+    return res.json(updated);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.delete("/templates/:id", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  const templateId = req.params.id;
+  try {
+    const existing = await db.query.whatsappTemplates.findFirst({
+      where: and(eq(whatsappTemplates.id, templateId), eq(whatsappTemplates.tenantId, tenantId)),
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "Template not found" });
+    }
+
+    await db.delete(whatsappTemplates)
+      .where(and(eq(whatsappTemplates.id, templateId), eq(whatsappTemplates.tenantId, tenantId)));
+
+    return res.json({ success: true });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.post("/templates/:id/submit", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  const templateId = req.params.id;
+  try {
+    const template = await db.query.whatsappTemplates.findFirst({
+      where: and(eq(whatsappTemplates.id, templateId), eq(whatsappTemplates.tenantId, tenantId)),
+    });
+    if (!template) {
+      return res.status(404).json({ error: "Template not found" });
+    }
+    if (template.status === "pending") {
+      return res.status(400).json({ error: "Template is already pending approval" });
+    }
+
+    const globalCreds = await getGlobalGupshupCredentials();
+    if (!globalCreds) {
+      return res.status(400).json({ error: "Global WhatsApp service not configured" });
+    }
+
+    const templatePayload: any = {
+      elementName: template.name,
+      languageCode: template.language,
+      category: template.category.toUpperCase(),
+      templateType: "TEXT",
+      body: template.bodyText,
+    };
+
+    if (template.headerText) {
+      templatePayload.header = template.headerText;
+    }
+    if (template.footerText) {
+      templatePayload.footer = template.footerText;
+    }
+    if (template.buttons && (template.buttons as any[]).length > 0) {
+      templatePayload.buttons = JSON.stringify(template.buttons);
+    }
+
+    if (template.variablesSample && Object.keys(template.variablesSample as Record<string, string>).length > 0) {
+      const sampleValues = Object.values(template.variablesSample as Record<string, string>);
+      templatePayload.example = sampleValues.join(",");
+    }
+
+    const body = new URLSearchParams();
+    for (const [key, value] of Object.entries(templatePayload)) {
+      body.append(key, String(value));
+    }
+
+    const response = await fetch(
+      `https://api.gupshup.io/wa/app/${globalCreds.appName}/template`,
+      {
+        method: "POST",
+        headers: {
+          "apikey": globalCreds.apiKey,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: body.toString(),
+      }
+    );
+
+    const data = await response.json();
+
+    if (response.ok && (data.status === "success" || data.template)) {
+      const gupshupId = data.template?.id || data.id || template.name;
+      await db.update(whatsappTemplates)
+        .set({
+          status: "pending",
+          gupshupTemplateId: String(gupshupId),
+          rejectionReason: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(whatsappTemplates.id, templateId));
+
+      return res.json({ success: true, gupshupTemplateId: gupshupId });
+    } else {
+      const errorMsg = data.message || JSON.stringify(data);
+      return res.status(400).json({ error: `Gupshup rejected: ${errorMsg}` });
+    }
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.post("/templates/sync-status", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const globalCreds = await getGlobalGupshupCredentials();
+    if (!globalCreds) {
+      return res.status(400).json({ error: "Global WhatsApp service not configured" });
+    }
+
+    const response = await fetch(
+      `https://api.gupshup.io/wa/app/${globalCreds.appName}/template`,
+      {
+        headers: { "apikey": globalCreds.apiKey },
+      }
+    );
+
+    if (!response.ok) {
+      return res.status(400).json({ error: "Failed to fetch templates from Gupshup" });
+    }
+
+    const data = await response.json();
+    const gupshupTemplates: Array<{ elementName: string; id: string; status: string; reason?: string }> =
+      data.templates || data || [];
+
+    const pendingTemplates = await db.select()
+      .from(whatsappTemplates)
+      .where(and(
+        eq(whatsappTemplates.tenantId, tenantId),
+        eq(whatsappTemplates.status, "pending")
+      ));
+
+    let updated = 0;
+    for (const local of pendingTemplates) {
+      const match = gupshupTemplates.find(
+        (g) => g.elementName === local.name || g.id === local.gupshupTemplateId
+      );
+      if (!match) continue;
+
+      const gStatus = match.status?.toLowerCase();
+      if (gStatus === "approved") {
+        await db.update(whatsappTemplates)
+          .set({ status: "approved", gupshupTemplateId: match.id, updatedAt: new Date() })
+          .where(eq(whatsappTemplates.id, local.id));
+        updated++;
+      } else if (gStatus === "rejected" || gStatus === "disabled") {
+        await db.update(whatsappTemplates)
+          .set({ status: "rejected", rejectionReason: match.reason || "Rejected by WhatsApp", updatedAt: new Date() })
+          .where(eq(whatsappTemplates.id, local.id));
+        updated++;
+      }
+    }
+
+    return res.json({ success: true, updatedCount: updated });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// TRIGGER MAPPING ROUTES
+// ==========================================
+
+whatsappRouter.get("/triggers", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const triggers = await db.select()
+      .from(whatsappTemplateTriggers)
+      .where(eq(whatsappTemplateTriggers.tenantId, tenantId))
+      .orderBy(whatsappTemplateTriggers.event);
+    return res.json(triggers);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.post("/triggers", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const { templateId, event, variableMapping } = req.body;
+    if (!templateId || !event) {
+      return res.status(400).json({ error: "templateId and event are required" });
+    }
+
+    const template = await db.query.whatsappTemplates.findFirst({
+      where: and(eq(whatsappTemplates.id, templateId), eq(whatsappTemplates.tenantId, tenantId)),
+    });
+    if (!template) {
+      return res.status(404).json({ error: "Template not found" });
+    }
+    if (template.status !== "approved") {
+      return res.status(400).json({ error: "Only approved templates can be assigned to triggers" });
+    }
+
+    const existing = await db.query.whatsappTemplateTriggers.findFirst({
+      where: and(
+        eq(whatsappTemplateTriggers.tenantId, tenantId),
+        eq(whatsappTemplateTriggers.event, event)
+      ),
+    });
+
+    if (existing) {
+      const [updated] = await db.update(whatsappTemplateTriggers)
+        .set({ templateId, variableMapping: variableMapping || {}, updatedAt: new Date() })
+        .where(eq(whatsappTemplateTriggers.id, existing.id))
+        .returning();
+      return res.json(updated);
+    }
+
+    const [trigger] = await db.insert(whatsappTemplateTriggers).values({
+      tenantId,
+      templateId,
+      event,
+      variableMapping: variableMapping || {},
+    }).returning();
+
+    return res.json(trigger);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.put("/triggers/:id", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  const triggerId = req.params.id;
+  try {
+    const existing = await db.query.whatsappTemplateTriggers.findFirst({
+      where: and(eq(whatsappTemplateTriggers.id, triggerId), eq(whatsappTemplateTriggers.tenantId, tenantId)),
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "Trigger not found" });
+    }
+
+    const { templateId, enabled, variableMapping } = req.body;
+    const updateData: any = { updatedAt: new Date() };
+
+    if (templateId !== undefined) {
+      const template = await db.query.whatsappTemplates.findFirst({
+        where: and(eq(whatsappTemplates.id, templateId), eq(whatsappTemplates.tenantId, tenantId)),
+      });
+      if (!template || template.status !== "approved") {
+        return res.status(400).json({ error: "Only approved templates can be assigned to triggers" });
+      }
+      updateData.templateId = templateId;
+    }
+    if (enabled !== undefined) updateData.enabled = enabled;
+    if (variableMapping !== undefined) updateData.variableMapping = variableMapping;
+
+    const [updated] = await db.update(whatsappTemplateTriggers)
+      .set(updateData)
+      .where(and(eq(whatsappTemplateTriggers.id, triggerId), eq(whatsappTemplateTriggers.tenantId, tenantId)))
+      .returning();
+
+    return res.json(updated);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.delete("/triggers/:id", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  const triggerId = req.params.id;
+  try {
+    const existing = await db.query.whatsappTemplateTriggers.findFirst({
+      where: and(eq(whatsappTemplateTriggers.id, triggerId), eq(whatsappTemplateTriggers.tenantId, tenantId)),
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "Trigger not found" });
+    }
+
+    await db.delete(whatsappTemplateTriggers)
+      .where(and(eq(whatsappTemplateTriggers.id, triggerId), eq(whatsappTemplateTriggers.tenantId, tenantId)));
+
+    return res.json({ success: true });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
