@@ -507,11 +507,21 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
     </div>
     
     <div class="payment-info">
-      <div><span>${t.payment}:</span><span>${data.paymentMethod === "cash" ? t.cash : t.card}</span></div>
-      ${data.paymentMethod === "cash" && data.cashReceived ? `
-        <div><span>${t.cashReceived}:</span><span>${formatCurrency(data.cashReceived)}</span></div>
-        <div><span>${t.change}:</span><span>${formatCurrency(data.change || 0)}</span></div>
-      ` : ""}
+      ${data.paymentMethod === "split" && data.payments && data.payments.length > 1 ? `
+        ${data.payments.map(p => `
+          <div><span>${t.payment} (${p.type === "cash" ? t.cash : t.card}):</span><span>${formatCurrency(p.amount)}</span></div>
+        `).join("")}
+        ${data.cashReceived ? `
+          <div><span>${t.cashReceived}:</span><span>${formatCurrency(data.cashReceived)}</span></div>
+          <div><span>${t.change}:</span><span>${formatCurrency(data.change || 0)}</span></div>
+        ` : ""}
+      ` : `
+        <div><span>${t.payment}:</span><span>${data.paymentMethod === "cash" ? t.cash : t.card}</span></div>
+        ${data.paymentMethod === "cash" && data.cashReceived ? `
+          <div><span>${t.cashReceived}:</span><span>${formatCurrency(data.cashReceived)}</span></div>
+          <div><span>${t.change}:</span><span>${formatCurrency(data.change || 0)}</span></div>
+        ` : ""}
+      `}
     </div>
     
     ${data.electronicBilling?.cufe ? `

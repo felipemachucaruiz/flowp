@@ -2272,13 +2272,26 @@ export async function registerRoutes(
         }
       }
 
-      // Create payment
-      await storage.createPayment({
-        orderId: order.id,
-        method: paymentMethod,
-        amount: total.toString(),
-        reference: null,
-      });
+      // Create payment record(s) - handle split payments individually
+      const { payments: splitPaymentsArr } = req.body;
+      if (splitPaymentsArr && Array.isArray(splitPaymentsArr) && splitPaymentsArr.length > 0) {
+        for (const sp of splitPaymentsArr) {
+          const method = sp.type === "card" ? "card" : "cash";
+          await storage.createPayment({
+            orderId: order.id,
+            method,
+            amount: parseFloat(sp.amount).toFixed(2),
+            reference: sp.transactionId || null,
+          });
+        }
+      } else {
+        await storage.createPayment({
+          orderId: order.id,
+          method: paymentMethod === "split" ? "cash" : paymentMethod,
+          amount: total.toString(),
+          reference: null,
+        });
+      }
 
       // Award loyalty points and update customer stats if customer is associated
       if (customerId) {
@@ -5531,9 +5544,7 @@ export async function registerRoutes(
           const amount = parseFloat(p.amount || "0");
           if (p.method === "cash") {
             expectedCashSales += amount;
-          } else if (p.method === "card" || p.method === "credit_card" || p.method === "debit_card") {
-            expectedCardSales += amount;
-          } else if (p.method === "transfer" || p.method === "nequi" || p.method === "daviplata") {
+          } else {
             expectedCardSales += amount;
           }
         }

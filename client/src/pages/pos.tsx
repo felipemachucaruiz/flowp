@@ -582,6 +582,11 @@ export default function POSPage() {
           })),
           total: receiptData.total,
           paymentMethod: receiptData.paymentMethod,
+          payments: receiptData.payments?.map(p => ({
+            type: p.type as "cash" | "card",
+            amount: p.amount,
+            transactionId: p.transactionId,
+          })),
           cashReceived: receiptData.cashReceived,
           change: receiptData.cashReceived ? receiptData.cashReceived - receiptData.total : undefined,
           cashier: user?.name,
