@@ -3045,7 +3045,18 @@ export async function registerRoutes(
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
       if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
-      const whs = await storage.getWarehousesByTenant(tenantId);
+      let whs = await storage.getWarehousesByTenant(tenantId);
+      if (whs.length === 0) {
+        const tenant = await storage.getTenant(tenantId);
+        const defaultName = tenant?.name ? `Bodega ${tenant.name}` : "Bodega Principal";
+        const defaultWh = await storage.createWarehouse({
+          tenantId,
+          name: defaultName,
+          isDefault: true,
+        });
+        await storage.assignOrphanedMovements(tenantId, defaultWh.id);
+        whs = [defaultWh];
+      }
       res.json(whs);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch warehouses" });
