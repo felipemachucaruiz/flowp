@@ -136,6 +136,7 @@ export const registers = pgTable("registers", {
   tenantId: varchar("tenant_id").references(() => tenants.id).notNull(),
   name: text("name").notNull(),
   deviceId: text("device_id"),
+  warehouseId: varchar("warehouse_id").references(() => warehouses.id),
   printerConfig: jsonb("printer_config").$type<{
     printerName?: string;
     paperSize?: "58mm" | "80mm";
