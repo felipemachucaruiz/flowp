@@ -386,7 +386,7 @@ export default function CustomersPage() {
               </div>
             </div>
 
-            <Tabs defaultValue="history" className="flex-1 overflow-hidden">
+            <Tabs defaultValue="history" className="flex-1 overflow-hidden flex flex-col">
               <div className="px-6 border-b">
                 <TabsList className="h-12">
                   <TabsTrigger value="history" className="gap-2" data-testid="tab-history">
