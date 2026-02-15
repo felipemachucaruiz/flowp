@@ -287,6 +287,7 @@ export interface IStorage {
   createRegister(data: InsertRegister): Promise<Register>;
   updateRegister(id: string, data: Partial<InsertRegister>): Promise<Register | undefined>;
   deleteRegister(id: string): Promise<void>;
+  getRegister(id: string): Promise<Register | undefined>;
   getRegistersByTenant(tenantId: string): Promise<Register[]>;
   getRegisterCount(tenantId: string): Promise<number>;
   getTenantMaxRegisters(tenantId: string): Promise<number>;
@@ -1967,6 +1968,11 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRegister(id: string): Promise<void> {
     await db.delete(registers).where(eq(registers.id, id));
+  }
+
+  async getRegister(id: string): Promise<Register | undefined> {
+    const [reg] = await db.select().from(registers).where(eq(registers.id, id));
+    return reg || undefined;
   }
 
   async getRegistersByTenant(tenantId: string): Promise<Register[]> {

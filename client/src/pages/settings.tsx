@@ -1369,12 +1369,18 @@ function RegistersSettings() {
   const { canCreate: canCreateSub, usage: subUsage, limits: subLimits } = useSubscription();
 
   const [showDialog, setShowDialog] = useState(false);
-  const [editingRegister, setEditingRegister] = useState<{ id: string; name: string } | null>(null);
+  const [editingRegister, setEditingRegister] = useState<{ id: string; name: string; warehouseId?: string | null } | null>(null);
   const [registerName, setRegisterName] = useState("");
+  const [registerWarehouseId, setRegisterWarehouseId] = useState<string>("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const { data: registersData, isLoading } = useQuery<{ registers: any[]; maxRegisters: number; count: number }>({
     queryKey: ["/api/registers"],
+    enabled: !!tenant?.id,
+  });
+
+  const { data: warehouses } = useQuery<any[]>({
+    queryKey: ["/api/warehouses"],
     enabled: !!tenant?.id,
   });
 
@@ -1383,12 +1389,13 @@ function RegistersSettings() {
   const count = registersData?.count || 0;
 
   const createMutation = useMutation({
-    mutationFn: async (name: string) => apiRequest("POST", "/api/registers", { name }),
+    mutationFn: async ({ name, warehouseId }: { name: string; warehouseId?: string }) => apiRequest("POST", "/api/registers", { name, warehouseId: warehouseId || null }),
     onSuccess: () => {
       toast({ title: t("settings.register_created") });
       queryClient.invalidateQueries({ queryKey: ["/api/registers"] });
       setShowDialog(false);
       setRegisterName("");
+      setRegisterWarehouseId("");
     },
     onError: (error: any) => {
       if (error.message?.includes("register_limit_reached")) {
@@ -1400,13 +1407,14 @@ function RegistersSettings() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => apiRequest("PUT", `/api/registers/${id}`, { name }),
+    mutationFn: async ({ id, name, warehouseId }: { id: string; name: string; warehouseId?: string }) => apiRequest("PUT", `/api/registers/${id}`, { name, warehouseId: warehouseId || null }),
     onSuccess: () => {
       toast({ title: t("settings.register_updated") });
       queryClient.invalidateQueries({ queryKey: ["/api/registers"] });
       setShowDialog(false);
       setEditingRegister(null);
       setRegisterName("");
+      setRegisterWarehouseId("");
     },
     onError: (error: any) => {
       toast({ title: t("common.error"), description: error.message, variant: "destructive" });
@@ -1428,21 +1436,23 @@ function RegistersSettings() {
   const openCreateDialog = () => {
     setEditingRegister(null);
     setRegisterName("");
+    setRegisterWarehouseId("");
     setShowDialog(true);
   };
 
-  const openEditDialog = (reg: { id: string; name: string }) => {
+  const openEditDialog = (reg: { id: string; name: string; warehouseId?: string | null }) => {
     setEditingRegister(reg);
     setRegisterName(reg.name);
+    setRegisterWarehouseId(reg.warehouseId || "");
     setShowDialog(true);
   };
 
   const handleSubmit = () => {
     if (!registerName.trim()) return;
     if (editingRegister) {
-      updateMutation.mutate({ id: editingRegister.id, name: registerName.trim() });
+      updateMutation.mutate({ id: editingRegister.id, name: registerName.trim(), warehouseId: registerWarehouseId || undefined });
     } else {
-      createMutation.mutate(registerName.trim());
+      createMutation.mutate({ name: registerName.trim(), warehouseId: registerWarehouseId || undefined });
     }
   };
 
@@ -1494,7 +1504,9 @@ function RegistersSettings() {
             <p className="text-center text-muted-foreground py-8">{t("settings.no_registers")}</p>
           ) : (
             <div className="space-y-2">
-              {registers.map((reg: any) => (
+              {registers.map((reg: any) => {
+                const wh = warehouses?.find((w: any) => w.id === reg.warehouseId);
+                return (
                 <div
                   key={reg.id}
                   className="flex items-center justify-between p-3 border rounded-md"
@@ -1502,7 +1514,15 @@ function RegistersSettings() {
                 >
                   <div className="flex items-center gap-3">
                     <Landmark className="w-5 h-5 text-muted-foreground" />
-                    <span className="font-medium">{reg.name}</span>
+                    <div>
+                      <span className="font-medium">{reg.name}</span>
+                      {wh && (
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                          <Warehouse className="w-3 h-3" />
+                          <span>{wh.name}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
@@ -1525,7 +1545,8 @@ function RegistersSettings() {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -1548,6 +1569,20 @@ function RegistersSettings() {
                 data-testid="input-register-name"
                 onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
               />
+            </div>
+            <div>
+              <Label>{t("settings.register_warehouse")}</Label>
+              <Select value={registerWarehouseId} onValueChange={setRegisterWarehouseId}>
+                <SelectTrigger data-testid="select-register-warehouse">
+                  <SelectValue placeholder={t("settings.select_warehouse")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(warehouses || []).map((wh: any) => (
+                    <SelectItem key={wh.id} value={wh.id}>{wh.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">{t("settings.register_warehouse_description")}</p>
             </div>
           </div>
           <DialogFooter>

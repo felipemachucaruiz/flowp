@@ -2170,6 +2170,13 @@ export async function registerRoutes(
         return res.status(403).json({ message: "REGISTER_NOT_OPEN", error: "No active register session. Please open the cash register before making sales." });
       }
 
+      // Get register's warehouse for stock deductions
+      let saleWarehouseId: string | null = null;
+      if (activeSession.registerId) {
+        const register = await storage.getRegister(activeSession.registerId);
+        saleWarehouseId = register?.warehouseId || null;
+      }
+
       // Get next order number
       const orderNumber = await storage.getNextOrderNumber(tenantId);
 
@@ -2203,7 +2210,7 @@ export async function registerRoutes(
           sentToKitchen: false,
         });
 
-        // Create stock movement for sale
+        // Create stock movement for sale (deduct from register's warehouse)
         const product = await storage.getProduct(item.product.id);
         if (product?.trackInventory) {
           await storage.createStockMovement({
@@ -2214,6 +2221,7 @@ export async function registerRoutes(
             referenceId: order.id,
             notes: null,
             userId,
+            warehouseId: saleWarehouseId,
           });
 
           // Check for low stock and send alert
@@ -5322,7 +5330,7 @@ export async function registerRoutes(
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
       if (!tenantId) return res.status(400).json({ error: "Missing tenant" });
-      const { name } = req.body;
+      const { name, warehouseId } = req.body;
       if (!name || !name.trim()) return res.status(400).json({ error: "Register name is required" });
 
       const limitCheck = await storage.checkSubscriptionLimit(tenantId, "registers");
@@ -5330,7 +5338,7 @@ export async function registerRoutes(
         return res.status(403).json({ error: "register_limit_reached", current: limitCheck.current, max: limitCheck.max, requiresUpgrade: true });
       }
 
-      const reg = await storage.createRegister({ tenantId, name: name.trim(), deviceId: null, printerConfig: null });
+      const reg = await storage.createRegister({ tenantId, name: name.trim(), deviceId: null, printerConfig: null, warehouseId: warehouseId || null });
       res.json(reg);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -5341,12 +5349,14 @@ export async function registerRoutes(
     try {
       const tenantId = req.headers["x-tenant-id"] as string;
       if (!tenantId) return res.status(400).json({ error: "Missing tenant" });
-      const { name } = req.body;
+      const { name, warehouseId } = req.body;
       if (!name || !name.trim()) return res.status(400).json({ error: "Register name is required" });
       const existingRegs = await storage.getRegistersByTenant(tenantId);
       const owned = existingRegs.find(r => r.id === req.params.id);
       if (!owned) return res.status(404).json({ error: "Register not found" });
-      const reg = await storage.updateRegister(req.params.id, { name: name.trim() });
+      const updateData: any = { name: name.trim() };
+      if (warehouseId !== undefined) updateData.warehouseId = warehouseId || null;
+      const reg = await storage.updateRegister(req.params.id, updateData);
       res.json(reg);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

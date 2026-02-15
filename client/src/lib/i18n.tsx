@@ -2436,6 +2436,9 @@ const translations = {
     "settings.register_deleted": "Register deleted successfully",
     "settings.no_registers": "No registers yet. Create your first register to get started.",
     "settings.cannot_delete_active": "Cannot delete a register with an active session",
+    "settings.register_warehouse": "Warehouse",
+    "settings.select_warehouse": "Select a warehouse",
+    "settings.register_warehouse_description": "Inventory will be deducted from this warehouse when sales are made at this register.",
   },
   es: {
     // Navigation
@@ -4867,6 +4870,9 @@ const translations = {
     "settings.register_deleted": "Caja eliminada exitosamente",
     "settings.no_registers": "Aún no hay cajas. Crea tu primera caja para comenzar.",
     "settings.cannot_delete_active": "No se puede eliminar una caja con una sesión activa",
+    "settings.register_warehouse": "Bodega",
+    "settings.select_warehouse": "Seleccionar bodega",
+    "settings.register_warehouse_description": "El inventario se descontará de esta bodega cuando se realicen ventas en esta caja.",
   },
   pt: {
     // Navigation
@@ -7229,6 +7235,9 @@ const translations = {
     "settings.register_deleted": "Caixa excluída com sucesso",
     "settings.no_registers": "Nenhuma caixa ainda. Crie sua primeira caixa para começar.",
     "settings.cannot_delete_active": "Não é possível excluir uma caixa com uma sessão ativa",
+    "settings.register_warehouse": "Armazém",
+    "settings.select_warehouse": "Selecionar armazém",
+    "settings.register_warehouse_description": "O estoque será deduzido deste armazém quando vendas forem realizadas nesta caixa.",
   },
 };
 
