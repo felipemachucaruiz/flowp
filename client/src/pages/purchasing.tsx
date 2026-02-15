@@ -558,7 +558,7 @@ export default function PurchasingPage() {
                 )} />
                 {supplierForm.watch("paymentTermsType") === "credit" && (
                   <FormField control={supplierForm.control} name="paymentTermsDays" render={({ field }) => (
-                    <FormItem><FormLabel>{t("purchasing.payment_terms_days")}</FormLabel><FormControl><Input {...field} type="number" data-testid="input-supplier-payment-days" onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl></FormItem>
+                    <FormItem><FormLabel>{t("purchasing.payment_terms_days")}</FormLabel><FormControl><Input {...field} type="number" min="0" data-testid="input-supplier-payment-days" onChange={e => field.onChange(Math.max(0, parseInt(e.target.value) || 0))} /></FormControl></FormItem>
                   )} />
                 )}
               </div>
