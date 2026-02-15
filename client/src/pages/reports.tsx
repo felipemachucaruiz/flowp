@@ -40,7 +40,10 @@ import {
   Percent,
   PiggyBank,
   UserCheck,
+  Lock,
+  Crown,
 } from "lucide-react";
+import { useLocation } from "wouter";
 
 interface DashboardStats {
   todaySales: number;
@@ -64,6 +67,7 @@ const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"
 export default function ReportsPage() {
   const { tenant } = useAuth();
   const { t, formatDate } = useI18n();
+  const [, setLocation] = useLocation();
   const [dateRange, setDateRange] = useState("7d");
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
@@ -81,9 +85,15 @@ export default function ReportsPage() {
     queryKey: ["/api/reports/dashboard"],
   });
 
-  const { data: analytics, isLoading: analyticsLoading } = useQuery<AdvancedAnalytics>({
+  const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useQuery<AdvancedAnalytics>({
     queryKey: [analyticsQueryKey],
+    retry: (failureCount, error: any) => {
+      if (error?.message?.startsWith("403")) return false;
+      return failureCount < 3;
+    },
   });
+
+  const analyticsRequiresUpgrade = analyticsError?.message?.startsWith("403");
 
   const handleApplyCustomRange = () => {
     if (customStartDate && customEndDate) {
@@ -253,8 +263,17 @@ export default function ReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">{t("reports.gross_profit")}</p>
-                <p className="text-2xl font-bold">{formatCurrency(defaultAnalytics.profitAnalysis.grossProfit, currency)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("reports.period_total")}</p>
+                {analyticsRequiresUpgrade ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Pro</span>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold">{formatCurrency(defaultAnalytics.profitAnalysis.grossProfit, currency)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("reports.period_total")}</p>
+                  </>
+                )}
               </div>
               <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
                 <PiggyBank className="w-6 h-6 text-green-500" />
@@ -268,8 +287,17 @@ export default function ReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">{t("reports.gross_margin")}</p>
-                <p className="text-2xl font-bold">{defaultAnalytics.profitAnalysis.grossMargin.toFixed(1)}%</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("reports.profit_percentage")}</p>
+                {analyticsRequiresUpgrade ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Pro</span>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold">{defaultAnalytics.profitAnalysis.grossMargin.toFixed(1)}%</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("reports.profit_percentage")}</p>
+                  </>
+                )}
               </div>
               <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
                 <Percent className="w-6 h-6 text-purple-500" />
@@ -401,9 +429,65 @@ export default function ReportsPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5" />
+                {t("reports.top_selling")}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {defaultStats.topProducts.length > 0 ? (
+                <div className="space-y-3">
+                  {defaultStats.topProducts.map((product, index) => (
+                    <div
+                      key={product.name}
+                      className="flex items-center gap-4 p-3 rounded-lg bg-muted/50"
+                      data-testid={`top-product-${index}`}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{product.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {product.quantity} {t("reports.units_sold")}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">{formatCurrency(product.revenue, currency)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center text-muted-foreground">
+                  <Package className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                  <p>{t("reports.no_sales_data")}</p>
+                  <p className="text-sm">{t("reports.top_products_appear")}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="trends" className="space-y-6 mt-6">
+          {analyticsRequiresUpgrade ? (
+            <Card>
+              <CardContent className="py-16">
+                <div className="text-center">
+                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
+                  <p className="font-medium text-lg mb-2">{t("reports.pro_required")}</p>
+                  <p className="text-sm text-muted-foreground mb-4">{t("reports.pro_required_desc")}</p>
+                  <Button onClick={() => setLocation("/subscription")} data-testid="button-upgrade-reports">
+                    {t("reports.upgrade_now")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+          <>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -521,9 +605,25 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
+          </>
+          )}
         </TabsContent>
 
         <TabsContent value="products" className="mt-6">
+          {analyticsRequiresUpgrade ? (
+            <Card>
+              <CardContent className="py-16">
+                <div className="text-center">
+                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
+                  <p className="font-medium text-lg mb-2">{t("reports.pro_required")}</p>
+                  <p className="text-sm text-muted-foreground mb-4">{t("reports.pro_required_desc")}</p>
+                  <Button onClick={() => setLocation("/subscription")} data-testid="button-upgrade-products">
+                    {t("reports.upgrade_now")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -593,9 +693,24 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="employees" className="mt-6">
+          {analyticsRequiresUpgrade ? (
+            <Card>
+              <CardContent className="py-16">
+                <div className="text-center">
+                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
+                  <p className="font-medium text-lg mb-2">{t("reports.pro_required")}</p>
+                  <p className="text-sm text-muted-foreground mb-4">{t("reports.pro_required_desc")}</p>
+                  <Button onClick={() => setLocation("/subscription")} data-testid="button-upgrade-employees">
+                    {t("reports.upgrade_now")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -644,9 +759,25 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="profit" className="space-y-6 mt-6">
+          {analyticsRequiresUpgrade ? (
+            <Card>
+              <CardContent className="py-16">
+                <div className="text-center">
+                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
+                  <p className="font-medium text-lg mb-2">{t("reports.pro_required")}</p>
+                  <p className="text-sm text-muted-foreground mb-4">{t("reports.pro_required_desc")}</p>
+                  <Button onClick={() => setLocation("/subscription")} data-testid="button-upgrade-profit">
+                    {t("reports.upgrade_now")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+          <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-4">
@@ -708,6 +839,8 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
+          </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

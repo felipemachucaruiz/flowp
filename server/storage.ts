@@ -1228,18 +1228,17 @@ export class DatabaseStorage implements IStorage {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
-    // Sales by hour
+    // Sales by hour - cover all 24 hours
     const salesByHour: { hour: string; sales: number }[] = [];
-    for (let h = 8; h <= 22; h++) {
+    for (let h = 0; h < 24; h++) {
       salesByHour.push({ hour: `${h}:00`, sales: 0 });
     }
     for (const order of todayOrders) {
       const hour = new Date(order.createdAt!).getHours();
-      const idx = salesByHour.findIndex((s) => s.hour === `${hour}:00`);
-      if (idx >= 0) {
-        salesByHour[idx].sales += parseFloat(order.total);
-      }
+      salesByHour[hour].sales += parseFloat(order.total);
     }
+    // Filter to only show hours that have sales or are within business hours (6-23)
+    const filteredSalesByHour = salesByHour.filter((s, idx) => s.sales > 0 || (idx >= 6 && idx <= 23));
 
     // Sales by category
     const categorySales = new Map<string, number>();
@@ -1261,7 +1260,7 @@ export class DatabaseStorage implements IStorage {
       todayOrders: todayOrders.length,
       averageOrderValue,
       topProducts,
-      salesByHour,
+      salesByHour: filteredSalesByHour,
       salesByCategory,
       recentTrend,
     };
@@ -1305,7 +1304,7 @@ export class DatabaseStorage implements IStorage {
     const rangeOrders = await db
       .select()
       .from(orders)
-      .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, startDate), eq(orders.status, "completed")));
+      .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, startDate), lte(orders.createdAt, today), eq(orders.status, "completed")));
 
     // Get all products with cost info
     const allProducts = await db
