@@ -500,6 +500,7 @@ export default function PurchasingPage() {
                       <div className="flex items-center gap-2">
                         <Label className="text-sm">{t("purchasing.suggested_qty")}:</Label>
                         <Input type="number" className="w-20" value={reorderQuantities[key] ?? suggestion.suggestedQty}
+                          onFocus={e => e.target.select()}
                           onChange={(e) => setReorderQuantities(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))} data-testid={`input-reorder-qty-${key}`} />
                       </div>
                     </CardContent>
@@ -558,7 +559,7 @@ export default function PurchasingPage() {
                 )} />
                 {supplierForm.watch("paymentTermsType") === "credit" && (
                   <FormField control={supplierForm.control} name="paymentTermsDays" render={({ field }) => (
-                    <FormItem><FormLabel>{t("purchasing.payment_terms_days")}</FormLabel><FormControl><Input {...field} type="number" min="0" data-testid="input-supplier-payment-days" onChange={e => field.onChange(Math.max(0, parseInt(e.target.value) || 0))} /></FormControl></FormItem>
+                    <FormItem><FormLabel>{t("purchasing.payment_terms_days")}</FormLabel><FormControl><Input {...field} type="number" min="0" data-testid="input-supplier-payment-days" onFocus={e => e.target.select()} onChange={e => field.onChange(Math.max(0, parseInt(e.target.value) || 0))} /></FormControl></FormItem>
                   )} />
                 )}
               </div>
@@ -791,7 +792,7 @@ export default function PurchasingPage() {
               )}
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={itemForm.control} name="quantity" render={({ field }) => (
-                  <FormItem><FormLabel>{t("purchasing.quantity")}</FormLabel><FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} data-testid="input-item-quantity" /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>{t("purchasing.quantity")}</FormLabel><FormControl><Input type="number" {...field} onFocus={e => e.target.select()} onChange={e => field.onChange(parseInt(e.target.value) || 0)} data-testid="input-item-quantity" /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={itemForm.control} name="unitCost" render={({ field }) => (
                   <FormItem><FormLabel>{t("purchasing.unit_cost")}</FormLabel><FormControl><CurrencyInput value={field.value} onChange={(val) => field.onChange(parseFloat(val) || 0)} currency={currency} data-testid="input-item-cost" /></FormControl><FormMessage /></FormItem>
@@ -837,12 +838,14 @@ export default function PurchasingPage() {
                       <div className="flex items-center gap-2">
                         <Label className="text-sm whitespace-nowrap">{t("purchasing.qty_to_receive")}:</Label>
                         <Input type="number" min={0} max={pending} value={receiveQuantities[item.id] ?? 0}
+                          onFocus={e => e.target.select()}
                           onChange={(e) => { const val = Math.min(parseInt(e.target.value) || 0, pending); setReceiveQuantities(prev => ({ ...prev, [item.id]: val })); }}
                           className="w-24" data-testid={`input-receive-qty-${item.id}`} />
                       </div>
                       <div className="flex items-center gap-2">
                         <Label className="text-sm whitespace-nowrap">{t("purchasing.receive_unit_cost")}:</Label>
                         <Input type="number" step="0.01" min={0} value={receiveCosts[item.id] ?? parseFloat(item.unitCost || "0")}
+                          onFocus={e => e.target.select()}
                           onChange={(e) => { setReceiveCosts(prev => ({ ...prev, [item.id]: parseFloat(e.target.value) || 0 })); }}
                           className="w-24" data-testid={`input-receive-cost-${item.id}`} />
                       </div>
