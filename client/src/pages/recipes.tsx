@@ -307,6 +307,7 @@ export default function RecipesPage() {
                     step="0.01"
                     value={formData.yieldQty}
                     onChange={(e) => setFormData({ ...formData, yieldQty: e.target.value })}
+                    onFocus={e => e.target.select()}
                     data-testid="input-recipe-yield"
                   />
                 </div>
@@ -354,6 +355,7 @@ export default function RecipesPage() {
                             step="0.001"
                             value={item.qtyPerProduct}
                             onChange={(e) => updateIngredientRow(index, "qtyPerProduct", e.target.value)}
+                            onFocus={e => e.target.select()}
                             placeholder="0.00"
                             data-testid={`input-qty-${index}`}
                           />
@@ -384,6 +386,7 @@ export default function RecipesPage() {
                             step="0.1"
                             value={item.wastePercent}
                             onChange={(e) => updateIngredientRow(index, "wastePercent", e.target.value)}
+                            onFocus={e => e.target.select()}
                             placeholder="0"
                             data-testid={`input-waste-${index}`}
                           />

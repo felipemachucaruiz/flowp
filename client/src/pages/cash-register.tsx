@@ -578,6 +578,7 @@ export default function CashRegisterPage() {
                       className="h-8 text-sm"
                       value={denominations[String(d.value)] || ""}
                       onChange={(e) => handleDenominationChange(String(d.value), e.target.value)}
+                      onFocus={e => e.target.select()}
                       placeholder="0"
                       data-testid={`input-denom-${d.value}`}
                     />

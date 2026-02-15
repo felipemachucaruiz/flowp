@@ -712,6 +712,7 @@ export default function AdminTenantDetail() {
                       placeholder="1"
                       value={matiasConfig.startingNumber}
                       onChange={(e) => setMatiasConfig(prev => ({ ...prev, startingNumber: e.target.value }))}
+                      onFocus={e => e.target.select()}
                       data-testid="input-matias-starting-number"
                     />
                     <p className="text-xs text-muted-foreground">Primer número de factura autorizado</p>
@@ -725,6 +726,7 @@ export default function AdminTenantDetail() {
                       placeholder="5000"
                       value={matiasConfig.endingNumber}
                       onChange={(e) => setMatiasConfig(prev => ({ ...prev, endingNumber: e.target.value }))}
+                      onFocus={e => e.target.select()}
                       data-testid="input-matias-ending-number"
                     />
                     <p className="text-xs text-muted-foreground">Último número de factura autorizado</p>
@@ -740,6 +742,7 @@ export default function AdminTenantDetail() {
                       placeholder="1"
                       value={matiasConfig.creditNoteStartingNumber}
                       onChange={(e) => setMatiasConfig(prev => ({ ...prev, creditNoteStartingNumber: e.target.value }))}
+                      onFocus={e => e.target.select()}
                       data-testid="input-matias-cn-starting-number"
                     />
                     <p className="text-xs text-muted-foreground">Primer número de nota crédito autorizado</p>
@@ -753,6 +756,7 @@ export default function AdminTenantDetail() {
                       placeholder="1000"
                       value={matiasConfig.creditNoteEndingNumber}
                       onChange={(e) => setMatiasConfig(prev => ({ ...prev, creditNoteEndingNumber: e.target.value }))}
+                      onFocus={e => e.target.select()}
                       data-testid="input-matias-cn-ending-number"
                     />
                     <p className="text-xs text-muted-foreground">Último número de nota crédito autorizado</p>

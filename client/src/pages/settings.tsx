@@ -910,6 +910,7 @@ function TaxAddForm({
               max="100"
               value={rate}
               onChange={(e) => setRate(e.target.value)}
+              onFocus={(e) => e.target.select()}
               placeholder={t("taxes.rate_placeholder")}
               data-testid="input-tax-rate"
             />
@@ -978,6 +979,7 @@ function TaxEditForm({
             max="100"
             value={rate}
             onChange={(e) => setRate(e.target.value)}
+            onFocus={(e) => e.target.select()}
             className="w-24"
             data-testid="input-edit-tax-rate"
           />
@@ -4757,7 +4759,7 @@ export default function SettingsPage() {
                     <FormItem>
                       <FormLabel>{t("common.price")}</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" step="0.01" data-testid="input-product-price" />
+                        <Input {...field} type="number" step="0.01" onFocus={(e) => e.target.select()} data-testid="input-product-price" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -4770,7 +4772,7 @@ export default function SettingsPage() {
                     <FormItem>
                       <FormLabel>{t("products.cost")}</FormLabel>
                       <FormControl>
-                        <Input {...field} type="number" step="0.01" placeholder={t("products.cost_placeholder")} data-testid="input-product-cost" />
+                        <Input {...field} type="number" step="0.01" placeholder={t("products.cost_placeholder")} onFocus={(e) => e.target.select()} data-testid="input-product-cost" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -4977,6 +4979,7 @@ export default function SettingsPage() {
                         min="1"
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        onFocus={(e) => e.target.select()}
                         data-testid="input-table-capacity"
                       />
                     </FormControl>

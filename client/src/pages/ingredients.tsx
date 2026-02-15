@@ -230,6 +230,7 @@ export default function IngredientsPage() {
               type="number"
               value={formData.initialStock}
               onChange={(e) => setFormData(prev => ({ ...prev, initialStock: e.target.value }))}
+              onFocus={e => e.target.select()}
               placeholder="0"
               data-testid="input-ingredient-initial-stock"
             />
@@ -255,6 +256,7 @@ export default function IngredientsPage() {
             type="number"
             value={formData.reorderPointBase}
             onChange={(e) => setFormData(prev => ({ ...prev, reorderPointBase: e.target.value }))}
+            onFocus={e => e.target.select()}
             data-testid="input-ingredient-reorder-point"
           />
         </div>
@@ -264,6 +266,7 @@ export default function IngredientsPage() {
             type="number"
             value={formData.reorderQtyBase}
             onChange={(e) => setFormData(prev => ({ ...prev, reorderQtyBase: e.target.value }))}
+            onFocus={e => e.target.select()}
             data-testid="input-ingredient-reorder-qty"
           />
         </div>

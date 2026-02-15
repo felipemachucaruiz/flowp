@@ -179,6 +179,7 @@ export default function LotsPage() {
                   step="0.001"
                   value={receiveData.qty}
                   onChange={(e) => setReceiveData({ ...receiveData, qty: e.target.value })}
+                  onFocus={e => e.target.select()}
                   required
                   data-testid="input-receive-qty"
                 />
@@ -199,6 +200,7 @@ export default function LotsPage() {
                   step="0.01"
                   value={receiveData.costPerBase}
                   onChange={(e) => setReceiveData({ ...receiveData, costPerBase: e.target.value })}
+                  onFocus={e => e.target.select()}
                   data-testid="input-receive-cost"
                 />
               </div>
@@ -321,6 +323,7 @@ export default function LotsPage() {
                 step="0.001"
                 value={adjustData.qtyDelta}
                 onChange={(e) => setAdjustData({ ...adjustData, qtyDelta: e.target.value })}
+                onFocus={e => e.target.select()}
                 placeholder={t("lots.adjustment_placeholder")}
                 required
                 data-testid="input-adjust-qty"

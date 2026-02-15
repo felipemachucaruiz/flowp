@@ -288,6 +288,7 @@ export default function LoyaltyRewardsPage() {
                 type="number"
                 value={rewardForm.pointsCost}
                 onChange={(e) => setRewardForm({ ...rewardForm, pointsCost: e.target.value })}
+                onFocus={e => e.target.select()}
                 placeholder="1000"
                 data-testid="input-reward-points"
               />
@@ -332,6 +333,7 @@ export default function LoyaltyRewardsPage() {
                     type="number"
                     value={rewardForm.discountValue}
                     onChange={(e) => setRewardForm({ ...rewardForm, discountValue: e.target.value })}
+                    onFocus={e => e.target.select()}
                     placeholder={rewardForm.discountType === "percentage" ? "10" : "5000"}
                     data-testid="input-discount-value"
                   />

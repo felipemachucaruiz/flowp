@@ -594,6 +594,7 @@ export default function AdminAddonStore() {
                   type="number"
                   min="0"
                   {...form.register("monthlyPrice", { valueAsNumber: true })}
+                  onFocus={e => e.target.select()}
                   data-testid="input-addon-monthly-price"
                 />
               </div>
@@ -604,6 +605,7 @@ export default function AdminAddonStore() {
                   type="number"
                   min="0"
                   {...form.register("yearlyPrice", { valueAsNumber: true })}
+                  onFocus={e => e.target.select()}
                   data-testid="input-addon-yearly-price"
                 />
               </div>
@@ -614,6 +616,7 @@ export default function AdminAddonStore() {
                   type="number"
                   min="0"
                   {...form.register("trialDays", { valueAsNumber: true })}
+                  onFocus={e => e.target.select()}
                   data-testid="input-addon-trial-days"
                 />
               </div>
@@ -662,6 +665,7 @@ export default function AdminAddonStore() {
                   id="sortOrder"
                   type="number"
                   {...form.register("sortOrder", { valueAsNumber: true })}
+                  onFocus={e => e.target.select()}
                   data-testid="input-addon-sort-order"
                 />
               </div>

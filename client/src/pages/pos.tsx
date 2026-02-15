@@ -951,6 +951,7 @@ export default function POSPage() {
                     max="100"
                     value={discountPercent}
                     onChange={(e) => setDiscountPercent(e.target.value)}
+                    onFocus={e => e.target.select()}
                     className="w-12 h-6 text-right text-xs px-1"
                     data-testid="input-discount-percent"
                   />
@@ -1651,6 +1652,7 @@ export default function POSPage() {
                     placeholder={formatCurrency(getRemainingAmount(), currency)}
                     value={currentPaymentAmount}
                     onChange={(e) => setCurrentPaymentAmount(e.target.value)}
+                    onFocus={e => e.target.select()}
                     className="flex-1"
                     data-testid="input-payment-amount"
                   />

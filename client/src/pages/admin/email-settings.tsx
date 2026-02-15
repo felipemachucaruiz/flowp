@@ -280,6 +280,7 @@ export default function AdminEmailSettings() {
                     placeholder="587"
                     value={smtpConfig.port}
                     onChange={(e) => setSmtpConfig({ ...smtpConfig, port: parseInt(e.target.value) || 587 })}
+                    onFocus={(e) => e.target.select()}
                     data-testid="input-smtp-port"
                   />
                 </div>

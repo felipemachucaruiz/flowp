@@ -247,6 +247,7 @@ export default function AdminBilling() {
             step="0.01"
             value={formData.priceMonthly}
             onChange={(e) => setFormData(prev => ({ ...prev, priceMonthly: parseFloat(e.target.value) || 0 }))}
+            onFocus={(e) => e.target.select()}
             data-testid="input-plan-price-monthly"
           />
         </div>
@@ -258,6 +259,7 @@ export default function AdminBilling() {
             step="0.01"
             value={formData.priceYearly ?? ""}
             onChange={(e) => setFormData(prev => ({ ...prev, priceYearly: e.target.value ? parseFloat(e.target.value) : null }))}
+            onFocus={(e) => e.target.select()}
             data-testid="input-plan-price-yearly"
           />
         </div>
@@ -281,6 +283,7 @@ export default function AdminBilling() {
             type="number"
             value={formData.sortOrder}
             onChange={(e) => setFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
+            onFocus={(e) => e.target.select()}
             data-testid="input-plan-sort-order"
           />
         </div>
@@ -312,6 +315,7 @@ export default function AdminBilling() {
             min="-1"
             value={formData.maxLocations}
             onChange={(e) => setFormData(prev => ({ ...prev, maxLocations: parseInt(e.target.value) || 1 }))}
+            onFocus={(e) => e.target.select()}
             data-testid="input-plan-max-locations"
           />
         </div>
@@ -323,6 +327,7 @@ export default function AdminBilling() {
             min="-1"
             value={formData.maxRegisters}
             onChange={(e) => setFormData(prev => ({ ...prev, maxRegisters: parseInt(e.target.value) || 1 }))}
+            onFocus={(e) => e.target.select()}
             data-testid="input-plan-max-registers"
           />
         </div>
@@ -334,6 +339,7 @@ export default function AdminBilling() {
             min="-1"
             value={formData.maxUsers}
             onChange={(e) => setFormData(prev => ({ ...prev, maxUsers: parseInt(e.target.value) || 1 }))}
+            onFocus={(e) => e.target.select()}
             data-testid="input-plan-max-users"
           />
         </div>
@@ -345,6 +351,7 @@ export default function AdminBilling() {
             min="-1"
             value={formData.maxWarehouses}
             onChange={(e) => setFormData(prev => ({ ...prev, maxWarehouses: parseInt(e.target.value) || 1 }))}
+            onFocus={(e) => e.target.select()}
             data-testid="input-plan-max-warehouses"
           />
         </div>
@@ -359,6 +366,7 @@ export default function AdminBilling() {
             min="-1"
             value={formData.maxProducts}
             onChange={(e) => setFormData(prev => ({ ...prev, maxProducts: parseInt(e.target.value) ?? 100 }))}
+            onFocus={(e) => e.target.select()}
             data-testid="input-plan-max-products"
           />
           <p className="text-xs text-muted-foreground">-1 = {t("admin.billing_unlimited")}</p>
@@ -371,6 +379,7 @@ export default function AdminBilling() {
             min="-1"
             value={formData.maxDianDocuments}
             onChange={(e) => setFormData(prev => ({ ...prev, maxDianDocuments: parseInt(e.target.value) ?? 200 }))}
+            onFocus={(e) => e.target.select()}
             data-testid="input-plan-max-dian-docs"
           />
           <p className="text-xs text-muted-foreground">-1 = {t("admin.billing_unlimited")}</p>
@@ -387,6 +396,7 @@ export default function AdminBilling() {
               min="-1"
               value={formData.maxTables}
               onChange={(e) => setFormData(prev => ({ ...prev, maxTables: parseInt(e.target.value) ?? 0 }))}
+              onFocus={(e) => e.target.select()}
               data-testid="input-plan-max-tables"
             />
             <p className="text-xs text-muted-foreground">-1 = {t("admin.billing_unlimited")}, 0 = {t("admin.billing_na")}</p>
@@ -399,6 +409,7 @@ export default function AdminBilling() {
               min="-1"
               value={formData.maxRecipes}
               onChange={(e) => setFormData(prev => ({ ...prev, maxRecipes: parseInt(e.target.value) ?? 0 }))}
+              onFocus={(e) => e.target.select()}
               data-testid="input-plan-max-recipes"
             />
             <p className="text-xs text-muted-foreground">-1 = {t("admin.billing_unlimited")}, 0 = {t("admin.billing_na")}</p>

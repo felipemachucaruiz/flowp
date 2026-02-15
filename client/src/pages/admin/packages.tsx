@@ -237,6 +237,7 @@ export default function AdminPackages() {
                   id="priceUsdCents"
                   type="number"
                   {...form.register("priceUsdCents", { valueAsNumber: true })}
+                  onFocus={e => e.target.select()}
                   data-testid="input-price"
                 />
               </div>
@@ -248,6 +249,7 @@ export default function AdminPackages() {
                 id="includedDocuments"
                 type="number"
                 {...form.register("includedDocuments", { valueAsNumber: true })}
+                onFocus={e => e.target.select()}
                 data-testid="input-included-docs"
               />
             </div>
@@ -271,6 +273,7 @@ export default function AdminPackages() {
                   id="overageDefaultPricePerDocUsdCents"
                   type="number"
                   {...form.register("overageDefaultPricePerDocUsdCents", { valueAsNumber: true })}
+                  onFocus={e => e.target.select()}
                   data-testid="input-overage-price"
                 />
               </div>

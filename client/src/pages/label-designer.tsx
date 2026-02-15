@@ -847,6 +847,7 @@ export default function LabelDesignerPage() {
                           max={200}
                           value={template.widthMm}
                           onChange={e => setTemplate(prev => ({ ...prev, widthMm: Number(e.target.value) || 50 }))}
+                          onFocus={e => e.target.select()}
                           data-testid="input-label-width"
                         />
                       </div>
@@ -858,6 +859,7 @@ export default function LabelDesignerPage() {
                           max={200}
                           value={template.heightMm}
                           onChange={e => setTemplate(prev => ({ ...prev, heightMm: Number(e.target.value) || 30 }))}
+                          onFocus={e => e.target.select()}
                           data-testid="input-label-height"
                         />
                       </div>
@@ -910,6 +912,7 @@ export default function LabelDesignerPage() {
                             max={template.widthMm}
                             value={Math.round(selectedElement.x)}
                             onChange={e => updateElement(selectedElement.id, { x: Number(e.target.value) })}
+                            onFocus={e => e.target.select()}
                             data-testid="input-element-x"
                           />
                         </div>
@@ -921,6 +924,7 @@ export default function LabelDesignerPage() {
                             max={template.heightMm}
                             value={Math.round(selectedElement.y)}
                             onChange={e => updateElement(selectedElement.id, { y: Number(e.target.value) })}
+                            onFocus={e => e.target.select()}
                             data-testid="input-element-y"
                           />
                         </div>
@@ -932,6 +936,7 @@ export default function LabelDesignerPage() {
                             max={template.widthMm}
                             value={Math.round(selectedElement.width)}
                             onChange={e => updateElement(selectedElement.id, { width: Number(e.target.value) })}
+                            onFocus={e => e.target.select()}
                             data-testid="input-element-width"
                           />
                         </div>
@@ -943,6 +948,7 @@ export default function LabelDesignerPage() {
                             max={template.heightMm}
                             value={Math.round(selectedElement.height)}
                             onChange={e => updateElement(selectedElement.id, { height: Number(e.target.value) })}
+                            onFocus={e => e.target.select()}
                             data-testid="input-element-height"
                           />
                         </div>
@@ -958,6 +964,7 @@ export default function LabelDesignerPage() {
                               max={36}
                               value={selectedElement.fontSize || 10}
                               onChange={e => updateElement(selectedElement.id, { fontSize: Number(e.target.value) })}
+                              onFocus={e => e.target.select()}
                               data-testid="input-font-size"
                             />
                           </div>
@@ -1124,6 +1131,7 @@ export default function LabelDesignerPage() {
                                 min={1}
                                 value={sp.quantity}
                                 onChange={e => updateQuantity(sp.product.id, Number(e.target.value))}
+                                onFocus={e => e.target.select()}
                                 className="w-10 h-5 text-center text-xs p-0"
                               />
                               <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => updateQuantity(sp.product.id, sp.quantity + 1)}>

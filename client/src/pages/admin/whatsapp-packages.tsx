@@ -413,6 +413,7 @@ export default function AdminWhatsAppPackages() {
                 type="number"
                 value={formData.messageLimit}
                 onChange={(e) => setFormData({ ...formData, messageLimit: parseInt(e.target.value) || 0 })}
+                onFocus={(e) => e.target.select()}
                 data-testid="input-package-message-limit"
               />
             </div>
@@ -423,6 +424,7 @@ export default function AdminWhatsAppPackages() {
                 type="number"
                 value={formData.price}
                 onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) || 0 })}
+                onFocus={(e) => e.target.select()}
                 data-testid="input-package-price"
               />
             </div>
@@ -433,6 +435,7 @@ export default function AdminWhatsAppPackages() {
                 type="number"
                 value={formData.sortOrder}
                 onChange={(e) => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
+                onFocus={(e) => e.target.select()}
                 data-testid="input-package-sort-order"
               />
             </div>

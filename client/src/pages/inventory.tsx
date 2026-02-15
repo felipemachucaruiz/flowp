@@ -563,6 +563,7 @@ export default function InventoryPage() {
                           min="1"
                           {...field}
                           onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                          onFocus={(e) => e.target.select()}
                           data-testid="input-adjustment-quantity"
                         />
                       </FormControl>
@@ -719,6 +720,7 @@ export default function InventoryPage() {
                         min="1"
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                        onFocus={(e) => e.target.select()}
                         data-testid="input-transfer-quantity"
                       />
                     </FormControl>

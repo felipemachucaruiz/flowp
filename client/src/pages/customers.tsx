@@ -836,6 +836,7 @@ export default function CustomersPage() {
                   max="100"
                   value={customerForm.defaultDiscount}
                   onChange={(e) => setCustomerForm({ ...customerForm, defaultDiscount: e.target.value })}
+                  onFocus={e => e.target.select()}
                   placeholder={t("customers.default_discount_placeholder")}
                   data-testid="input-customer-discount"
                 />

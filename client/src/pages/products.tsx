@@ -700,6 +700,7 @@ export default function ProductsPage() {
                     type="number"
                     value={productForm.lowStockThreshold}
                     onChange={(e) => setProductForm({ ...productForm, lowStockThreshold: e.target.value })}
+                    onFocus={e => e.target.select()}
                     placeholder="10"
                     min="0"
                     data-testid="input-low-stock-threshold"
