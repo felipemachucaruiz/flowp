@@ -563,7 +563,7 @@ export default function PurchasingPage() {
                 )}
               </div>
               <FormField control={supplierForm.control} name="currency" render={({ field }) => (
-                <FormItem><FormLabel>{t("purchasing.supplier_currency")}</FormLabel><FormControl><Input {...field} placeholder="USD" data-testid="input-supplier-currency" /></FormControl></FormItem>
+                <FormItem><FormLabel>{t("purchasing.supplier_currency")}</FormLabel><Select value={field.value || ""} onValueChange={field.onChange}><FormControl><SelectTrigger data-testid="select-supplier-currency"><SelectValue placeholder="COP" /></SelectTrigger></FormControl><SelectContent><SelectItem value="COP">COP - Peso Colombiano</SelectItem><SelectItem value="USD">USD - US Dollar</SelectItem><SelectItem value="EUR">EUR - Euro</SelectItem><SelectItem value="MXN">MXN - Peso Mexicano</SelectItem><SelectItem value="ARS">ARS - Peso Argentino</SelectItem><SelectItem value="BRL">BRL - Real Brasileño</SelectItem><SelectItem value="PEN">PEN - Sol Peruano</SelectItem><SelectItem value="CLP">CLP - Peso Chileno</SelectItem><SelectItem value="GBP">GBP - Libra Esterlina</SelectItem></SelectContent></Select></FormItem>
               )} />
               <FormField control={supplierForm.control} name="notes" render={({ field }) => (
                 <FormItem><FormLabel>{t("purchasing.notes")}</FormLabel><FormControl><Textarea {...field} data-testid="input-supplier-notes" /></FormControl></FormItem>
