@@ -55,6 +55,7 @@ interface OrderWithItems extends Order {
   }[];
   creditNoteStatus?: string | null;
   hasReturns?: boolean | null;
+  totalReturns?: string;
 }
 
 interface ReturnableItem {
@@ -329,7 +330,7 @@ export default function SalesHistoryPage() {
       };
     }
     acc[customerKey].orders.push(order);
-    acc[customerKey].totalSpent += parseFloat(order.total);
+    acc[customerKey].totalSpent += parseFloat(order.total) - parseFloat(order.totalReturns || "0");
     return acc;
   }, {} as Record<string, { customer: Customer | null | undefined; orders: OrderWithItems[]; totalSpent: number }>);
 
@@ -406,7 +407,7 @@ export default function SalesHistoryPage() {
             <div>
               <p className="text-sm text-muted-foreground">{t("sales.total_revenue")}</p>
               <p className="text-2xl font-bold">
-                {formatCurrency(filteredOrders?.reduce((sum, o) => sum + parseFloat(o.total), 0) || 0, currency)}
+                {formatCurrency(filteredOrders?.reduce((sum, o) => sum + parseFloat(o.total) - parseFloat(o.totalReturns || "0"), 0) || 0, currency)}
               </p>
             </div>
           </CardContent>

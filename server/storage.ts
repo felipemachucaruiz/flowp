@@ -643,6 +643,16 @@ export class DatabaseStorage implements IStorage {
           customer = cust || null;
         }
         
+        // Get total returns for this order
+        let totalReturns = "0";
+        if (order.hasReturns) {
+          const orderReturns = await db
+            .select({ total: returns.total })
+            .from(returns)
+            .where(and(eq(returns.orderId, order.id), eq(returns.status, "completed")));
+          totalReturns = orderReturns.reduce((sum, r) => sum + parseFloat(r.total), 0).toString();
+        }
+
         // Get billing info from document queue if order has CUFE but missing prefix/documentNumber
         let prefix = order.prefix;
         let documentNumber = order.documentNumber;
@@ -671,6 +681,7 @@ export class DatabaseStorage implements IStorage {
           items,
           payments: orderPayments,
           customer,
+          totalReturns,
         };
       })
     );
