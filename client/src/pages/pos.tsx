@@ -7,7 +7,8 @@ import { useI18n } from "@/lib/i18n";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { printReceipt } from "@/lib/print-receipt";
 import { printBridge } from "@/lib/print-bridge";
-import { formatCurrency } from "@/lib/currency";
+import { formatCurrency, formatCurrencyInput } from "@/lib/currency";
+import { CurrencyInput } from "@/components/currency-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1652,12 +1653,11 @@ export default function POSPage() {
               <div>
                 <label className="text-sm font-medium">{t("pos.payment_amount")}</label>
                 <div className="flex gap-2">
-                  <Input
-                    type="number"
-                    placeholder={formatCurrency(getRemainingAmount(), currency)}
+                  <CurrencyInput
                     value={currentPaymentAmount}
-                    onChange={(e) => setCurrentPaymentAmount(e.target.value)}
-                    onFocus={e => e.target.select()}
+                    onChange={(val) => setCurrentPaymentAmount(val)}
+                    currency={currency}
+                    placeholder={formatCurrencyInput(getRemainingAmount(), currency)}
                     className="flex-1"
                     data-testid="input-payment-amount"
                   />
