@@ -485,6 +485,15 @@ function getReportSections(reportType: string, data: any, currency: string, lang
       });
   }
 
+  if (sections.length === 0) {
+    const noDataMsg = { en: "No data available for this period", es: "No hay datos disponibles para este período", pt: "Não há dados disponíveis para este período" };
+    sections.push({
+      title: t("summary", l),
+      headers: [t("metric", l), t("value", l)],
+      rows: [[noDataMsg[l as keyof typeof noDataMsg] || noDataMsg.en, "-"]],
+    });
+  }
+
   return sections;
 }
 
@@ -508,7 +517,7 @@ export async function generatePDF(request: ExportRequest): Promise<Buffer> {
 
   return new Promise(async (resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 40, size: "A4" });
+      const doc = new PDFDocument({ margin: 40, size: "A4", bufferPages: true });
       const chunks: Buffer[] = [];
 
       doc.on("data", (chunk: Buffer) => chunks.push(chunk));
