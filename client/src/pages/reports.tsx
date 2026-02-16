@@ -384,6 +384,7 @@ export default function ReportsPage() {
     try {
       const dateRangeLabel = dateRange === "custom" && appliedStartDate && appliedEndDate
         ? `${appliedStartDate.toLocaleDateString(locale)} - ${appliedEndDate.toLocaleDateString(locale)}`
+        : dateRange === "today" ? t("reports.today")
         : dateRange === "7d" ? t("reports.last_7_days")
         : dateRange === "30d" ? t("reports.last_30_days")
         : t("reports.last_90_days");
@@ -484,6 +485,7 @@ export default function ReportsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="today" data-testid="option-today">{t("reports.today")}</SelectItem>
               <SelectItem value="7d" data-testid="option-7d">{t("reports.last_7_days")}</SelectItem>
               <SelectItem value="30d" data-testid="option-30d">{t("reports.last_30_days")}</SelectItem>
               <SelectItem value="90d" data-testid="option-90d">{t("reports.last_90_days")}</SelectItem>
@@ -552,7 +554,7 @@ export default function ReportsPage() {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">{t("reports.today_sales")}</p>
+                <p className="text-sm text-muted-foreground">{dateRange === "today" ? t("reports.today_sales") : t("reports.period_sales")}</p>
                 <p className="text-2xl font-bold">
                   {formatCurrency(defaultStats.todaySales, currency)}
                 </p>
@@ -565,7 +567,7 @@ export default function ReportsPage() {
                     ) : (
                       <ArrowDownRight className="w-3 h-3" />
                     )}
-                    {Math.abs(defaultStats.recentTrend)}% {t("reports.vs_yesterday")}
+                    {Math.abs(defaultStats.recentTrend)}% {dateRange === "today" ? t("reports.vs_yesterday") : t("reports.vs_previous_period")}
                   </div>
                 )}
               </div>
@@ -612,7 +614,7 @@ export default function ReportsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">{t("reports.orders")}</p>
                 <p className="text-2xl font-bold">{defaultStats.todayOrders}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("reports.today")}</p>
+                <p className="text-xs text-muted-foreground mt-1">{dateRange === "today" ? t("reports.today") : t("reports.in_period")}</p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-blue-500/10 flex items-center justify-center">
                 <ShoppingCart className="w-6 h-6 text-blue-500" />
