@@ -40,10 +40,13 @@ import {
   Percent,
   PiggyBank,
   UserCheck,
-  Lock,
   Crown,
+  CreditCard,
+  Landmark,
+  Wallet,
+  RefreshCw,
 } from "lucide-react";
-import { useLocation } from "wouter";
+import { useSubscription } from "@/lib/use-subscription";
 
 interface DashboardStats {
   todaySales: number;
@@ -62,12 +65,29 @@ interface AdvancedAnalytics {
   profitAnalysis: { totalRevenue: number; totalCost: number; grossProfit: number; grossMargin: number; topProfitProducts: { name: string; profit: number; margin: number }[] };
 }
 
+interface PaymentMethodsReport {
+  paymentBreakdown: { method: string; count: number; total: number; percentage: number }[];
+  dailyPayments: { date: string; cash: number; card: number }[];
+  averageByMethod: { method: string; avgAmount: number }[];
+  refundSummary: { totalRefunds: number; refundCount: number; topRefundReasons: { reason: string; count: number }[] };
+}
+
+interface CustomerAnalyticsReport {
+  topCustomers: { id: string; name: string; orderCount: number; totalSpent: number; avgOrder: number }[];
+  newVsReturning: { newCustomers: number; returningCustomers: number };
+  averageBasketSize: number;
+}
+
+interface RegisterPerformanceReport {
+  registerMetrics: { registerId: string; registerName: string; salesCount: number; totalRevenue: number; avgTicket: number; sessionsCount: number }[];
+  cashVariance: { registerId: string; registerName: string; expectedCash: number; actualCash: number; variance: number }[];
+}
+
 const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
 
 export default function ReportsPage() {
   const { tenant } = useAuth();
   const { t, formatDate } = useI18n();
-  const [, setLocation] = useLocation();
   const [dateRange, setDateRange] = useState("7d");
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
@@ -85,15 +105,62 @@ export default function ReportsPage() {
     queryKey: ["/api/reports/dashboard"],
   });
 
-  const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useQuery<AdvancedAnalytics>({
+  const { data: analytics, isLoading: analyticsLoading } = useQuery<AdvancedAnalytics>({
     queryKey: [analyticsQueryKey],
+  });
+
+  const { hasFeature } = useSubscription();
+
+  const paymentMethodsQuery = useMemo(() => {
+    if (dateRange === "custom" && appliedStartDate && appliedEndDate) {
+      return `/api/reports/payment-methods?startDate=${appliedStartDate.toISOString()}&endDate=${appliedEndDate.toISOString()}`;
+    }
+    return `/api/reports/payment-methods?range=${dateRange}`;
+  }, [dateRange, appliedStartDate, appliedEndDate]);
+
+  const customerAnalyticsQuery = useMemo(() => {
+    if (dateRange === "custom" && appliedStartDate && appliedEndDate) {
+      return `/api/reports/customer-analytics?startDate=${appliedStartDate.toISOString()}&endDate=${appliedEndDate.toISOString()}`;
+    }
+    return `/api/reports/customer-analytics?range=${dateRange}`;
+  }, [dateRange, appliedStartDate, appliedEndDate]);
+
+  const registerPerformanceQuery = useMemo(() => {
+    if (dateRange === "custom" && appliedStartDate && appliedEndDate) {
+      return `/api/reports/register-performance?startDate=${appliedStartDate.toISOString()}&endDate=${appliedEndDate.toISOString()}`;
+    }
+    return `/api/reports/register-performance?range=${dateRange}`;
+  }, [dateRange, appliedStartDate, appliedEndDate]);
+
+  const hasProReports = hasFeature("reports_detailed");
+  const hasEnterpriseReports = hasFeature("reports_management");
+
+  const { data: paymentMethods, isLoading: pmLoading } = useQuery<PaymentMethodsReport>({
+    queryKey: [paymentMethodsQuery],
+    enabled: hasProReports,
     retry: (failureCount, error: any) => {
       if (error?.message?.startsWith("403")) return false;
       return failureCount < 3;
     },
   });
 
-  const analyticsRequiresUpgrade = analyticsError?.message?.startsWith("403");
+  const { data: customerAnalytics, isLoading: caLoading } = useQuery<CustomerAnalyticsReport>({
+    queryKey: [customerAnalyticsQuery],
+    enabled: hasProReports,
+    retry: (failureCount, error: any) => {
+      if (error?.message?.startsWith("403")) return false;
+      return failureCount < 3;
+    },
+  });
+
+  const { data: registerPerformance, isLoading: rpLoading } = useQuery<RegisterPerformanceReport>({
+    queryKey: [registerPerformanceQuery],
+    enabled: hasEnterpriseReports,
+    retry: (failureCount, error: any) => {
+      if (error?.message?.startsWith("403")) return false;
+      return failureCount < 3;
+    },
+  });
 
   const handleApplyCustomRange = () => {
     if (customStartDate && customEndDate) {
@@ -263,17 +330,8 @@ export default function ReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">{t("reports.gross_profit")}</p>
-                {analyticsRequiresUpgrade ? (
-                  <div className="flex items-center gap-2 mt-1">
-                    <Lock className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Pro</span>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-2xl font-bold">{formatCurrency(defaultAnalytics.profitAnalysis.grossProfit, currency)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{t("reports.period_total")}</p>
-                  </>
-                )}
+                <p className="text-2xl font-bold">{formatCurrency(defaultAnalytics.profitAnalysis.grossProfit, currency)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("reports.period_total")}</p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-green-500/10 flex items-center justify-center">
                 <PiggyBank className="w-6 h-6 text-green-500" />
@@ -287,17 +345,8 @@ export default function ReportsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">{t("reports.gross_margin")}</p>
-                {analyticsRequiresUpgrade ? (
-                  <div className="flex items-center gap-2 mt-1">
-                    <Lock className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Pro</span>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-2xl font-bold">{defaultAnalytics.profitAnalysis.grossMargin.toFixed(1)}%</p>
-                    <p className="text-xs text-muted-foreground mt-1">{t("reports.profit_percentage")}</p>
-                  </>
-                )}
+                <p className="text-2xl font-bold">{defaultAnalytics.profitAnalysis.grossMargin.toFixed(1)}%</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("reports.profit_percentage")}</p>
               </div>
               <div className="w-12 h-12 rounded-lg bg-purple-500/10 flex items-center justify-center">
                 <Percent className="w-6 h-6 text-purple-500" />
@@ -329,6 +378,18 @@ export default function ReportsPage() {
           <TabsTrigger value="products" data-testid="tab-products">{t("reports.product_performance")}</TabsTrigger>
           <TabsTrigger value="employees" data-testid="tab-employees">{t("reports.employee_metrics")}</TabsTrigger>
           <TabsTrigger value="profit" data-testid="tab-profit">{t("reports.profit_analysis")}</TabsTrigger>
+          <TabsTrigger value="payments" data-testid="tab-payments">
+            {!hasProReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
+            {t("reports.payment_methods")}
+          </TabsTrigger>
+          <TabsTrigger value="customers" data-testid="tab-customers">
+            {!hasProReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
+            {t("reports.customer_analytics")}
+          </TabsTrigger>
+          <TabsTrigger value="registers" data-testid="tab-registers">
+            {!hasEnterpriseReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
+            {t("reports.register_performance")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
@@ -473,21 +534,6 @@ export default function ReportsPage() {
         </TabsContent>
 
         <TabsContent value="trends" className="space-y-6 mt-6">
-          {analyticsRequiresUpgrade ? (
-            <Card>
-              <CardContent className="py-16">
-                <div className="text-center">
-                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
-                  <p className="font-medium text-lg mb-2">{t("reports.pro_required")}</p>
-                  <p className="text-sm text-muted-foreground mb-4">{t("reports.pro_required_desc")}</p>
-                  <Button onClick={() => setLocation("/subscription")} data-testid="button-upgrade-reports">
-                    {t("reports.upgrade_now")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-          <>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -605,25 +651,9 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
-          </>
-          )}
         </TabsContent>
 
         <TabsContent value="products" className="mt-6">
-          {analyticsRequiresUpgrade ? (
-            <Card>
-              <CardContent className="py-16">
-                <div className="text-center">
-                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
-                  <p className="font-medium text-lg mb-2">{t("reports.pro_required")}</p>
-                  <p className="text-sm text-muted-foreground mb-4">{t("reports.pro_required_desc")}</p>
-                  <Button onClick={() => setLocation("/subscription")} data-testid="button-upgrade-products">
-                    {t("reports.upgrade_now")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -693,24 +723,9 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="employees" className="mt-6">
-          {analyticsRequiresUpgrade ? (
-            <Card>
-              <CardContent className="py-16">
-                <div className="text-center">
-                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
-                  <p className="font-medium text-lg mb-2">{t("reports.pro_required")}</p>
-                  <p className="text-sm text-muted-foreground mb-4">{t("reports.pro_required_desc")}</p>
-                  <Button onClick={() => setLocation("/subscription")} data-testid="button-upgrade-employees">
-                    {t("reports.upgrade_now")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -759,25 +774,9 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="profit" className="space-y-6 mt-6">
-          {analyticsRequiresUpgrade ? (
-            <Card>
-              <CardContent className="py-16">
-                <div className="text-center">
-                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
-                  <p className="font-medium text-lg mb-2">{t("reports.pro_required")}</p>
-                  <p className="text-sm text-muted-foreground mb-4">{t("reports.pro_required_desc")}</p>
-                  <Button onClick={() => setLocation("/subscription")} data-testid="button-upgrade-profit">
-                    {t("reports.upgrade_now")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-          <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="pt-4">
@@ -839,7 +838,344 @@ export default function ReportsPage() {
               )}
             </CardContent>
           </Card>
-          </>
+        </TabsContent>
+
+        {/* Pro: Payment Methods */}
+        <TabsContent value="payments" className="space-y-6 mt-6">
+          {!hasProReports ? (
+            <Card>
+              <CardContent className="py-16">
+                <div className="text-center">
+                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
+                  <p className="font-medium text-lg mb-2">{t("reports.pro_required")}</p>
+                  <p className="text-sm text-muted-foreground mb-4">{t("reports.pro_payments_desc")}</p>
+                  <Button onClick={() => window.location.href = "/subscription"} data-testid="button-upgrade-payments">
+                    {t("reports.upgrade_now")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : pmLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32" />)}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {(paymentMethods?.paymentBreakdown || []).map((pm) => (
+                  <Card key={pm.method}>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground capitalize">{pm.method === "cash" ? t("reports.cash") : pm.method === "card" ? t("reports.card") : t("reports.split")}</p>
+                          <p className="text-2xl font-bold">{formatCurrency(pm.total, currency)}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{pm.count} {t("reports.transactions")} ({pm.percentage.toFixed(1)}%)</p>
+                        </div>
+                        <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                          {pm.method === "cash" ? <Wallet className="w-6 h-6 text-primary" /> : pm.method === "card" ? <CreditCard className="w-6 h-6 text-primary" /> : <RefreshCw className="w-6 h-6 text-primary" />}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5" />
+                    {t("reports.daily_payment_trends")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(paymentMethods?.dailyPayments || []).length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={paymentMethods?.dailyPayments}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={{ fill: "hsl(var(--muted-foreground))" }} />
+                        <YAxis tick={{ fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => formatCurrency(v, currency)} />
+                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "var(--radius)" }} labelFormatter={formatChartDate} formatter={(value: number, name: string) => [formatCurrency(value, currency), name === "cash" ? t("reports.cash") : t("reports.card")]} />
+                        <Legend />
+                        <Bar dataKey="cash" fill="#10B981" radius={[4, 4, 0, 0]} name={t("reports.cash")} />
+                        <Bar dataKey="card" fill="#3B82F6" radius={[4, 4, 0, 0]} name={t("reports.card")} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+                      <div className="text-center">
+                        <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                        <p>{t("reports.no_payment_data")}</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {paymentMethods?.refundSummary && paymentMethods.refundSummary.refundCount > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <RefreshCw className="w-5 h-5" />
+                      {t("reports.refund_summary")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <p className="text-sm text-muted-foreground">{t("reports.total_refunds")}</p>
+                        <p className="text-2xl font-bold text-red-500">{formatCurrency(paymentMethods.refundSummary.totalRefunds, currency)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{paymentMethods.refundSummary.refundCount} {t("reports.refunds_processed")}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground mb-2">{t("reports.top_refund_reasons")}</p>
+                        <div className="space-y-2">
+                          {paymentMethods.refundSummary.topRefundReasons.map((r) => (
+                            <div key={r.reason} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                              <span className="text-sm capitalize">{r.reason.replace(/_/g, " ")}</span>
+                              <span className="text-sm font-medium">{r.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        {/* Pro: Customer Analytics */}
+        <TabsContent value="customers" className="space-y-6 mt-6">
+          {!hasProReports ? (
+            <Card>
+              <CardContent className="py-16">
+                <div className="text-center">
+                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
+                  <p className="font-medium text-lg mb-2">{t("reports.pro_required")}</p>
+                  <p className="text-sm text-muted-foreground mb-4">{t("reports.pro_customers_desc")}</p>
+                  <Button onClick={() => window.location.href = "/subscription"} data-testid="button-upgrade-customers">
+                    {t("reports.upgrade_now")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : caLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32" />)}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-sm text-muted-foreground">{t("reports.new_customers")}</p>
+                    <p className="text-2xl font-bold">{customerAnalytics?.newVsReturning.newCustomers || 0}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("reports.in_period")}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-sm text-muted-foreground">{t("reports.returning_customers")}</p>
+                    <p className="text-2xl font-bold">{customerAnalytics?.newVsReturning.returningCustomers || 0}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("reports.in_period")}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-sm text-muted-foreground">{t("reports.avg_basket_size")}</p>
+                    <p className="text-2xl font-bold">{formatCurrency(customerAnalytics?.averageBasketSize || 0, currency)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t("reports.per_order")}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {customerAnalytics?.newVsReturning && (customerAnalytics.newVsReturning.newCustomers > 0 || customerAnalytics.newVsReturning.returningCustomers > 0) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      {t("reports.customer_breakdown")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: t("reports.new_customers"), value: customerAnalytics.newVsReturning.newCustomers },
+                            { name: t("reports.returning_customers"), value: customerAnalytics.newVsReturning.returningCustomers },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={100}
+                          paddingAngle={5}
+                          dataKey="value"
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          <Cell fill="#3B82F6" />
+                          <Cell fill="#10B981" />
+                        </Pie>
+                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "var(--radius)" }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <UserCheck className="w-5 h-5" />
+                    {t("reports.top_customers")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(customerAnalytics?.topCustomers || []).length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 font-medium">{t("reports.customer_name")}</th>
+                            <th className="text-right py-3 px-2 font-medium">{t("reports.orders")}</th>
+                            <th className="text-right py-3 px-2 font-medium">{t("reports.total_spent")}</th>
+                            <th className="text-right py-3 px-2 font-medium">{t("reports.avg_order")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {customerAnalytics?.topCustomers.map((c, i) => (
+                            <tr key={c.id} className="border-b last:border-0">
+                              <td className="py-3 px-2">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">{i + 1}</div>
+                                  <span className="font-medium">{c.name}</span>
+                                </div>
+                              </td>
+                              <td className="text-right py-3 px-2">{c.orderCount}</td>
+                              <td className="text-right py-3 px-2 font-medium">{formatCurrency(c.totalSpent, currency)}</td>
+                              <td className="text-right py-3 px-2 text-muted-foreground">{formatCurrency(c.avgOrder, currency)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="py-16 text-center text-muted-foreground">
+                      <Users className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                      <p className="font-medium">{t("reports.no_customer_data")}</p>
+                      <p className="text-sm">{t("reports.customer_data_appear")}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
+
+        {/* Enterprise: Register Performance */}
+        <TabsContent value="registers" className="space-y-6 mt-6">
+          {!hasEnterpriseReports ? (
+            <Card>
+              <CardContent className="py-16">
+                <div className="text-center">
+                  <Crown className="w-12 h-12 mx-auto mb-4 text-yellow-500 opacity-60" />
+                  <p className="font-medium text-lg mb-2">{t("reports.enterprise_required")}</p>
+                  <p className="text-sm text-muted-foreground mb-4">{t("reports.enterprise_registers_desc")}</p>
+                  <Button onClick={() => window.location.href = "/subscription"} data-testid="button-upgrade-registers">
+                    {t("reports.upgrade_now")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : rpLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-32" />)}
+            </div>
+          ) : (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Landmark className="w-5 h-5" />
+                    {t("reports.register_metrics")}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(registerPerformance?.registerMetrics || []).length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 font-medium">{t("reports.register_name")}</th>
+                            <th className="text-right py-3 px-2 font-medium">{t("reports.sales_count")}</th>
+                            <th className="text-right py-3 px-2 font-medium">{t("reports.total_revenue")}</th>
+                            <th className="text-right py-3 px-2 font-medium">{t("reports.avg_ticket")}</th>
+                            <th className="text-right py-3 px-2 font-medium">{t("reports.sessions")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {registerPerformance?.registerMetrics.map((r) => (
+                            <tr key={r.registerId} className="border-b last:border-0">
+                              <td className="py-3 px-2 font-medium">{r.registerName}</td>
+                              <td className="text-right py-3 px-2">{r.salesCount}</td>
+                              <td className="text-right py-3 px-2 font-medium">{formatCurrency(r.totalRevenue, currency)}</td>
+                              <td className="text-right py-3 px-2 text-muted-foreground">{formatCurrency(r.avgTicket, currency)}</td>
+                              <td className="text-right py-3 px-2">{r.sessionsCount}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="py-16 text-center text-muted-foreground">
+                      <Landmark className="w-12 h-12 mx-auto mb-4 opacity-30" />
+                      <p className="font-medium">{t("reports.no_register_data")}</p>
+                      <p className="text-sm">{t("reports.register_data_appear")}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {(registerPerformance?.cashVariance || []).length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Wallet className="w-5 h-5" />
+                      {t("reports.cash_variance")}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-3 px-2 font-medium">{t("reports.register_name")}</th>
+                            <th className="text-right py-3 px-2 font-medium">{t("reports.expected_cash")}</th>
+                            <th className="text-right py-3 px-2 font-medium">{t("reports.actual_cash")}</th>
+                            <th className="text-right py-3 px-2 font-medium">{t("reports.variance")}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {registerPerformance?.cashVariance.map((r) => (
+                            <tr key={r.registerId} className="border-b last:border-0">
+                              <td className="py-3 px-2 font-medium">{r.registerName}</td>
+                              <td className="text-right py-3 px-2">{formatCurrency(r.expectedCash, currency)}</td>
+                              <td className="text-right py-3 px-2">{formatCurrency(r.actualCash, currency)}</td>
+                              <td className="text-right py-3 px-2">
+                                <span className={r.variance >= 0 ? "text-green-600" : "text-red-500"}>
+                                  {r.variance >= 0 ? "+" : ""}{formatCurrency(r.variance, currency)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
           )}
         </TabsContent>
       </Tabs>

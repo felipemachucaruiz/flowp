@@ -5690,10 +5690,6 @@ export async function registerRoutes(
         });
       }
 
-      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_DETAILED);
-      if (!hasFeature) {
-        return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true, feature: "reports_detailed" });
-      }
       const dateRange = (req.query.range as string) || "7d";
       const startDateStr = req.query.startDate as string | undefined;
       const endDateStr = req.query.endDate as string | undefined;
@@ -5710,6 +5706,329 @@ export async function registerRoutes(
       res.json(analytics);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch advanced analytics" });
+    }
+  });
+
+  // ===== PAYMENT METHODS REPORT (Pro) =====
+
+  app.get("/api/reports/payment-methods", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({ paymentBreakdown: [], dailyPayments: [], averageByMethod: [], refundSummary: { totalRefunds: 0, refundCount: 0, topRefundReasons: [] } });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_DETAILED);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true, feature: "reports_detailed" });
+      }
+
+      const dateRange = (req.query.range as string) || "7d";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+
+      let startDate: Date;
+      let endDate: Date = new Date();
+
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else {
+        startDate = new Date();
+        const days = dateRange === "90d" ? 90 : dateRange === "30d" ? 30 : 7;
+        startDate.setDate(startDate.getDate() - days);
+      }
+
+      const breakdownResult = await db.execute(sql`
+        SELECT p.method, COUNT(*)::int AS count, COALESCE(SUM(p.amount::numeric), 0) AS total
+        FROM payments p
+        JOIN orders o ON p.order_id = o.id
+        WHERE o.tenant_id = ${tenantId}
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+        GROUP BY p.method
+      `);
+
+      const totalPayments = (breakdownResult.rows as any[]).reduce((sum: number, r: any) => sum + Number(r.total), 0);
+      const paymentBreakdown = (breakdownResult.rows as any[]).map((r: any) => ({
+        method: r.method,
+        count: Number(r.count),
+        total: Number(r.total),
+        percentage: totalPayments > 0 ? Math.round((Number(r.total) / totalPayments) * 10000) / 100 : 0,
+      }));
+
+      const dailyResult = await db.execute(sql`
+        SELECT DATE(o.created_at) AS date,
+          COALESCE(SUM(CASE WHEN p.method = 'cash' THEN p.amount::numeric ELSE 0 END), 0) AS cash,
+          COALESCE(SUM(CASE WHEN p.method = 'card' THEN p.amount::numeric ELSE 0 END), 0) AS card
+        FROM payments p
+        JOIN orders o ON p.order_id = o.id
+        WHERE o.tenant_id = ${tenantId}
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+        GROUP BY DATE(o.created_at)
+        ORDER BY DATE(o.created_at)
+      `);
+
+      const dailyPayments = (dailyResult.rows as any[]).map((r: any) => ({
+        date: String(r.date),
+        cash: Number(r.cash),
+        card: Number(r.card),
+      }));
+
+      const avgResult = await db.execute(sql`
+        SELECT p.method, COALESCE(AVG(p.amount::numeric), 0) AS avg_amount
+        FROM payments p
+        JOIN orders o ON p.order_id = o.id
+        WHERE o.tenant_id = ${tenantId}
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+        GROUP BY p.method
+      `);
+
+      const averageByMethod = (avgResult.rows as any[]).map((r: any) => ({
+        method: r.method,
+        avgAmount: Math.round(Number(r.avg_amount) * 100) / 100,
+      }));
+
+      const refundResult = await db.execute(sql`
+        SELECT COALESCE(SUM(total::numeric), 0) AS total_refunds, COUNT(*)::int AS refund_count
+        FROM returns
+        WHERE tenant_id = ${tenantId}
+          AND status = 'completed'
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+      `);
+
+      const refundRow = (refundResult.rows as any[])[0] || { total_refunds: 0, refund_count: 0 };
+
+      const refundReasonsResult = await db.execute(sql`
+        SELECT reason, COUNT(*)::int AS count
+        FROM returns
+        WHERE tenant_id = ${tenantId}
+          AND status = 'completed'
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+        GROUP BY reason
+        ORDER BY count DESC
+        LIMIT 5
+      `);
+
+      const refundSummary = {
+        totalRefunds: Number(refundRow.total_refunds),
+        refundCount: Number(refundRow.refund_count),
+        topRefundReasons: (refundReasonsResult.rows as any[]).map((r: any) => ({
+          reason: r.reason || "unknown",
+          count: Number(r.count),
+        })),
+      };
+
+      res.json({ paymentBreakdown, dailyPayments, averageByMethod, refundSummary });
+    } catch (error) {
+      console.error("Payment methods report error:", error);
+      res.status(500).json({ message: "Failed to fetch payment methods report" });
+    }
+  });
+
+  // ===== CUSTOMER ANALYTICS REPORT (Pro) =====
+
+  app.get("/api/reports/customer-analytics", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({ topCustomers: [], newVsReturning: { newCustomers: 0, returningCustomers: 0 }, averageBasketSize: 0 });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_DETAILED);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true, feature: "reports_detailed" });
+      }
+
+      const dateRange = (req.query.range as string) || "7d";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+
+      let startDate: Date;
+      let endDate: Date = new Date();
+
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else {
+        startDate = new Date();
+        const days = dateRange === "90d" ? 90 : dateRange === "30d" ? 30 : 7;
+        startDate.setDate(startDate.getDate() - days);
+      }
+
+      const topCustomersResult = await db.execute(sql`
+        SELECT c.id, c.name, COUNT(o.id)::int AS order_count,
+          COALESCE(SUM(o.total::numeric), 0) AS total_spent,
+          COALESCE(AVG(o.total::numeric), 0) AS avg_order
+        FROM orders o
+        JOIN customers c ON o.customer_id = c.id
+        WHERE o.tenant_id = ${tenantId}
+          AND o.customer_id IS NOT NULL
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+          AND o.status IN ('completed', 'pending', 'in_progress')
+        GROUP BY c.id, c.name
+        ORDER BY total_spent DESC
+        LIMIT 20
+      `);
+
+      const topCustomers = (topCustomersResult.rows as any[]).map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        orderCount: Number(r.order_count),
+        totalSpent: Math.round(Number(r.total_spent) * 100) / 100,
+        avgOrder: Math.round(Number(r.avg_order) * 100) / 100,
+      }));
+
+      const newVsReturningResult = await db.execute(sql`
+        WITH customer_orders AS (
+          SELECT DISTINCT customer_id,
+            MIN(created_at) AS first_order_date
+          FROM orders
+          WHERE tenant_id = ${tenantId}
+            AND customer_id IS NOT NULL
+          GROUP BY customer_id
+        ),
+        period_customers AS (
+          SELECT DISTINCT o.customer_id
+          FROM orders o
+          WHERE o.tenant_id = ${tenantId}
+            AND o.customer_id IS NOT NULL
+            AND o.created_at >= ${startDate}
+            AND o.created_at <= ${endDate}
+        )
+        SELECT
+          COUNT(CASE WHEN co.first_order_date >= ${startDate} THEN 1 END)::int AS new_customers,
+          COUNT(CASE WHEN co.first_order_date < ${startDate} THEN 1 END)::int AS returning_customers
+        FROM period_customers pc
+        JOIN customer_orders co ON pc.customer_id = co.customer_id
+      `);
+
+      const nvrRow = (newVsReturningResult.rows as any[])[0] || { new_customers: 0, returning_customers: 0 };
+
+      const avgBasketResult = await db.execute(sql`
+        SELECT COALESCE(AVG(total::numeric), 0) AS avg_basket
+        FROM orders
+        WHERE tenant_id = ${tenantId}
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+          AND status IN ('completed', 'pending', 'in_progress')
+      `);
+
+      const avgBasketRow = (avgBasketResult.rows as any[])[0] || { avg_basket: 0 };
+
+      res.json({
+        topCustomers,
+        newVsReturning: {
+          newCustomers: Number(nvrRow.new_customers),
+          returningCustomers: Number(nvrRow.returning_customers),
+        },
+        averageBasketSize: Math.round(Number(avgBasketRow.avg_basket) * 100) / 100,
+      });
+    } catch (error) {
+      console.error("Customer analytics report error:", error);
+      res.status(500).json({ message: "Failed to fetch customer analytics report" });
+    }
+  });
+
+  // ===== REGISTER PERFORMANCE REPORT (Enterprise) =====
+
+  app.get("/api/reports/register-performance", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({ registerMetrics: [], cashVariance: [] });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_MANAGEMENT);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires an Enterprise subscription", requiresUpgrade: true, feature: "reports_management" });
+      }
+
+      const dateRange = (req.query.range as string) || "7d";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+
+      let startDate: Date;
+      let endDate: Date = new Date();
+
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else {
+        startDate = new Date();
+        const days = dateRange === "90d" ? 90 : dateRange === "30d" ? 30 : 7;
+        startDate.setDate(startDate.getDate() - days);
+      }
+
+      const metricsResult = await db.execute(sql`
+        SELECT r.id AS register_id, r.name AS register_name,
+          COUNT(o.id)::int AS sales_count,
+          COALESCE(SUM(o.total::numeric), 0) AS total_revenue,
+          COALESCE(AVG(o.total::numeric), 0) AS avg_ticket,
+          (SELECT COUNT(*)::int FROM register_sessions rs
+           WHERE rs.register_id = r.id
+             AND rs.tenant_id = ${tenantId}
+             AND rs.opened_at >= ${startDate}
+             AND rs.opened_at <= ${endDate}
+          ) AS sessions_count
+        FROM registers r
+        LEFT JOIN orders o ON o.register_id = r.id
+          AND o.tenant_id = ${tenantId}
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+          AND o.status IN ('completed', 'pending', 'in_progress')
+        WHERE r.tenant_id = ${tenantId}
+        GROUP BY r.id, r.name
+        ORDER BY total_revenue DESC
+      `);
+
+      const registerMetrics = (metricsResult.rows as any[]).map((r: any) => ({
+        registerId: r.register_id,
+        registerName: r.register_name,
+        salesCount: Number(r.sales_count),
+        totalRevenue: Math.round(Number(r.total_revenue) * 100) / 100,
+        avgTicket: Math.round(Number(r.avg_ticket) * 100) / 100,
+        sessionsCount: Number(r.sessions_count),
+      }));
+
+      let cashVariance: any[] = [];
+      try {
+        const varianceResult = await db.execute(sql`
+          SELECT r.id AS register_id, r.name AS register_name,
+            COALESCE(SUM(rs.expected_cash::numeric), 0) AS expected_cash,
+            COALESCE(SUM(COALESCE(rs.counted_cash, rs.closing_cash)::numeric), 0) AS actual_cash,
+            COALESCE(SUM(COALESCE(rs.counted_cash, rs.closing_cash)::numeric), 0) - COALESCE(SUM(rs.expected_cash::numeric), 0) AS variance
+          FROM register_sessions rs
+          JOIN registers r ON rs.register_id = r.id
+          WHERE rs.tenant_id = ${tenantId}
+            AND rs.status = 'closed'
+            AND rs.opened_at >= ${startDate}
+            AND rs.opened_at <= ${endDate}
+            AND rs.expected_cash IS NOT NULL
+          GROUP BY r.id, r.name
+          ORDER BY variance ASC
+        `);
+
+        cashVariance = (varianceResult.rows as any[]).map((r: any) => ({
+          registerId: r.register_id,
+          registerName: r.register_name,
+          expectedCash: Math.round(Number(r.expected_cash) * 100) / 100,
+          actualCash: Math.round(Number(r.actual_cash) * 100) / 100,
+          variance: Math.round(Number(r.variance) * 100) / 100,
+        }));
+      } catch {
+        cashVariance = [];
+      }
+
+      res.json({ registerMetrics, cashVariance });
+    } catch (error) {
+      console.error("Register performance report error:", error);
+      res.status(500).json({ message: "Failed to fetch register performance report" });
     }
   });
 
