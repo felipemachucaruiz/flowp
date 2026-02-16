@@ -2112,7 +2112,9 @@ export class DatabaseStorage implements IStorage {
 
   async hasSubscriptionFeature(tenantId: string, feature: string): Promise<boolean> {
     const { features } = await this.getTenantPlanWithLimits(tenantId);
-    return features.includes(feature);
+    if (features.includes(feature)) return true;
+    if (feature === "reports_detailed" && features.includes("advanced_reporting")) return true;
+    return false;
   }
 
   async checkSubscriptionLimit(tenantId: string, resource: "registers" | "users" | "products" | "locations" | "tables" | "recipes"): Promise<{ allowed: boolean; current: number; max: number }> {

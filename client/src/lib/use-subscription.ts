@@ -56,7 +56,9 @@ export function useSubscription() {
   const isComped = data?.isComped || false;
 
   const hasFeature = (feature: SubscriptionFeature): boolean => {
-    return features.includes(feature);
+    if (features.includes(feature)) return true;
+    if (feature === "reports_detailed" && features.includes("advanced_reporting" as SubscriptionFeature)) return true;
+    return false;
   };
 
   const canCreate = (resource: LimitResource): boolean => {
