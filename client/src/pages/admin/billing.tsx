@@ -108,11 +108,17 @@ const RESTAURANT_BASE_FEATURES = [
 const PRO_FEATURES = [
   { id: "label_designer", label: "Label Designer", description: "Design and print custom product labels" },
   { id: "restaurant_bom", label: "Ingredient Inventory (BOM)", description: "Recipe management with FIFO auto-consumption" },
-  { id: "advanced_reporting", label: "Advanced Reporting", description: "Detailed analytics and custom reports" },
+  { id: "reports_detailed", label: "Pro Reports", description: "Payment methods breakdown, customer analytics, and refund analysis" },
   { id: "multi_location", label: "Multi-Location", description: "Manage multiple store locations" },
   { id: "loyalty_program", label: "Loyalty Program", description: "Customer loyalty and rewards" },
   { id: "electronic_invoicing", label: "Electronic Invoicing", description: "DIAN electronic invoicing (Colombia)" },
   { id: "api_access", label: "API Access", description: "External API integrations" },
+];
+
+const ENTERPRISE_FEATURES = [
+  { id: "reports_management", label: "Enterprise Reports", description: "Register performance, cash variance analysis, and management dashboards" },
+  { id: "ecommerce_integrations", label: "E-Commerce Integrations", description: "Shopify and other platform integrations" },
+  { id: "security_audit", label: "Security & Audit", description: "Advanced security logging and audit trails" },
 ];
 
 export default function AdminBilling() {
@@ -422,12 +428,12 @@ export default function AdminBilling() {
         <Tabs value={planType} onValueChange={(v) => {
           const bt = v as "retail" | "restaurant";
           setPlanType(bt);
-          const proFeatureIds = PRO_FEATURES.map(f => f.id);
-          const currentProFeatures = formData.features.filter(f => proFeatureIds.includes(f));
+          const sharedFeatureIds = [...PRO_FEATURES.map(f => f.id), ...ENTERPRISE_FEATURES.map(f => f.id)];
+          const currentSharedFeatures = formData.features.filter(f => sharedFeatureIds.includes(f));
           setFormData(prev => ({
             ...prev,
             businessType: bt,
-            features: currentProFeatures,
+            features: currentSharedFeatures,
             maxTables: bt === "retail" ? 0 : prev.maxTables,
             maxRecipes: bt === "retail" ? 0 : prev.maxRecipes,
           }));
@@ -480,6 +486,33 @@ export default function AdminBilling() {
               <div className="grid gap-0.5">
                 <label
                   htmlFor={`pro-${feature.id}`}
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  {feature.label}
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  {feature.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <Label>{t("admin.enterprise_features")}</Label>
+        <div className="border rounded-lg p-4 space-y-2">
+          {ENTERPRISE_FEATURES.map((feature) => (
+            <div key={feature.id} className="flex items-start gap-3">
+              <Checkbox
+                id={`enterprise-${feature.id}`}
+                checked={formData.features.includes(feature.id)}
+                onCheckedChange={() => handleFeatureToggle(feature.id)}
+                data-testid={`checkbox-enterprise-${feature.id}`}
+              />
+              <div className="grid gap-0.5">
+                <label
+                  htmlFor={`enterprise-${feature.id}`}
                   className="text-sm font-medium cursor-pointer"
                 >
                   {feature.label}
