@@ -141,6 +141,8 @@ export default function ReportsPage() {
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
   const [appliedStartDate, setAppliedStartDate] = useState<Date | undefined>(undefined);
   const [appliedEndDate, setAppliedEndDate] = useState<Date | undefined>(undefined);
+  const [reportGroup, setReportGroup] = useState("basic");
+  const [activeReport, setActiveReport] = useState("overview");
 
   const analyticsQueryKey = useMemo(() => {
     if (dateRange === "custom" && appliedStartDate && appliedEndDate) {
@@ -531,54 +533,58 @@ export default function ReportsPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="overview">
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="overview" data-testid="tab-overview">{t("reports.overview")}</TabsTrigger>
-          <TabsTrigger value="trends" data-testid="tab-trends">{t("reports.sales_trends")}</TabsTrigger>
-          <TabsTrigger value="products" data-testid="tab-products">{t("reports.product_performance")}</TabsTrigger>
-          <TabsTrigger value="employees" data-testid="tab-employees">{t("reports.employee_metrics")}</TabsTrigger>
-          <TabsTrigger value="profit" data-testid="tab-profit">{t("reports.profit_analysis")}</TabsTrigger>
-          <TabsTrigger value="payments" data-testid="tab-payments">
-            {!hasProReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
-            {t("reports.payment_methods")}
-          </TabsTrigger>
-          <TabsTrigger value="customers" data-testid="tab-customers">
-            {!hasProReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
-            {t("reports.customer_analytics")}
-          </TabsTrigger>
-          <TabsTrigger value="registers" data-testid="tab-registers">
-            {!hasEnterpriseReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
-            {t("reports.register_performance")}
-          </TabsTrigger>
-          <TabsTrigger value="categories" data-testid="tab-categories">
-            {!hasProReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
-            {t("reports.sales_by_category_tab")}
-          </TabsTrigger>
-          <TabsTrigger value="discounts" data-testid="tab-discounts">
-            {!hasProReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
-            {t("reports.discount_analysis_tab")}
-          </TabsTrigger>
-          <TabsTrigger value="turnover" data-testid="tab-turnover">
-            {!hasProReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
-            {t("reports.inventory_turnover_tab")}
-          </TabsTrigger>
-          <TabsTrigger value="tax" data-testid="tab-tax">
-            {!hasEnterpriseReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
-            {t("reports.tax_summary_tab")}
-          </TabsTrigger>
-          <TabsTrigger value="heatmap" data-testid="tab-heatmap">
-            {!hasEnterpriseReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
-            {t("reports.hourly_heatmap_tab")}
-          </TabsTrigger>
-          <TabsTrigger value="productivity" data-testid="tab-productivity">
-            {!hasEnterpriseReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
-            {t("reports.employee_productivity_tab")}
-          </TabsTrigger>
-          <TabsTrigger value="financials" data-testid="tab-financials">
-            {!hasEnterpriseReports && <Crown className="w-3 h-3 mr-1 text-yellow-500" />}
-            {t("reports.financial_summary_tab")}
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeReport} onValueChange={setActiveReport}>
+        <div className="flex flex-col gap-3 mb-2">
+          <div className="flex items-center gap-2">
+            <Select value={reportGroup} onValueChange={(val) => {
+              setReportGroup(val);
+              const firstTab = val === "basic" ? "overview" : val === "pro" ? "payments" : "registers";
+              setActiveReport(firstTab);
+            }}>
+              <SelectTrigger className="w-[200px]" data-testid="select-report-group">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="basic" data-testid="option-basic">{t("reports.basic_reports")}</SelectItem>
+                <SelectItem value="pro" data-testid="option-pro">
+                  <span className="flex items-center gap-1">{!hasProReports && <Crown className="w-3 h-3 text-yellow-500" />}{t("reports.pro_reports")}</span>
+                </SelectItem>
+                <SelectItem value="enterprise" data-testid="option-enterprise">
+                  <span className="flex items-center gap-1">{!hasEnterpriseReports && <Crown className="w-3 h-3 text-yellow-500" />}{t("reports.enterprise_reports")}</span>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="overflow-x-auto -mx-1 px-1">
+            {reportGroup === "basic" && (
+              <TabsList className="inline-flex w-auto min-w-full">
+                <TabsTrigger value="overview" data-testid="tab-overview">{t("reports.overview")}</TabsTrigger>
+                <TabsTrigger value="trends" data-testid="tab-trends">{t("reports.sales_trends")}</TabsTrigger>
+                <TabsTrigger value="products" data-testid="tab-products">{t("reports.product_performance")}</TabsTrigger>
+                <TabsTrigger value="employees" data-testid="tab-employees">{t("reports.employee_metrics")}</TabsTrigger>
+                <TabsTrigger value="profit" data-testid="tab-profit">{t("reports.profit_analysis")}</TabsTrigger>
+              </TabsList>
+            )}
+            {reportGroup === "pro" && (
+              <TabsList className="inline-flex w-auto min-w-full">
+                <TabsTrigger value="payments" data-testid="tab-payments">{t("reports.payment_methods")}</TabsTrigger>
+                <TabsTrigger value="customers" data-testid="tab-customers">{t("reports.customer_analytics")}</TabsTrigger>
+                <TabsTrigger value="categories" data-testid="tab-categories">{t("reports.sales_by_category_tab")}</TabsTrigger>
+                <TabsTrigger value="discounts" data-testid="tab-discounts">{t("reports.discount_analysis_tab")}</TabsTrigger>
+                <TabsTrigger value="turnover" data-testid="tab-turnover">{t("reports.inventory_turnover_tab")}</TabsTrigger>
+              </TabsList>
+            )}
+            {reportGroup === "enterprise" && (
+              <TabsList className="inline-flex w-auto min-w-full">
+                <TabsTrigger value="registers" data-testid="tab-registers">{t("reports.register_performance")}</TabsTrigger>
+                <TabsTrigger value="tax" data-testid="tab-tax">{t("reports.tax_summary_tab")}</TabsTrigger>
+                <TabsTrigger value="heatmap" data-testid="tab-heatmap">{t("reports.hourly_heatmap_tab")}</TabsTrigger>
+                <TabsTrigger value="productivity" data-testid="tab-productivity">{t("reports.employee_productivity_tab")}</TabsTrigger>
+                <TabsTrigger value="financials" data-testid="tab-financials">{t("reports.financial_summary_tab")}</TabsTrigger>
+              </TabsList>
+            )}
+          </div>
+        </div>
 
         <TabsContent value="overview" className="space-y-6 mt-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
