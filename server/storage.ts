@@ -114,7 +114,7 @@ export interface IStorage {
   
   // Orders
   getOrdersByTenant(tenantId: string, limit?: number): Promise<Order[]>;
-  getOrdersWithDetails(tenantId: string, startDate: Date | null): Promise<any[]>;
+  getOrdersWithDetails(tenantId: string, startDate: Date | null, endDate?: Date | null): Promise<any[]>;
   getOrder(id: string): Promise<Order | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: string, data: Partial<InsertOrder>): Promise<Order | undefined>;
@@ -602,15 +602,15 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
-  async getOrdersWithDetails(tenantId: string, startDate: Date | null): Promise<any[]> {
+  async getOrdersWithDetails(tenantId: string, startDate: Date | null, endDate?: Date | null): Promise<any[]> {
+    const conditions = [eq(orders.tenantId, tenantId)];
+    if (startDate) conditions.push(gte(orders.createdAt, startDate));
+    if (endDate) conditions.push(lte(orders.createdAt, endDate));
+
     let query = db
       .select()
       .from(orders)
-      .where(
-        startDate
-          ? and(eq(orders.tenantId, tenantId), gte(orders.createdAt, startDate))
-          : eq(orders.tenantId, tenantId)
-      )
+      .where(and(...conditions))
       .orderBy(desc(orders.createdAt))
       .limit(200);
     

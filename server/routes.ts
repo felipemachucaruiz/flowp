@@ -2134,20 +2134,28 @@ export async function registerRoutes(
       }
       
       const filter = req.query.filter as string || "today";
+      const customStart = req.query.startDate as string | undefined;
+      const customEnd = req.query.endDate as string | undefined;
       
-      // Calculate date filter
       const now = new Date();
       let startDate: Date | null = null;
+      let endDate: Date | null = null;
       
-      if (filter === "today") {
+      if (filter === "custom" && customStart && customEnd) {
+        startDate = new Date(customStart);
+        endDate = new Date(customEnd);
+        endDate.setHours(23, 59, 59, 999);
+      } else if (filter === "today") {
         startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      } else if (filter === "week") {
+      } else if (filter === "week" || filter === "7d") {
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      } else if (filter === "month") {
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      } else if (filter === "month" || filter === "30d") {
+        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      } else if (filter === "90d") {
+        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
       }
       
-      const orders = await storage.getOrdersWithDetails(tenantId, startDate);
+      const orders = await storage.getOrdersWithDetails(tenantId, startDate, endDate);
       res.json(orders);
     } catch (error) {
       console.error("Orders history error:", error);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,10 +20,12 @@ import { printReceipt } from "@/lib/print-receipt";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/currency";
+import { es, ptBR, enUS } from "date-fns/locale";
 import type { Order, Customer } from "@shared/schema";
 import {
   Search,
   Calendar,
+  CalendarIcon,
   User,
   Receipt,
   Printer,
@@ -38,6 +42,8 @@ import {
   FileText,
 } from "lucide-react";
 import { format } from "date-fns";
+
+const calendarLocales: Record<string, any> = { en: enUS, es: es, pt: ptBR };
 
 interface OrderWithItems extends Order {
   items?: {
@@ -71,11 +77,15 @@ interface ReturnableItem {
 
 export default function SalesHistoryPage() {
   const { tenant, user } = useAuth();
-  const { t, formatDateTime } = useI18n();
+  const { t, formatDateTime, formatDate, language } = useI18n();
   const { toast } = useToast();
   const { can, isOwner, isAdmin, isManager } = usePermissions();
   const [searchQuery, setSearchQuery] = useState("");
-  const [dateFilter, setDateFilter] = useState<"today" | "week" | "month" | "all">("today");
+  const [dateFilter, setDateFilter] = useState("7d");
+  const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
+  const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
+  const [appliedStartDate, setAppliedStartDate] = useState<Date | undefined>(undefined);
+  const [appliedEndDate, setAppliedEndDate] = useState<Date | undefined>(undefined);
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
   
@@ -99,10 +109,32 @@ export default function SalesHistoryPage() {
 
   const canProcessReturns = isOwner || isAdmin || isManager;
 
+  const handleDateFilterChange = (value: string) => {
+    setDateFilter(value);
+    if (value !== "custom") {
+      setAppliedStartDate(undefined);
+      setAppliedEndDate(undefined);
+    }
+  };
+
+  const handleApplyCustomRange = () => {
+    if (customStartDate && customEndDate) {
+      setAppliedStartDate(customStartDate);
+      setAppliedEndDate(customEndDate);
+    }
+  };
+
+  const historyQueryKey = useMemo(() => {
+    if (dateFilter === "custom" && appliedStartDate && appliedEndDate) {
+      return `/api/orders/history?filter=custom&startDate=${appliedStartDate.toISOString()}&endDate=${appliedEndDate.toISOString()}`;
+    }
+    return `/api/orders/history?filter=${dateFilter}`;
+  }, [dateFilter, appliedStartDate, appliedEndDate]);
+
   const { data: orders, isLoading } = useQuery<OrderWithItems[]>({
-    queryKey: ["/api/orders/history", dateFilter],
+    queryKey: ["/api/orders/history", dateFilter, appliedStartDate?.toISOString(), appliedEndDate?.toISOString()],
     queryFn: async () => {
-      const response = await fetch(`/api/orders/history?filter=${dateFilter}`, {
+      const response = await fetch(historyQueryKey, {
         headers: { "x-tenant-id": tenant?.id || "" },
       });
       return response.json();
@@ -373,18 +405,75 @@ export default function SalesHistoryPage() {
             data-testid="input-sales-search"
           />
         </div>
-        <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as typeof dateFilter)}>
-          <SelectTrigger className="w-[180px]" data-testid="select-date-filter">
-            <Filter className="w-4 h-4 mr-2" />
-            <SelectValue placeholder={t("sales.filter_today")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">{t("sales.filter_today")}</SelectItem>
-            <SelectItem value="week">{t("sales.filter_week")}</SelectItem>
-            <SelectItem value="month">{t("sales.filter_month")}</SelectItem>
-            <SelectItem value="all">{t("sales.filter_all")}</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={dateFilter} onValueChange={handleDateFilterChange}>
+            <SelectTrigger className="w-[180px]" data-testid="select-date-filter">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7d" data-testid="option-history-7d">{t("reports.last_7_days")}</SelectItem>
+              <SelectItem value="30d" data-testid="option-history-30d">{t("reports.last_30_days")}</SelectItem>
+              <SelectItem value="90d" data-testid="option-history-90d">{t("reports.last_90_days")}</SelectItem>
+              <SelectItem value="custom" data-testid="option-history-custom">{t("reports.custom_range")}</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {dateFilter === "custom" && (
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-[140px] justify-start text-left font-normal"
+                    data-testid="button-history-start-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customStartDate ? formatDate(customStartDate) : t("reports.start_date")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customStartDate}
+                    onSelect={setCustomStartDate}
+                    locale={calendarLocales[language] || enUS}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-[140px] justify-start text-left font-normal"
+                    data-testid="button-history-end-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {customEndDate ? formatDate(customEndDate) : t("reports.end_date")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={customEndDate}
+                    onSelect={setCustomEndDate}
+                    locale={calendarLocales[language] || enUS}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+
+              <Button
+                onClick={handleApplyCustomRange}
+                disabled={!customStartDate || !customEndDate}
+                data-testid="button-apply-history-filter"
+              >
+                {t("reports.apply_filter")}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
