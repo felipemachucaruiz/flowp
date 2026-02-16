@@ -71,7 +71,8 @@ const defaultSmtpConfig: SmtpConfig = {
 
 export default function AdminEmailSettings() {
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   const [smtpConfig, setSmtpConfig] = useState<SmtpConfig>(defaultSmtpConfig);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -218,7 +219,7 @@ export default function AdminEmailSettings() {
   });
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleString();
+    return new Date(dateStr).toLocaleString(locale);
   };
 
   if (isLoadingConfig) {

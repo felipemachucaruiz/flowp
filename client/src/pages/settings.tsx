@@ -431,7 +431,8 @@ function CsvImportSection() {
 }
 
 function PrintBridgeSettings() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const localeCode = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   const { toast } = useToast();
   const { tenant, refreshTenant } = useAuth();
   const [bridgeStatus, setBridgeStatus] = useState<PrintBridgeStatus | null>(null);
@@ -1653,7 +1654,8 @@ const FEATURE_TRANSLATION_KEYS: Record<string, string> = {
 };
 
 function MyPlanTab() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   const { toast } = useToast();
   const { tenant } = useAuth();
   const [, navigate] = useLocation();
@@ -1775,7 +1777,7 @@ function MyPlanTab() {
                 <p className="text-sm font-medium">{t("subscription.trial_period" as any)}</p>
                 <p className="text-sm text-muted-foreground">
                   {trial.daysRemaining} {t("subscription.days_left" as any)}
-                  {trial.trialEndsAt && ` - ${new Date(trial.trialEndsAt).toLocaleDateString()}`}
+                  {trial.trialEndsAt && ` - ${new Date(trial.trialEndsAt).toLocaleDateString(locale)}`}
                 </p>
               </div>
             </div>
@@ -1800,7 +1802,7 @@ function MyPlanTab() {
             {subscription?.currentPeriodEnd && (
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">{t("subscription.next_payment" as any)}</p>
-                <p className="font-medium" data-testid="text-next-payment">{new Date(subscription.currentPeriodEnd).toLocaleDateString()}</p>
+                <p className="font-medium" data-testid="text-next-payment">{new Date(subscription.currentPeriodEnd).toLocaleDateString(locale)}</p>
               </div>
             )}
             {subscription?.mpPayerEmail && (
@@ -2043,7 +2045,7 @@ function MyPlanTab() {
                 <tbody>
                   {payments.map((payment: any) => (
                     <tr key={payment.id} className="border-b last:border-0" data-testid={`row-payment-${payment.id}`}>
-                      <td className="py-3 pr-4">{payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : "-"}</td>
+                      <td className="py-3 pr-4">{payment.createdAt ? new Date(payment.createdAt).toLocaleDateString(locale) : "-"}</td>
                       <td className="py-3 pr-4 font-medium">{formatCurrency(parseFloat(payment.amount), currency)}</td>
                       <td className="py-3 pr-4 capitalize">{payment.method || "-"}</td>
                       <td className="py-3 pr-4">{getPaymentStatusBadge(payment.status)}</td>
@@ -2061,7 +2063,8 @@ function MyPlanTab() {
 }
 
 function AddonsSettings() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   const { toast } = useToast();
   const { tenant } = useAuth();
   const queryClientInstance = useQueryClient();
@@ -2220,7 +2223,7 @@ function AddonsSettings() {
 
                       {activeAddon?.status === "trial" && activeAddon.trialEndsAt && (
                         <p className="text-xs text-muted-foreground">
-                          {t("settings.trial_ends")}: {new Date(activeAddon.trialEndsAt).toLocaleDateString()}
+                          {t("settings.trial_ends")}: {new Date(activeAddon.trialEndsAt).toLocaleDateString(locale)}
                         </p>
                       )}
 
@@ -4248,7 +4251,7 @@ export default function SettingsPage() {
                         phone: receiptForm.watch("receiptShowPhone") ? (tenant?.phone || "(555) 123-4567") : undefined,
                         taxId: tenant?.receiptTaxId || undefined,
                         orderNumber: "TEST-1234",
-                        date: new Date().toLocaleString(tenant?.language || "en"),
+                        date: new Date().toLocaleString(localeCode),
                         fontSize: receiptForm.watch("receiptFontSize") || 12,
                         fontFamily: receiptForm.watch("receiptFontFamily") || "monospace",
                         logoSize: receiptForm.watch("receiptLogoSize") || 200,

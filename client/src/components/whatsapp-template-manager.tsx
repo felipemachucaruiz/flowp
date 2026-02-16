@@ -130,7 +130,8 @@ const STATUS_CONFIG: Record<string, { color: string; variant: "default" | "secon
 };
 
 export function WhatsAppTemplateManager() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   const { toast } = useToast();
   const { tenant } = useAuth();
   const queryClient = useQueryClient();
@@ -779,7 +780,7 @@ export function WhatsAppTemplateManager() {
                   <p className="text-xs text-muted-foreground mt-1">{previewTemplate.footerText}</p>
                 )}
                 <p className="text-[10px] text-muted-foreground text-right mt-1">
-                  {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                 </p>
               </div>
             </div>

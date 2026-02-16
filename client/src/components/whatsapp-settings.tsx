@@ -100,7 +100,8 @@ const copFormatter = new Intl.NumberFormat("es-CO", {
 });
 
 export function WhatsAppSettings() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   const { toast } = useToast();
   const { tenant } = useAuth();
   const queryClient = useQueryClient();
@@ -341,7 +342,7 @@ export function WhatsAppSettings() {
               {usage.subscription.renewalDate && (
                 <p className="text-xs text-muted-foreground">
                   {t("whatsapp.renewalDate" as any) || "Renewal"}:{" "}
-                  {new Date(usage.subscription.renewalDate).toLocaleDateString()}
+                  {new Date(usage.subscription.renewalDate).toLocaleDateString(locale)}
                 </p>
               )}
             </div>
@@ -556,7 +557,7 @@ export function WhatsAppSettings() {
                       {logsData.logs.map((log) => (
                         <TableRow key={log.id} data-testid={`row-log-${log.id}`}>
                           <TableCell className="text-xs whitespace-nowrap">
-                            {new Date(log.createdAt).toLocaleString()}
+                            {new Date(log.createdAt).toLocaleString(locale)}
                           </TableCell>
                           <TableCell className="text-sm">{log.phone}</TableCell>
                           <TableCell>

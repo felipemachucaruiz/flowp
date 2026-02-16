@@ -20,7 +20,8 @@ import {
 
 export default function KitchenPage() {
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
@@ -230,7 +231,7 @@ export default function KitchenPage() {
         <div className="flex items-center gap-2">
           <div className="text-right">
             <p className="text-xl lg:text-2xl font-bold font-mono">
-              {currentTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {currentTime.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => refetch()} data-testid="button-refresh">

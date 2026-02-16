@@ -96,7 +96,8 @@ interface ShopifyOrder {
 }
 
 export function ShopifySettings() {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -538,7 +539,7 @@ export function ShopifySettings() {
                     <div>
                       <span className="font-medium">{order.shopifyOrderName}</span>
                       <span className="text-sm text-muted-foreground ml-2">
-                        {new Date(order.createdAt).toLocaleDateString()}
+                        {new Date(order.createdAt).toLocaleDateString(locale)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -743,7 +744,7 @@ export function ShopifySettings() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {mapping.lastInventorySync 
-                        ? new Date(mapping.lastInventorySync).toLocaleString()
+                        ? new Date(mapping.lastInventorySync).toLocaleString(locale)
                         : "-"}
                     </TableCell>
                   </TableRow>
@@ -795,7 +796,7 @@ export function ShopifySettings() {
                       )}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {new Date(order.createdAt).toLocaleString()}
+                      {new Date(order.createdAt).toLocaleString(locale)}
                     </TableCell>
                   </TableRow>
                 ))}

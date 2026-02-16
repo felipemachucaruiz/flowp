@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ClipboardList, Search, User, Building2 } from "lucide-react";
 import { adminFetch } from "@/lib/admin-fetch";
+import { useI18n } from "@/lib/i18n";
 
 export default function AdminAudit() {
+  const { language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("");
 
@@ -112,7 +115,7 @@ export default function AdminAudit() {
                       {log.details ? JSON.stringify(log.details).slice(0, 50) : "-"}
                     </span>
                   </TableCell>
-                  <TableCell>{new Date(log.createdAt).toLocaleString()}</TableCell>
+                  <TableCell>{new Date(log.createdAt).toLocaleString(locale)}</TableCell>
                 </TableRow>
               ))}
               {(!data?.logs || data.logs.length === 0) && !isLoading && (

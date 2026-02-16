@@ -135,7 +135,8 @@ const COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"
 
 export default function ReportsPage() {
   const { tenant } = useAuth();
-  const { t, formatDate } = useI18n();
+  const { t, formatDate, language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   const [dateRange, setDateRange] = useState("7d");
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
@@ -1900,7 +1901,15 @@ export default function ReportsPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">{t("reports.busiest_day")}</p>
-                        <p className="text-2xl font-bold">{hourlyHeatmap?.summary.busiestDay || "-"}</p>
+                        <p className="text-2xl font-bold">{(() => {
+                          const englishDay = hourlyHeatmap?.summary.busiestDay || "";
+                          if (!englishDay) return "-";
+                          const dayMap: Record<string, number> = { Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3, Thursday: 4, Friday: 5, Saturday: 6 };
+                          const dayIdx = dayMap[englishDay];
+                          if (dayIdx === undefined) return englishDay;
+                          const baseDate = new Date(2024, 0, 7 + dayIdx);
+                          return new Intl.DateTimeFormat(locale, { weekday: "long" }).format(baseDate);
+                        })()}</p>
                       </div>
                       <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
                         <BarChart3 className="w-6 h-6 text-primary" />
@@ -1946,7 +1955,10 @@ export default function ReportsPage() {
                 <CardContent>
                   {(hourlyHeatmap?.heatmapData || []).length > 0 ? (() => {
                     const maxOrders = Math.max(...(hourlyHeatmap?.heatmapData || []).map((d) => d.orderCount), 1);
-                    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+                    const days = Array.from({ length: 7 }, (_, i) => {
+                      const d = new Date(2024, 0, i + 1);
+                      return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(d);
+                    });
                     const hours = Array.from({ length: 24 }, (_, i) => i);
                     const dataMap = new Map((hourlyHeatmap?.heatmapData || []).map((d) => [`${d.dayOfWeek}-${d.hour}`, d]));
                     return (

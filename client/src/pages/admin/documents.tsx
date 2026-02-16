@@ -18,7 +18,8 @@ export default function AdminDocuments() {
   const [kindFilter, setKindFilter] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<any>(null);
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/internal-admin/ebilling/documents", { search, status: statusFilter, kind: kindFilter }],
@@ -141,7 +142,7 @@ export default function AdminDocuments() {
                   <TableCell>
                     <span className="text-xs text-muted-foreground">{doc.cufe?.slice(0, 12)}...</span>
                   </TableCell>
-                  <TableCell>{new Date(doc.createdAt).toLocaleString()}</TableCell>
+                  <TableCell>{new Date(doc.createdAt).toLocaleString(locale)}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button
@@ -213,7 +214,7 @@ export default function AdminDocuments() {
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Created</dt>
-                  <dd className="font-medium">{new Date(selectedDoc.createdAt).toLocaleString()}</dd>
+                  <dd className="font-medium">{new Date(selectedDoc.createdAt).toLocaleString(locale)}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Retries</dt>

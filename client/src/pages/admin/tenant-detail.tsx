@@ -20,7 +20,8 @@ import { formatCurrency } from "@/lib/currency";
 export default function AdminTenantDetail() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const { toast } = useToast();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
   
   const [matiasConfig, setMatiasConfig] = useState({
     baseUrl: "https://api-v2.matias-api.com",
@@ -312,7 +313,7 @@ export default function AdminTenantDetail() {
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-muted-foreground">Created</dt>
-                    <dd className="font-medium">{tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString() : "N/A"}</dd>
+                    <dd className="font-medium">{tenant?.createdAt ? new Date(tenant.createdAt).toLocaleDateString(locale) : "N/A"}</dd>
                   </div>
                 </dl>
               </CardContent>
@@ -489,7 +490,7 @@ export default function AdminTenantDetail() {
                           {addon.status === "trial" && addon.trialEndsAt && (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Clock className="h-4 w-4" />
-                              {t("admin.addon_trial_ends")}: {new Date(addon.trialEndsAt).toLocaleDateString()}
+                              {t("admin.addon_trial_ends")}: {new Date(addon.trialEndsAt).toLocaleDateString(locale)}
                             </div>
                           )}
                           <p className="text-xs text-muted-foreground">
@@ -845,7 +846,7 @@ export default function AdminTenantDetail() {
                           )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {new Date(doc.createdAt).toLocaleDateString()}
+                          {new Date(doc.createdAt).toLocaleDateString(locale)}
                         </TableCell>
                         <TableCell className="font-mono text-xs max-w-[200px] truncate">
                           {doc.cufe ? doc.cufe.slice(0, 20) + "..." : "-"}

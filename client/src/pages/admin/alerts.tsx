@@ -7,10 +7,13 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { adminFetch } from "@/lib/admin-fetch";
 import { AlertTriangle, Check, Bell, Filter } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export default function AdminAlerts() {
   const [showAcknowledged, setShowAcknowledged] = useState(false);
   const { toast } = useToast();
+  const { language } = useI18n();
+  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/internal-admin/ebilling/alerts", { ack: showAcknowledged ? "true" : "false" }],
@@ -84,9 +87,9 @@ export default function AdminAlerts() {
                 <p className="mt-1 text-sm text-muted-foreground">{alert.message}</p>
                 <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
                   <span>Tenant: {alert.tenantId?.slice(0, 8)}...</span>
-                  <span>Created: {new Date(alert.createdAt).toLocaleString()}</span>
+                  <span>Created: {new Date(alert.createdAt).toLocaleString(locale)}</span>
                   {alert.acknowledgedAt && (
-                    <span>Ack: {new Date(alert.acknowledgedAt).toLocaleString()}</span>
+                    <span>Ack: {new Date(alert.acknowledgedAt).toLocaleString(locale)}</span>
                   )}
                 </div>
               </div>
