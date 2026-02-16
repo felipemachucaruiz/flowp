@@ -108,7 +108,7 @@ const RESTAURANT_BASE_FEATURES = [
 const PRO_FEATURES = [
   { id: "label_designer", label: "Label Designer", description: "Design and print custom product labels" },
   { id: "restaurant_bom", label: "Ingredient Inventory (BOM)", description: "Recipe management with FIFO auto-consumption" },
-  { id: "reports_detailed", label: "Pro Reports", description: "Payment methods breakdown, customer analytics, and refund analysis" },
+  { id: "reports_detailed", label: "Pro Reports", description: "Payment methods, customer analytics, sales by category, discount analysis, inventory turnover" },
   { id: "multi_location", label: "Multi-Location", description: "Manage multiple store locations" },
   { id: "loyalty_program", label: "Loyalty Program", description: "Customer loyalty and rewards" },
   { id: "electronic_invoicing", label: "Electronic Invoicing", description: "DIAN electronic invoicing (Colombia)" },
@@ -116,7 +116,7 @@ const PRO_FEATURES = [
 ];
 
 const ENTERPRISE_FEATURES = [
-  { id: "reports_management", label: "Enterprise Reports", description: "Register performance, cash variance analysis, and management dashboards" },
+  { id: "reports_management", label: "Enterprise Reports", description: "Register performance, tax summary, hourly heatmap, employee productivity, financial summary" },
   { id: "ecommerce_integrations", label: "E-Commerce Integrations", description: "Shopify and other platform integrations" },
   { id: "security_audit", label: "Security & Audit", description: "Advanced security logging and audit trails" },
 ];
