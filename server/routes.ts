@@ -6032,6 +6032,756 @@ export async function registerRoutes(
     }
   });
 
+  // ===== SALES BY CATEGORY REPORT (Pro) =====
+
+  app.get("/api/reports/sales-by-category", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({ categoryBreakdown: [], dailyCategoryTrends: [], topCategoryProducts: [] });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_DETAILED);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true, feature: "reports_detailed" });
+      }
+
+      const dateRange = (req.query.range as string) || "7d";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+      let startDate: Date;
+      let endDate: Date = new Date();
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else {
+        startDate = new Date();
+        const days = dateRange === "90d" ? 90 : dateRange === "30d" ? 30 : 7;
+        startDate.setDate(startDate.getDate() - days);
+      }
+
+      const breakdownResult = await db.execute(sql`
+        SELECT c.id, COALESCE(c.name, 'Uncategorized') AS name,
+          COUNT(DISTINCT o.id)::int AS order_count,
+          SUM(oi.quantity)::int AS items_sold,
+          COALESCE(SUM(oi.quantity * oi.unit_price::numeric), 0) AS revenue,
+          COALESCE(SUM(oi.quantity * COALESCE(p.cost::numeric, 0)), 0) AS cost
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN products p ON oi.product_id = p.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE o.tenant_id = ${tenantId}
+          AND o.status IN ('completed', 'pending', 'in_progress')
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+        GROUP BY c.id, c.name
+        ORDER BY revenue DESC
+      `);
+
+      const totalRevenue = (breakdownResult.rows as any[]).reduce((sum: number, r: any) => sum + Number(r.revenue), 0);
+      const categoryBreakdown = (breakdownResult.rows as any[]).map((r: any) => ({
+        id: r.id || "uncategorized",
+        name: r.name,
+        orderCount: Number(r.order_count),
+        itemsSold: Number(r.items_sold),
+        revenue: Math.round(Number(r.revenue) * 100) / 100,
+        cost: Math.round(Number(r.cost) * 100) / 100,
+        profit: Math.round((Number(r.revenue) - Number(r.cost)) * 100) / 100,
+        percentage: totalRevenue > 0 ? Math.round((Number(r.revenue) / totalRevenue) * 10000) / 100 : 0,
+      }));
+
+      const dailyResult = await db.execute(sql`
+        SELECT DATE(o.created_at) AS date,
+          COALESCE(c.name, 'Uncategorized') AS category,
+          COALESCE(SUM(oi.quantity * oi.unit_price::numeric), 0) AS revenue
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN products p ON oi.product_id = p.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE o.tenant_id = ${tenantId}
+          AND o.status IN ('completed', 'pending', 'in_progress')
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+        GROUP BY DATE(o.created_at), c.name
+        ORDER BY DATE(o.created_at)
+      `);
+
+      const dailyMap = new Map<string, Record<string, number>>();
+      for (const r of dailyResult.rows as any[]) {
+        const date = String(r.date);
+        if (!dailyMap.has(date)) dailyMap.set(date, {});
+        dailyMap.get(date)![r.category] = Math.round(Number(r.revenue) * 100) / 100;
+      }
+      const dailyCategoryTrends = Array.from(dailyMap.entries()).map(([date, cats]) => ({ date, ...cats }));
+
+      const topProductsResult = await db.execute(sql`
+        SELECT COALESCE(c.name, 'Uncategorized') AS category, p.name AS product_name,
+          SUM(oi.quantity)::int AS quantity,
+          COALESCE(SUM(oi.quantity * oi.unit_price::numeric), 0) AS revenue
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN products p ON oi.product_id = p.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE o.tenant_id = ${tenantId}
+          AND o.status IN ('completed', 'pending', 'in_progress')
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+        GROUP BY c.name, p.name
+        ORDER BY revenue DESC
+        LIMIT 20
+      `);
+
+      const topCategoryProducts = (topProductsResult.rows as any[]).map((r: any) => ({
+        category: r.category,
+        productName: r.product_name,
+        quantity: Number(r.quantity),
+        revenue: Math.round(Number(r.revenue) * 100) / 100,
+      }));
+
+      res.json({ categoryBreakdown, dailyCategoryTrends, topCategoryProducts });
+    } catch (error) {
+      console.error("Sales by category report error:", error);
+      res.status(500).json({ message: "Failed to fetch sales by category report" });
+    }
+  });
+
+  // ===== DISCOUNT ANALYSIS REPORT (Pro) =====
+
+  app.get("/api/reports/discount-analysis", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({ discountSummary: { totalDiscounts: 0, ordersWithDiscount: 0, totalOrders: 0, avgDiscountPercent: 0 }, dailyDiscounts: [], discountByHour: [] });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_DETAILED);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true, feature: "reports_detailed" });
+      }
+
+      const dateRange = (req.query.range as string) || "7d";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+      let startDate: Date;
+      let endDate: Date = new Date();
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else {
+        startDate = new Date();
+        const days = dateRange === "90d" ? 90 : dateRange === "30d" ? 30 : 7;
+        startDate.setDate(startDate.getDate() - days);
+      }
+
+      const summaryResult = await db.execute(sql`
+        SELECT
+          COALESCE(SUM(discount_amount::numeric), 0) AS total_discounts,
+          COUNT(CASE WHEN discount_amount::numeric > 0 THEN 1 END)::int AS orders_with_discount,
+          COUNT(*)::int AS total_orders,
+          COALESCE(SUM(subtotal::numeric), 0) AS total_subtotal
+        FROM orders
+        WHERE tenant_id = ${tenantId}
+          AND status IN ('completed', 'pending', 'in_progress')
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+      `);
+
+      const sRow = (summaryResult.rows as any[])[0] || {};
+      const totalSub = Number(sRow.total_subtotal) || 0;
+      const totalDisc = Number(sRow.total_discounts) || 0;
+      const discountSummary = {
+        totalDiscounts: Math.round(totalDisc * 100) / 100,
+        ordersWithDiscount: Number(sRow.orders_with_discount) || 0,
+        totalOrders: Number(sRow.total_orders) || 0,
+        avgDiscountPercent: totalSub > 0 ? Math.round((totalDisc / totalSub) * 10000) / 100 : 0,
+      };
+
+      const dailyResult = await db.execute(sql`
+        SELECT DATE(created_at) AS date,
+          COALESCE(SUM(discount_amount::numeric), 0) AS discount_total,
+          COALESCE(SUM(total::numeric), 0) AS revenue_total,
+          COUNT(CASE WHEN discount_amount::numeric > 0 THEN 1 END)::int AS discount_orders
+        FROM orders
+        WHERE tenant_id = ${tenantId}
+          AND status IN ('completed', 'pending', 'in_progress')
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+        GROUP BY DATE(created_at)
+        ORDER BY DATE(created_at)
+      `);
+
+      const dailyDiscounts = (dailyResult.rows as any[]).map((r: any) => ({
+        date: String(r.date),
+        discountTotal: Math.round(Number(r.discount_total) * 100) / 100,
+        revenueTotal: Math.round(Number(r.revenue_total) * 100) / 100,
+        discountOrders: Number(r.discount_orders),
+      }));
+
+      const hourlyResult = await db.execute(sql`
+        SELECT EXTRACT(HOUR FROM created_at)::int AS hour,
+          COALESCE(SUM(discount_amount::numeric), 0) AS discount_total,
+          COUNT(CASE WHEN discount_amount::numeric > 0 THEN 1 END)::int AS discount_orders
+        FROM orders
+        WHERE tenant_id = ${tenantId}
+          AND status IN ('completed', 'pending', 'in_progress')
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+        GROUP BY EXTRACT(HOUR FROM created_at)
+        ORDER BY hour
+      `);
+
+      const discountByHour = (hourlyResult.rows as any[]).map((r: any) => ({
+        hour: `${String(r.hour).padStart(2, "0")}:00`,
+        discountTotal: Math.round(Number(r.discount_total) * 100) / 100,
+        discountOrders: Number(r.discount_orders),
+      }));
+
+      res.json({ discountSummary, dailyDiscounts, discountByHour });
+    } catch (error) {
+      console.error("Discount analysis report error:", error);
+      res.status(500).json({ message: "Failed to fetch discount analysis report" });
+    }
+  });
+
+  // ===== INVENTORY TURNOVER REPORT (Pro) =====
+
+  app.get("/api/reports/inventory-turnover", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({ turnoverMetrics: [], summary: { totalProducts: 0, avgTurnoverRate: 0, fastMoving: 0, slowMoving: 0, noMovement: 0 } });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_DETAILED);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires a Pro subscription", requiresUpgrade: true, feature: "reports_detailed" });
+      }
+
+      const dateRange = (req.query.range as string) || "30d";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+      let startDate: Date;
+      let endDate: Date = new Date();
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else {
+        startDate = new Date();
+        const days = dateRange === "90d" ? 90 : dateRange === "30d" ? 30 : 7;
+        startDate.setDate(startDate.getDate() - days);
+      }
+
+      const daysDiff = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+      const turnoverResult = await db.execute(sql`
+        WITH product_sales AS (
+          SELECT oi.product_id,
+            SUM(oi.quantity)::int AS total_sold
+          FROM order_items oi
+          JOIN orders o ON oi.order_id = o.id
+          WHERE o.tenant_id = ${tenantId}
+            AND o.status IN ('completed', 'pending', 'in_progress')
+            AND o.created_at >= ${startDate}
+            AND o.created_at <= ${endDate}
+          GROUP BY oi.product_id
+        ),
+        current_stock AS (
+          SELECT product_id,
+            COALESCE(SUM(CASE WHEN type IN ('purchase', 'return', 'adjustment') THEN quantity ELSE -quantity END), 0)::int AS stock_on_hand
+          FROM stock_movements
+          WHERE tenant_id = ${tenantId}
+          GROUP BY product_id
+        )
+        SELECT p.id, p.name, COALESCE(p.cost::numeric, 0) AS cost, p.price::numeric AS price,
+          COALESCE(ps.total_sold, 0) AS total_sold,
+          COALESCE(cs.stock_on_hand, 0) AS stock_on_hand,
+          COALESCE(c.name, 'Uncategorized') AS category
+        FROM products p
+        LEFT JOIN product_sales ps ON p.id = ps.product_id
+        LEFT JOIN current_stock cs ON p.id = cs.product_id
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.tenant_id = ${tenantId}
+          AND p.is_active = true
+        ORDER BY COALESCE(ps.total_sold, 0) DESC
+        LIMIT 50
+      `);
+
+      const turnoverMetrics = (turnoverResult.rows as any[]).map((r: any) => {
+        const totalSold = Number(r.total_sold);
+        const stockOnHand = Number(r.stock_on_hand);
+        const avgStock = stockOnHand > 0 ? stockOnHand : 1;
+        const turnoverRate = Math.round((totalSold / avgStock) * 100) / 100;
+        const daysOfStock = totalSold > 0 ? Math.round((stockOnHand / (totalSold / daysDiff)) * 10) / 10 : stockOnHand > 0 ? 999 : 0;
+        return {
+          id: r.id,
+          name: r.name,
+          category: r.category,
+          totalSold,
+          stockOnHand,
+          turnoverRate,
+          daysOfStock: daysOfStock > 999 ? 999 : daysOfStock,
+          costValue: Math.round(stockOnHand * Number(r.cost) * 100) / 100,
+        };
+      });
+
+      const fastMoving = turnoverMetrics.filter(m => m.turnoverRate >= 2).length;
+      const slowMoving = turnoverMetrics.filter(m => m.turnoverRate > 0 && m.turnoverRate < 0.5).length;
+      const noMovement = turnoverMetrics.filter(m => m.totalSold === 0).length;
+      const totalTurnover = turnoverMetrics.reduce((s, m) => s + m.turnoverRate, 0);
+
+      const summary = {
+        totalProducts: turnoverMetrics.length,
+        avgTurnoverRate: turnoverMetrics.length > 0 ? Math.round((totalTurnover / turnoverMetrics.length) * 100) / 100 : 0,
+        fastMoving,
+        slowMoving,
+        noMovement,
+      };
+
+      res.json({ turnoverMetrics, summary });
+    } catch (error) {
+      console.error("Inventory turnover report error:", error);
+      res.status(500).json({ message: "Failed to fetch inventory turnover report" });
+    }
+  });
+
+  // ===== TAX SUMMARY REPORT (Enterprise) =====
+
+  app.get("/api/reports/tax-summary", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({ taxSummary: { totalTaxCollected: 0, totalOrders: 0, avgTaxPerOrder: 0 }, dailyTax: [], taxByMethod: [] });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_MANAGEMENT);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires an Enterprise subscription", requiresUpgrade: true, feature: "reports_management" });
+      }
+
+      const dateRange = (req.query.range as string) || "7d";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+      let startDate: Date;
+      let endDate: Date = new Date();
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else {
+        startDate = new Date();
+        const days = dateRange === "90d" ? 90 : dateRange === "30d" ? 30 : 7;
+        startDate.setDate(startDate.getDate() - days);
+      }
+
+      const summaryResult = await db.execute(sql`
+        SELECT
+          COALESCE(SUM(tax_amount::numeric), 0) AS total_tax,
+          COUNT(*)::int AS total_orders,
+          COALESCE(AVG(tax_amount::numeric), 0) AS avg_tax,
+          COALESCE(SUM(subtotal::numeric), 0) AS total_subtotal
+        FROM orders
+        WHERE tenant_id = ${tenantId}
+          AND status IN ('completed', 'pending', 'in_progress')
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+      `);
+
+      const sRow = (summaryResult.rows as any[])[0] || {};
+      const taxSummary = {
+        totalTaxCollected: Math.round(Number(sRow.total_tax) * 100) / 100,
+        totalOrders: Number(sRow.total_orders) || 0,
+        avgTaxPerOrder: Math.round(Number(sRow.avg_tax) * 100) / 100,
+        effectiveTaxRate: Number(sRow.total_subtotal) > 0 ? Math.round((Number(sRow.total_tax) / Number(sRow.total_subtotal)) * 10000) / 100 : 0,
+      };
+
+      const dailyResult = await db.execute(sql`
+        SELECT DATE(created_at) AS date,
+          COALESCE(SUM(tax_amount::numeric), 0) AS tax_total,
+          COALESCE(SUM(subtotal::numeric), 0) AS subtotal,
+          COALESCE(SUM(total::numeric), 0) AS revenue
+        FROM orders
+        WHERE tenant_id = ${tenantId}
+          AND status IN ('completed', 'pending', 'in_progress')
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+        GROUP BY DATE(created_at)
+        ORDER BY DATE(created_at)
+      `);
+
+      const dailyTax = (dailyResult.rows as any[]).map((r: any) => ({
+        date: String(r.date),
+        taxTotal: Math.round(Number(r.tax_total) * 100) / 100,
+        subtotal: Math.round(Number(r.subtotal) * 100) / 100,
+        revenue: Math.round(Number(r.revenue) * 100) / 100,
+      }));
+
+      const byMethodResult = await db.execute(sql`
+        SELECT p.method,
+          COALESCE(SUM(o.tax_amount::numeric), 0) AS tax_total,
+          COUNT(*)::int AS order_count
+        FROM orders o
+        JOIN payments p ON p.order_id = o.id
+        WHERE o.tenant_id = ${tenantId}
+          AND o.status IN ('completed', 'pending', 'in_progress')
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+        GROUP BY p.method
+      `);
+
+      const taxByMethod = (byMethodResult.rows as any[]).map((r: any) => ({
+        method: r.method,
+        taxTotal: Math.round(Number(r.tax_total) * 100) / 100,
+        orderCount: Number(r.order_count),
+      }));
+
+      res.json({ taxSummary, dailyTax, taxByMethod });
+    } catch (error) {
+      console.error("Tax summary report error:", error);
+      res.status(500).json({ message: "Failed to fetch tax summary report" });
+    }
+  });
+
+  // ===== HOURLY HEATMAP REPORT (Enterprise) =====
+
+  app.get("/api/reports/hourly-heatmap", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({ heatmapData: [], peakHours: [], summary: { busiestDay: "", busiestHour: "", totalSales: 0 } });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_MANAGEMENT);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires an Enterprise subscription", requiresUpgrade: true, feature: "reports_management" });
+      }
+
+      const dateRange = (req.query.range as string) || "30d";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+      let startDate: Date;
+      let endDate: Date = new Date();
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else {
+        startDate = new Date();
+        const days = dateRange === "90d" ? 90 : dateRange === "30d" ? 30 : 7;
+        startDate.setDate(startDate.getDate() - days);
+      }
+
+      const heatmapResult = await db.execute(sql`
+        SELECT
+          EXTRACT(DOW FROM created_at)::int AS day_of_week,
+          EXTRACT(HOUR FROM created_at)::int AS hour,
+          COUNT(*)::int AS order_count,
+          COALESCE(SUM(total::numeric), 0) AS revenue
+        FROM orders
+        WHERE tenant_id = ${tenantId}
+          AND status IN ('completed', 'pending', 'in_progress')
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+        GROUP BY EXTRACT(DOW FROM created_at), EXTRACT(HOUR FROM created_at)
+        ORDER BY day_of_week, hour
+      `);
+
+      const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const heatmapData = (heatmapResult.rows as any[]).map((r: any) => ({
+        dayOfWeek: Number(r.day_of_week),
+        dayName: dayNames[Number(r.day_of_week)],
+        hour: Number(r.hour),
+        hourLabel: `${String(r.hour).padStart(2, "0")}:00`,
+        orderCount: Number(r.order_count),
+        revenue: Math.round(Number(r.revenue) * 100) / 100,
+      }));
+
+      const peakResult = await db.execute(sql`
+        SELECT
+          EXTRACT(HOUR FROM created_at)::int AS hour,
+          COUNT(*)::int AS order_count,
+          COALESCE(SUM(total::numeric), 0) AS revenue
+        FROM orders
+        WHERE tenant_id = ${tenantId}
+          AND status IN ('completed', 'pending', 'in_progress')
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+        GROUP BY EXTRACT(HOUR FROM created_at)
+        ORDER BY revenue DESC
+        LIMIT 5
+      `);
+
+      const peakHours = (peakResult.rows as any[]).map((r: any) => ({
+        hour: `${String(r.hour).padStart(2, "0")}:00`,
+        orderCount: Number(r.order_count),
+        revenue: Math.round(Number(r.revenue) * 100) / 100,
+      }));
+
+      let busiestDay = "";
+      let busiestHour = "";
+      let maxRevenue = 0;
+      for (const d of heatmapData) {
+        if (d.revenue > maxRevenue) {
+          maxRevenue = d.revenue;
+          busiestDay = d.dayName;
+          busiestHour = d.hourLabel;
+        }
+      }
+
+      const totalSales = heatmapData.reduce((s, d) => s + d.revenue, 0);
+
+      res.json({
+        heatmapData,
+        peakHours,
+        summary: { busiestDay, busiestHour, totalSales: Math.round(totalSales * 100) / 100 },
+      });
+    } catch (error) {
+      console.error("Hourly heatmap report error:", error);
+      res.status(500).json({ message: "Failed to fetch hourly heatmap report" });
+    }
+  });
+
+  // ===== EMPLOYEE PRODUCTIVITY REPORT (Enterprise) =====
+
+  app.get("/api/reports/employee-productivity", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({ employeeRankings: [], dailyEmployeePerformance: [], summary: { totalEmployees: 0, topPerformer: "", avgRevenuePerEmployee: 0 } });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_MANAGEMENT);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires an Enterprise subscription", requiresUpgrade: true, feature: "reports_management" });
+      }
+
+      const dateRange = (req.query.range as string) || "7d";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+      let startDate: Date;
+      let endDate: Date = new Date();
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else {
+        startDate = new Date();
+        const days = dateRange === "90d" ? 90 : dateRange === "30d" ? 30 : 7;
+        startDate.setDate(startDate.getDate() - days);
+      }
+
+      const rankingsResult = await db.execute(sql`
+        SELECT u.id, u.name, u.role,
+          COUNT(o.id)::int AS total_orders,
+          COALESCE(SUM(o.total::numeric), 0) AS total_revenue,
+          COALESCE(AVG(o.total::numeric), 0) AS avg_order_value,
+          COUNT(DISTINCT DATE(o.created_at))::int AS active_days,
+          COALESCE(SUM(o.discount_amount::numeric), 0) AS total_discounts_given,
+          COUNT(CASE WHEN o.status = 'cancelled' THEN 1 END)::int AS cancelled_orders
+        FROM users u
+        LEFT JOIN orders o ON o.user_id = u.id
+          AND o.tenant_id = ${tenantId}
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+          AND o.status IN ('completed', 'pending', 'in_progress', 'cancelled')
+        WHERE u.tenant_id = ${tenantId}
+        GROUP BY u.id, u.name, u.role
+        HAVING COUNT(o.id) > 0
+        ORDER BY total_revenue DESC
+      `);
+
+      const employeeRankings = (rankingsResult.rows as any[]).map((r: any, idx: number) => ({
+        id: r.id,
+        name: r.name || "Unknown",
+        role: r.role,
+        rank: idx + 1,
+        totalOrders: Number(r.total_orders),
+        totalRevenue: Math.round(Number(r.total_revenue) * 100) / 100,
+        avgOrderValue: Math.round(Number(r.avg_order_value) * 100) / 100,
+        activeDays: Number(r.active_days),
+        totalDiscountsGiven: Math.round(Number(r.total_discounts_given) * 100) / 100,
+        cancelledOrders: Number(r.cancelled_orders),
+        ordersPerDay: Number(r.active_days) > 0 ? Math.round((Number(r.total_orders) / Number(r.active_days)) * 10) / 10 : 0,
+      }));
+
+      const dailyResult = await db.execute(sql`
+        SELECT DATE(o.created_at) AS date, u.name,
+          COUNT(o.id)::int AS orders,
+          COALESCE(SUM(o.total::numeric), 0) AS revenue
+        FROM orders o
+        JOIN users u ON o.user_id = u.id
+        WHERE o.tenant_id = ${tenantId}
+          AND o.status IN ('completed', 'pending', 'in_progress')
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+        GROUP BY DATE(o.created_at), u.name
+        ORDER BY DATE(o.created_at)
+      `);
+
+      const dailyMap = new Map<string, Record<string, number>>();
+      for (const r of dailyResult.rows as any[]) {
+        const date = String(r.date);
+        if (!dailyMap.has(date)) dailyMap.set(date, {});
+        dailyMap.get(date)![r.name || "Unknown"] = Math.round(Number(r.revenue) * 100) / 100;
+      }
+      const dailyEmployeePerformance = Array.from(dailyMap.entries()).map(([date, emps]) => ({ date, ...emps }));
+
+      const totalRevenue = employeeRankings.reduce((s, e) => s + e.totalRevenue, 0);
+      const summary = {
+        totalEmployees: employeeRankings.length,
+        topPerformer: employeeRankings[0]?.name || "",
+        avgRevenuePerEmployee: employeeRankings.length > 0 ? Math.round((totalRevenue / employeeRankings.length) * 100) / 100 : 0,
+      };
+
+      res.json({ employeeRankings, dailyEmployeePerformance, summary });
+    } catch (error) {
+      console.error("Employee productivity report error:", error);
+      res.status(500).json({ message: "Failed to fetch employee productivity report" });
+    }
+  });
+
+  // ===== FINANCIAL SUMMARY REPORT (Enterprise) =====
+
+  app.get("/api/reports/financial-summary", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.json({ overview: { totalRevenue: 0, totalCost: 0, grossProfit: 0, grossMargin: 0, totalTax: 0, totalDiscounts: 0, netRevenue: 0, totalRefunds: 0, orderCount: 0, avgOrderValue: 0 }, dailyFinancials: [], monthlyComparison: [] });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_MANAGEMENT);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires an Enterprise subscription", requiresUpgrade: true, feature: "reports_management" });
+      }
+
+      const dateRange = (req.query.range as string) || "30d";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+      let startDate: Date;
+      let endDate: Date = new Date();
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else {
+        startDate = new Date();
+        const days = dateRange === "90d" ? 90 : dateRange === "30d" ? 30 : 7;
+        startDate.setDate(startDate.getDate() - days);
+      }
+
+      const overviewResult = await db.execute(sql`
+        SELECT
+          COALESCE(SUM(o.total::numeric), 0) AS total_revenue,
+          COALESCE(SUM(o.subtotal::numeric), 0) AS total_subtotal,
+          COALESCE(SUM(o.tax_amount::numeric), 0) AS total_tax,
+          COALESCE(SUM(o.discount_amount::numeric), 0) AS total_discounts,
+          COUNT(o.id)::int AS order_count,
+          COALESCE(AVG(o.total::numeric), 0) AS avg_order_value,
+          COALESCE(SUM(cost_data.total_cost), 0) AS total_cost
+        FROM orders o
+        LEFT JOIN LATERAL (
+          SELECT SUM(oi.quantity * COALESCE(p.cost::numeric, 0)) AS total_cost
+          FROM order_items oi
+          JOIN products p ON oi.product_id = p.id
+          WHERE oi.order_id = o.id
+        ) cost_data ON true
+        WHERE o.tenant_id = ${tenantId}
+          AND o.status IN ('completed', 'pending', 'in_progress')
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+      `);
+
+      const oRow = (overviewResult.rows as any[])[0] || {};
+      const totalRev = Number(oRow.total_revenue) || 0;
+      const totalCost = Number(oRow.total_cost) || 0;
+      const totalTax = Number(oRow.total_tax) || 0;
+      const totalDisc = Number(oRow.total_discounts) || 0;
+
+      const refundResult = await db.execute(sql`
+        SELECT COALESCE(SUM(total::numeric), 0) AS total_refunds
+        FROM returns
+        WHERE tenant_id = ${tenantId}
+          AND status = 'completed'
+          AND created_at >= ${startDate}
+          AND created_at <= ${endDate}
+      `);
+      const totalRefunds = Number((refundResult.rows as any[])[0]?.total_refunds) || 0;
+
+      const overview = {
+        totalRevenue: Math.round(totalRev * 100) / 100,
+        totalCost: Math.round(totalCost * 100) / 100,
+        grossProfit: Math.round((totalRev - totalCost) * 100) / 100,
+        grossMargin: totalRev > 0 ? Math.round(((totalRev - totalCost) / totalRev) * 10000) / 100 : 0,
+        totalTax: Math.round(totalTax * 100) / 100,
+        totalDiscounts: Math.round(totalDisc * 100) / 100,
+        netRevenue: Math.round((totalRev - totalRefunds) * 100) / 100,
+        totalRefunds: Math.round(totalRefunds * 100) / 100,
+        orderCount: Number(oRow.order_count) || 0,
+        avgOrderValue: Math.round(Number(oRow.avg_order_value) * 100) / 100,
+      };
+
+      const dailyResult = await db.execute(sql`
+        SELECT DATE(o.created_at) AS date,
+          COALESCE(SUM(o.total::numeric), 0) AS revenue,
+          COALESCE(SUM(o.tax_amount::numeric), 0) AS tax,
+          COALESCE(SUM(o.discount_amount::numeric), 0) AS discounts,
+          COALESCE(SUM(cost_data.total_cost), 0) AS cost,
+          COUNT(o.id)::int AS orders
+        FROM orders o
+        LEFT JOIN LATERAL (
+          SELECT SUM(oi.quantity * COALESCE(p.cost::numeric, 0)) AS total_cost
+          FROM order_items oi
+          JOIN products p ON oi.product_id = p.id
+          WHERE oi.order_id = o.id
+        ) cost_data ON true
+        WHERE o.tenant_id = ${tenantId}
+          AND o.status IN ('completed', 'pending', 'in_progress')
+          AND o.created_at >= ${startDate}
+          AND o.created_at <= ${endDate}
+        GROUP BY DATE(o.created_at)
+        ORDER BY DATE(o.created_at)
+      `);
+
+      const dailyFinancials = (dailyResult.rows as any[]).map((r: any) => ({
+        date: String(r.date),
+        revenue: Math.round(Number(r.revenue) * 100) / 100,
+        cost: Math.round(Number(r.cost) * 100) / 100,
+        profit: Math.round((Number(r.revenue) - Number(r.cost)) * 100) / 100,
+        tax: Math.round(Number(r.tax) * 100) / 100,
+        discounts: Math.round(Number(r.discounts) * 100) / 100,
+        orders: Number(r.orders),
+      }));
+
+      const monthlyResult = await db.execute(sql`
+        SELECT TO_CHAR(o.created_at, 'YYYY-MM') AS month,
+          COALESCE(SUM(o.total::numeric), 0) AS revenue,
+          COALESCE(SUM(cost_data.total_cost), 0) AS cost,
+          COUNT(o.id)::int AS orders
+        FROM orders o
+        LEFT JOIN LATERAL (
+          SELECT SUM(oi.quantity * COALESCE(p.cost::numeric, 0)) AS total_cost
+          FROM order_items oi
+          JOIN products p ON oi.product_id = p.id
+          WHERE oi.order_id = o.id
+        ) cost_data ON true
+        WHERE o.tenant_id = ${tenantId}
+          AND o.status IN ('completed', 'pending', 'in_progress')
+          AND o.created_at >= (${startDate}::timestamp - INTERVAL '6 months')
+          AND o.created_at <= ${endDate}
+        GROUP BY TO_CHAR(o.created_at, 'YYYY-MM')
+        ORDER BY month
+      `);
+
+      const monthlyComparison = (monthlyResult.rows as any[]).map((r: any) => ({
+        month: r.month,
+        revenue: Math.round(Number(r.revenue) * 100) / 100,
+        cost: Math.round(Number(r.cost) * 100) / 100,
+        profit: Math.round((Number(r.revenue) - Number(r.cost)) * 100) / 100,
+        orders: Number(r.orders),
+      }));
+
+      res.json({ overview, dailyFinancials, monthlyComparison });
+    } catch (error) {
+      console.error("Financial summary report error:", error);
+      res.status(500).json({ message: "Failed to fetch financial summary report" });
+    }
+  });
+
   // ===== SMTP / EMAIL SETTINGS (Internal Admin Only) =====
   
   // Get SMTP config (returns masked password)
