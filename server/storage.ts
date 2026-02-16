@@ -212,7 +212,7 @@ export interface IStorage {
   deleteSupplierProduct(id: string): Promise<boolean>;
   
   // Reports
-  getDashboardStats(tenantId: string): Promise<{
+  getDashboardStats(tenantId: string, startDate?: Date, endDate?: Date): Promise<{
     todaySales: number;
     todayOrders: number;
     averageOrderValue: number;
@@ -1149,7 +1149,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Reports
-  async getDashboardStats(tenantId: string): Promise<{
+  async getDashboardStats(tenantId: string, customStartDate?: Date, customEndDate?: Date): Promise<{
     todaySales: number;
     todayOrders: number;
     averageOrderValue: number;
@@ -1161,31 +1161,32 @@ export class DatabaseStorage implements IStorage {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    const rangeStart = customStartDate || today;
+    const rangeEnd = customEndDate || new Date();
 
-    // Today's orders
-    const todayOrders = await db
+    const previousDuration = rangeEnd.getTime() - rangeStart.getTime();
+    const previousStart = new Date(rangeStart.getTime() - previousDuration);
+
+    const periodOrders = await db
       .select()
       .from(orders)
-      .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, today), eq(orders.status, "completed")));
+      .where(and(eq(orders.tenantId, tenantId), gte(orders.createdAt, rangeStart), lte(orders.createdAt, rangeEnd), eq(orders.status, "completed")));
 
-    const todaySales = todayOrders.reduce((sum, o) => sum + parseFloat(o.total), 0);
-    const averageOrderValue = todayOrders.length > 0 ? todaySales / todayOrders.length : 0;
+    const todaySales = periodOrders.reduce((sum, o) => sum + parseFloat(o.total), 0);
+    const averageOrderValue = periodOrders.length > 0 ? todaySales / periodOrders.length : 0;
 
-    // Yesterday's orders for trend
-    const yesterdayOrders = await db
+    const previousOrders = await db
       .select()
       .from(orders)
       .where(
         and(
           eq(orders.tenantId, tenantId),
-          gte(orders.createdAt, yesterday),
+          gte(orders.createdAt, previousStart),
+          lte(orders.createdAt, rangeStart),
           eq(orders.status, "completed")
         )
       );
-    const yesterdaySales = yesterdayOrders
-      .filter((o) => new Date(o.createdAt!) < today)
+    const yesterdaySales = previousOrders
       .reduce((sum, o) => sum + parseFloat(o.total), 0);
 
     const recentTrend =
@@ -1194,7 +1195,7 @@ export class DatabaseStorage implements IStorage {
         : 0;
 
     // Get all order items with product info for today's orders
-    const orderIds = todayOrders.map(o => o.id);
+    const orderIds = periodOrders.map(o => o.id);
     let allOrderItems: { productId: string; quantity: number; unitPrice: string }[] = [];
     if (orderIds.length > 0) {
       allOrderItems = await db
@@ -1245,7 +1246,7 @@ export class DatabaseStorage implements IStorage {
     for (let h = 0; h < 24; h++) {
       salesByHour.push({ hour: `${h}:00`, sales: 0 });
     }
-    for (const order of todayOrders) {
+    for (const order of periodOrders) {
       const hour = new Date(order.createdAt!).getHours();
       salesByHour[hour].sales += parseFloat(order.total);
     }
@@ -1269,7 +1270,7 @@ export class DatabaseStorage implements IStorage {
 
     return {
       todaySales,
-      todayOrders: todayOrders.length,
+      todayOrders: periodOrders.length,
       averageOrderValue,
       topProducts,
       salesByHour: filteredSalesByHour,

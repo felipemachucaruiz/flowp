@@ -151,8 +151,15 @@ export default function ReportsPage() {
     return `/api/reports/analytics?range=${dateRange}`;
   }, [dateRange, appliedStartDate, appliedEndDate]);
 
+  const dashboardQueryKey = useMemo(() => {
+    if (dateRange === "custom" && appliedStartDate && appliedEndDate) {
+      return `/api/reports/dashboard?startDate=${appliedStartDate.toISOString()}&endDate=${appliedEndDate.toISOString()}`;
+    }
+    return `/api/reports/dashboard?range=${dateRange}`;
+  }, [dateRange, appliedStartDate, appliedEndDate]);
+
   const { data: stats, isLoading } = useQuery<DashboardStats>({
-    queryKey: ["/api/reports/dashboard"],
+    queryKey: [dashboardQueryKey],
   });
 
   const { data: analytics, isLoading: analyticsLoading } = useQuery<AdvancedAnalytics>({

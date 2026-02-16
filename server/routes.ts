@@ -5669,7 +5669,27 @@ export async function registerRoutes(
           recentTrend: 0,
         });
       }
-      const stats = await storage.getDashboardStats(tenantId);
+
+      const dateRange = (req.query.range as string) || "today";
+      const startDateStr = req.query.startDate as string | undefined;
+      const endDateStr = req.query.endDate as string | undefined;
+
+      let startDate: Date | undefined;
+      let endDate: Date | undefined;
+
+      if (startDateStr && endDateStr) {
+        startDate = new Date(startDateStr);
+        endDate = new Date(endDateStr);
+      } else if (dateRange !== "today") {
+        endDate = new Date();
+        startDate = new Date();
+        if (dateRange === "7d") startDate.setDate(startDate.getDate() - 7);
+        else if (dateRange === "30d") startDate.setDate(startDate.getDate() - 30);
+        else if (dateRange === "90d") startDate.setDate(startDate.getDate() - 90);
+        else if (dateRange === "12m") startDate.setMonth(startDate.getMonth() - 12);
+      }
+
+      const stats = await storage.getDashboardStats(tenantId, startDate, endDate);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
