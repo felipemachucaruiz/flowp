@@ -6,9 +6,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { es, ptBR, enUS } from "date-fns/locale";
 import { useAuth } from "@/lib/auth-context";
 import { formatCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
+
+const calendarLocales: Record<string, any> = { en: enUS, es: es, pt: ptBR };
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useState, useMemo, useCallback } from "react";
@@ -511,6 +514,7 @@ export default function ReportsPage() {
                     mode="single"
                     selected={customStartDate}
                     onSelect={setCustomStartDate}
+                    locale={calendarLocales[language] || enUS}
                     initialFocus
                   />
                 </PopoverContent>
@@ -532,6 +536,7 @@ export default function ReportsPage() {
                     mode="single"
                     selected={customEndDate}
                     onSelect={setCustomEndDate}
+                    locale={calendarLocales[language] || enUS}
                     initialFocus
                   />
                 </PopoverContent>
