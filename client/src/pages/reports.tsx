@@ -9,8 +9,10 @@ import { Calendar } from "@/components/ui/calendar";
 import { useAuth } from "@/lib/auth-context";
 import { formatCurrency } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
-import { useState, useMemo } from "react";
-import { CalendarIcon } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { useState, useMemo, useCallback } from "react";
+import { CalendarIcon, Download, FileSpreadsheet } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -241,6 +243,9 @@ export default function ReportsPage() {
 
   const hasProReports = hasFeature("reports_detailed");
   const hasEnterpriseReports = hasFeature("reports_management");
+  const hasExportFeature = hasFeature("reports_export");
+  const [exporting, setExporting] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const { data: paymentMethods, isLoading: pmLoading } = useQuery<PaymentMethodsReport>({
     queryKey: [paymentMethodsQuery],
@@ -346,6 +351,82 @@ export default function ReportsPage() {
       setAppliedEndDate(undefined);
     }
   };
+
+  const getActiveReportData = useCallback(() => {
+    const reportMap: Record<string, { type: string; title: string; data: any }> = {
+      overview: { type: "overview", title: t("reports.overview"), data: stats },
+      trends: { type: "sales_trends", title: t("reports.sales_trends"), data: analytics },
+      products: { type: "sales_trends", title: t("reports.product_performance"), data: analytics },
+      employees: { type: "sales_trends", title: t("reports.employee_metrics"), data: analytics },
+      profit: { type: "sales_trends", title: t("reports.profit_analysis"), data: analytics },
+      payments: { type: "payment_methods", title: t("reports.payment_methods"), data: paymentMethods },
+      customers: { type: "customer_analytics", title: t("reports.customer_analytics"), data: customerAnalytics },
+      categories: { type: "sales_by_category", title: t("reports.sales_by_category_tab"), data: salesByCategory },
+      discounts: { type: "discount_analysis", title: t("reports.discount_analysis_tab"), data: discountAnalysis },
+      turnover: { type: "inventory_turnover", title: t("reports.inventory_turnover_tab"), data: inventoryTurnover },
+      registers: { type: "register_performance", title: t("reports.register_performance"), data: registerPerformance },
+      tax: { type: "tax_summary", title: t("reports.tax_summary_tab"), data: taxSummary },
+      heatmap: { type: "hourly_heatmap", title: t("reports.hourly_heatmap_tab"), data: hourlyHeatmap },
+      productivity: { type: "employee_productivity", title: t("reports.employee_productivity_tab"), data: employeeProductivity },
+      financials: { type: "financial_summary", title: t("reports.financial_summary_tab"), data: financialSummary },
+    };
+    return reportMap[activeReport] || null;
+  }, [activeReport, stats, analytics, paymentMethods, customerAnalytics, salesByCategory, discountAnalysis, inventoryTurnover, registerPerformance, taxSummary, hourlyHeatmap, employeeProductivity, financialSummary, t]);
+
+  const handleExport = useCallback(async (format: "pdf" | "excel") => {
+    const reportInfo = getActiveReportData();
+    if (!reportInfo || !reportInfo.data) {
+      toast({ title: t("reports.export_no_data"), variant: "destructive" });
+      return;
+    }
+
+    setExporting(format);
+    try {
+      const dateRangeLabel = dateRange === "custom" && appliedStartDate && appliedEndDate
+        ? `${appliedStartDate.toLocaleDateString(locale)} - ${appliedEndDate.toLocaleDateString(locale)}`
+        : dateRange === "7d" ? t("reports.last_7_days")
+        : dateRange === "30d" ? t("reports.last_30_days")
+        : t("reports.last_90_days");
+
+      const response = await fetch("/api/reports/export", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant-id": tenant?.id || "",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          reportType: reportInfo.type,
+          reportTitle: reportInfo.title,
+          dateRange: dateRangeLabel,
+          format,
+          data: reportInfo.data,
+          language,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || "Export failed");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${reportInfo.type}_${new Date().toISOString().split("T")[0]}.${format === "pdf" ? "pdf" : "xlsx"}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({ title: t("reports.export_success") });
+    } catch (error: any) {
+      toast({ title: error.message || t("reports.export_error"), variant: "destructive" });
+    } finally {
+      setExporting(null);
+    }
+  }, [getActiveReportData, dateRange, appliedStartDate, appliedEndDate, locale, tenant, language, toast, t]);
 
   const currency = tenant?.currency || "USD";
 
@@ -543,7 +624,7 @@ export default function ReportsPage() {
 
       <Tabs value={activeReport} onValueChange={setActiveReport}>
         <div className="flex flex-col gap-3 mb-2">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Select value={reportGroup} onValueChange={(val) => {
               setReportGroup(val);
               const firstTab = val === "basic" ? "overview" : val === "pro" ? "payments" : "registers";
@@ -562,6 +643,39 @@ export default function ReportsPage() {
                 </SelectItem>
               </SelectContent>
             </Select>
+            {hasExportFeature && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExport("pdf")}
+                  disabled={!!exporting}
+                  data-testid="button-export-pdf"
+                >
+                  <FileText className="w-4 h-4 mr-1" />
+                  {exporting === "pdf" ? t("reports.exporting") : "PDF"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExport("excel")}
+                  disabled={!!exporting}
+                  data-testid="button-export-excel"
+                >
+                  <FileSpreadsheet className="w-4 h-4 mr-1" />
+                  {exporting === "excel" ? t("reports.exporting") : "Excel"}
+                </Button>
+              </div>
+            )}
+            {!hasExportFeature && (
+              <div className="flex items-center gap-1 opacity-60">
+                <Button variant="outline" size="sm" disabled data-testid="button-export-locked">
+                  <Download className="w-4 h-4 mr-1" />
+                  <Crown className="w-3 h-3 text-yellow-500 mr-1" />
+                  {t("reports.export")}
+                </Button>
+              </div>
+            )}
           </div>
           <div className="overflow-x-auto -mx-1 px-1">
             {reportGroup === "basic" && (

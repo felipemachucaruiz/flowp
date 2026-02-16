@@ -7,6 +7,7 @@ import path from "path";
 import fs from "fs";
 import archiver from "archiver";
 import { storage } from "./storage";
+import { generatePDF, generateExcel } from "./report-export";
 import { emailService } from "./email";
 import { getEmailWrapper } from "./email-templates";
 import { getMercadoPagoPublicKey, isMercadoPagoEnabled, createSubscriptionPreapproval, getPreapprovalStatus, cancelPreapproval, createOneTimePaymentPreference, getPaymentStatus } from "./mercadopago";
@@ -6799,6 +6800,70 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Financial summary report error:", error);
       res.status(500).json({ message: "Failed to fetch financial summary report" });
+    }
+  });
+
+  app.post("/api/reports/export", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const hasFeature = await storage.hasSubscriptionFeature(tenantId, SUBSCRIPTION_FEATURES.REPORTS_EXPORT);
+      if (!hasFeature) {
+        return res.status(403).json({ message: "This feature requires an Enterprise subscription", requiresUpgrade: true, feature: "reports_export" });
+      }
+
+      const { reportType, reportTitle, dateRange, format, data, language } = req.body;
+      if (!reportType || !format || !data) {
+        return res.status(400).json({ message: "Missing required fields: reportType, format, data" });
+      }
+
+      if (!["pdf", "excel"].includes(format)) {
+        return res.status(400).json({ message: "Format must be 'pdf' or 'excel'" });
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) {
+        return res.status(404).json({ message: "Tenant not found" });
+      }
+
+      const logoUrl = makeAbsoluteUrl(tenant.receiptLogo) || makeAbsoluteUrl(tenant.logo) || null;
+
+      const exportRequest = {
+        reportType,
+        reportTitle: reportTitle || "Report",
+        dateRange: dateRange || "",
+        format,
+        data,
+        tenant: {
+          name: tenant.name,
+          address: tenant.address,
+          phone: tenant.phone,
+          taxId: tenant.receiptTaxId,
+          currency: tenant.currency || "USD",
+          logoUrl,
+        },
+        language: language || tenant.language || "en",
+      };
+
+      if (format === "pdf") {
+        const pdfBuffer = await generatePDF(exportRequest);
+        const filename = `${reportType}_${new Date().toISOString().split("T")[0]}.pdf`;
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.send(pdfBuffer);
+      } else {
+        const excelBuffer = generateExcel(exportRequest);
+        const filename = `${reportType}_${new Date().toISOString().split("T")[0]}.xlsx`;
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+        res.send(excelBuffer);
+      }
+    } catch (error) {
+      console.error("Report export error:", error);
+      res.status(500).json({ message: "Failed to export report" });
     }
   });
 

@@ -117,6 +117,7 @@ const PRO_FEATURES = [
 
 const ENTERPRISE_FEATURES = [
   { id: "reports_management", label: "Enterprise Reports", description: "Register performance, tax summary, hourly heatmap, employee productivity, financial summary" },
+  { id: "reports_export", label: "Report Export (Excel/PDF)", description: "Export reports to Excel and branded PDF with store logo and information" },
   { id: "ecommerce_integrations", label: "E-Commerce Integrations", description: "Shopify and other platform integrations" },
   { id: "security_audit", label: "Security & Audit", description: "Advanced security logging and audit trails" },
 ];
