@@ -11,6 +11,7 @@ import { generatePDF, generateExcel } from "./report-export";
 import { emailService } from "./email";
 import { getEmailWrapper } from "./email-templates";
 import { getMercadoPagoPublicKey, isMercadoPagoEnabled, createSubscriptionPreapproval, getPreapprovalStatus, cancelPreapproval, createOneTimePaymentPreference, getPaymentStatus } from "./mercadopago";
+import { getTenantBillableItems, createAddonInvoice, createWhatsappPackageInvoice, createAddonPaymentPreference, handleAddonPaymentApproved } from "./addon-billing";
 import { db } from "./db";
 import { orders, payments, registerSessions, cashMovements, tenantIntegrationsMatias, SUBSCRIPTION_FEATURES, internalUsers } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
@@ -5346,6 +5347,13 @@ export async function registerRoutes(
                   } as any);
                 }
               }
+            } else if (extRef.startsWith("addon|")) {
+              const parts = extRef.split("|");
+              const tenantId = parts[1];
+              const invoiceId = parts[2];
+              if (mpPayment.status === "approved" && tenantId && invoiceId) {
+                await handleAddonPaymentApproved(tenantId, invoiceId, String(mpPayment.id));
+              }
             }
           } catch (e) {
             console.error("Webhook payment processing error:", e);
@@ -5383,6 +5391,155 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Cancel subscription error:", error);
       res.status(500).json({ message: "Failed to cancel subscription" });
+    }
+  });
+
+  // ===== ADDON BILLING ROUTES =====
+
+  app.get("/api/billing/summary", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+
+      const subscription = await storage.getTenantSubscription(tenantId);
+      const { addons, totalAmount: addonTotal } = await getTenantBillableItems(tenantId);
+      const invoicesList = await storage.getInvoicesByTenant(tenantId);
+      const paymentsList = await storage.getSubscriptionPayments(tenantId);
+
+      let planAmount = 0;
+      let planName = "";
+      if (subscription) {
+        const plans = await storage.getActiveSubscriptionPlans();
+        const plan = plans.find((p) => p.id === subscription.planId);
+        if (plan) {
+          planAmount = subscription.billingPeriod === "yearly"
+            ? parseFloat(plan.priceYearly || plan.priceMonthly) * 100
+            : parseFloat(plan.priceMonthly) * 100;
+          planName = plan.name;
+        }
+      }
+
+      res.json({
+        subscription: subscription ? {
+          id: subscription.id,
+          planId: subscription.planId,
+          planName,
+          billingPeriod: subscription.billingPeriod,
+          status: subscription.status,
+          planAmount,
+        } : null,
+        addons,
+        addonTotal,
+        grandTotal: planAmount + addonTotal,
+        invoices: invoicesList,
+        payments: paymentsList,
+      });
+    } catch (error: any) {
+      console.error("Billing summary error:", error);
+      res.status(500).json({ message: "Failed to fetch billing summary" });
+    }
+  });
+
+  app.get("/api/billing/invoices", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+      const invoicesList = await storage.getInvoicesByTenant(tenantId);
+      res.json(invoicesList);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
+  app.get("/api/billing/invoices/:id/lines", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+      const invoice = await storage.getInvoice(req.params.id);
+      if (!invoice || invoice.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+      const lines = await storage.getInvoiceLineItems(req.params.id);
+      res.json({ invoice, lines });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invoice details" });
+    }
+  });
+
+  app.post("/api/billing/addon-payment", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+
+      const { payerEmail } = req.body;
+      if (!payerEmail) return res.status(400).json({ message: "Payer email required" });
+
+      const { addons, totalAmount } = await getTenantBillableItems(tenantId);
+      if (addons.length === 0 || totalAmount <= 0) {
+        return res.status(400).json({ message: "No billable add-ons found" });
+      }
+
+      const { invoiceId } = await createAddonInvoice(tenantId, addons);
+
+      const proto = req.get("x-forwarded-proto") || req.protocol;
+      const baseUrl = `${proto}://${req.get("host")}`;
+
+      const result = await createAddonPaymentPreference({
+        tenantId,
+        invoiceId,
+        title: `Flowp Add-ons - ${addons.map((a) => a.description).join(", ")}`,
+        amount: totalAmount,
+        currency: "COP",
+        payerEmail,
+        baseUrl,
+      });
+
+      res.json({
+        preferenceId: result.id,
+        initPoint: result.initPoint,
+        sandboxInitPoint: result.sandboxInitPoint,
+        invoiceId,
+      });
+    } catch (error: any) {
+      console.error("Addon payment error:", error);
+      res.status(500).json({ message: "Failed to create addon payment" });
+    }
+  });
+
+  app.post("/api/billing/whatsapp-package-payment", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Tenant ID required" });
+
+      const { packageId, payerEmail } = req.body;
+      if (!packageId || !payerEmail) {
+        return res.status(400).json({ message: "Package ID and payer email required" });
+      }
+
+      const { invoiceId, totalAmount, packageName } = await createWhatsappPackageInvoice(tenantId, packageId);
+
+      const proto = req.get("x-forwarded-proto") || req.protocol;
+      const baseUrl = `${proto}://${req.get("host")}`;
+
+      const result = await createAddonPaymentPreference({
+        tenantId,
+        invoiceId,
+        title: `Flowp WhatsApp - ${packageName}`,
+        amount: totalAmount,
+        currency: "COP",
+        payerEmail,
+        baseUrl,
+      });
+
+      res.json({
+        preferenceId: result.id,
+        initPoint: result.initPoint,
+        sandboxInitPoint: result.sandboxInitPoint,
+        invoiceId,
+      });
+    } catch (error: any) {
+      console.error("WhatsApp package payment error:", error);
+      res.status(500).json({ message: "Failed to create package payment" });
     }
   });
 

@@ -369,12 +369,51 @@ async function fetchImageAsBase64(url) {
   }
 }
 
+// Encode text to the printer's code page (Latin-1/CP858 for Spanish/Portuguese)
+function encodeText(text) {
+  try {
+    var buf = Buffer.alloc(text.length);
+    for (var i = 0; i < text.length; i++) {
+      var code = text.charCodeAt(i);
+      if (code <= 0xFF) {
+        buf[i] = code;
+      } else {
+        buf[i] = 0x3F; // '?' for unmappable chars
+      }
+    }
+    return buf;
+  } catch (e) {
+    return Buffer.from(text, 'latin1');
+  }
+}
+
+// Determine max print width in dots based on paper size
+function getPaperWidthDots(data) {
+  var paperWidth = data.paperWidth || '80mm';
+  if (paperWidth === '58mm' || paperWidth === 58) return 384;
+  return 576; // 80mm default
+}
+
+// Determine max characters per line based on paper size
+function getCharsPerLine(data) {
+  var paperWidth = data.paperWidth || '80mm';
+  if (paperWidth === '58mm' || paperWidth === 58) return 32;
+  return 42; // 80mm default (Font A)
+}
+
 // Build ESC/POS receipt from structured data
 async function buildReceipt(data) {
   var commands = [];
+  var maxDots = getPaperWidthDots(data);
+  var charsPerLine = getCharsPerLine(data);
+  var separator = '-'.repeat(charsPerLine) + '\n';
   
   // Initialize printer
   commands.push(0x1B, 0x40); // ESC @
+  
+  // Set character code table to CP858 (Western European with €)
+  // ESC t n: n=19 for CP858, n=16 for WPC1252
+  commands.push(0x1B, 0x74, 0x13);
   
   // Open cash drawer FIRST if requested (before receipt prints)
   if (data.openCashDrawer) {
@@ -398,7 +437,8 @@ async function buildReceipt(data) {
       }
       
       if (logoData) {
-        var logoWidth = data.logoWidth || data.logoSize || 200;
+        var logoWidth = data.logoWidth || data.logoSize || maxDots;
+        if (logoWidth > maxDots) logoWidth = maxDots;
         var logoBuffer = await imageToEscPos(logoData, logoWidth);
         commands.push.apply(commands, logoBuffer);
         commands.push(0x0A);
@@ -412,17 +452,17 @@ async function buildReceipt(data) {
   var companyName = data.companyName || data.businessName;
   if (companyName) {
     commands.push(0x1B, 0x21, 0x30);
-    commands.push.apply(commands, Buffer.from(companyName + '\n'));
+    commands.push.apply(commands, encodeText(companyName + '\n'));
     commands.push(0x1B, 0x21, 0x00);
   }
   
   // Header text (support single headerText or headerLines array)
   if (data.headerText) {
-    commands.push.apply(commands, Buffer.from(data.headerText + '\n'));
+    commands.push.apply(commands, encodeText(data.headerText + '\n'));
   }
   if (data.headerLines) {
     for (var i = 0; i < data.headerLines.length; i++) {
-      commands.push.apply(commands, Buffer.from(data.headerLines[i] + '\n'));
+      commands.push.apply(commands, encodeText(data.headerLines[i] + '\n'));
     }
   }
   
@@ -482,14 +522,14 @@ async function buildReceipt(data) {
   
   // Address and phone
   if (data.address) {
-    commands.push.apply(commands, Buffer.from(data.address + '\n'));
+    commands.push.apply(commands, encodeText(data.address + '\n'));
   }
   if (data.phone) {
-    commands.push.apply(commands, Buffer.from(tr.tel + ': ' + data.phone + '\n'));
+    commands.push.apply(commands, encodeText(tr.tel + ': ' + data.phone + '\n'));
   }
   if (data.taxId) {
     var taxIdLabel = data.taxIdLabel || tr.taxId;
-    commands.push.apply(commands, Buffer.from(taxIdLabel + ': ' + data.taxId + '\n'));
+    commands.push.apply(commands, encodeText(taxIdLabel + ': ' + data.taxId + '\n'));
   }
   
   commands.push(0x0A);
@@ -499,22 +539,22 @@ async function buildReceipt(data) {
   
   // Order info
   if (data.orderNumber) {
-    commands.push.apply(commands, Buffer.from(tr.order + ': ' + data.orderNumber + '\n'));
+    commands.push.apply(commands, encodeText(tr.order + ': ' + data.orderNumber + '\n'));
   }
   if (data.date) {
-    commands.push.apply(commands, Buffer.from(tr.date + ': ' + data.date + '\n'));
+    commands.push.apply(commands, encodeText(tr.date + ': ' + data.date + '\n'));
   }
   if (data.cashier) {
-    commands.push.apply(commands, Buffer.from(tr.cashier + ': ' + data.cashier + '\n'));
+    commands.push.apply(commands, encodeText(tr.cashier + ': ' + data.cashier + '\n'));
   }
   
   // Customer info section (detailed for e-billing)
   if (data.customerInfo) {
-    commands.push.apply(commands, Buffer.from('--------------------------------\n'));
-    commands.push.apply(commands, Buffer.from(tr.customer.toUpperCase() + ':\n'));
+    commands.push.apply(commands, encodeText(separator));
+    commands.push.apply(commands, encodeText(tr.customer.toUpperCase() + ':\n'));
     
     if (data.customerInfo.name) {
-      commands.push.apply(commands, Buffer.from(data.customerInfo.name + '\n'));
+      commands.push.apply(commands, encodeText(data.customerInfo.name + '\n'));
     }
     if (data.customerInfo.idNumber) {
       var idLabel = 'ID';
@@ -522,27 +562,27 @@ async function buildReceipt(data) {
       else if (data.customerInfo.idType === 'cedula_ciudadania') idLabel = 'CC';
       else if (data.customerInfo.idType === 'cedula_extranjeria') idLabel = 'CE';
       else if (data.customerInfo.idType === 'pasaporte') idLabel = 'PAS';
-      commands.push.apply(commands, Buffer.from(idLabel + ': ' + data.customerInfo.idNumber + '\n'));
+      commands.push.apply(commands, encodeText(idLabel + ': ' + data.customerInfo.idNumber + '\n'));
     }
     if (data.customerInfo.phone) {
-      commands.push.apply(commands, Buffer.from('Tel: ' + data.customerInfo.phone + '\n'));
+      commands.push.apply(commands, encodeText('Tel: ' + data.customerInfo.phone + '\n'));
     }
     if (data.customerInfo.email) {
-      commands.push.apply(commands, Buffer.from(data.customerInfo.email + '\n'));
+      commands.push.apply(commands, encodeText(data.customerInfo.email + '\n'));
     }
     if (data.customerInfo.address) {
-      commands.push.apply(commands, Buffer.from(data.customerInfo.address + '\n'));
+      commands.push.apply(commands, encodeText(data.customerInfo.address + '\n'));
     }
     if (data.customerInfo.loyaltyPoints != null && data.customerInfo.loyaltyPoints > 0) {
-      commands.push.apply(commands, Buffer.from(tr.points + ': ' + data.customerInfo.loyaltyPoints.toLocaleString() + '\n'));
+      commands.push.apply(commands, encodeText(tr.points + ': ' + data.customerInfo.loyaltyPoints.toLocaleString() + '\n'));
     }
   } else if (data.customer) {
     // Fallback to simple customer name
-    commands.push.apply(commands, Buffer.from(tr.customer + ': ' + data.customer + '\n'));
+    commands.push.apply(commands, encodeText(tr.customer + ': ' + data.customer + '\n'));
   }
   
   // Separator
-  commands.push.apply(commands, Buffer.from('--------------------------------\n'));
+  commands.push.apply(commands, encodeText(separator));
   
   // Get currency symbol (moved up for items)
   var currencySymbol = '$';
@@ -551,53 +591,68 @@ async function buildReceipt(data) {
     currencySymbol = currencyMap[data.currency] || data.currency + ' ';
   }
   
+  // Max chars for item name: leave room for "99x " prefix
+  var maxNameChars = charsPerLine - 4;
+  
   // Items
   if (data.items) {
     for (var j = 0; j < data.items.length; j++) {
       var item = data.items[j];
       var qty = item.quantity || 1;
-      var name = (item.name || '').substring(0, 24);
+      var rawName = item.name || '';
       var itemTotal = item.total || 0;
       var unitPrice = item.unitPrice || item.price || 0;
       
-      // Line 1: qty x name
-      var itemLine = qty + 'x ' + name;
-      commands.push.apply(commands, Buffer.from(itemLine + '\n'));
+      // Word-wrap long item names across multiple lines
+      var qtyPrefix = qty + 'x ';
+      if (rawName.length <= maxNameChars) {
+        commands.push.apply(commands, encodeText(qtyPrefix + rawName + '\n'));
+      } else {
+        // First line with qty prefix
+        commands.push.apply(commands, encodeText(qtyPrefix + rawName.substring(0, maxNameChars) + '\n'));
+        // Continuation lines indented to align with name
+        var indent = '   ';
+        var remaining = rawName.substring(maxNameChars);
+        var wrapWidth = charsPerLine - indent.length;
+        while (remaining.length > 0) {
+          commands.push.apply(commands, encodeText(indent + remaining.substring(0, wrapWidth) + '\n'));
+          remaining = remaining.substring(wrapWidth);
+        }
+      }
       
       // Line 2: right-aligned total (with unit price if qty > 1)
       commands.push(0x1B, 0x61, 0x02); // Right align
       if (qty > 1 && unitPrice > 0) {
-        commands.push.apply(commands, Buffer.from('@' + currencySymbol + formatNumber(unitPrice) + ' = ' + currencySymbol + formatNumber(itemTotal) + '\n'));
+        commands.push.apply(commands, encodeText('@' + currencySymbol + formatNumber(unitPrice) + ' = ' + currencySymbol + formatNumber(itemTotal) + '\n'));
       } else {
-        commands.push.apply(commands, Buffer.from(currencySymbol + formatNumber(itemTotal) + '\n'));
+        commands.push.apply(commands, encodeText(currencySymbol + formatNumber(itemTotal) + '\n'));
       }
       commands.push(0x1B, 0x61, 0x00); // Back to left align
       
       // Modifiers if any
       if (item.modifiers && item.modifiers.length > 0) {
         var mods = Array.isArray(item.modifiers) ? item.modifiers.join(', ') : item.modifiers;
-        commands.push.apply(commands, Buffer.from('  + ' + mods + '\n'));
+        commands.push.apply(commands, encodeText('  + ' + mods + '\n'));
       }
     }
   }
   
-  commands.push.apply(commands, Buffer.from('--------------------------------\n'));
+  commands.push.apply(commands, encodeText(separator));
   
   // Right align for totals
   commands.push(0x1B, 0x61, 0x02);
   
   if (data.subtotal !== undefined) {
-    commands.push.apply(commands, Buffer.from(tr.subtotal + ': ' + currencySymbol + formatNumber(data.subtotal) + '\n'));
+    commands.push.apply(commands, encodeText(tr.subtotal + ': ' + currencySymbol + formatNumber(data.subtotal) + '\n'));
   }
   
   // Support taxes array (individual tax lines) or single tax amount
   if (data.taxes && data.taxes.length > 0) {
     for (var ti = 0; ti < data.taxes.length; ti++) {
       var taxEntry = data.taxes[ti];
-      // Abbreviate long tax names to fit thermal paper (max ~18 chars for label)
+      // Abbreviate long tax names to fit thermal paper
       var taxName = taxEntry.name || tr.tax;
       if (taxName.length > 18) {
-        // Use abbreviation: e.g. "IVA - Impuesto al Valor Agregado" -> "IVA"
         var dashIndex = taxName.indexOf(' - ');
         if (dashIndex > 0) {
           taxName = taxName.substring(0, dashIndex);
@@ -606,7 +661,7 @@ async function buildReceipt(data) {
         }
       }
       var taxLineLabel = taxName + ' (' + (taxEntry.rate || 0) + '%)';
-      commands.push.apply(commands, Buffer.from(taxLineLabel + ': ' + currencySymbol + formatNumber(taxEntry.amount || 0) + '\n'));
+      commands.push.apply(commands, encodeText(taxLineLabel + ': ' + currencySymbol + formatNumber(taxEntry.amount || 0) + '\n'));
     }
   } else {
     // Support both 'tax' and 'taxAmount' field names (single tax)
@@ -616,7 +671,7 @@ async function buildReceipt(data) {
       if (data.taxRate) {
         taxLabel = tr.tax + ' (' + data.taxRate + '%)';
       }
-      commands.push.apply(commands, Buffer.from(taxLabel + ': ' + currencySymbol + formatNumber(taxAmount) + '\n'));
+      commands.push.apply(commands, encodeText(taxLabel + ': ' + currencySymbol + formatNumber(taxAmount) + '\n'));
     }
   }
   
@@ -625,32 +680,32 @@ async function buildReceipt(data) {
     if (data.discountPercent) {
       discountLabel = tr.discount + ' (' + data.discountPercent + '%)';
     }
-    commands.push.apply(commands, Buffer.from(discountLabel + ': -' + currencySymbol + formatNumber(data.discount) + '\n'));
+    commands.push.apply(commands, encodeText(discountLabel + ': -' + currencySymbol + formatNumber(data.discount) + '\n'));
   }
   
   // Total - emphasized
   commands.push(0x1B, 0x21, 0x30);
-  commands.push.apply(commands, Buffer.from(tr.total + ': ' + currencySymbol + formatNumber(data.total || 0) + '\n'));
+  commands.push.apply(commands, encodeText(tr.total + ': ' + currencySymbol + formatNumber(data.total || 0) + '\n'));
   commands.push(0x1B, 0x21, 0x00);
   
   // Payment info - support payments array
   if (data.payments && data.payments.length > 0) {
     commands.push(0x0A);
-    var paymentLabels = { 'cash': tr.cash, 'card': (lang === 'es' ? 'Tarjeta' : lang === 'pt' ? 'Cartao' : 'Card') };
+    var paymentLabels = { 'cash': tr.cash, 'card': (lang === 'es' ? 'Tarjeta' : lang === 'pt' ? 'Cart\u00E3o' : 'Card') };
     for (var p = 0; p < data.payments.length; p++) {
       var payment = data.payments[p];
       var payType = paymentLabels[payment.type] || (payment.type ? payment.type.toUpperCase() : 'PAYMENT');
-      commands.push.apply(commands, Buffer.from(payType + ': ' + currencySymbol + formatNumber(payment.amount) + '\n'));
+      commands.push.apply(commands, encodeText(payType + ': ' + currencySymbol + formatNumber(payment.amount) + '\n'));
     }
   } else if (data.paymentMethod) {
-    commands.push.apply(commands, Buffer.from(tr.paid + ': ' + data.paymentMethod + '\n'));
+    commands.push.apply(commands, encodeText(tr.paid + ': ' + data.paymentMethod + '\n'));
   }
   
   if (data.cashReceived) {
-    commands.push.apply(commands, Buffer.from(tr.cash + ': ' + currencySymbol + formatNumber(data.cashReceived) + '\n'));
+    commands.push.apply(commands, encodeText(tr.cash + ': ' + currencySymbol + formatNumber(data.cashReceived) + '\n'));
   }
   if (data.change && data.change > 0) {
-    commands.push.apply(commands, Buffer.from(tr.change + ': ' + currencySymbol + formatNumber(data.change) + '\n'));
+    commands.push.apply(commands, encodeText(tr.change + ': ' + currencySymbol + formatNumber(data.change) + '\n'));
   }
   
   // Center for footer
@@ -659,17 +714,17 @@ async function buildReceipt(data) {
   
   // Footer text (support both footerText and footerLines)
   if (data.footerText) {
-    commands.push.apply(commands, Buffer.from(data.footerText + '\n'));
+    commands.push.apply(commands, encodeText(data.footerText + '\n'));
   }
   if (data.footerLines) {
     for (var k = 0; k < data.footerLines.length; k++) {
-      commands.push.apply(commands, Buffer.from(data.footerLines[k] + '\n'));
+      commands.push.apply(commands, encodeText(data.footerLines[k] + '\n'));
     }
   }
   
   if (data.thankYouMessage) {
     commands.push(0x0A);
-    commands.push.apply(commands, Buffer.from(data.thankYouMessage + '\n'));
+    commands.push.apply(commands, encodeText(data.thankYouMessage + '\n'));
   }
   
   // Electronic Billing section (DIAN - Colombia)
@@ -678,7 +733,7 @@ async function buildReceipt(data) {
     
     // Separator
     commands.push(0x1B, 0x61, 0x01); // Center
-    commands.push.apply(commands, Buffer.from('--------------------------------\n'));
+    commands.push.apply(commands, encodeText(separator));
     
     // Electronic Invoice header - emphasized
     commands.push(0x1B, 0x21, 0x30); // Double height/width
@@ -687,20 +742,19 @@ async function buildReceipt(data) {
     if (data.electronicBilling.prefix && data.electronicBilling.documentNumber) {
       invoiceLabel += ' #:';
     }
-    commands.push.apply(commands, Buffer.from(invoiceLabel + '\n'));
+    commands.push.apply(commands, encodeText(invoiceLabel + '\n'));
     commands.push(0x1B, 0x21, 0x00); // Normal
     
     // Invoice number (prefix + number)
     if (data.electronicBilling.prefix && data.electronicBilling.documentNumber) {
       commands.push(0x1B, 0x21, 0x10); // Double width
-      commands.push.apply(commands, Buffer.from(data.electronicBilling.prefix + data.electronicBilling.documentNumber + '\n'));
+      commands.push.apply(commands, encodeText(data.electronicBilling.prefix + data.electronicBilling.documentNumber + '\n'));
       commands.push(0x1B, 0x21, 0x00); // Normal
     }
     
     commands.push(0x0A);
     
     // QR Code - print as bitmap if available
-    // Generate QR from explicit qrCode field, or fall back to DIAN URL from CUFE
     var qrContent = data.electronicBilling.qrCode;
     if (!qrContent && data.electronicBilling.cufe) {
       qrContent = 'https://catalogo-vpfe.dian.gov.co/User/SearchDocument?DocumentKey=' + data.electronicBilling.cufe;
@@ -731,15 +785,15 @@ async function buildReceipt(data) {
       }
     }
     
-    // CUFE - small font, word-wrapped
+    // CUFE - small font, word-wrapped based on paper size
     commands.push(0x1B, 0x4D, 0x01); // Select font B (smaller)
-    commands.push.apply(commands, Buffer.from('CUFE:\n'));
+    commands.push.apply(commands, encodeText('CUFE:\n'));
     
-    // Split CUFE into chunks of 32 characters for thermal paper width
+    // Font B chars per line: ~42 for 58mm, ~56 for 80mm
     var cufe = data.electronicBilling.cufe;
-    var chunkSize = 32;
-    for (var i = 0; i < cufe.length; i += chunkSize) {
-      commands.push.apply(commands, Buffer.from(cufe.substring(i, i + chunkSize) + '\n'));
+    var cufeChunkSize = charsPerLine === 32 ? 42 : 56;
+    for (var i = 0; i < cufe.length; i += cufeChunkSize) {
+      commands.push.apply(commands, encodeText(cufe.substring(i, i + cufeChunkSize) + '\n'));
     }
     
     commands.push(0x1B, 0x4D, 0x00); // Back to font A (normal)
@@ -751,13 +805,14 @@ async function buildReceipt(data) {
     commands.push(0x0A);
     
     // Dashed separator for coupon
+    var dashedSep = ('- ').repeat(Math.floor(charsPerLine / 2)) + '\n';
     commands.push(0x1B, 0x61, 0x01); // Center
-    commands.push.apply(commands, Buffer.from('- - - - - - - - - - - - - - - -\n'));
+    commands.push.apply(commands, encodeText(dashedSep));
     
     // "COUPON" header - emphasized
     commands.push(0x1B, 0x21, 0x30); // Double height/width
-    var couponLabel = data.language === 'es' ? 'CUPON' : data.language === 'pt' ? 'CUPOM' : 'COUPON';
-    commands.push.apply(commands, Buffer.from(couponLabel + '\n'));
+    var couponLabel = data.language === 'es' ? 'CUP\u00D3N' : data.language === 'pt' ? 'CUPOM' : 'COUPON';
+    commands.push.apply(commands, encodeText(couponLabel + '\n'));
     commands.push(0x1B, 0x21, 0x00); // Normal
     commands.push(0x0A);
     
@@ -779,7 +834,7 @@ async function buildReceipt(data) {
         commands.push(0x1B, 0x45, 0x01); // Bold on
       }
       
-      commands.push.apply(commands, Buffer.from(lineText + '\n'));
+      commands.push.apply(commands, encodeText(lineText + '\n'));
       
       // Reset formatting
       if (couponLine.size === 'xlarge' || couponLine.size === 'large') {
@@ -791,18 +846,18 @@ async function buildReceipt(data) {
     
     // Dashed separator
     commands.push(0x1B, 0x61, 0x01); // Center
-    commands.push.apply(commands, Buffer.from('- - - - - - - - - - - - - - - -\n'));
+    commands.push.apply(commands, encodeText(dashedSep));
   }
   
   // FLOWP Promotional Footer - always print at the end
   commands.push(0x0A);
   commands.push(0x1B, 0x61, 0x01); // Center
-  commands.push.apply(commands, Buffer.from('--------------------------------\n'));
+  commands.push.apply(commands, encodeText(separator));
   commands.push(0x1B, 0x4D, 0x01); // Smaller font
-  commands.push.apply(commands, Buffer.from('Controla todo tu flujo con FLOWP.app\n'));
-  commands.push.apply(commands, Buffer.from('Activa tu prueba gratis por 30 dias.\n'));
+  commands.push.apply(commands, encodeText('Controla todo tu flujo con FLOWP.app\n'));
+  commands.push.apply(commands, encodeText('Activa tu prueba gratis por 30 d\u00EDas.\n'));
   commands.push(0x1B, 0x45, 0x01); // Bold on
-  commands.push.apply(commands, Buffer.from('Software Cloud para tiendas, FLOWP\n'));
+  commands.push.apply(commands, encodeText('Software Cloud para tiendas, FLOWP\n'));
   commands.push(0x1B, 0x45, 0x00); // Bold off
   commands.push(0x1B, 0x4D, 0x00); // Back to normal font
   

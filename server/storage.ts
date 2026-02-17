@@ -2,7 +2,8 @@ import {
   tenants, users, registers, registerSessions, cashMovements, categories, products,
   modifierGroups, modifiers, productModifierGroups, floors, tables,
   orders, orderItems, kitchenTickets, payments, returns, returnItems, stockMovements, auditLogs, customers,
-  loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions, saasPayments,
+  loyaltyTransactions, loyaltyRewards, taxRates, subscriptionPlans, subscriptions, saasPayments, invoices, invoiceLineItems,
+  tenantAddons, addonDefinitions, whatsappPackages, tenantWhatsappSubscriptions,
   systemSettings, passwordResetTokens, emailTemplates, emailLogs, notifications,
   suppliers, purchaseOrders, purchaseOrderItems, purchaseReceipts, purchaseReceiptItems, supplierIngredients, supplierProducts,
   ingredients, ingredientLots, recipes, recipeItems, ingredientMovements,
@@ -30,7 +31,7 @@ import {
   type PurchaseReceiptItem, type InsertPurchaseReceiptItem,
   type SupplierIngredient, type InsertSupplierIngredient,
   type SupplierProduct, type InsertSupplierProduct,
-  type SubscriptionPlan, type Subscription,
+  type SubscriptionPlan, type Subscription, type Invoice, type InsertInvoice, type InvoiceLineItem, type InsertInvoiceLineItem, type TenantAddon,
   type SystemSetting, type InsertSystemSetting,
   type PasswordResetToken, type InsertPasswordResetToken,
   type EmailTemplate, type InsertEmailTemplate,
@@ -235,7 +236,15 @@ export interface IStorage {
   createSubscription(data: { tenantId: string; planId: string; billingPeriod: string; paypalOrderId?: string; mpPreapprovalId?: string; mpPayerEmail?: string; paymentGateway?: string }): Promise<Subscription>;
   updateSubscriptionByMpId(mpPreapprovalId: string, data: Partial<{ status: string; currentPeriodStart: Date; currentPeriodEnd: Date }>): Promise<Subscription | null>;
   getSubscriptionPayments(tenantId: string): Promise<any[]>;
-  createSaasPayment(data: { tenantId: string; invoiceId?: string; amount: string; method: string; providerRef: string; status: string }): Promise<any>;
+  createSaasPayment(data: { tenantId: string; invoiceId?: string; amount: string; method: string; providerRef: string; status: string; paymentPurpose?: string; mpPaymentId?: string }): Promise<any>;
+  updateSaasPaymentByRef(providerRef: string, data: Partial<{ status: string; invoiceId: string }>): Promise<any>;
+  createInvoice(data: InsertInvoice): Promise<Invoice>;
+  getInvoice(id: string): Promise<Invoice | undefined>;
+  getInvoicesByTenant(tenantId: string): Promise<Invoice[]>;
+  updateInvoice(id: string, data: Partial<{ status: string; paidAt: Date; mpPreferenceId: string }>): Promise<Invoice | undefined>;
+  createInvoiceLineItem(data: InsertInvoiceLineItem): Promise<InvoiceLineItem>;
+  getInvoiceLineItems(invoiceId: string): Promise<InvoiceLineItem[]>;
+  getTenantActiveAddons(tenantId: string): Promise<TenantAddon[]>;
   
   // Ingredients (Pro feature)
   getIngredientsByTenant(tenantId: string): Promise<Ingredient[]>;
@@ -1612,7 +1621,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(saasPayments.createdAt));
   }
 
-  async createSaasPayment(data: { tenantId: string; invoiceId?: string; amount: string; method: string; providerRef: string; status: string }): Promise<any> {
+  async createSaasPayment(data: { tenantId: string; invoiceId?: string; amount: string; method: string; providerRef: string; status: string; paymentPurpose?: string; mpPaymentId?: string }): Promise<any> {
     const [created] = await db.insert(saasPayments).values({
       tenantId: data.tenantId,
       invoiceId: data.invoiceId || null,
@@ -1620,8 +1629,47 @@ export class DatabaseStorage implements IStorage {
       method: data.method,
       providerRef: data.providerRef,
       status: data.status,
+      paymentPurpose: data.paymentPurpose || "subscription",
+      mpPaymentId: data.mpPaymentId || null,
     }).returning();
     return created;
+  }
+
+  async updateSaasPaymentByRef(providerRef: string, data: Partial<{ status: string; invoiceId: string }>): Promise<any> {
+    const [updated] = await db.update(saasPayments).set(data).where(eq(saasPayments.providerRef, providerRef)).returning();
+    return updated;
+  }
+
+  async createInvoice(data: InsertInvoice): Promise<Invoice> {
+    const [created] = await db.insert(invoices).values(data).returning();
+    return created;
+  }
+
+  async getInvoice(id: string): Promise<Invoice | undefined> {
+    const [inv] = await db.select().from(invoices).where(eq(invoices.id, id));
+    return inv;
+  }
+
+  async getInvoicesByTenant(tenantId: string): Promise<Invoice[]> {
+    return db.select().from(invoices).where(eq(invoices.tenantId, tenantId)).orderBy(desc(invoices.issuedAt));
+  }
+
+  async updateInvoice(id: string, data: Partial<{ status: string; paidAt: Date; mpPreferenceId: string }>): Promise<Invoice | undefined> {
+    const [updated] = await db.update(invoices).set(data).where(eq(invoices.id, id)).returning();
+    return updated;
+  }
+
+  async createInvoiceLineItem(data: InsertInvoiceLineItem): Promise<InvoiceLineItem> {
+    const [created] = await db.insert(invoiceLineItems).values(data).returning();
+    return created;
+  }
+
+  async getInvoiceLineItems(invoiceId: string): Promise<InvoiceLineItem[]> {
+    return db.select().from(invoiceLineItems).where(eq(invoiceLineItems.invoiceId, invoiceId)).orderBy(invoiceLineItems.createdAt);
+  }
+
+  async getTenantActiveAddons(tenantId: string): Promise<TenantAddon[]> {
+    return db.select().from(tenantAddons).where(and(eq(tenantAddons.tenantId, tenantId), eq(tenantAddons.status, "active")));
   }
 
   // ============================================================

@@ -19,7 +19,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Check, Crown, Building2, Monitor, Users, CreditCard, Loader2, ShoppingBag, FileText, UtensilsCrossed, CookingPot, Warehouse, ArrowLeft, ExternalLink } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Check, Crown, Building2, Monitor, Users, CreditCard, Loader2, ShoppingBag, FileText, UtensilsCrossed, CookingPot, Warehouse, ArrowLeft, ExternalLink, Receipt, Package } from "lucide-react";
 import { useLocation, useSearch } from "wouter";
 import type { SubscriptionPlan } from "@shared/schema";
 
@@ -74,6 +76,13 @@ export default function SubscriptionPage() {
   });
 
   const activePlans = plans.filter((p) => p.isActive);
+
+  const { data: billingSummary, isLoading: billingLoading } = useQuery<any>({
+    queryKey: ["/api/billing/summary"],
+    enabled: !!tenant,
+  });
+
+  const [activeTab, setActiveTab] = useState("plans");
 
   const upgradePlans = activePlans.filter((p) => {
     const planTierOrder = TIER_ORDER[p.tier || "basic"] ?? 0;
@@ -193,6 +202,22 @@ export default function SubscriptionPage() {
 
     if (mpOnetime === "failure") {
       toast({ title: t("subscription.payment_failed" as any), variant: "destructive" });
+      navigate("/subscription", { replace: true });
+    }
+
+    const addonPayment = params.get("addon_payment");
+    if (addonPayment === "success") {
+      toast({ title: t("subscription.addon_payment_success" as any) || "Add-on payment completed successfully!" });
+      queryClient.invalidateQueries({ queryKey: ["/api/billing/summary"] });
+      setActiveTab("billing");
+      navigate("/subscription", { replace: true });
+    } else if (addonPayment === "failure") {
+      toast({ title: t("subscription.addon_payment_failed" as any) || "Add-on payment failed", variant: "destructive" });
+      navigate("/subscription", { replace: true });
+    } else if (addonPayment === "pending") {
+      toast({ title: t("subscription.addon_payment_pending" as any) || "Add-on payment is being processed" });
+      queryClient.invalidateQueries({ queryKey: ["/api/billing/summary"] });
+      setActiveTab("billing");
       navigate("/subscription", { replace: true });
     }
   }, [searchString]);
@@ -350,6 +375,161 @@ export default function SubscriptionPage() {
           </CardContent>
         </Card>
       )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto" data-testid="tabs-subscription">
+          <TabsTrigger value="plans" data-testid="tab-plans">
+            <Crown className="w-4 h-4 mr-2" />
+            {t("subscription.plans_tab" as any) || "Plans"}
+          </TabsTrigger>
+          <TabsTrigger value="billing" data-testid="tab-billing">
+            <Receipt className="w-4 h-4 mr-2" />
+            {t("subscription.billing_tab" as any) || "Billing"}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="billing" className="mt-6 space-y-4">
+          {billingLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : billingSummary ? (
+            <>
+              <Card data-testid="card-billing-breakdown">
+                <CardHeader>
+                  <CardTitle className="text-lg">{t("subscription.monthly_breakdown" as any) || "Monthly Billing Breakdown"}</CardTitle>
+                  <CardDescription>{t("subscription.monthly_breakdown_desc" as any) || "Summary of your subscription and active add-ons"}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {billingSummary.subscription && (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Crown className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium">
+                          {billingSummary.subscription.planName || getTierLabel(currentTier)} ({t("subscription.base_plan" as any) || "Base Plan"})
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {formatCurrency(billingSummary.subscription.planAmount / 100, "COP")}/{t("subscription.month_abbr" as any) || "mo"}
+                      </span>
+                    </div>
+                  )}
+
+                  {billingSummary.addons && billingSummary.addons.length > 0 && (
+                    <>
+                      <Separator />
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        {t("subscription.active_addons" as any) || "Active Add-ons"}
+                      </p>
+                      {billingSummary.addons.map((addon: any, idx: number) => (
+                        <div key={idx} className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Package className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm">{addon.description}</span>
+                          </div>
+                          <span className="text-sm">
+                            {formatCurrency(addon.total / 100, "COP")}/{t("subscription.month_abbr" as any) || "mo"}
+                          </span>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  <Separator />
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <span className="font-semibold">{t("subscription.total_monthly" as any) || "Total Monthly"}</span>
+                    <span className="text-lg font-bold text-primary">
+                      {formatCurrency(billingSummary.grandTotal / 100, "COP")}/{t("subscription.month_abbr" as any) || "mo"}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {billingSummary.invoices && billingSummary.invoices.length > 0 && (
+                <Card data-testid="card-invoice-history">
+                  <CardHeader>
+                    <CardTitle className="text-lg">{t("subscription.invoice_history" as any) || "Invoice History"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {billingSummary.invoices.slice(0, 10).map((inv: any) => (
+                        <div key={inv.id} className="flex flex-wrap items-center justify-between gap-2 py-2 border-b last:border-0">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-muted-foreground" />
+                            <div>
+                              <p className="text-sm font-medium">
+                                {inv.invoiceType === "whatsapp_package"
+                                  ? (t("subscription.whatsapp_package" as any) || "WhatsApp Package")
+                                  : inv.invoiceType === "addon"
+                                    ? (t("subscription.addon_charge" as any) || "Add-on Charge")
+                                    : (t("subscription.subscription_charge" as any) || "Subscription")}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(inv.issuedAt || inv.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{formatCurrency(parseFloat(inv.amount), inv.currency || "COP")}</span>
+                            <Badge variant={inv.status === "paid" ? "default" : "secondary"}>
+                              {inv.status === "paid"
+                                ? (t("subscription.paid" as any) || "Paid")
+                                : inv.status === "pending"
+                                  ? (t("subscription.pending" as any) || "Pending")
+                                  : inv.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {billingSummary.payments && billingSummary.payments.length > 0 && (
+                <Card data-testid="card-payment-history">
+                  <CardHeader>
+                    <CardTitle className="text-lg">{t("subscription.payment_history" as any) || "Payment History"}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {billingSummary.payments.slice(0, 10).map((pay: any) => (
+                        <div key={pay.id} className="flex flex-wrap items-center justify-between gap-2 py-2 border-b last:border-0">
+                          <div className="flex items-center gap-2">
+                            <CreditCard className="w-4 h-4 text-muted-foreground" />
+                            <div>
+                              <p className="text-sm font-medium">{pay.method || "MercadoPago"}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(pay.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{formatCurrency(parseFloat(pay.amount), "COP")}</span>
+                            <Badge variant={pay.status === "completed" ? "default" : "secondary"}>
+                              {pay.status === "completed"
+                                ? (t("subscription.completed" as any) || "Completed")
+                                : pay.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Receipt className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">{t("subscription.no_billing_data" as any) || "No billing data available yet"}</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="plans" className="mt-6 space-y-6">
 
       {activePlans.length > 0 && (
         <div className="flex justify-center">
@@ -522,6 +702,9 @@ export default function SubscriptionPage() {
           })}
         </div>
       )}
+
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent className="max-w-md">
