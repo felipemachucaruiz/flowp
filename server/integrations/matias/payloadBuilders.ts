@@ -179,57 +179,55 @@ export async function buildPosPayload(
   const taxRate = Number(tenant.taxRate || 0);
 
   // DIAN 5.2 Tax Calculation per line:
-  // 1. línea_subtotal = cantidad × precio_unitario
-  // 2. Apply line discounts (if any)
-  // 3. línea_base = línea_subtotal - descuentos = line_extension_amount
-  // 4. línea_impuesto = línea_base × porcentaje_impuesto / 100 = tax_amount
-  // 5. línea_total = línea_base + línea_impuesto
-  const invoiceLines = items.map((item, index) => {
+  // 1. línea_base = cantidad × precio_unitario = line_extension_amount
+  // 2. línea_impuesto = línea_base × porcentaje_impuesto / 100 = tax_amount
+  // 3. línea_total = línea_base + línea_impuesto
+  // IMPORTANT: Compute all values from the SAME source to avoid FAU04 mismatch
+  const lines = items.map((item, index) => {
     const product = productMap.get(item.productId);
     const qty = Number(item.quantity);
     const unitPrice = Number(item.unitPrice);
-    // línea_base (after any discounts applied at order level)
     const lineTotal = roundTo2(qty * unitPrice);
-    // línea_impuesto = línea_base × porcentaje / 100
     const taxAmount = taxRate > 0 ? roundTo2(lineTotal * (taxRate / 100)) : 0;
+    // Sanitize product code: remove special chars, limit length, ensure not empty
+    let productCode = (product?.sku || product?.barcode || `P${index + 1}`).replace(/[^a-zA-Z0-9\-_]/g, '').substring(0, 20);
+    if (!productCode) productCode = `P${index + 1}`;
 
     return {
-      unit_measure_id: 70,
-      quantity_units_id: 70,
-      invoiced_quantity: qty,
-      line_extension_amount: lineTotal,
+      invoiced_quantity: String(qty),
+      quantity_units_id: "1093",
+      line_extension_amount: lineTotal.toFixed(2),
       free_of_charge_indicator: false,
+      description: (product?.name || `Item ${index + 1}`).substring(0, 300),
+      code: productCode,
+      type_item_identifications_id: "4",
+      reference_price_id: "1",
+      price_amount: unitPrice.toFixed(2),
+      base_quantity: String(qty),
       tax_totals: taxRate > 0 ? [{
         tax_id: 1,
-        tax_amount: taxAmount,
-        taxable_amount: lineTotal,
+        tax_amount: roundTo2(taxAmount),
+        taxable_amount: roundTo2(lineTotal),
         percent: taxRate,
-      }] : [],
-      description: product?.name || `Item ${index + 1}`,
-      notes: item.notes || undefined,
-      code: product?.sku || item.productId || `ITEM-${index + 1}`,
-      type_item_identification_id: 4,
-      type_item_identifications_id: 4,
-      price_amount: unitPrice,
-      base_quantity: 1,
+      }] : [{
+        tax_id: 1,
+        tax_amount: 0,
+        taxable_amount: roundTo2(lineTotal),
+        percent: 0,
+      }],
     };
   });
 
-  // DIAN 5.2 Aggregate calculations:
-  // total_base = Σ línea_base = line_extension_amount
-  const lineExtensionAmount = roundTo2(invoiceLines.reduce((sum, line) => sum + line.line_extension_amount, 0));
-  // total_impuestos = Σ línea_impuesto
-  const totalTax = roundTo2(invoiceLines.reduce((sum, line) => 
+  // DIAN 5.2 Aggregate calculations - computed from the SAME lines array
+  // to guarantee FAU04 consistency (sum of line bases == document base)
+  const lineExtensionAmount = roundTo2(lines.reduce((sum, line) => sum + parseFloat(line.line_extension_amount), 0));
+  const totalTax = roundTo2(lines.reduce((sum, line) => 
     sum + (line.tax_totals?.[0]?.tax_amount || 0), 0
   ));
-  // total_factura = total_base + total_impuestos
   const totalWithTax = roundTo2(lineExtensionAmount + totalTax);
 
-  // MATIAS API v2 Customer fields:
-  // - identity_document_id (not type_document_identification_id)
-  // - city_id (not municipality_id)
-  // - tax_regime_id (not type_regime_id)
-  // - tax_level_id (not type_liability_id) - must be 1-5
+  // Customer data - MATIAS API v2 field names
+  // country_id: 170 = Colombia (ISO 3166-1 numeric), NOT 45
   const customerData = {
     dni: customer?.idNumber || customer?.phone || "222222222222",
     company_name: customer?.name || "CONSUMIDOR FINAL",
@@ -239,73 +237,40 @@ export async function buildPosPayload(
     address: customer?.address || "Sin direccion",
     email: customer?.email || "noreply@flowp.com",
     postal_code: "110111",
-    country_id: String(customer?.countryCode || 45),  // 45 = Colombia in MATIAS v2
-    city_id: String(customer?.municipalityId || 149),  // 149 = Medellín default
-    identity_document_id: String(customer ? mapCustomerIdType(customer.idType) : 6),  // 6 = Consumidor Final
-    type_organization_id: customer?.organizationTypeId || 2,  // 2 = Persona Natural
-    tax_regime_id: customer?.taxRegimeId || 2,  // 2 = No responsable de IVA
-    tax_level_id: mapTaxLevelId(customer?.taxLiabilityId),  // Maps old values to 1-5 range
+    country_id: String(customer?.countryCode || 170),
+    city_id: String(customer?.municipalityId || 149),
+    identity_document_id: String(customer ? mapCustomerIdType(customer.idType) : 6),
+    type_organization_id: customer?.organizationTypeId || 2,
+    tax_regime_id: customer?.taxRegimeId || 2,
+    tax_level_id: mapTaxLevelId(customer?.taxLiabilityId),
   };
 
-  // Build lines array with MATIAS API v2 field names
-  const lines = items.map((item, index) => {
-    const product = productMap.get(item.productId);
-    const qty = Number(item.quantity);
-    const unitPrice = Number(item.unitPrice);
-    const lineTotal = roundTo2(qty * unitPrice);
-    const taxAmount = taxRate > 0 ? roundTo2(lineTotal * (taxRate / 100)) : 0;
-
-    return {
-      invoiced_quantity: String(qty),
-      quantity_units_id: "1093",  // Unidad estándar
-      line_extension_amount: String(lineTotal.toFixed(2)),
-      free_of_charge_indicator: false,
-      description: product?.name || `Item ${index + 1}`,
-      code: product?.sku || item.productId || `ITEM-${index + 1}`,
-      type_item_identifications_id: "4",
-      reference_price_id: "1",
-      price_amount: String(unitPrice),
-      base_quantity: String(qty),
-      tax_totals: taxRate > 0 ? [{
-        tax_id: "1",
-        tax_amount: taxAmount,
-        taxable_amount: lineTotal,
-        percent: taxRate,
-      }] : [],
-    };
-  });
-
   const payload: MatiasPayload = {
-    type_document_id: MATIAS_DOCUMENT_TYPES.INVOICE,  // Use 7 (Factura de Venta)
+    type_document_id: MATIAS_DOCUMENT_TYPES.INVOICE,
     resolution_number: resolutionNumber,
     prefix: prefix,
-    document_number: String(documentNumber),  // MATIAS uses document_number as string
-    operation_type_id: 1,  // 1 = Standard operation
-    graphic_representation: 0,  // 0 = No graphic
-    send_email: 0,  // 0 = Don't send email
+    document_number: String(documentNumber),
+    operation_type_id: 1,
+    graphic_representation: 0,
+    send_email: 0,
     customer: customerData,
-    lines: lines,  // Use 'lines' field (not 'invoice_lines')
+    lines: lines,
     legal_monetary_totals: {
-      line_extension_amount: String(lineExtensionAmount.toFixed(2)),
-      tax_exclusive_amount: String(lineExtensionAmount.toFixed(2)),
-      tax_inclusive_amount: String(totalWithTax.toFixed(2)),
-      payable_amount: totalWithTax,
+      line_extension_amount: lineExtensionAmount.toFixed(2),
+      tax_exclusive_amount: lineExtensionAmount.toFixed(2),
+      tax_inclusive_amount: totalWithTax.toFixed(2),
+      payable_amount: totalWithTax.toFixed(2),
     },
-    tax_totals: taxRate > 0 ? [{
-      tax_id: "1",
-      tax_amount: totalTax,
-      taxable_amount: lineExtensionAmount,
+    tax_totals: [{
+      tax_id: 1,
+      tax_amount: roundTo2(totalTax),
+      taxable_amount: roundTo2(lineExtensionAmount),
       percent: taxRate,
-    }] : [{
-      tax_id: "1",
-      tax_amount: 0,
-      taxable_amount: lineExtensionAmount,
-      percent: 0,
     }],
     payments: [{
       payment_method_id: paymentMethodId,
       means_payment_id: meansPaymentId,
-      value_paid: String(totalWithTax.toFixed(2)),
+      value_paid: totalWithTax.toFixed(2),
     }],
   };
 
@@ -366,24 +331,24 @@ export async function buildPosCreditNotePayload(
     });
   }
 
-  // MATIAS API v2 lines format
+  // MATIAS API v2 lines format - consistent types with invoice payload
   const lines = [{
     invoiced_quantity: "1",
     quantity_units_id: "1093",
-    line_extension_amount: String(lineTotal.toFixed(2)),
+    line_extension_amount: lineTotal.toFixed(2),
     free_of_charge_indicator: false,
     description: `Nota crédito - ${refundReason}`,
-    code: `NC-${orderId.slice(0, 8)}`,
+    code: `NC-${orderId.slice(0, 8).replace(/[^a-zA-Z0-9]/g, '')}`,
     type_item_identifications_id: "4",
     reference_price_id: "1",
-    price_amount: String(lineTotal),
+    price_amount: lineTotal.toFixed(2),
     base_quantity: "1",
-    tax_totals: taxRate > 0 ? [{
-      tax_id: "1",
-      tax_amount: taxAmount,
-      taxable_amount: lineTotal,
+    tax_totals: [{
+      tax_id: 1,
+      tax_amount: roundTo2(taxAmount),
+      taxable_amount: roundTo2(lineTotal),
       percent: taxRate,
-    }] : [],
+    }],
   }];
 
   const payload: MatiasNotePayload = {
@@ -391,7 +356,7 @@ export async function buildPosCreditNotePayload(
     resolution_number: resolutionNumber,
     prefix: prefix,
     document_number: String(documentNumber),
-    operation_type_id: 12,  // 12 = Credit note with invoice reference
+    operation_type_id: 12,
     graphic_representation: 0,
     send_email: 0,
     customer: {
@@ -402,42 +367,42 @@ export async function buildPosCreditNotePayload(
       address: customer?.address || "Sin direccion",
       email: customer?.email || "noreply@flowp.com",
       postal_code: "110111",
-      country_id: String(customer?.countryCode || "45"),
-      city_id: String(customer?.municipalityId || "836"),
+      country_id: String(customer?.countryCode || 170),
+      city_id: String(customer?.municipalityId || 149),
       identity_document_id: String(customer ? mapCustomerIdType(customer.idType) : 6),
       type_organization_id: customer?.organizationTypeId || 2,
       tax_regime_id: customer?.taxRegimeId || 2,
       tax_level_id: mapTaxLevelId(customer?.taxLiabilityId),
     },
     billing_reference: {
-      number: fullOriginalReference,  // Full reference with prefix (e.g., "LZT281")
+      number: fullOriginalReference,
       uuid: originalCufe,
-      date: originalDate,  // MATIAS expects 'date' not 'issue_date'
+      date: originalDate,
       scheme_name: "CUFE-SHA384",
     },
     discrepancy_response: {
-      reference_id: fullOriginalReference,  // Full reference with prefix (e.g., "LZT281")
-      response_id: "2",              // Response type per MATIAS example
+      reference_id: fullOriginalReference,
+      response_id: "2",
       correction_concept_id: correctionConceptId,
       description: refundReason,
     },
     lines: lines,
     legal_monetary_totals: {
-      line_extension_amount: String(lineTotal.toFixed(2)),
-      tax_exclusive_amount: String(lineTotal.toFixed(2)),
-      tax_inclusive_amount: String(refundAmount.toFixed(2)),
-      payable_amount: refundAmount,
+      line_extension_amount: lineTotal.toFixed(2),
+      tax_exclusive_amount: lineTotal.toFixed(2),
+      tax_inclusive_amount: refundAmount.toFixed(2),
+      payable_amount: refundAmount.toFixed(2),
     },
-    tax_totals: taxRate > 0 ? [{
-      tax_id: "1",
-      tax_amount: taxAmount,
-      taxable_amount: lineTotal,
+    tax_totals: [{
+      tax_id: 1,
+      tax_amount: roundTo2(taxAmount),
+      taxable_amount: roundTo2(lineTotal),
       percent: taxRate,
-    }] : undefined,
+    }],
     payments: [{
       payment_method_id: 1,
       means_payment_id: 10,
-      value_paid: String(refundAmount.toFixed(2)),
+      value_paid: refundAmount.toFixed(2),
     }],
   };
 
