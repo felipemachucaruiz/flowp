@@ -634,7 +634,8 @@ export function WhatsAppSettings() {
         </Card>
       )}
 
-      {config?.configured && <WhatsAppTemplateManager />}
+      {/* WhatsApp Template Manager archived - pending Gupshup template creation authorization */}
+      {/* {config?.configured && <WhatsAppTemplateManager />} */}
     </div>
   );
 }
