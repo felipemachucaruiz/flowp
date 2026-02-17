@@ -167,9 +167,11 @@ export async function getNextDocumentNumber(
   resolutionNumber: string,
   prefix: string,
   isCreditNote: boolean = false,
+  docType: "invoice" | "credit_note" | "support_doc" = "invoice",
 ): Promise<number> {
+  const effectiveDocType = isCreditNote ? "credit_note" : docType;
+
   return await db.transaction(async (tx) => {
-    // Use SELECT ... FOR UPDATE to acquire row-level lock and prevent race conditions
     const sequenceRows = await tx.execute(sql`
       SELECT * FROM electronic_document_sequences
       WHERE tenant_id = ${tenantId}
@@ -185,7 +187,6 @@ export async function getNextDocumentNumber(
     } | undefined;
 
     if (!sequence) {
-      // Get the MATIAS config to check for startingNumber override
       const matiasConfig = await db.query.tenantIntegrationsMatias.findFirst({
         where: eq(tenantIntegrationsMatias.tenantId, tenantId),
       });
@@ -193,20 +194,23 @@ export async function getNextDocumentNumber(
       let startNumber = 1;
       let rangeEnd: number | null = null;
       
-      // Use credit note-specific numbers if this is a credit note
-      if (isCreditNote) {
+      if (effectiveDocType === "credit_note") {
         if (matiasConfig?.creditNoteStartingNumber && matiasConfig.creditNoteStartingNumber > 0) {
           startNumber = matiasConfig.creditNoteStartingNumber;
           console.log(`[MATIAS] Using configured credit note starting number: ${startNumber}`);
         }
         rangeEnd = matiasConfig?.creditNoteEndingNumber || null;
+      } else if (effectiveDocType === "support_doc") {
+        if (matiasConfig?.supportDocStartingNumber && matiasConfig.supportDocStartingNumber > 0) {
+          startNumber = matiasConfig.supportDocStartingNumber;
+          console.log(`[MATIAS] Using configured support doc starting number: ${startNumber}`);
+        }
+        rangeEnd = matiasConfig?.supportDocEndingNumber || null;
       } else {
-        // If startingNumber is configured in MATIAS config, use it (mandatory override)
         if (matiasConfig?.startingNumber && matiasConfig.startingNumber > 0) {
           startNumber = matiasConfig.startingNumber;
           console.log(`[MATIAS] Using configured starting number: ${startNumber}`);
         } else {
-          // Fallback: try to get last document from MATIAS API
           const client = await getMatiasClient(tenantId);
           if (client) {
             const lastDoc = await client.getLastDocument({ resolution: resolutionNumber, prefix });

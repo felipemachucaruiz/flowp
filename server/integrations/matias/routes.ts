@@ -222,11 +222,11 @@ matiasRouter.post("/support-doc", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "MATIAS not configured or disabled" });
     }
 
-    const resolutionNumber = config.defaultResolutionNumber || "";
-    const prefix = config.defaultPrefix || "";
+    const resolutionNumber = config.supportDocResolutionNumber || config.defaultResolutionNumber || "";
+    const prefix = config.supportDocPrefix || config.defaultPrefix || "";
 
     if (!resolutionNumber) {
-      return res.status(400).json({ error: "No resolution number configured" });
+      return res.status(400).json({ error: "No support document resolution number configured. Please configure it in the admin panel." });
     }
 
     const idTypeMap: Record<string, number> = { cc: 1, nit: 2, passport: 3, ce: 4, ti: 5 };
@@ -323,7 +323,7 @@ matiasRouter.post("/support-doc", async (req: Request, res: Response) => {
       return res.json({ success: false, message: `Quota exceeded: ${quotaCheck.reason}` });
     }
 
-    const documentNumber = await getNextDocumentNumber(tenantId, resolutionNumber, prefix);
+    const documentNumber = await getNextDocumentNumber(tenantId, resolutionNumber, prefix, false, "support_doc");
 
     const finalPayload = {
       ...supportDocPayload,
@@ -345,6 +345,12 @@ matiasRouter.post("/support-doc", async (req: Request, res: Response) => {
     const result = { id: doc.id, documentNumber };
 
     const success = await processDocument(result.id);
+
+    if (success) {
+      await db.update(tenantIntegrationsMatias)
+        .set({ supportDocCurrentNumber: documentNumber, updatedAt: new Date() })
+        .where(eq(tenantIntegrationsMatias.tenantId, tenantId));
+    }
 
     res.json({
       success,

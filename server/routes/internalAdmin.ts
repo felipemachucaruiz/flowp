@@ -198,6 +198,10 @@ internalAdminRouter.post("/tenants/:tenantId/ebilling/integration/update", requi
       ...req.body,
       startingNumber: req.body.startingNumber ? parseInt(req.body.startingNumber, 10) : null,
       endingNumber: req.body.endingNumber ? parseInt(req.body.endingNumber, 10) : null,
+      creditNoteStartingNumber: req.body.creditNoteStartingNumber ? parseInt(req.body.creditNoteStartingNumber, 10) : null,
+      creditNoteEndingNumber: req.body.creditNoteEndingNumber ? parseInt(req.body.creditNoteEndingNumber, 10) : null,
+      supportDocStartingNumber: req.body.supportDocStartingNumber ? parseInt(req.body.supportDocStartingNumber, 10) : null,
+      supportDocEndingNumber: req.body.supportDocEndingNumber ? parseInt(req.body.supportDocEndingNumber, 10) : null,
     };
     const result = await integrationService.updateIntegrationConfig(tenantId, data, req.internalUser?.id);
     res.json(result);

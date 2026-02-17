@@ -2297,6 +2297,9 @@ function EBillingSettings() {
     currentNumber: number | null;
     endingNumber: number | null;
     autoSubmitSales: boolean;
+    supportDocPrefix: string;
+    supportDocCurrentNumber: number | null;
+    supportDocEndingNumber: number | null;
   }>({
     queryKey: ['/api/tenant/ebilling-config'],
     enabled: !!tenant,
@@ -2378,6 +2381,24 @@ function EBillingSettings() {
                 {billingConfig.endingNumber && (
                   <div className="mt-2 text-xs text-muted-foreground">
                     {t("ebilling.remaining") || "Remaining"}: {billingConfig.endingNumber - billingConfig.currentNumber} {t("ebilling.invoices") || "invoices"}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {billingConfig?.supportDocCurrentNumber && (
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {t("ebilling.supportDoc.current_number") || "Current Support Document Number"}
+                  </span>
+                  <Badge variant="secondary" data-testid="badge-support-doc-number">
+                    {billingConfig.supportDocPrefix}{billingConfig.supportDocCurrentNumber}
+                  </Badge>
+                </div>
+                {billingConfig.supportDocEndingNumber && (
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {t("ebilling.remaining") || "Remaining"}: {billingConfig.supportDocEndingNumber - billingConfig.supportDocCurrentNumber} {t("ebilling.supportDoc.documents") || "documents"}
                   </div>
                 )}
               </div>

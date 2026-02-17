@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Building2, FileText, Package, AlertTriangle, CheckCircle, XCircle, Settings, Wifi, WifiOff, Loader2, Clock, RefreshCw, Puzzle, ShoppingBag, MessageSquare, ToggleLeft, Power, Trash2 } from "lucide-react";
@@ -35,6 +36,10 @@ export default function AdminTenantDetail() {
     endingNumber: "",
     creditNoteStartingNumber: "",
     creditNoteEndingNumber: "",
+    supportDocResolutionNumber: "",
+    supportDocPrefix: "",
+    supportDocStartingNumber: "",
+    supportDocEndingNumber: "",
     isEnabled: true,
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -94,6 +99,10 @@ export default function AdminTenantDetail() {
         endingNumber: integrationData.integration.endingNumber?.toString() || "",
         creditNoteStartingNumber: integrationData.integration.creditNoteStartingNumber?.toString() || "",
         creditNoteEndingNumber: integrationData.integration.creditNoteEndingNumber?.toString() || "",
+        supportDocResolutionNumber: integrationData.integration.supportDocResolutionNumber || "",
+        supportDocPrefix: integrationData.integration.supportDocPrefix || "",
+        supportDocStartingNumber: integrationData.integration.supportDocStartingNumber?.toString() || "",
+        supportDocEndingNumber: integrationData.integration.supportDocEndingNumber?.toString() || "",
         isEnabled: integrationData.integration.status === "configured",
       }));
     }
@@ -761,6 +770,64 @@ export default function AdminTenantDetail() {
                       data-testid="input-matias-cn-ending-number"
                     />
                     <p className="text-xs text-muted-foreground">Último número de nota crédito autorizado</p>
+                  </div>
+                </div>
+
+                <Separator className="my-4" />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="supportDocResolutionNumber">Documento Soporte Resolution</Label>
+                    <Input
+                      id="supportDocResolutionNumber"
+                      placeholder="18760000003"
+                      value={matiasConfig.supportDocResolutionNumber}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, supportDocResolutionNumber: e.target.value }))}
+                      data-testid="input-matias-support-doc-resolution"
+                    />
+                    <p className="text-xs text-muted-foreground">Resolución DIAN para documento soporte</p>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="supportDocPrefix">Documento Soporte Prefix</Label>
+                    <Input
+                      id="supportDocPrefix"
+                      placeholder="DS"
+                      value={matiasConfig.supportDocPrefix}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, supportDocPrefix: e.target.value }))}
+                      data-testid="input-matias-support-doc-prefix"
+                    />
+                    <p className="text-xs text-muted-foreground">Prefijo para documento soporte (ej: DS)</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="supportDocStartingNumber">Número Inicial (Documento Soporte)</Label>
+                    <Input
+                      id="supportDocStartingNumber"
+                      type="number"
+                      placeholder="1"
+                      value={matiasConfig.supportDocStartingNumber}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, supportDocStartingNumber: e.target.value }))}
+                      onFocus={e => e.target.select()}
+                      data-testid="input-matias-sd-starting-number"
+                    />
+                    <p className="text-xs text-muted-foreground">Primer número de documento soporte autorizado</p>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="supportDocEndingNumber">Número Final (Documento Soporte)</Label>
+                    <Input
+                      id="supportDocEndingNumber"
+                      type="number"
+                      placeholder="1000"
+                      value={matiasConfig.supportDocEndingNumber}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, supportDocEndingNumber: e.target.value }))}
+                      onFocus={e => e.target.select()}
+                      data-testid="input-matias-sd-ending-number"
+                    />
+                    <p className="text-xs text-muted-foreground">Último número de documento soporte autorizado</p>
                   </div>
                 </div>
 

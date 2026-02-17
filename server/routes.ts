@@ -4788,6 +4788,9 @@ export async function registerRoutes(
         currentNumber: config.currentNumber || null,
         endingNumber: config.endingNumber || null,
         autoSubmitSales: config.autoSubmitSales ?? true,
+        supportDocPrefix: config.supportDocPrefix || "",
+        supportDocCurrentNumber: config.supportDocCurrentNumber || null,
+        supportDocEndingNumber: config.supportDocEndingNumber || null,
       });
     } catch (error) {
       console.error("E-billing config fetch error:", error);

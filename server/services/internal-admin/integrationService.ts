@@ -36,6 +36,10 @@ export async function getIntegrationStatus(tenantId: string) {
     endingNumber: config.endingNumber,
     creditNoteStartingNumber: config.creditNoteStartingNumber,
     creditNoteEndingNumber: config.creditNoteEndingNumber,
+    supportDocResolutionNumber: config.supportDocResolutionNumber,
+    supportDocPrefix: config.supportDocPrefix,
+    supportDocStartingNumber: config.supportDocStartingNumber,
+    supportDocEndingNumber: config.supportDocEndingNumber,
   };
 }
 
@@ -127,6 +131,10 @@ export async function updateIntegrationConfig(
     endingNumber?: number | null;
     creditNoteStartingNumber?: number | null;
     creditNoteEndingNumber?: number | null;
+    supportDocResolutionNumber?: string;
+    supportDocPrefix?: string;
+    supportDocStartingNumber?: number | null;
+    supportDocEndingNumber?: number | null;
     isEnabled?: boolean;
   },
   actorInternalUserId?: string | null

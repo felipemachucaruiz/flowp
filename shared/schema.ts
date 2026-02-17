@@ -1464,6 +1464,13 @@ export const tenantIntegrationsMatias = pgTable("tenant_integrations_matias", {
   creditNoteEndingNumber: integer("credit_note_ending_number"),
   creditNoteCurrentNumber: integer("credit_note_current_number"),
   
+  // Support Document (Documento Soporte) Resolution/Numbering
+  supportDocResolutionNumber: text("support_doc_resolution_number"),
+  supportDocPrefix: text("support_doc_prefix"),
+  supportDocStartingNumber: integer("support_doc_starting_number"),
+  supportDocEndingNumber: integer("support_doc_ending_number"),
+  supportDocCurrentNumber: integer("support_doc_current_number"),
+  
   // POS Configuration
   posTerminalNumber: text("pos_terminal_number"),
   posSalesCode: text("pos_sales_code"),
