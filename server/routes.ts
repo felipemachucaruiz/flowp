@@ -2802,8 +2802,14 @@ export async function registerRoutes(
         try {
           const { queueCreditNote } = await import("./integrations/matias");
           
-          // Get the original document number from the MATIAS queue
-          const originalDoc = await storage.getMatiasDocumentBySourceId(orderId);
+          const { matiasDocumentQueue } = await import("@shared/schema");
+          const { eq: eqOp, and: andOp } = await import("drizzle-orm");
+          const originalDoc = await db.query.matiasDocumentQueue.findFirst({
+            where: andOp(
+              eqOp(matiasDocumentQueue.sourceId, orderId),
+              eqOp(matiasDocumentQueue.kind, "INVOICE"),
+            ),
+          });
           const originalNumber = originalDoc?.documentNumber?.toString() || order.orderNumber?.toString() || "";
           const originalDate = order.createdAt ? new Date(order.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
           
