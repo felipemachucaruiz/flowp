@@ -1,7 +1,4 @@
 import crypto from "crypto";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const Gupshup = require("gupshup-whatsapp-api");
 import { db } from "../../db";
 import {
   tenantWhatsappIntegrations,
@@ -111,8 +108,17 @@ export async function getGlobalGupshupCredentials(): Promise<{
   }
 }
 
-export function createGupshupClient(apiKey: string) {
-  return new Gupshup({ apiKey });
+async function gupshupSendMessage(apiKey: string, params: Record<string, string>): Promise<any> {
+  const body = new URLSearchParams(params);
+  const response = await fetch("https://api.gupshup.io/wa/api/v1/msg", {
+    method: "POST",
+    headers: {
+      "apikey": apiKey,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+  return response.json();
 }
 
 let cachedPartnerToken: { token: string; expiresAt: number } | null = null;
@@ -358,18 +364,13 @@ export async function sendSessionMessage(
   }).returning();
 
   try {
-    const client = createGupshupClient(globalCreds.apiKey);
     console.log(`[whatsapp] Sending text to ${destinationPhone} from ${globalCreds.senderPhone} (app: ${globalCreds.appName})`);
-    const data = await client.message.send({
+    const data = await gupshupSendMessage(globalCreds.apiKey, {
       channel: "whatsapp",
       source: globalCreds.senderPhone,
       destination: destinationPhone,
       "src.name": globalCreds.appName,
-      message: {
-        isHSM: "false",
-        type: "text",
-        text: messageText,
-      },
+      message: JSON.stringify({ isHSM: "false", type: "text", text: messageText }),
     });
 
     console.log(`[whatsapp] Gupshup response:`, JSON.stringify(data));
@@ -405,17 +406,12 @@ export async function testConnection(tenantId: string): Promise<{ success: boole
   }
 
   try {
-    const client = createGupshupClient(globalCreds.apiKey);
-    const data = await client.message.send({
+    const data = await gupshupSendMessage(globalCreds.apiKey, {
       channel: "whatsapp",
       source: globalCreds.senderPhone,
       destination: globalCreds.senderPhone,
       "src.name": globalCreds.appName,
-      message: {
-        isHSM: "false",
-        type: "text",
-        text: "Flowp connection test",
-      },
+      message: JSON.stringify({ isHSM: "false", type: "text", text: "Flowp connection test" }),
     });
     if (data && (data.status === "submitted" || data.messageId)) {
       return { success: true };
@@ -496,19 +492,13 @@ export async function sendDocumentMessage(
   }).returning();
 
   try {
-    const client = createGupshupClient(globalCreds.apiKey);
     console.log(`[whatsapp] Sending document to ${destinationPhone}: ${documentUrl}`);
-    const data = await client.message.send({
+    const data = await gupshupSendMessage(globalCreds.apiKey, {
       channel: "whatsapp",
       source: globalCreds.senderPhone,
       destination: destinationPhone,
       "src.name": globalCreds.appName,
-      message: {
-        type: "file",
-        url: documentUrl,
-        filename: filename,
-        caption: caption,
-      },
+      message: JSON.stringify({ type: "file", url: documentUrl, filename, caption }),
     });
 
     console.log(`[whatsapp] Gupshup doc response:`, JSON.stringify(data));

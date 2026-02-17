@@ -3,7 +3,7 @@ import { internalAuth, requireRole, verifyInternalUser, createInternalUser } fro
 import * as ebillingService from "../services/internal-admin/ebillingService";
 import * as documentOpsService from "../services/internal-admin/documentOpsService";
 import * as integrationService from "../services/internal-admin/integrationService";
-import { encrypt as gupshupEncrypt, decrypt as gupshupDecrypt, createGupshupClient, clearPartnerTokenCache, getPartnerToken, getGupshupAppId } from "../integrations/gupshup/service";
+import { encrypt as gupshupEncrypt, decrypt as gupshupDecrypt, clearPartnerTokenCache, getPartnerToken, getGupshupAppId } from "../integrations/gupshup/service";
 import { encrypt as shopifyEncrypt, decrypt as shopifyDecrypt } from "../integrations/shopify/shopifyClient";
 import { db } from "../db";
 import { tenants, tenantEbillingSubscriptions, tenantIntegrationsMatias, internalUsers, internalAuditLogs, platformConfig, users, tenantAddons, PAID_ADDONS, addonDefinitions, tenantSubscriptions, subscriptionPlans, subscriptions, whatsappPackages, tenantWhatsappSubscriptions, whatsappMessageLogs, tenantWhatsappIntegrations } from "@shared/schema";
