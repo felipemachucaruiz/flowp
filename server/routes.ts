@@ -4772,25 +4772,55 @@ export async function registerRoutes(
       });
 
       if (!config) {
-        // Return default config if none exists
         return res.json({
           isEnabled: false,
-          prefix: "",
-          currentNumber: null,
-          endingNumber: null,
           autoSubmitSales: true,
+          documentTypes: [],
+        });
+      }
+
+      const documentTypes: Array<{
+        type: string;
+        resolution: string;
+        prefix: string;
+        currentNumber: number | null;
+        endingNumber: number | null;
+      }> = [];
+
+      if (config.defaultResolutionNumber || config.defaultPrefix) {
+        documentTypes.push({
+          type: "invoice",
+          resolution: config.defaultResolutionNumber || "",
+          prefix: config.defaultPrefix || "",
+          currentNumber: config.currentNumber || null,
+          endingNumber: config.endingNumber || null,
+        });
+      }
+
+      if (config.creditNoteResolutionNumber || config.creditNotePrefix) {
+        documentTypes.push({
+          type: "credit_note",
+          resolution: config.creditNoteResolutionNumber || "",
+          prefix: config.creditNotePrefix || "",
+          currentNumber: config.creditNoteCurrentNumber || null,
+          endingNumber: config.creditNoteEndingNumber || null,
+        });
+      }
+
+      if (config.supportDocResolutionNumber || config.supportDocPrefix) {
+        documentTypes.push({
+          type: "support_doc",
+          resolution: config.supportDocResolutionNumber || "",
+          prefix: config.supportDocPrefix || "",
+          currentNumber: config.supportDocCurrentNumber || null,
+          endingNumber: config.supportDocEndingNumber || null,
         });
       }
 
       res.json({
         isEnabled: config.isEnabled ?? false,
-        prefix: config.defaultPrefix || "",
-        currentNumber: config.currentNumber || null,
-        endingNumber: config.endingNumber || null,
         autoSubmitSales: config.autoSubmitSales ?? true,
-        supportDocPrefix: config.supportDocPrefix || "",
-        supportDocCurrentNumber: config.supportDocCurrentNumber || null,
-        supportDocEndingNumber: config.supportDocEndingNumber || null,
+        documentTypes,
       });
     } catch (error) {
       console.error("E-billing config fetch error:", error);

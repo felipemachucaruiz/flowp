@@ -2293,13 +2293,14 @@ function EBillingSettings() {
   const queryClientInstance = useQueryClient();
 
   const { data: billingConfig, isLoading } = useQuery<{
-    prefix: string;
-    currentNumber: number | null;
-    endingNumber: number | null;
     autoSubmitSales: boolean;
-    supportDocPrefix: string;
-    supportDocCurrentNumber: number | null;
-    supportDocEndingNumber: number | null;
+    documentTypes: Array<{
+      type: string;
+      resolution: string;
+      prefix: string;
+      currentNumber: number | null;
+      endingNumber: number | null;
+    }>;
   }>({
     queryKey: ['/api/tenant/ebilling-config'],
     enabled: !!tenant,
@@ -2368,39 +2369,33 @@ function EBillingSettings() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {billingConfig?.currentNumber && (
-              <div className="rounded-lg border p-4 bg-muted/50">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    {t("ebilling.current_number") || "Current Invoice Number"}
-                  </span>
-                  <Badge variant="secondary" data-testid="badge-current-number">
-                    {billingConfig.prefix}{billingConfig.currentNumber}
-                  </Badge>
-                </div>
-                {billingConfig.endingNumber && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    {t("ebilling.remaining") || "Remaining"}: {billingConfig.endingNumber - billingConfig.currentNumber} {t("ebilling.invoices") || "invoices"}
+            {billingConfig?.documentTypes && billingConfig.documentTypes.length > 0 && (
+              <div className="space-y-3">
+                {billingConfig.documentTypes.map((docType) => (
+                  <div key={docType.type} className="rounded-lg border p-4 bg-muted/50 space-y-2" data-testid={`config-${docType.type}`}>
+                    <div className="text-sm font-medium">
+                      {t(`ebilling.doctype.${docType.type}`) || docType.type}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <div className="text-xs text-muted-foreground">{t("ebilling.resolution") || "Resolution"}</div>
+                        <div className="text-sm font-mono" data-testid={`text-resolution-${docType.type}`}>{docType.resolution || "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">{t("ebilling.prefix") || "Prefix"}</div>
+                        <div className="text-sm font-mono" data-testid={`text-prefix-${docType.type}`}>{docType.prefix || "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">{t("ebilling.current_number") || "Current Number"}</div>
+                        <div className="text-sm font-mono" data-testid={`text-current-${docType.type}`}>{docType.currentNumber ?? "-"}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">{t("ebilling.ending_number") || "Ending Number"}</div>
+                        <div className="text-sm font-mono" data-testid={`text-ending-${docType.type}`}>{docType.endingNumber ?? "-"}</div>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
-
-            {billingConfig?.supportDocCurrentNumber && (
-              <div className="rounded-lg border p-4 bg-muted/50">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">
-                    {t("ebilling.supportDoc.current_number") || "Current Support Document Number"}
-                  </span>
-                  <Badge variant="secondary" data-testid="badge-support-doc-number">
-                    {billingConfig.supportDocPrefix}{billingConfig.supportDocCurrentNumber}
-                  </Badge>
-                </div>
-                {billingConfig.supportDocEndingNumber && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    {t("ebilling.remaining") || "Remaining"}: {billingConfig.supportDocEndingNumber - billingConfig.supportDocCurrentNumber} {t("ebilling.supportDoc.documents") || "documents"}
-                  </div>
-                )}
+                ))}
               </div>
             )}
 
