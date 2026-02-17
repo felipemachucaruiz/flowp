@@ -677,15 +677,50 @@ router.get("/ebilling/status", requirePermission("settings.view"), async (req: R
       ? Math.round((monthlyStats.accepted / monthlyStats.total) * 100) + "%"
       : "N/A";
 
+    const documentTypes: Array<{
+      type: string;
+      resolution: string;
+      prefix: string;
+      currentNumber: number | null;
+      endingNumber: number | null;
+    }> = [];
+
+    if (config?.defaultResolutionNumber || config?.defaultPrefix) {
+      documentTypes.push({
+        type: "invoice",
+        resolution: config.defaultResolutionNumber || "",
+        prefix: config.defaultPrefix || "",
+        currentNumber: config.currentNumber || null,
+        endingNumber: config.endingNumber || null,
+      });
+    }
+
+    if (config?.creditNoteResolutionNumber || config?.creditNotePrefix) {
+      documentTypes.push({
+        type: "credit_note",
+        resolution: config.creditNoteResolutionNumber || "",
+        prefix: config.creditNotePrefix || "",
+        currentNumber: config.creditNoteCurrentNumber || null,
+        endingNumber: config.creditNoteEndingNumber || null,
+      });
+    }
+
+    if (config?.supportDocResolutionNumber || config?.supportDocPrefix) {
+      documentTypes.push({
+        type: "support_doc",
+        resolution: config.supportDocResolutionNumber || "",
+        prefix: config.supportDocPrefix || "",
+        currentNumber: config.supportDocCurrentNumber || null,
+        endingNumber: config.supportDocEndingNumber || null,
+      });
+    }
+
     res.json({
       configured: !!isConfigured,
       documentsThisMonth: monthlyStats?.total || 0,
       acceptedThisMonth: monthlyStats?.accepted || 0,
       successRate,
-      resolution: config?.defaultResolutionNumber || null,
-      prefix: config?.defaultPrefix || null,
-      currentNumber: config?.currentNumber || null,
-      endingNumber: config?.endingNumber || null,
+      documentTypes,
     });
   } catch (error) {
     console.error("Get e-billing status error:", error);

@@ -233,33 +233,38 @@ export default function ElectronicBillingPage() {
         </Card>
       </div>
 
-      {isConfigured && statusData && (
+      {isConfigured && statusData?.documentTypes?.length > 0 && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
             <CardTitle className="flex items-center gap-2">
               <Settings className="h-5 w-5" />
-              {t("ebilling.config.title")}
+              {t("ebilling.configuration")}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">{t("ebilling.config.resolution")}</p>
-                <p className="font-medium">{statusData.resolution || "-"}</p>
+          <CardContent className="space-y-4">
+            {statusData.documentTypes.map((docType: { type: string; resolution: string; prefix: string; currentNumber: number | null; endingNumber: number | null }) => (
+              <div key={docType.type} className="space-y-1">
+                <p className="text-sm font-medium">{t(`ebilling.doctype.${docType.type}`)}</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">{t("ebilling.config.resolution")}</p>
+                    <p className="font-medium font-mono" data-testid={`text-ebilling-resolution-${docType.type}`}>{docType.resolution || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">{t("ebilling.config.prefix")}</p>
+                    <p className="font-medium font-mono" data-testid={`text-ebilling-prefix-${docType.type}`}>{docType.prefix || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">{t("ebilling.config.currentNumber")}</p>
+                    <p className="font-medium font-mono" data-testid={`text-ebilling-current-${docType.type}`}>{docType.currentNumber ?? "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">{t("ebilling.config.endingNumber")}</p>
+                    <p className="font-medium font-mono" data-testid={`text-ebilling-ending-${docType.type}`}>{docType.endingNumber ?? "-"}</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-muted-foreground">{t("ebilling.config.prefix")}</p>
-                <p className="font-medium">{statusData.prefix || "-"}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">{t("ebilling.config.currentNumber")}</p>
-                <p className="font-medium">{statusData.currentNumber || "-"}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">{t("ebilling.config.endingNumber")}</p>
-                <p className="font-medium">{statusData.endingNumber || "-"}</p>
-              </div>
-            </div>
+            ))}
           </CardContent>
         </Card>
       )}
