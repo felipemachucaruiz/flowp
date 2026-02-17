@@ -12,7 +12,7 @@ import { emailService } from "./email";
 import { getEmailWrapper } from "./email-templates";
 import { getMercadoPagoPublicKey, isMercadoPagoEnabled, createSubscriptionPreapproval, getPreapprovalStatus, cancelPreapproval, createOneTimePaymentPreference, getPaymentStatus } from "./mercadopago";
 import { db } from "./db";
-import { orders, payments, registerSessions, cashMovements, tenantIntegrationsMatias, SUBSCRIPTION_FEATURES } from "@shared/schema";
+import { orders, payments, registerSessions, cashMovements, tenantIntegrationsMatias, SUBSCRIPTION_FEATURES, internalUsers } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 import {
   insertTenantSchema,
@@ -416,6 +416,26 @@ export async function registerRoutes(
       const user = await storage.getUserByUsername("", username);
       
       if (!user) {
+        // Fallback: check internal_users table by email
+        const [internalUser] = await db.select().from(internalUsers).where(eq(internalUsers.email, username)).limit(1);
+        if (internalUser && internalUser.passwordHash && internalUser.isActive) {
+          const internalValid = await bcrypt.compare(password, internalUser.passwordHash);
+          if (internalValid) {
+            const token = generateInternalToken({
+              id: internalUser.id,
+              email: internalUser.email,
+              role: (internalUser.role as "superadmin" | "supportagent" | "billingops") || "superadmin",
+            });
+            await db.update(internalUsers).set({ lastLoginAt: new Date() }).where(eq(internalUsers.id, internalUser.id));
+            return res.json({
+              user: { id: internalUser.id, username: internalUser.email, name: internalUser.name, email: internalUser.email, role: internalUser.role, isInternal: true },
+              tenant: null,
+              isInternal: true,
+              redirectTo: "/admin",
+              token,
+            });
+          }
+        }
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
