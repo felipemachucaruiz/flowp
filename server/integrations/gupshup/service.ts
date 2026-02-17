@@ -609,6 +609,7 @@ export async function sendReceiptNotification(
         orderNumber,
         formattedTotal,
         companyName,
+        pointsEarned > 0 ? `+${pointsEarned.toLocaleString()}` : "0",
       ];
       const result = await sendTemplateMessage(
         tenantId,
