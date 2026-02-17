@@ -147,6 +147,24 @@ export async function loadPortalSession(req: Request, res: Response, next: NextF
       permissions = [...permissions, ...ROLE_PERMISSIONS[user.role]];
     }
 
+    if (user.isInternal) {
+      const [internalUser] = await db.select().from(internalUsers).where(eq(internalUsers.email, user.email || ''));
+      const internalRole = internalUser ? (internalUser.role || 'superadmin').toLowerCase() : 'superadmin';
+      if (internalRole === 'superadmin') {
+        const allPermRows = await db.select({ resource: portalPermissions.resource, action: portalPermissions.action }).from(portalPermissions);
+        permissions = [...permissions, ...allPermRows.map(p => `${p.resource}:${p.action}`)];
+      } else {
+        const roleName = internalRole === 'billingops' ? 'BillingOps' : internalRole === 'supportagent' ? 'SupportAgent' : 'SuperAdmin';
+        const [role] = await db.select().from(portalRoles).where(eq(portalRoles.name, roleName));
+        if (role) {
+          const perms = await db.select({ resource: portalPermissions.resource, action: portalPermissions.action })
+            .from(rolePermissions).innerJoin(portalPermissions, eq(rolePermissions.permissionId, portalPermissions.id))
+            .where(eq(rolePermissions.roleId, role.id));
+          permissions = [...permissions, ...perms.map(p => `${p.resource}:${p.action}`)];
+        }
+      }
+    }
+
     req.portalSession = {
       userId: user.id,
       tenantId: user.tenantId || null,
