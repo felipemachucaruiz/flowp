@@ -69,6 +69,20 @@ setInterval(() => {
   }
 }, 60 * 1000);
 
+const RECEIPT_LINK_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
+function createPublicReceiptSignature(orderId: string, tenantId: string, expiresAt: number): string {
+  const secret = process.env.SESSION_SECRET!;
+  return crypto.createHmac("sha256", secret).update(`${orderId}:${tenantId}:${expiresAt}`).digest("hex");
+}
+
+function createPublicReceiptUrl(orderId: string, tenantId: string): string {
+  const expiresAt = Date.now() + RECEIPT_LINK_TTL_MS;
+  const sig = createPublicReceiptSignature(orderId, tenantId, expiresAt);
+  const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "pos.flowp.app"}`;
+  return `${appUrl}/api/public-receipt/${orderId}?t=${tenantId}&exp=${expiresAt}&sig=${sig}`;
+}
+
 // WebSocket clients by tenant for real-time KDS updates
 const wsClients = new Map<string, Set<WebSocket>>();
 
@@ -2108,9 +2122,7 @@ export async function registerRoutes(
           const tenant = await storage.getTenant(tenantId);
           const orderTotal = parseFloat(tab.total);
           const pointsEarned = Math.floor(orderTotal / 1000);
-          const token = createReceiptToken(id, tenantId);
-          const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "pos.flowp.app"}`;
-          const receiptPdfUrl = `${appUrl}/api/receipt-pdf/${token}`;
+          const receiptPdfUrl = createPublicReceiptUrl(id, tenantId);
           const fullPhone = `${customer.phoneCountryCode || "57"}${customer.phone.replace(/\D/g, "")}`;
           sendReceiptNotification(
             tenantId,
@@ -2452,9 +2464,7 @@ export async function registerRoutes(
 
           if (customer.phone) {
             const tenantForWa = await storage.getTenant(tenantId);
-            const token = createReceiptToken(order.id, tenantId);
-            const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "pos.flowp.app"}`;
-            const receiptPdfUrl = `${appUrl}/api/receipt-pdf/${token}`;
+            const receiptPdfUrl = createPublicReceiptUrl(order.id, tenantId);
             const fullPhone = `${customer.phoneCountryCode || "57"}${customer.phone.replace(/\D/g, "")}`;
             sendReceiptNotification(
               tenantId,
@@ -2681,6 +2691,89 @@ export async function registerRoutes(
       res.send(pdfBuffer);
     } catch (error) {
       console.error("Receipt PDF generation error:", error);
+      res.status(500).json({ message: "Failed to generate receipt" });
+    }
+  });
+
+  // Public receipt PDF endpoint (HMAC-signed, permanent URL for WhatsApp/external sharing)
+  app.get("/api/public-receipt/:orderId", async (req: Request, res: Response) => {
+    try {
+      const { orderId } = req.params;
+      const tenantId = req.query.t as string;
+      const expStr = req.query.exp as string;
+      const sig = req.query.sig as string;
+
+      if (!tenantId || !sig || !expStr) {
+        return res.status(400).json({ message: "Missing parameters" });
+      }
+
+      const expiresAt = parseInt(expStr, 10);
+      if (isNaN(expiresAt) || Date.now() > expiresAt) {
+        return res.status(410).json({ message: "Receipt link has expired" });
+      }
+
+      const expectedSig = createPublicReceiptSignature(orderId, tenantId, expiresAt);
+      if (sig !== expectedSig) {
+        return res.status(403).json({ message: "Invalid signature" });
+      }
+
+      const order = await storage.getOrder(orderId);
+      if (!order || order.tenantId !== tenantId) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const tenant = await storage.getTenant(tenantId);
+      const items = await storage.getOrderItems(orderId);
+      const paymentsList = await storage.getPaymentsByOrder(orderId);
+      const currencySymbol = getCurrencySymbol(tenant?.currency);
+      const lang = tenant?.language || "es";
+
+      const itemsForPdf = await Promise.all(items.map(async (item) => {
+        const product = await storage.getProduct(item.productId);
+        return {
+          name: product?.name || "Product",
+          quantity: item.quantity,
+          price: `${currencySymbol}${parseFloat(item.unitPrice).toFixed(0)}`,
+        };
+      }));
+
+      const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
+
+      const matiasConfig = await db.query.tenantIntegrationsMatias.findFirst({
+        where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+      });
+
+      const pdfBuffer = await generateReceiptPDF({
+        receiptNumber: order.orderNumber,
+        date: orderDate.toLocaleDateString(lang === "es" ? "es-CO" : lang, { year: "numeric", month: "short", day: "numeric" }),
+        time: orderDate.toLocaleTimeString(lang === "es" ? "es-CO" : lang, { hour: "2-digit", minute: "2-digit" }),
+        items: itemsForPdf,
+        subtotal: `${currencySymbol}${parseFloat(order.subtotal).toFixed(0)}`,
+        tax: `${currencySymbol}${parseFloat(order.taxAmount).toFixed(0)}`,
+        total: `${currencySymbol}${parseFloat(order.total).toFixed(0)}`,
+        paymentMethod: paymentsList[0]?.method || "cash",
+        companyName: tenant?.name || "Flowp POS",
+        companyAddress: tenant?.address || undefined,
+        companyPhone: tenant?.phone || undefined,
+        currency: tenant?.currency || "COP",
+        electronicBilling: order.cufe ? {
+          cufe: order.cufe,
+          documentNumber: order.orderNumber,
+          prefix: order.prefix || matiasConfig?.defaultPrefix,
+          resolutionNumber: matiasConfig?.defaultResolutionNumber,
+          resolutionStartDate: matiasConfig?.defaultResolutionStartDate || undefined,
+          resolutionEndDate: matiasConfig?.defaultResolutionEndDate || undefined,
+          authRangeFrom: matiasConfig?.startingNumber || undefined,
+          authRangeTo: matiasConfig?.endingNumber || undefined,
+        } : undefined,
+      }, lang);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="Recibo_${order.orderNumber}.pdf"`);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Public receipt PDF error:", error);
       res.status(500).json({ message: "Failed to generate receipt" });
     }
   });

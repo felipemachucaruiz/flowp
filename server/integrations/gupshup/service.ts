@@ -621,6 +621,20 @@ export async function sendReceiptNotification(
       if (!result.success) {
         console.error(`[whatsapp] Template message failed for tenant ${tenantId}: ${result.error}`);
       }
+
+      if (receiptPdfUrl) {
+        const docResult = await sendDocumentMessage(
+          tenantId,
+          customerPhone,
+          receiptPdfUrl,
+          `Recibo_${orderNumber}.pdf`,
+          `Recibo #${orderNumber}`,
+          "receipt"
+        );
+        if (!docResult.success) {
+          console.warn(`[whatsapp] PDF attachment after template failed for tenant ${tenantId}: ${docResult.error}`);
+        }
+      }
       return;
     }
 
@@ -631,7 +645,7 @@ export async function sendReceiptNotification(
     }
     message += `\n\nGracias por su compra.`;
 
-    if (receiptPdfUrl && !receiptPdfUrl.includes('.replit.dev') && !receiptPdfUrl.includes('localhost')) {
+    if (receiptPdfUrl) {
       const docResult = await sendDocumentMessage(
         tenantId,
         customerPhone,
@@ -648,9 +662,6 @@ export async function sendReceiptNotification(
         }
       }
     } else {
-      if (receiptPdfUrl) {
-        console.log(`[whatsapp] Skipping PDF attachment (URL not publicly accessible), sending text only`);
-      }
       const result = await sendSessionMessage(tenantId, customerPhone, message, "receipt");
       if (!result.success) {
         console.error(`[whatsapp] Session message failed for tenant ${tenantId}: ${result.error}`);
