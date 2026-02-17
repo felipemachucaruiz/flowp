@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { db } from "../db";
-import { users, userPortalRoles, portalRoles, rolePermissions, portalPermissions } from "@shared/schema";
+import { users, userPortalRoles, portalRoles, rolePermissions, portalPermissions, internalUsers } from "@shared/schema";
 import { eq, and, inArray } from "drizzle-orm";
 
 // Role-based permissions mapping for regular tenant users
@@ -85,10 +85,34 @@ export async function loadPortalSession(req: Request, res: Response, next: NextF
   }
 
   try {
-    // Look up the user from the database
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     
     if (!user) {
+      const [internalUser] = await db.select().from(internalUsers).where(eq(internalUsers.id, userId));
+      if (internalUser && internalUser.isActive) {
+        const internalRole = (internalUser.role || 'superadmin').toLowerCase();
+        let allPerms: string[] = [];
+        if (internalRole === 'superadmin') {
+          const allPermRows = await db.select({ resource: portalPermissions.resource, action: portalPermissions.action }).from(portalPermissions);
+          allPerms = allPermRows.map(p => `${p.resource}:${p.action}`);
+        } else {
+          const roleName = internalRole === 'billingops' ? 'BillingOps' : internalRole === 'supportagent' ? 'SupportAgent' : 'SuperAdmin';
+          const [role] = await db.select().from(portalRoles).where(eq(portalRoles.name, roleName));
+          if (role) {
+            const perms = await db.select({ resource: portalPermissions.resource, action: portalPermissions.action })
+              .from(rolePermissions).innerJoin(portalPermissions, eq(rolePermissions.permissionId, portalPermissions.id))
+              .where(eq(rolePermissions.roleId, role.id));
+            allPerms = perms.map(p => `${p.resource}:${p.action}`);
+          }
+        }
+        req.portalSession = {
+          userId: internalUser.id,
+          tenantId: null,
+          isInternal: true,
+          roles: [internalRole === 'superadmin' ? 'SuperAdmin' : internalRole === 'billingops' ? 'BillingOps' : 'SupportAgent'],
+          permissions: allPerms,
+        };
+      }
       return next();
     }
 
@@ -119,7 +143,6 @@ export async function loadPortalSession(req: Request, res: Response, next: NextF
       permissions = perms.map(p => `${p.resource}:${p.action}`);
     }
 
-    // Add role-based permissions for regular tenant users (based on user.role field)
     if (user.role && ROLE_PERMISSIONS[user.role]) {
       permissions = [...permissions, ...ROLE_PERMISSIONS[user.role]];
     }
