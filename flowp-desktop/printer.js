@@ -785,6 +785,28 @@ async function buildReceipt(data) {
       }
     }
     
+    // Resolution info
+    if (data.electronicBilling.resolutionNumber) {
+      commands.push(0x1B, 0x61, 0x01); // Center
+      var resLabel = data.language === 'es' ? 'Resolucion DIAN No.' :
+                     data.language === 'pt' ? 'Resolucao DIAN No.' : 'DIAN Resolution No.';
+      commands.push.apply(commands, encodeText(resLabel + ' ' + data.electronicBilling.resolutionNumber + '\n'));
+      
+      if (data.electronicBilling.resolutionStartDate && data.electronicBilling.resolutionEndDate) {
+        var validLabel = data.language === 'es' ? 'Vigencia' :
+                         data.language === 'pt' ? 'Validade' : 'Valid';
+        commands.push.apply(commands, encodeText(validLabel + ': ' + data.electronicBilling.resolutionStartDate + ' - ' + data.electronicBilling.resolutionEndDate + '\n'));
+      }
+      
+      if (data.electronicBilling.authRangeFrom && data.electronicBilling.authRangeTo) {
+        var rangeLabel = data.language === 'es' ? 'Rango autorizado' :
+                         data.language === 'pt' ? 'Faixa autorizada' : 'Auth range';
+        var prefix = data.electronicBilling.prefix || '';
+        commands.push.apply(commands, encodeText(rangeLabel + ': ' + prefix + data.electronicBilling.authRangeFrom + ' - ' + prefix + data.electronicBilling.authRangeTo + '\n'));
+      }
+      commands.push(0x0A);
+    }
+    
     // CUFE - small font, word-wrapped based on paper size
     commands.push(0x1B, 0x4D, 0x01); // Select font B (smaller)
     commands.push.apply(commands, encodeText('CUFE:\n'));

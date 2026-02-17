@@ -166,6 +166,21 @@ ipcMain.handle('get-printers', async () => {
 });
 
 ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
+  // Generate QR code data URL if electronic billing info exists
+  let qrDataUrl = '';
+  if (receipt.electronicBilling) {
+    const qrContent = receipt.electronicBilling.qrCode || 
+      (receipt.electronicBilling.cufe ? `https://catalogo-vpfe.dian.gov.co/User/SearchDocument?DocumentKey=${receipt.electronicBilling.cufe}` : '');
+    if (qrContent) {
+      try {
+        const QRCode = require('qrcode');
+        qrDataUrl = await QRCode.toDataURL(qrContent, { width: 200, margin: 1, errorCorrectionLevel: 'M' });
+      } catch (e) {
+        console.log('QR code generation not available:', e.message);
+      }
+    }
+  }
+
   return new Promise((resolve) => {
     const items = receipt.items || [];
     const payments = receipt.payments || [];
@@ -181,9 +196,13 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
         </div>`
       : '';
     const eBillingHtml = receipt.electronicBilling
-      ? `<div style="border-top:1px dashed #000;padding-top:4px;margin-top:4px;font-size:9px;word-break:break-all;">
-          ${receipt.electronicBilling.documentNumber ? `<div><strong>${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.documentNumber}</strong></div>` : ''}
-          ${receipt.electronicBilling.cufe ? `<div>CUFE: ${receipt.electronicBilling.cufe}</div>` : ''}
+      ? `<div style="border-top:1px dashed #000;padding-top:4px;margin-top:4px;font-size:9px;word-break:break-all;text-align:center;">
+          ${receipt.electronicBilling.documentNumber ? `<div style="font-size:12px;font-weight:bold;">${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.documentNumber}</div>` : ''}
+          ${receipt.electronicBilling.resolutionNumber ? `<div style="margin-top:4px;">Resolucion DIAN No. ${receipt.electronicBilling.resolutionNumber}</div>` : ''}
+          ${receipt.electronicBilling.resolutionStartDate && receipt.electronicBilling.resolutionEndDate ? `<div>Vigencia: ${receipt.electronicBilling.resolutionStartDate} - ${receipt.electronicBilling.resolutionEndDate}</div>` : ''}
+          ${receipt.electronicBilling.authRangeFrom && receipt.electronicBilling.authRangeTo ? `<div>Rango: ${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.authRangeFrom} - ${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.authRangeTo}</div>` : ''}
+          ${qrDataUrl ? `<div style="margin:6px auto;"><img src="${qrDataUrl}" style="width:35mm;height:35mm;image-rendering:pixelated;" /></div>` : ''}
+          ${receipt.electronicBilling.cufe ? `<div style="text-align:left;">CUFE: ${receipt.electronicBilling.cufe}</div>` : ''}
         </div>`
       : '';
 
@@ -233,6 +252,9 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
         { silent: true, printBackground: true, deviceName: printerName },
         (success, failureReason) => {
           printWin.close();
+          if (success && receipt.openCashDrawer) {
+            triggerCashDrawer(printerName);
+          }
           resolve({ success, error: failureReason || undefined });
         }
       );
@@ -244,6 +266,31 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
     });
   });
 });
+
+// Helper to trigger cash drawer via ESC/POS raw command
+function triggerCashDrawer(printerName) {
+  try {
+    const { exec } = require('child_process');
+    const fs = require('fs');
+    const os = require('os');
+    const drawerCmd = Buffer.from([0x1B, 0x70, 0x00, 0x32, 0xFA, 0x1B, 0x70, 0x01, 0x32, 0xFA]);
+    const tempFile = require('path').join(os.tmpdir(), 'flowp-drawer-' + Date.now() + '.bin');
+    fs.writeFileSync(tempFile, drawerCmd);
+    if (process.platform === 'win32') {
+      const safePrinter = (printerName || '').replace(/"/g, '\\"');
+      exec(`copy /b "${tempFile}" "\\\\localhost\\${safePrinter}"`, () => {
+        try { fs.unlinkSync(tempFile); } catch(e) {}
+      });
+    } else {
+      const safePrinter = (printerName || '').replace(/'/g, "'\\''");
+      exec(`lp -d '${safePrinter}' -o raw '${tempFile}'`, () => {
+        try { fs.unlinkSync(tempFile); } catch(e) {}
+      });
+    }
+  } catch (e) {
+    console.error('Cash drawer trigger error:', e);
+  }
+}
 
 ipcMain.handle('print-raw', async (event, printerName, rawBase64) => {
   return new Promise((resolve) => {
@@ -283,41 +330,12 @@ ipcMain.handle('print-raw', async (event, printerName, rawBase64) => {
 });
 
 ipcMain.handle('open-cash-drawer', async (event, printerName) => {
-  return new Promise((resolve) => {
-    try {
-      const ESC = '\x1B';
-      const drawerKickCmd = ESC + '\x70\x00\x19\xFA';
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-        <style>@media print { body { visibility: hidden; } }</style></head>
-        <body><pre style="font-size:1px;">${drawerKickCmd}</pre></body></html>`;
-
-      const printWin = new BrowserWindow({
-        show: false,
-        width: 100,
-        height: 100,
-        webPreferences: { nodeIntegration: false, contextIsolation: true },
-      });
-
-      printWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
-
-      printWin.webContents.on('did-finish-load', () => {
-        printWin.webContents.print(
-          { silent: true, printBackground: false, deviceName: printerName },
-          (success, failureReason) => {
-            printWin.close();
-            resolve({ success, error: failureReason || undefined });
-          }
-        );
-      });
-
-      printWin.webContents.on('did-fail-load', () => {
-        printWin.close();
-        resolve({ success: false, error: 'Failed to send drawer command' });
-      });
-    } catch (e) {
-      resolve({ success: false, error: e.message || 'Cash drawer failed' });
-    }
-  });
+  try {
+    triggerCashDrawer(printerName);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message || 'Cash drawer failed' };
+  }
 });
 
 ipcMain.handle('print-silent', async (event, html, printerName) => {

@@ -108,6 +108,11 @@ interface ReceiptData {
     qrCode?: string;
     documentNumber?: string;
     prefix?: string;
+    resolutionNumber?: string;
+    resolutionStartDate?: string;
+    resolutionEndDate?: string;
+    authRangeFrom?: string;
+    authRangeTo?: string;
   };
 }
 
