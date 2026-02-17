@@ -517,8 +517,8 @@ export async function registerRoutes(
         displayLanguage = tenant?.language || "en";
       }
 
-      // Send email (non-blocking)
-      emailService.sendPasswordResetEmail(email, token, user.name || user.username, displayLanguage)
+      const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || process.env.APP_URL || 'https://flowp.replit.app';
+      emailService.sendPasswordResetEmail(email, token, user.name || user.username, displayLanguage, undefined, origin)
         .catch(err => console.error("Failed to send password reset email:", err));
 
       res.json({ message: "If an account exists with that email, a reset link has been sent." });
