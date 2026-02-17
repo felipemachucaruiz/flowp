@@ -155,13 +155,27 @@ export async function handleAddonPaymentApproved(
   invoiceId: string,
   mpPaymentId: string
 ) {
+  const invoice = await storage.getInvoice(invoiceId);
+  if (!invoice) return;
+
+  if (invoice.status === "paid") {
+    console.log(`Invoice ${invoiceId} already paid, skipping duplicate webhook`);
+    return;
+  }
+
+  const existingPayments = await storage.getSubscriptionPayments(tenantId);
+  const alreadyProcessed = existingPayments.find(
+    (p: any) => p.providerRef === mpPaymentId || p.mpPaymentId === mpPaymentId
+  );
+  if (alreadyProcessed) {
+    console.log(`Payment ${mpPaymentId} already processed, skipping duplicate webhook`);
+    return;
+  }
+
   await storage.updateInvoice(invoiceId, {
     status: "paid",
     paidAt: new Date(),
   });
-
-  const invoice = await storage.getInvoice(invoiceId);
-  if (!invoice) return;
 
   await storage.createSaasPayment({
     tenantId,
@@ -183,16 +197,28 @@ export async function handleAddonPaymentApproved(
         .from(whatsappPackages)
         .where(eq(whatsappPackages.id, packageItem.refId));
       if (pkg) {
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 30);
-        await db.insert(tenantWhatsappSubscriptions).values({
-          tenantId,
-          packageId: pkg.id,
-          messageLimit: pkg.messageLimit,
-          messagesUsed: 0,
-          status: "active",
-          expiresAt,
-        });
+        const existingSubs = await db
+          .select()
+          .from(tenantWhatsappSubscriptions)
+          .where(
+            and(
+              eq(tenantWhatsappSubscriptions.tenantId, tenantId),
+              eq(tenantWhatsappSubscriptions.packageId, pkg.id),
+              eq(tenantWhatsappSubscriptions.status, "active")
+            )
+          );
+        if (existingSubs.length === 0) {
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + 30);
+          await db.insert(tenantWhatsappSubscriptions).values({
+            tenantId,
+            packageId: pkg.id,
+            messageLimit: pkg.messageLimit,
+            messagesUsed: 0,
+            status: "active",
+            expiresAt,
+          });
+        }
       }
     }
   }
