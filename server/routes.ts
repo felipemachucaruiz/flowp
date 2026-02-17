@@ -6973,15 +6973,15 @@ export async function registerRoutes(
       }
 
       const config = {
-        host,
+        host: (host || '').trim(),
         port: parseInt(port) || 587,
         secure: secure === true || secure === "true",
         auth: {
-          user,
+          user: (user || '').trim(),
           pass: pass === "********" ? existingPass : pass,
         },
-        fromEmail,
-        fromName,
+        fromEmail: (fromEmail || '').trim(),
+        fromName: (fromName || '').trim(),
       };
 
       await storage.upsertSystemSetting("smtp_config", config);
@@ -7004,13 +7004,13 @@ export async function registerRoutes(
       }
 
       const result = await emailService.testSmtpConnection({
-        host,
+        host: (host || '').trim(),
         port: parseInt(port) || 587,
         secure: secure === true || secure === "true",
-        user,
+        user: (user || '').trim(),
         password: actualPass,
-        fromEmail,
-        fromName,
+        fromEmail: (fromEmail || '').trim(),
+        fromName: (fromName || '').trim(),
       });
 
       if (result.success) {

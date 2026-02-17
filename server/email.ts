@@ -117,13 +117,13 @@ class EmailService {
       }
 
       this.config = {
-        host: dbConfig.host,
+        host: (dbConfig.host || '').trim(),
         port: dbConfig.port || 587,
         secure: dbConfig.secure || false,
-        user: dbConfig.auth.user,
+        user: (dbConfig.auth.user || '').trim(),
         password: dbConfig.auth.pass,
-        fromEmail: dbConfig.fromEmail,
-        fromName: dbConfig.fromName || "Flowp",
+        fromEmail: (dbConfig.fromEmail || '').trim(),
+        fromName: (dbConfig.fromName || 'Flowp').trim(),
       };
 
       this.transporter = nodemailer.createTransport({
