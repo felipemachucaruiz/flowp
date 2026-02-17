@@ -704,16 +704,22 @@ export async function sendLowStockNotification(
 }
 
 export async function processDeliveryStatus(payload: any): Promise<void> {
-  const { messageId, eventType } = payload;
-  if (!messageId) return;
+  const msgId = payload.gsId || payload.messageId || payload.id;
+  const evtType = (payload.type || payload.eventType || "").toString().toLowerCase();
+  if (!msgId) return;
 
   let status: "sent" | "delivered" | "read" | "failed" = "sent";
-  if (eventType === "DELIVERED" || eventType === "delivered") status = "delivered";
-  else if (eventType === "READ" || eventType === "read") status = "read";
-  else if (eventType === "FAILED" || eventType === "failed") status = "failed";
-  else if (eventType === "SENT" || eventType === "sent") status = "sent";
+  if (evtType === "delivered") status = "delivered";
+  else if (evtType === "read") status = "read";
+  else if (evtType === "failed") status = "failed";
+  else if (evtType === "sent" || evtType === "enqueued") status = "sent";
+
+  const errorInfo = payload.errorCode || payload.reason || payload.errorMessage;
+  if (errorInfo) {
+    console.log(`[whatsapp] Delivery status for ${msgId}: ${status} | Error: ${errorInfo} | Reason: ${payload.reason || "N/A"}`);
+  }
 
   await db.update(whatsappMessageLogs)
     .set({ status, updatedAt: new Date() })
-    .where(eq(whatsappMessageLogs.providerMessageId, messageId));
+    .where(eq(whatsappMessageLogs.providerMessageId, msgId));
 }

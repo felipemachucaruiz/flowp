@@ -721,9 +721,12 @@ whatsappRouter.delete("/triggers/:id", whatsappAddonGate, async (req: Request, r
 whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
   try {
     const payload = req.body;
+    console.log("[WhatsApp Webhook] Received event:", JSON.stringify(payload).substring(0, 500));
 
     if (payload.type === "message-event") {
-      await processDeliveryStatus(payload.payload || payload);
+      const eventPayload = payload.payload || payload;
+      console.log("[WhatsApp Webhook] Delivery event:", eventPayload.type || eventPayload.eventType, "| msgId:", eventPayload.gsId || eventPayload.messageId, "| dest:", eventPayload.destination, "| error:", eventPayload.errorCode, eventPayload.reason);
+      await processDeliveryStatus(eventPayload);
       return res.status(200).json({ status: "ok" });
     }
 
