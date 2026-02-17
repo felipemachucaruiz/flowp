@@ -630,25 +630,29 @@ export default function AdminAddonStore() {
                   control={form.control}
                   render={({ field }) => (
                     <div className="flex flex-wrap gap-3">
-                      {tiers.map((tier: any) => (
-                        <div key={tier.tier || tier.id} className="flex items-center gap-2">
-                          <Checkbox
-                            id={`tier-${tier.tier || tier.id}`}
-                            checked={field.value?.includes(tier.tier)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                field.onChange([...field.value, tier.tier]);
-                              } else {
-                                field.onChange(field.value.filter((t: string) => t !== tier.tier));
-                              }
-                            }}
-                            data-testid={`checkbox-tier-${tier.tier}`}
-                          />
-                          <Label htmlFor={`tier-${tier.tier || tier.id}`} className="text-sm capitalize">
-                            {tier.name || tier.tier}
-                          </Label>
-                        </div>
-                      ))}
+                      {tiers.map((tier: any) => {
+                        const tierId = tier.id;
+                        const tierKey = tier.name || tier.tier;
+                        return (
+                          <div key={tierId} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`tier-${tierId}`}
+                              checked={field.value?.includes(tierKey)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  field.onChange([...field.value, tierKey]);
+                                } else {
+                                  field.onChange(field.value.filter((t: string) => t !== tierKey));
+                                }
+                              }}
+                              data-testid={`checkbox-tier-${tierId}`}
+                            />
+                            <Label htmlFor={`tier-${tierId}`} className="text-sm capitalize">
+                              {tier.name || tier.tier}
+                            </Label>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 />
