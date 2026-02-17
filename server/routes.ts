@@ -4714,6 +4714,7 @@ export async function registerRoutes(
         receiptLogoSize, receiptFontSize, receiptFontFamily,
         couponEnabled, couponText, openCashDrawer, allowZeroStockSales,
         autoLockEnabled, autoLockTimeout,
+        storeHoursEnabled, storeOpenTime, storeCloseTime,
         subscriptionTier
       } = req.body;
       
@@ -4744,6 +4745,9 @@ export async function registerRoutes(
         allowZeroStockSales: allowZeroStockSales !== undefined ? allowZeroStockSales : undefined,
         autoLockEnabled: autoLockEnabled !== undefined ? autoLockEnabled : undefined,
         autoLockTimeout: autoLockTimeout !== undefined ? autoLockTimeout : undefined,
+        storeHoursEnabled: storeHoursEnabled !== undefined ? storeHoursEnabled : undefined,
+        storeOpenTime: storeOpenTime !== undefined ? storeOpenTime : undefined,
+        storeCloseTime: storeCloseTime !== undefined ? storeCloseTime : undefined,
         subscriptionTier: subscriptionTier && ["basic", "pro", "enterprise"].includes(subscriptionTier) ? subscriptionTier : undefined,
       } as any);
       

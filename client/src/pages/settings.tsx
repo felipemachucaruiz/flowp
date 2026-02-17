@@ -4661,6 +4661,48 @@ export default function SettingsPage() {
         <TabsContent value="otros" className="mt-6 space-y-6">
           <Card>
             <CardHeader>
+              <CardTitle>{t("settings.store_hours")}</CardTitle>
+              <CardDescription>{t("settings.store_hours_description")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label className="text-base">{t("settings.store_hours_enabled")}</Label>
+                </div>
+                <Switch
+                  checked={(tenant as any)?.storeHoursEnabled ?? false}
+                  onCheckedChange={(checked) => { autoLockMutation.mutate({ storeHoursEnabled: checked } as any); }}
+                  disabled={autoLockMutation.isPending}
+                  data-testid="switch-store-hours-enabled"
+                />
+              </div>
+              {(tenant as any)?.storeHoursEnabled && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>{t("settings.store_open_time")}</Label>
+                    <Input
+                      type="time"
+                      value={(tenant as any)?.storeOpenTime || "08:00"}
+                      onChange={(e) => { autoLockMutation.mutate({ storeOpenTime: e.target.value } as any); }}
+                      data-testid="input-store-open-time"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>{t("settings.store_close_time")}</Label>
+                    <Input
+                      type="time"
+                      value={(tenant as any)?.storeCloseTime || "18:00"}
+                      onChange={(e) => { autoLockMutation.mutate({ storeCloseTime: e.target.value } as any); }}
+                      data-testid="input-store-close-time"
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>{t("settings.auto_lock")}</CardTitle>
               <CardDescription>{t("settings.auto_lock_description")}</CardDescription>
             </CardHeader>

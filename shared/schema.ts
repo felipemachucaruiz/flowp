@@ -71,6 +71,10 @@ export const tenants = pgTable("tenants", {
   couponText: text("coupon_text"),
   // Inventory settings
   allowZeroStockSales: boolean("allow_zero_stock_sales").default(true),
+  // Store hours settings
+  storeOpenTime: text("store_open_time"),
+  storeCloseTime: text("store_close_time"),
+  storeHoursEnabled: boolean("store_hours_enabled").default(false),
   // Auto-lock / standby settings
   autoLockEnabled: boolean("auto_lock_enabled").default(false),
   autoLockTimeout: integer("auto_lock_timeout").default(5),

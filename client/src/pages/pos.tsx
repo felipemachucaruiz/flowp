@@ -51,6 +51,7 @@ import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { saveOfflineOrder } from "@/lib/offline-storage";
 import { syncManager } from "@/lib/sync-manager";
 import { CameraBarcodeScanner } from "@/components/camera-barcode-scanner";
+import { StoreClosingAlert } from "@/components/store-closing-alert";
 
 export default function POSPage() {
   const [, navigate] = useLocation();
@@ -1092,6 +1093,7 @@ export default function POSPage() {
 
   return (
     <div className="flex h-full relative overflow-hidden bg-background">
+      <StoreClosingAlert />
       {/* Products Section */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Search and Categories */}
