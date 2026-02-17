@@ -1483,6 +1483,8 @@ export const tenantIntegrationsMatias = pgTable("tenant_integrations_matias", {
   startingNumber: integer("starting_number"),
   endingNumber: integer("ending_number"),
   currentNumber: integer("current_number"),
+  defaultResolutionStartDate: text("default_resolution_start_date"),
+  defaultResolutionEndDate: text("default_resolution_end_date"),
   
   // Credit Note Resolution/Numbering
   creditNoteResolutionNumber: text("credit_note_resolution_number"),
@@ -1490,6 +1492,8 @@ export const tenantIntegrationsMatias = pgTable("tenant_integrations_matias", {
   creditNoteStartingNumber: integer("credit_note_starting_number"),
   creditNoteEndingNumber: integer("credit_note_ending_number"),
   creditNoteCurrentNumber: integer("credit_note_current_number"),
+  creditNoteResolutionStartDate: text("credit_note_resolution_start_date"),
+  creditNoteResolutionEndDate: text("credit_note_resolution_end_date"),
   
   // Support Document (Documento Soporte) Resolution/Numbering
   supportDocResolutionNumber: text("support_doc_resolution_number"),
@@ -1497,6 +1501,8 @@ export const tenantIntegrationsMatias = pgTable("tenant_integrations_matias", {
   supportDocStartingNumber: integer("support_doc_starting_number"),
   supportDocEndingNumber: integer("support_doc_ending_number"),
   supportDocCurrentNumber: integer("support_doc_current_number"),
+  supportDocResolutionStartDate: text("support_doc_resolution_start_date"),
+  supportDocResolutionEndDate: text("support_doc_resolution_end_date"),
   
   // POS Configuration
   posTerminalNumber: text("pos_terminal_number"),
