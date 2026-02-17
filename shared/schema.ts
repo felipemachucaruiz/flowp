@@ -868,11 +868,30 @@ export const invoices = pgTable("invoices", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   currency: text("currency").default("USD"),
   status: text("status").default("pending"),
+  invoiceType: text("invoice_type").default("subscription"),
+  billingPeriodStart: timestamp("billing_period_start"),
+  billingPeriodEnd: timestamp("billing_period_end"),
+  mpPreferenceId: text("mp_preference_id"),
   issuedAt: timestamp("issued_at").defaultNow(),
   dueDate: timestamp("due_date"),
   paidAt: timestamp("paid_at"),
   pdfUrl: text("pdf_url"),
 });
+
+// Invoice Line Items (breakdown of charges)
+export const invoiceLineItems = pgTable("invoice_line_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  invoiceId: varchar("invoice_id").references(() => invoices.id).notNull(),
+  type: text("type").notNull(),
+  refId: text("ref_id"),
+  description: text("description").notNull(),
+  quantity: integer("quantity").default(1),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type InvoiceLineItem = typeof invoiceLineItems.$inferSelect;
 
 // SaaS Payments
 export const saasPayments = pgTable("saas_payments", {
@@ -882,6 +901,8 @@ export const saasPayments = pgTable("saas_payments", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   method: text("method"),
   providerRef: text("provider_ref"),
+  paymentPurpose: text("payment_purpose").default("subscription"),
+  mpPaymentId: text("mp_payment_id"),
   status: text("status").default("pending"),
   createdAt: timestamp("created_at").defaultNow(),
 });
