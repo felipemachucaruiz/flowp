@@ -591,9 +591,6 @@ export async function sendReceiptNotification(
     const config = await getWhatsappConfig(tenantId);
     if (!config?.enabled) return;
 
-    const notifyPrefs = config.notifyOnSale;
-    if (notifyPrefs === false) return;
-
     const formattedTotal = new Intl.NumberFormat("es-CO", {
       style: "currency",
       currency,
@@ -635,6 +632,11 @@ export async function sendReceiptNotification(
           console.warn(`[whatsapp] PDF attachment after template failed for tenant ${tenantId}: ${docResult.error}`);
         }
       }
+      return;
+    }
+
+    if (config.notifyOnSale === false) {
+      console.log(`[whatsapp] notifyOnSale disabled and no template trigger configured, skipping receipt for tenant ${tenantId}`);
       return;
     }
 
