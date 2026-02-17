@@ -224,7 +224,7 @@ export default function SupportDocumentPage() {
   ];
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6 h-full overflow-y-auto">
       <div className="flex items-center gap-3">
         <Link href="/electronic-billing">
           <Button variant="ghost" size="icon" data-testid="button-back-ebilling">
