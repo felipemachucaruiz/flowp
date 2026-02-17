@@ -115,7 +115,7 @@ function TrialBanner() {
   const { t } = useI18n();
   const [, navigate] = useLocation();
 
-  const showBanner = trial.isTrialing || status === "trial" || (status === "suspended" && trial.trialExpired);
+  const showBanner = trial.isTrialing || status === "trial" || status === "suspended";
   if (isLoading || !showBanner) return null;
 
   const daysText = trial.trialExpired
@@ -163,27 +163,34 @@ function TrialBanner() {
   );
 }
 
-function TrialExpiredGate() {
-  const { trial, status } = useSubscription();
+function SuspendedGate() {
+  const { trial, status, isLoading } = useSubscription();
   const { t } = useI18n();
   const [location, navigate] = useLocation();
 
-  if (!(status === "suspended" && trial.trialExpired)) return null;
+  if (isLoading) return null;
+  if (status !== "suspended") return null;
   if (location === "/subscription") return null;
 
+  const isTrialExpired = trial.trialExpired;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm" data-testid="gate-trial-expired">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/95 backdrop-blur-sm" data-testid="gate-suspended">
       <div className="max-w-md text-center space-y-6 p-8">
         <div className="mx-auto w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
           <AlertTriangle className="w-8 h-8 text-destructive" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold">{t("trial.expired_title" as any)}</h2>
-          <p className="text-muted-foreground">{t("trial.expired_description" as any)}</p>
+          <h2 className="text-2xl font-bold">
+            {isTrialExpired ? t("trial.expired_title" as any) : t("trial.suspended_title" as any)}
+          </h2>
+          <p className="text-muted-foreground">
+            {isTrialExpired ? t("trial.expired_description" as any) : t("trial.suspended_description" as any)}
+          </p>
         </div>
         <Button onClick={() => navigate("/subscription")} className="w-full" data-testid="button-upgrade-from-gate">
           <Crown className="w-4 h-4 mr-2" />
-          {t("trial.choose_plan" as any)}
+          {isTrialExpired ? t("trial.choose_plan" as any) : t("trial.contact_support" as any)}
         </Button>
       </div>
     </div>
@@ -222,7 +229,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           <main className="flex-1 overflow-hidden">{children}</main>
         </div>
       </div>
-      <TrialExpiredGate />
+      <SuspendedGate />
       <TourOverlay />
       <LockScreen />
     </SidebarProvider>

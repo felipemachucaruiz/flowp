@@ -88,6 +88,39 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // ===== SUSPENSION MIDDLEWARE =====
+  // Block write operations for suspended tenants across ALL API routes
+  // Must be registered BEFORE any route handlers
+  app.use("/api", async (req: Request, res: Response, next) => {
+    if (req.method === "GET") return next();
+
+    const excludedPaths = [
+      "/api/auth/",
+      "/api/subscription/",
+      "/api/internal-admin/",
+      "/api/internal/",
+      "/api/mercadopago/",
+      "/api/receipt-pdf/",
+    ];
+    if (excludedPaths.some(p => req.path.startsWith(p))) return next();
+
+    const tenantId = req.headers["x-tenant-id"] as string;
+    if (!tenantId) return next();
+
+    try {
+      const tenant = await storage.getTenant(tenantId);
+      if (tenant && tenant.status === "suspended") {
+        return res.status(403).json({
+          message: "account_suspended",
+          error: "Your account has been suspended. Please contact support or update your subscription.",
+        });
+      }
+    } catch (err) {
+      // If we can't check, allow the request through
+    }
+    next();
+  });
+
   // WebSocket server for real-time KDS updates
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 
