@@ -510,16 +510,20 @@ whatsappRouter.post("/templates/:id/submit", whatsappAddonGate, async (req: Requ
 whatsappRouter.post("/templates/sync-from-gupshup", whatsappAddonGate, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   try {
-    const globalConfig = await getGlobalGupshupCredentials();
     const appId = await getGupshupAppId();
-    if (!globalConfig?.apiKey || !appId) {
-      return res.status(400).json({ error: "Gupshup API credentials not configured. Configure API key and App ID in admin settings." });
+    if (!appId) {
+      return res.status(400).json({ error: "Gupshup App ID not configured. Configure it in admin settings." });
+    }
+
+    const tokenResult = await getPartnerToken();
+    if (tokenResult.status !== "ok" || !tokenResult.token) {
+      return res.status(400).json({ error: `Gupshup partner authentication failed: ${tokenResult.error || "Profile credentials not configured"}. Configure partner email/password in admin settings.` });
     }
 
     const response = await fetch(
-      `https://api.gupshup.io/wa/app/${encodeURIComponent(appId)}/template`,
+      `https://partner.gupshup.io/partner/app/${encodeURIComponent(appId)}/templates`,
       {
-        headers: { "apikey": globalConfig.apiKey },
+        headers: { "Authorization": tokenResult.token },
       }
     );
 
