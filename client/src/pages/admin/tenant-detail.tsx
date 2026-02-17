@@ -40,6 +40,12 @@ export default function AdminTenantDetail() {
     supportDocPrefix: "",
     supportDocStartingNumber: "",
     supportDocEndingNumber: "",
+    defaultResolutionStartDate: "",
+    defaultResolutionEndDate: "",
+    creditNoteResolutionStartDate: "",
+    creditNoteResolutionEndDate: "",
+    supportDocResolutionStartDate: "",
+    supportDocResolutionEndDate: "",
     isEnabled: true,
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -103,6 +109,12 @@ export default function AdminTenantDetail() {
         supportDocPrefix: integrationData.integration.supportDocPrefix || "",
         supportDocStartingNumber: integrationData.integration.supportDocStartingNumber?.toString() || "",
         supportDocEndingNumber: integrationData.integration.supportDocEndingNumber?.toString() || "",
+        defaultResolutionStartDate: integrationData.integration.defaultResolutionStartDate || "",
+        defaultResolutionEndDate: integrationData.integration.defaultResolutionEndDate || "",
+        creditNoteResolutionStartDate: integrationData.integration.creditNoteResolutionStartDate || "",
+        creditNoteResolutionEndDate: integrationData.integration.creditNoteResolutionEndDate || "",
+        supportDocResolutionStartDate: integrationData.integration.supportDocResolutionStartDate || "",
+        supportDocResolutionEndDate: integrationData.integration.supportDocResolutionEndDate || "",
         isEnabled: integrationData.integration.status === "configured",
       }));
     }
@@ -689,6 +701,31 @@ export default function AdminTenantDetail() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
+                    <Label htmlFor="defaultResolutionStartDate">Vigencia Desde</Label>
+                    <Input
+                      id="defaultResolutionStartDate"
+                      type="date"
+                      value={matiasConfig.defaultResolutionStartDate}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, defaultResolutionStartDate: e.target.value }))}
+                      data-testid="input-matias-resolution-start"
+                    />
+                    <p className="text-xs text-muted-foreground">Fecha inicio vigencia resolución</p>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="defaultResolutionEndDate">Vigencia Hasta</Label>
+                    <Input
+                      id="defaultResolutionEndDate"
+                      type="date"
+                      value={matiasConfig.defaultResolutionEndDate}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, defaultResolutionEndDate: e.target.value }))}
+                      data-testid="input-matias-resolution-end"
+                    />
+                    <p className="text-xs text-muted-foreground">Fecha fin vigencia resolución</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
                     <Label htmlFor="creditNoteResolutionNumber">Nota Crédito Resolution</Label>
                     <Input
                       id="creditNoteResolutionNumber"
@@ -710,6 +747,29 @@ export default function AdminTenantDetail() {
                       data-testid="input-matias-credit-note-prefix"
                     />
                     <p className="text-xs text-muted-foreground">Prefijo para notas crédito (ej: NC)</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="creditNoteResolutionStartDate">Vigencia Desde (NC)</Label>
+                    <Input
+                      id="creditNoteResolutionStartDate"
+                      type="date"
+                      value={matiasConfig.creditNoteResolutionStartDate}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, creditNoteResolutionStartDate: e.target.value }))}
+                      data-testid="input-matias-cn-resolution-start"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="creditNoteResolutionEndDate">Vigencia Hasta (NC)</Label>
+                    <Input
+                      id="creditNoteResolutionEndDate"
+                      type="date"
+                      value={matiasConfig.creditNoteResolutionEndDate}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, creditNoteResolutionEndDate: e.target.value }))}
+                      data-testid="input-matias-cn-resolution-end"
+                    />
                   </div>
                 </div>
 
@@ -798,6 +858,29 @@ export default function AdminTenantDetail() {
                       data-testid="input-matias-support-doc-prefix"
                     />
                     <p className="text-xs text-muted-foreground">Prefijo para documento soporte (ej: DS)</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="supportDocResolutionStartDate">Vigencia Desde (DS)</Label>
+                    <Input
+                      id="supportDocResolutionStartDate"
+                      type="date"
+                      value={matiasConfig.supportDocResolutionStartDate}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, supportDocResolutionStartDate: e.target.value }))}
+                      data-testid="input-matias-sd-resolution-start"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="supportDocResolutionEndDate">Vigencia Hasta (DS)</Label>
+                    <Input
+                      id="supportDocResolutionEndDate"
+                      type="date"
+                      value={matiasConfig.supportDocResolutionEndDate}
+                      onChange={(e) => setMatiasConfig(prev => ({ ...prev, supportDocResolutionEndDate: e.target.value }))}
+                      data-testid="input-matias-sd-resolution-end"
+                    />
                   </div>
                 </div>
 

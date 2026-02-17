@@ -142,6 +142,11 @@ export default function SalesHistoryPage() {
     enabled: !!tenant?.id,
   });
 
+  const { data: ebillingConfig } = useQuery<{ isEnabled: boolean; documentTypes: Array<{ type: string; resolution: string; prefix: string; startingNumber: number | null; endingNumber: number | null; resolutionStartDate: string | null; resolutionEndDate: string | null }> }>({
+    queryKey: ["/api/tenant/ebilling-config"],
+    enabled: !!tenant?.id,
+  });
+
   const currency = tenant?.currency || "USD";
 
   const toggleOrderExpansion = (orderId: string) => {
@@ -186,12 +191,20 @@ export default function SalesHistoryPage() {
       cashReceived: undefined,
       change: undefined,
       cashier: undefined,
-      electronicBilling: order.cufe ? {
-        cufe: order.cufe,
-        qrCode: order.qrCode || undefined,
-        documentNumber: order.orderNumber.toString(),
-        prefix: order.prefix || undefined,
-      } : undefined,
+      electronicBilling: order.cufe ? (() => {
+        const invoiceDocType = ebillingConfig?.documentTypes?.find(d => d.type === "invoice");
+        return {
+          cufe: order.cufe,
+          qrCode: order.qrCode || undefined,
+          documentNumber: order.orderNumber.toString(),
+          prefix: order.prefix || undefined,
+          resolutionNumber: invoiceDocType?.resolution,
+          resolutionStartDate: invoiceDocType?.resolutionStartDate || undefined,
+          resolutionEndDate: invoiceDocType?.resolutionEndDate || undefined,
+          authRangeFrom: invoiceDocType?.startingNumber || undefined,
+          authRangeTo: invoiceDocType?.endingNumber || undefined,
+        };
+      })() : undefined,
     });
   };
 

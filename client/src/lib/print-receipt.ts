@@ -63,6 +63,11 @@ interface ElectronicBillingInfo {
   qrCode?: string;
   documentNumber?: string;
   prefix?: string;
+  resolutionNumber?: string;
+  resolutionStartDate?: string;
+  resolutionEndDate?: string;
+  authRangeFrom?: number;
+  authRangeTo?: number;
 }
 
 interface CustomerInfo {
@@ -179,6 +184,11 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
         qrCode: data.electronicBilling.qrCode,
         documentNumber: data.electronicBilling.documentNumber,
         prefix: data.electronicBilling.prefix,
+        resolutionNumber: data.electronicBilling.resolutionNumber,
+        resolutionStartDate: data.electronicBilling.resolutionStartDate,
+        resolutionEndDate: data.electronicBilling.resolutionEndDate,
+        authRangeFrom: data.electronicBilling.authRangeFrom,
+        authRangeTo: data.electronicBilling.authRangeTo,
       } : undefined,
     });
 
@@ -535,12 +545,32 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
           ${lang === "es" ? "FACTURA ELECTRÓNICA" : lang === "pt" ? "FATURA ELETRÔNICA" : "ELECTRONIC INVOICE"}
         </div>
       `}
+      ${data.electronicBilling.resolutionNumber ? `
+        <div style="font-size: ${Math.round(fontSize * 0.75)}px; text-align: left; margin: 8px 0; line-height: 1.5;">
+          <div>RES.DIAN# ${data.electronicBilling.resolutionNumber}${data.electronicBilling.resolutionStartDate && data.electronicBilling.resolutionEndDate ? (() => {
+            const start = new Date(data.electronicBilling!.resolutionStartDate!);
+            const end = new Date(data.electronicBilling!.resolutionEndDate!);
+            const diffMs = end.getTime() - start.getTime();
+            const months = Math.round(diffMs / (1000 * 60 * 60 * 24 * 30.44));
+            return ` VIG ${months} MESES`;
+          })() : ""}</div>
+          ${data.electronicBilling.resolutionStartDate && data.electronicBilling.resolutionEndDate ? `
+            <div>DEL ${data.electronicBilling.resolutionStartDate} AL ${data.electronicBilling.resolutionEndDate}</div>
+          ` : ""}
+          ${data.electronicBilling.prefix && data.electronicBilling.authRangeFrom != null && data.electronicBilling.authRangeTo != null ? `
+            <div>RANG.AUT ${data.electronicBilling.prefix} ${data.electronicBilling.authRangeFrom} AL ${data.electronicBilling.prefix} ${data.electronicBilling.authRangeTo}</div>
+          ` : ""}
+        </div>
+      ` : ""}
+      <div style="font-size: ${Math.round(fontSize * 0.75)}px; text-align: left; margin-bottom: 8px;">
+        F.Expedicion:${(() => { const d = data.date instanceof Date ? data.date : new Date(); return d.toISOString().replace('T', '').replace('Z', ''); })()}
+      </div>
       ${qrCodeDataUrl ? `
         <div style="margin: 10px auto; text-align: center;">
           <img src="${qrCodeDataUrl}" alt="QR Code DIAN" style="width: 35mm; height: 35mm; image-rendering: pixelated;" />
         </div>
       ` : ""}
-      <div style="font-size: ${Math.round(fontSize * 0.7)}px; word-break: break-all; margin-top: 5px; line-height: 1.3;">
+      <div style="font-size: ${Math.round(fontSize * 0.7)}px; word-break: break-all; margin-top: 5px; line-height: 1.3; text-align: left;">
         <strong>CUFE:</strong><br/>
         ${data.electronicBilling.cufe}
       </div>
@@ -553,6 +583,23 @@ async function printReceiptBrowser(tenant: Tenant | null, data: ReceiptData) {
       ${data.electronicBilling.prefix && data.electronicBilling.documentNumber ? `
         <div style="font-size: ${Math.round(fontSize * 0.85)}px; margin-bottom: 8px;">
           #: ${data.electronicBilling.prefix}${data.electronicBilling.documentNumber}
+        </div>
+      ` : ""}
+      ${data.electronicBilling.resolutionNumber ? `
+        <div style="font-size: ${Math.round(fontSize * 0.75)}px; text-align: left; margin: 8px 0; line-height: 1.5;">
+          <div>RES.DIAN# ${data.electronicBilling.resolutionNumber}${data.electronicBilling.resolutionStartDate && data.electronicBilling.resolutionEndDate ? (() => {
+            const start = new Date(data.electronicBilling!.resolutionStartDate!);
+            const end = new Date(data.electronicBilling!.resolutionEndDate!);
+            const diffMs = end.getTime() - start.getTime();
+            const months = Math.round(diffMs / (1000 * 60 * 60 * 24 * 30.44));
+            return ` VIG ${months} MESES`;
+          })() : ""}</div>
+          ${data.electronicBilling.resolutionStartDate && data.electronicBilling.resolutionEndDate ? `
+            <div>DEL ${data.electronicBilling.resolutionStartDate} AL ${data.electronicBilling.resolutionEndDate}</div>
+          ` : ""}
+          ${data.electronicBilling.prefix && data.electronicBilling.authRangeFrom != null && data.electronicBilling.authRangeTo != null ? `
+            <div>RANG.AUT ${data.electronicBilling.prefix} ${data.electronicBilling.authRangeFrom} AL ${data.electronicBilling.prefix} ${data.electronicBilling.authRangeTo}</div>
+          ` : ""}
         </div>
       ` : ""}
       <div style="font-size: ${Math.round(fontSize * 0.75)}px; padding: 8px; background: #f5f5f5; border-radius: 4px; line-height: 1.4;">

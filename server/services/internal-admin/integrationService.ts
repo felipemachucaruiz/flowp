@@ -40,6 +40,12 @@ export async function getIntegrationStatus(tenantId: string) {
     supportDocPrefix: config.supportDocPrefix,
     supportDocStartingNumber: config.supportDocStartingNumber,
     supportDocEndingNumber: config.supportDocEndingNumber,
+    defaultResolutionStartDate: config.defaultResolutionStartDate,
+    defaultResolutionEndDate: config.defaultResolutionEndDate,
+    creditNoteResolutionStartDate: config.creditNoteResolutionStartDate,
+    creditNoteResolutionEndDate: config.creditNoteResolutionEndDate,
+    supportDocResolutionStartDate: config.supportDocResolutionStartDate,
+    supportDocResolutionEndDate: config.supportDocResolutionEndDate,
   };
 }
 
@@ -135,6 +141,12 @@ export async function updateIntegrationConfig(
     supportDocPrefix?: string;
     supportDocStartingNumber?: number | null;
     supportDocEndingNumber?: number | null;
+    defaultResolutionStartDate?: string;
+    defaultResolutionEndDate?: string;
+    creditNoteResolutionStartDate?: string;
+    creditNoteResolutionEndDate?: string;
+    supportDocResolutionStartDate?: string;
+    supportDocResolutionEndDate?: string;
     isEnabled?: boolean;
   },
   actorInternalUserId?: string | null

@@ -2484,6 +2484,11 @@ export async function registerRoutes(
           })
           .where(eq(orders.id, order.id));
 
+        // Fetch resolution info for receipt
+        const matiasConfigForReceipt = await db.query.tenantIntegrationsMatias.findFirst({
+          where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+        });
+
         // Return order with CUFE, QR code, and prefix for receipt
         res.json({
           ...order,
@@ -2491,6 +2496,11 @@ export async function registerRoutes(
           qrCode: matiasResult.qrCode,
           prefix: matiasResult.prefix,
           trackId: matiasResult.trackId,
+          resolutionNumber: matiasConfigForReceipt?.defaultResolutionNumber,
+          resolutionStartDate: matiasConfigForReceipt?.defaultResolutionStartDate,
+          resolutionEndDate: matiasConfigForReceipt?.defaultResolutionEndDate,
+          authRangeFrom: matiasConfigForReceipt?.startingNumber,
+          authRangeTo: matiasConfigForReceipt?.endingNumber,
         });
       } else {
         // Return order without e-billing data (submission failed or not enabled)
@@ -2604,6 +2614,10 @@ export async function registerRoutes(
 
       const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
 
+      const matiasConfigPdf = await db.query.tenantIntegrationsMatias.findFirst({
+        where: eq(tenantIntegrationsMatias.tenantId, tokenData.tenantId),
+      });
+
       const pdfBuffer = await generateReceiptPDF({
         receiptNumber: order.orderNumber,
         date: orderDate.toLocaleDateString(lang === "es" ? "es-CO" : lang, { year: "numeric", month: "short", day: "numeric" }),
@@ -2617,6 +2631,16 @@ export async function registerRoutes(
         companyAddress: tenant?.address || undefined,
         companyPhone: tenant?.phone || undefined,
         currency: tenant?.currency || "COP",
+        electronicBilling: order.cufe ? {
+          cufe: order.cufe,
+          documentNumber: order.orderNumber,
+          prefix: order.prefix || matiasConfigPdf?.defaultPrefix,
+          resolutionNumber: matiasConfigPdf?.defaultResolutionNumber,
+          resolutionStartDate: matiasConfigPdf?.defaultResolutionStartDate || undefined,
+          resolutionEndDate: matiasConfigPdf?.defaultResolutionEndDate || undefined,
+          authRangeFrom: matiasConfigPdf?.startingNumber || undefined,
+          authRangeTo: matiasConfigPdf?.endingNumber || undefined,
+        } : undefined,
       }, lang);
 
       res.setHeader("Content-Type", "application/pdf");
@@ -4817,7 +4841,10 @@ export async function registerRoutes(
         resolution: string;
         prefix: string;
         currentNumber: number | null;
+        startingNumber: number | null;
         endingNumber: number | null;
+        resolutionStartDate: string | null;
+        resolutionEndDate: string | null;
       }> = [];
 
       if (config.defaultResolutionNumber || config.defaultPrefix) {
@@ -4826,7 +4853,10 @@ export async function registerRoutes(
           resolution: config.defaultResolutionNumber || "",
           prefix: config.defaultPrefix || "",
           currentNumber: config.currentNumber || null,
+          startingNumber: config.startingNumber || null,
           endingNumber: config.endingNumber || null,
+          resolutionStartDate: config.defaultResolutionStartDate || null,
+          resolutionEndDate: config.defaultResolutionEndDate || null,
         });
       }
 
@@ -4836,7 +4866,10 @@ export async function registerRoutes(
           resolution: config.creditNoteResolutionNumber || "",
           prefix: config.creditNotePrefix || "",
           currentNumber: config.creditNoteCurrentNumber || null,
+          startingNumber: config.creditNoteStartingNumber || null,
           endingNumber: config.creditNoteEndingNumber || null,
+          resolutionStartDate: config.creditNoteResolutionStartDate || null,
+          resolutionEndDate: config.creditNoteResolutionEndDate || null,
         });
       }
 
@@ -4846,7 +4879,10 @@ export async function registerRoutes(
           resolution: config.supportDocResolutionNumber || "",
           prefix: config.supportDocPrefix || "",
           currentNumber: config.supportDocCurrentNumber || null,
+          startingNumber: config.supportDocStartingNumber || null,
           endingNumber: config.supportDocEndingNumber || null,
+          resolutionStartDate: config.supportDocResolutionStartDate || null,
+          resolutionEndDate: config.supportDocResolutionEndDate || null,
         });
       }
 

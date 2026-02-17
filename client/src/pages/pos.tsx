@@ -560,9 +560,9 @@ export default function POSPage() {
         return { id: offlineId, orderNumber: `OFF-${offlineId.slice(-6).toUpperCase()}`, offline: true };
       }
       const response = await apiRequest("POST", "/api/orders", orderData);
-      return response.json() as Promise<{ id: string; orderNumber?: string; cufe?: string; qrCode?: string; prefix?: string }>;
+      return response.json() as Promise<{ id: string; orderNumber?: string; cufe?: string; qrCode?: string; prefix?: string; resolutionNumber?: string; resolutionStartDate?: string; resolutionEndDate?: string; authRangeFrom?: number; authRangeTo?: number }>;
     },
-    onSuccess: (response: { id: string; orderNumber?: string; offline?: boolean; cufe?: string; qrCode?: string; prefix?: string }) => {
+    onSuccess: (response: { id: string; orderNumber?: string; offline?: boolean; cufe?: string; qrCode?: string; prefix?: string; resolutionNumber?: string; resolutionStartDate?: string; resolutionEndDate?: string; authRangeFrom?: number; authRangeTo?: number }) => {
       const receiptData = pendingReceiptData.current;
       if (receiptData) {
         printReceipt(tenant, {
@@ -605,6 +605,11 @@ export default function POSPage() {
             qrCode: response.qrCode,
             documentNumber: response.orderNumber,
             prefix: response.prefix,
+            resolutionNumber: response.resolutionNumber,
+            resolutionStartDate: response.resolutionStartDate,
+            resolutionEndDate: response.resolutionEndDate,
+            authRangeFrom: response.authRangeFrom,
+            authRangeTo: response.authRangeTo,
           } : undefined,
         });
         

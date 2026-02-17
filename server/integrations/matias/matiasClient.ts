@@ -443,6 +443,12 @@ export async function saveMatiasConfig(
     supportDocPrefix?: string;
     supportDocStartingNumber?: number | null;
     supportDocEndingNumber?: number | null;
+    defaultResolutionStartDate?: string;
+    defaultResolutionEndDate?: string;
+    creditNoteResolutionStartDate?: string;
+    creditNoteResolutionEndDate?: string;
+    supportDocResolutionStartDate?: string;
+    supportDocResolutionEndDate?: string;
     posTerminalNumber?: string;
     posSalesCode?: string;
     posCashierType?: string;
@@ -487,6 +493,12 @@ export async function saveMatiasConfig(
           supportDocPrefix: config.supportDocPrefix,
           supportDocStartingNumber: config.supportDocStartingNumber,
           supportDocEndingNumber: config.supportDocEndingNumber,
+          defaultResolutionStartDate: config.defaultResolutionStartDate,
+          defaultResolutionEndDate: config.defaultResolutionEndDate,
+          creditNoteResolutionStartDate: config.creditNoteResolutionStartDate,
+          creditNoteResolutionEndDate: config.creditNoteResolutionEndDate,
+          supportDocResolutionStartDate: config.supportDocResolutionStartDate,
+          supportDocResolutionEndDate: config.supportDocResolutionEndDate,
           startingNumber: config.startingNumber,
           endingNumber: config.endingNumber,
           posTerminalNumber: config.posTerminalNumber,
@@ -520,6 +532,12 @@ export async function saveMatiasConfig(
         supportDocPrefix: config.supportDocPrefix,
         supportDocStartingNumber: config.supportDocStartingNumber,
         supportDocEndingNumber: config.supportDocEndingNumber,
+        defaultResolutionStartDate: config.defaultResolutionStartDate,
+        defaultResolutionEndDate: config.defaultResolutionEndDate,
+        creditNoteResolutionStartDate: config.creditNoteResolutionStartDate,
+        creditNoteResolutionEndDate: config.creditNoteResolutionEndDate,
+        supportDocResolutionStartDate: config.supportDocResolutionStartDate,
+        supportDocResolutionEndDate: config.supportDocResolutionEndDate,
         startingNumber: config.startingNumber,
         endingNumber: config.endingNumber,
         posTerminalNumber: config.posTerminalNumber,

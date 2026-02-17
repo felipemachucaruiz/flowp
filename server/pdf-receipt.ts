@@ -7,6 +7,17 @@ export interface ReceiptItem {
   total?: string;
 }
 
+export interface ReceiptElectronicBilling {
+  cufe?: string;
+  documentNumber?: string;
+  prefix?: string;
+  resolutionNumber?: string;
+  resolutionStartDate?: string;
+  resolutionEndDate?: string;
+  authRangeFrom?: number;
+  authRangeTo?: number;
+}
+
 export interface ReceiptData {
   receiptNumber: string;
   date: string;
@@ -22,6 +33,7 @@ export interface ReceiptData {
   companyAddress?: string;
   companyPhone?: string;
   currency?: string;
+  electronicBilling?: ReceiptElectronicBilling;
 }
 
 const translations: Record<string, Record<string, string>> = {
@@ -205,6 +217,51 @@ export async function generateReceiptPDF(
         width: contentWidth,
       });
 
+      if (data.electronicBilling?.cufe || data.electronicBilling?.resolutionNumber) {
+        doc.moveDown(0.5);
+        doc.moveTo(15, doc.y).lineTo(pageWidth - 15, doc.y).dash(3, { space: 2 }).stroke();
+        doc.undash();
+        doc.moveDown(0.3);
+
+        if (data.electronicBilling.prefix && data.electronicBilling.documentNumber) {
+          doc.fontSize(9).font("Helvetica-Bold").fillColor("#000000");
+          const invoiceLabel = language === "es" ? "FACTURA ELECTRÓNICA" : language === "pt" ? "FATURA ELETRÔNICA" : "ELECTRONIC INVOICE";
+          doc.text(`${invoiceLabel} #: ${data.electronicBilling.prefix}${data.electronicBilling.documentNumber}`, 15, doc.y, {
+            width: contentWidth,
+            align: "center",
+          });
+        }
+
+        if (data.electronicBilling.resolutionNumber) {
+          doc.moveDown(0.3);
+          doc.fontSize(7).font("Helvetica").fillColor("#000000");
+          let resLine = `RES.DIAN# ${data.electronicBilling.resolutionNumber}`;
+          if (data.electronicBilling.resolutionStartDate && data.electronicBilling.resolutionEndDate) {
+            const start = new Date(data.electronicBilling.resolutionStartDate);
+            const end = new Date(data.electronicBilling.resolutionEndDate);
+            const diffMs = end.getTime() - start.getTime();
+            const months = Math.round(diffMs / (1000 * 60 * 60 * 24 * 30.44));
+            resLine += ` VIG ${months} MESES`;
+          }
+          doc.text(resLine, 15, doc.y, { width: contentWidth });
+          
+          if (data.electronicBilling.resolutionStartDate && data.electronicBilling.resolutionEndDate) {
+            doc.text(`DEL ${data.electronicBilling.resolutionStartDate} AL ${data.electronicBilling.resolutionEndDate}`, 15, doc.y, { width: contentWidth });
+          }
+
+          if (data.electronicBilling.prefix && data.electronicBilling.authRangeFrom != null && data.electronicBilling.authRangeTo != null) {
+            doc.text(`RANG.AUT ${data.electronicBilling.prefix} ${data.electronicBilling.authRangeFrom} AL ${data.electronicBilling.prefix} ${data.electronicBilling.authRangeTo}`, 15, doc.y, { width: contentWidth });
+          }
+        }
+
+        if (data.electronicBilling.cufe) {
+          doc.moveDown(0.3);
+          doc.fontSize(6).font("Helvetica").fillColor("#000000");
+          doc.text("CUFE:", 15, doc.y, { width: contentWidth });
+          doc.text(data.electronicBilling.cufe, 15, doc.y, { width: contentWidth });
+        }
+      }
+
       doc.moveDown(1);
       doc
         .moveTo(15, doc.y)
@@ -212,7 +269,7 @@ export async function generateReceiptPDF(
         .stroke();
       doc.moveDown(0.5);
 
-      doc.fontSize(10).font("Helvetica-Bold");
+      doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000");
       doc.text(t.thankYou, 15, doc.y, {
         width: contentWidth,
         align: "center",
