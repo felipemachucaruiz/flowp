@@ -1,17 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -26,32 +23,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus,
-  Send,
-  RefreshCw,
   Loader2,
-  Pencil,
   Trash2,
   FileText,
   Zap,
-  Eye,
   CheckCircle,
-  XCircle,
-  Clock,
   AlertTriangle,
-  Info,
-  ChevronDown,
-  ChevronUp,
+  Download,
 } from "lucide-react";
 
 interface WhatsappTemplate {
@@ -122,34 +103,13 @@ const EVENT_VARIABLES: Record<string, Array<{ key: string; labelKey: string }>> 
   ],
 };
 
-const STATUS_CONFIG: Record<string, { color: string; variant: "default" | "secondary" | "destructive"; icon: any }> = {
-  draft: { color: "text-muted-foreground", variant: "secondary", icon: FileText },
-  pending: { color: "text-yellow-600", variant: "secondary", icon: Clock },
-  approved: { color: "text-green-600", variant: "default", icon: CheckCircle },
-  rejected: { color: "text-red-600", variant: "destructive", icon: XCircle },
-};
-
 export function WhatsAppTemplateManager() {
-  const { t, language } = useI18n();
-  const locale = language === "es" ? "es-ES" : language === "pt" ? "pt-BR" : "en-US";
+  const { t } = useI18n();
   const { toast } = useToast();
   const { tenant } = useAuth();
   const queryClient = useQueryClient();
 
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState<WhatsappTemplate | null>(null);
   const [showTriggerDialog, setShowTriggerDialog] = useState(false);
-  const [previewTemplate, setPreviewTemplate] = useState<WhatsappTemplate | null>(null);
-
-  const [formName, setFormName] = useState("");
-  const [formCategory, setFormCategory] = useState<"utility" | "marketing" | "authentication">("utility");
-  const [formLanguage, setFormLanguage] = useState("es");
-  const [formHeader, setFormHeader] = useState("");
-  const [formBody, setFormBody] = useState("");
-  const [formFooter, setFormFooter] = useState("");
-  const [formVariables, setFormVariables] = useState<Record<string, string>>({});
-  const [showVarReference, setShowVarReference] = useState(false);
-
   const [triggerEvent, setTriggerEvent] = useState("");
   const [triggerTemplateId, setTriggerTemplateId] = useState("");
 
@@ -177,76 +137,17 @@ export function WhatsAppTemplateManager() {
     enabled: !!tenant?.id,
   });
 
-  const createMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await apiRequest("POST", "/api/whatsapp/templates", data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates"] });
-      setShowCreateDialog(false);
-      resetForm();
-      toast({ title: t("common.success" as any) || "Success", description: t("whatsapp.template_created" as any) || "Plantilla creada exitosamente" });
-    },
-    onError: (e: any) => {
-      toast({ title: t("common.error" as any) || "Error", description: e.message, variant: "destructive" });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      const res = await apiRequest("PUT", `/api/whatsapp/templates/${id}`, data);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates"] });
-      setEditingTemplate(null);
-      setShowCreateDialog(false);
-      resetForm();
-      toast({ title: t("common.success" as any) || "Success", description: t("whatsapp.template_updated" as any) || "Plantilla actualizada" });
-    },
-    onError: (e: any) => {
-      toast({ title: t("common.error" as any) || "Error", description: e.message, variant: "destructive" });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await apiRequest("DELETE", `/api/whatsapp/templates/${id}`);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates"] });
-      queryClient.invalidateQueries({ queryKey: ["whatsapp", "triggers"] });
-      toast({ title: t("common.success" as any) || "Success", description: t("whatsapp.template_deleted" as any) || "Plantilla eliminada" });
-    },
-    onError: (e: any) => {
-      toast({ title: t("common.error" as any) || "Error", description: e.message, variant: "destructive" });
-    },
-  });
-
-  const submitMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await apiRequest("POST", `/api/whatsapp/templates/${id}/submit`);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates"] });
-      toast({ title: t("common.success" as any) || "Success", description: t("whatsapp.template_submitted" as any) || "Plantilla enviada para aprobación" });
-    },
-    onError: (e: any) => {
-      toast({ title: t("common.error" as any) || "Error", description: e.message, variant: "destructive" });
-    },
-  });
-
-  const syncMutation = useMutation({
+  const syncFromGupshupMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/whatsapp/templates/sync-status");
+      const res = await apiRequest("POST", "/api/whatsapp/templates/sync-from-gupshup");
       return res.json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates"] });
-      toast({ title: t("common.success" as any) || "Success", description: `${data.updatedCount || 0} ${t("whatsapp.templates_synced" as any) || "plantillas actualizadas"}` });
+      toast({
+        title: t("common.success" as any) || "Success",
+        description: `${data.imported || 0} ${t("whatsapp.templates_imported" as any) || "plantillas importadas"}, ${data.updated || 0} ${t("whatsapp.templates_updated_count" as any) || "actualizadas"}`,
+      });
     },
     onError: (e: any) => {
       toast({ title: t("common.error" as any) || "Error", description: e.message, variant: "destructive" });
@@ -291,73 +192,10 @@ export function WhatsAppTemplateManager() {
     },
   });
 
-  function resetForm() {
-    setFormName("");
-    setFormCategory("utility");
-    setFormLanguage("es");
-    setFormHeader("");
-    setFormBody("");
-    setFormFooter("");
-    setFormVariables({});
-    setEditingTemplate(null);
-  }
-
-  function openEditDialog(tpl: WhatsappTemplate) {
-    setEditingTemplate(tpl);
-    setFormName(tpl.name);
-    setFormCategory(tpl.category);
-    setFormLanguage(tpl.language);
-    setFormHeader(tpl.headerText || "");
-    setFormBody(tpl.bodyText);
-    setFormFooter(tpl.footerText || "");
-    setFormVariables(tpl.variablesSample || {});
-    setShowCreateDialog(true);
-  }
-
-  function handleSaveTemplate() {
-    const data = {
-      name: formName,
-      category: formCategory,
-      language: formLanguage,
-      headerText: formHeader || null,
-      bodyText: formBody,
-      footerText: formFooter || null,
-      variablesSample: formVariables,
-    };
-
-    if (editingTemplate) {
-      updateMutation.mutate({ id: editingTemplate.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  }
-
-  function extractVariables(text: string): string[] {
-    const matches = text.match(/\{\{(\d+)\}\}/g);
-    if (!matches) return [];
-    return Array.from(new Set(matches)).sort();
-  }
-
-  const bodyVariables = extractVariables(formBody);
-  const headerVariables = extractVariables(formHeader);
-  const allVariables = Array.from(new Set([...headerVariables, ...bodyVariables]));
-
-  function renderPreview(template: WhatsappTemplate) {
-    let preview = template.bodyText;
-    const samples = template.variablesSample || {};
-    const vars = extractVariables(preview);
-    vars.forEach((v) => {
-      const key = v.replace(/[{}]/g, "");
-      const sampleVal = samples[key] || `[${key}]`;
-      preview = preview.replace(v, sampleVal);
-    });
-    return preview;
-  }
-
-  const approvedTemplates = templates?.filter((t) => t.status === "approved") || [];
+  const approvedTemplates = templates?.filter((tpl) => tpl.status === "approved") || [];
 
   function getTemplateName(templateId: string) {
-    return templates?.find((t) => t.id === templateId)?.name || templateId;
+    return templates?.find((tpl) => tpl.id === templateId)?.name || templateId;
   }
 
   function getEventLabel(event: string) {
@@ -383,131 +221,62 @@ export function WhatsAppTemplateManager() {
               <FileText className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <CardTitle>{t("whatsapp.templates_title" as any) || "Plantillas de WhatsApp"}</CardTitle>
+              <CardTitle>{t("whatsapp.approved_templates_title" as any) || "Plantillas Aprobadas"}</CardTitle>
               <p className="text-sm text-muted-foreground">
-                {t("whatsapp.templates_subtitle" as any) || "Crea y gestiona tus plantillas de mensajes para WhatsApp"}
+                {t("whatsapp.approved_templates_subtitle" as any) || "Sincroniza las plantillas aprobadas desde Gupshup para asignar disparadores"}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => syncMutation.mutate()}
-              disabled={syncMutation.isPending}
-              data-testid="button-sync-templates"
-            >
-              {syncMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              <span className="ml-1 hidden sm:inline">{t("whatsapp.sync_status" as any) || "Sincronizar"}</span>
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => { resetForm(); setShowCreateDialog(true); }}
-              data-testid="button-create-template"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              {t("whatsapp.new_template" as any) || "Nueva plantilla"}
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => syncFromGupshupMutation.mutate()}
+            disabled={syncFromGupshupMutation.isPending}
+            data-testid="button-sync-from-gupshup"
+          >
+            {syncFromGupshupMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            <span className="ml-1 hidden sm:inline">{t("whatsapp.sync_from_gupshup" as any) || "Sincronizar desde Gupshup"}</span>
+          </Button>
         </CardHeader>
         <CardContent>
-          {templates && templates.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("common.name" as any) || "Nombre"}</TableHead>
-                    <TableHead>{t("whatsapp.category" as any) || "Categoría"}</TableHead>
-                    <TableHead>{t("whatsapp.language_col" as any) || "Idioma"}</TableHead>
-                    <TableHead>{t("common.status" as any) || "Estado"}</TableHead>
-                    <TableHead className="text-right">{t("common.actions" as any) || "Acciones"}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {templates.map((tpl) => {
-                    const statusCfg = STATUS_CONFIG[tpl.status];
-                    const StatusIcon = statusCfg.icon;
-                    return (
-                      <TableRow key={tpl.id} data-testid={`row-template-${tpl.id}`}>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-medium text-sm">{tpl.name}</span>
-                            <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                              {tpl.bodyText.substring(0, 60)}{tpl.bodyText.length > 60 ? "..." : ""}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" data-testid={`badge-category-${tpl.id}`}>
-                            {tpl.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm">{tpl.language.toUpperCase()}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1.5">
-                            <StatusIcon className={`w-3.5 h-3.5 ${statusCfg.color}`} />
-                            <Badge variant={statusCfg.variant} data-testid={`badge-status-${tpl.id}`}>
-                              {t(`whatsapp.status_${tpl.status}` as any) || tpl.status}
-                            </Badge>
-                          </div>
-                          {tpl.status === "rejected" && tpl.rejectionReason && (
-                            <p className="text-xs text-destructive mt-1">{tpl.rejectionReason}</p>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 justify-end">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setPreviewTemplate(tpl)}
-                              data-testid={`button-preview-${tpl.id}`}
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            {tpl.status !== "pending" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEditDialog(tpl)}
-                                data-testid={`button-edit-${tpl.id}`}
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {(tpl.status === "draft" || tpl.status === "rejected") && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => submitMutation.mutate(tpl.id)}
-                                disabled={submitMutation.isPending}
-                                data-testid={`button-submit-${tpl.id}`}
-                              >
-                                {submitMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteMutation.mutate(tpl.id)}
-                              disabled={deleteMutation.isPending}
-                              data-testid={`button-delete-${tpl.id}`}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+          {approvedTemplates.length > 0 ? (
+            <div className="space-y-2">
+              {approvedTemplates.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className="flex items-center justify-between gap-4 p-3 border rounded-lg"
+                  data-testid={`row-template-${tpl.id}`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{tpl.name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="secondary">{tpl.category}</Badge>
+                      <span className="text-xs text-muted-foreground">{tpl.language.toUpperCase()}</span>
+                    </div>
+                  </div>
+                  <Badge variant="default" className="shrink-0">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    {t("whatsapp.status_approved" as any) || "Aprobada"}
+                  </Badge>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="text-center py-8">
-              <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <Download className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">
-                {t("whatsapp.no_templates" as any) || "No hay plantillas creadas aún. Crea tu primera plantilla para enviar mensajes por WhatsApp."}
+                {t("whatsapp.no_approved_templates_sync" as any) || "No hay plantillas aprobadas. Sincroniza desde Gupshup para importar las plantillas aprobadas."}
               </p>
+              <Button
+                variant="outline"
+                className="mt-3"
+                onClick={() => syncFromGupshupMutation.mutate()}
+                disabled={syncFromGupshupMutation.isPending}
+                data-testid="button-sync-empty-state"
+              >
+                {syncFromGupshupMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Download className="w-4 h-4 mr-1" />}
+                {t("whatsapp.sync_from_gupshup" as any) || "Sincronizar desde Gupshup"}
+              </Button>
             </div>
           )}
         </CardContent>
@@ -541,7 +310,7 @@ export function WhatsAppTemplateManager() {
             <div className="flex items-start gap-2 p-3 bg-muted rounded-lg mb-4">
               <AlertTriangle className="w-4 h-4 text-muted-foreground mt-0.5" />
               <p className="text-sm text-muted-foreground">
-                {t("whatsapp.no_approved_templates" as any) || "Necesitas al menos una plantilla aprobada para configurar disparadores."}
+                {t("whatsapp.no_approved_for_triggers" as any) || "Sincroniza plantillas aprobadas desde Gupshup para poder configurar disparadores."}
               </p>
             </div>
           )}
@@ -597,196 +366,6 @@ export function WhatsAppTemplateManager() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={showCreateDialog} onOpenChange={(v) => { if (!v) { resetForm(); } setShowCreateDialog(v); }}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingTemplate
-                ? (t("whatsapp.edit_template" as any) || "Editar plantilla")
-                : (t("whatsapp.create_template" as any) || "Crear plantilla")}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="tpl-name">{t("whatsapp.template_name" as any) || "Nombre de la plantilla"}</Label>
-              <Input
-                id="tpl-name"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                placeholder="ej: recibo_compra"
-                data-testid="input-template-name"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t("whatsapp.template_name_hint" as any) || "Solo letras minúsculas, números y guiones bajos"}
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>{t("whatsapp.category" as any) || "Categoría"}</Label>
-                <Select value={formCategory} onValueChange={(v) => setFormCategory(v as any)}>
-                  <SelectTrigger data-testid="select-category">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="utility">{t("whatsapp.cat_utility" as any) || "Utilidad"}</SelectItem>
-                    <SelectItem value="marketing">{t("whatsapp.cat_marketing" as any) || "Marketing"}</SelectItem>
-                    <SelectItem value="authentication">{t("whatsapp.cat_authentication" as any) || "Autenticación"}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>{t("whatsapp.language_col" as any) || "Idioma"}</Label>
-                <Select value={formLanguage} onValueChange={setFormLanguage}>
-                  <SelectTrigger data-testid="select-language">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="es">Español</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="pt">Português</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="tpl-header">{t("whatsapp.header" as any) || "Encabezado"} ({t("common.optional" as any) || "opcional"})</Label>
-              <Input
-                id="tpl-header"
-                value={formHeader}
-                onChange={(e) => setFormHeader(e.target.value)}
-                placeholder="ej: Recibo de {{1}}"
-                data-testid="input-template-header"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="tpl-body">{t("whatsapp.body" as any) || "Cuerpo del mensaje"} *</Label>
-              <Textarea
-                id="tpl-body"
-                value={formBody}
-                onChange={(e) => setFormBody(e.target.value)}
-                placeholder={"Hola {{1}}, tu orden #{{2}} por {{3}} ha sido completada. ¡Gracias por tu compra!"}
-                rows={5}
-                data-testid="input-template-body"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t("whatsapp.body_hint" as any) || "Usa {{1}}, {{2}}, {{3}} para variables dinámicas"}
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowVarReference(!showVarReference)}
-                className="flex items-center gap-1 text-xs text-primary hover-elevate rounded px-1.5 py-0.5 mt-1"
-                data-testid="button-toggle-var-reference"
-              >
-                <Info className="w-3 h-3" />
-                {t("whatsapp.var_reference_title" as any) || "Variable reference per event"}
-                {showVarReference ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              </button>
-              {showVarReference && (
-                <div className="mt-2 p-3 rounded-md bg-muted/50 space-y-3 text-xs">
-                  {TRIGGER_EVENTS.map((ev) => {
-                    const vars = EVENT_VARIABLES[ev.value] || [];
-                    return (
-                      <div key={ev.value}>
-                        <p className="font-medium mb-1">{t(ev.labelKey) || ev.defaultLabel}</p>
-                        <div className="flex flex-wrap gap-1">
-                          {vars.map((v, idx) => (
-                            <Badge key={v.key} variant="secondary" className="text-xs font-mono">
-                              {`{{${idx + 1}}}`} = {t(v.labelKey as any) || v.key}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <p className="text-muted-foreground italic">
-                    {t("whatsapp.var_reference_note" as any) || "The variable number ({{1}}, {{2}}, etc.) maps to each event's fields in order when you assign the template to a trigger."}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="tpl-footer">{t("whatsapp.footer" as any) || "Pie de página"} ({t("common.optional" as any) || "opcional"})</Label>
-              <Input
-                id="tpl-footer"
-                value={formFooter}
-                onChange={(e) => setFormFooter(e.target.value)}
-                placeholder="ej: Flowp POS"
-                data-testid="input-template-footer"
-              />
-            </div>
-
-            {allVariables.length > 0 && (
-              <>
-                <Separator />
-                <div className="space-y-2">
-                  <Label>{t("whatsapp.sample_values" as any) || "Valores de ejemplo"}</Label>
-                  <p className="text-xs text-muted-foreground">
-                    {t("whatsapp.sample_values_hint" as any) || "WhatsApp requiere valores de ejemplo para aprobar la plantilla"}
-                  </p>
-                  {allVariables.map((v) => {
-                    const key = v.replace(/[{}]/g, "");
-                    return (
-                      <div key={key} className="flex items-center gap-2">
-                        <span className="text-sm font-mono w-12 text-muted-foreground">{v}</span>
-                        <Input
-                          value={formVariables[key] || ""}
-                          onChange={(e) => setFormVariables((prev) => ({ ...prev, [key]: e.target.value }))}
-                          placeholder={`Valor de ejemplo para ${v}`}
-                          data-testid={`input-sample-${key}`}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => { resetForm(); setShowCreateDialog(false); }} data-testid="button-cancel-template">
-              {t("common.cancel" as any) || "Cancelar"}
-            </Button>
-            <Button
-              onClick={handleSaveTemplate}
-              disabled={!formName || !formBody || createMutation.isPending || updateMutation.isPending}
-              data-testid="button-save-template"
-            >
-              {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-              {editingTemplate ? (t("common.save" as any) || "Guardar") : (t("common.create" as any) || "Crear")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!previewTemplate} onOpenChange={(v) => { if (!v) setPreviewTemplate(null); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("whatsapp.preview" as any) || "Vista previa"}</DialogTitle>
-          </DialogHeader>
-          {previewTemplate && (
-            <div className="bg-[#e5ddd5] dark:bg-[#0b141a] rounded-lg p-4">
-              <div className="bg-white dark:bg-[#1f2c34] rounded-lg p-3 shadow-sm max-w-[280px] ml-auto space-y-1">
-                {previewTemplate.headerText && (
-                  <p className="text-sm font-bold text-foreground">{previewTemplate.headerText}</p>
-                )}
-                <p className="text-sm text-foreground whitespace-pre-wrap">{renderPreview(previewTemplate)}</p>
-                {previewTemplate.footerText && (
-                  <p className="text-xs text-muted-foreground mt-1">{previewTemplate.footerText}</p>
-                )}
-                <p className="text-[10px] text-muted-foreground text-right mt-1">
-                  {new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showTriggerDialog} onOpenChange={setShowTriggerDialog}>
         <DialogContent className="max-w-md">

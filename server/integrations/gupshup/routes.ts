@@ -503,7 +503,7 @@ whatsappRouter.post("/templates/:id/submit", whatsappAddonGate, async (req: Requ
   }
 });
 
-whatsappRouter.post("/templates/sync-status", whatsappAddonGate, async (req: Request, res: Response) => {
+whatsappRouter.post("/templates/sync-from-gupshup", whatsappAddonGate, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   try {
     const tokenResult = await getPartnerToken();
@@ -529,38 +529,70 @@ whatsappRouter.post("/templates/sync-status", whatsappAddonGate, async (req: Req
     }
 
     const data = await response.json();
-    const gupshupTemplates: Array<{ elementName: string; id: string; status: string; reason?: string }> =
-      data.templates || data || [];
+    const gupshupTemplates: Array<{
+      elementName: string; id: string; status: string; category?: string;
+      languageCode?: string; meta?: string; data?: string; templateType?: string;
+    }> = data.templates || data || [];
 
-    const pendingTemplates = await db.select()
+    const approvedRemote = gupshupTemplates.filter(
+      (g) => g.status?.toLowerCase() === "approved" || g.status?.toUpperCase() === "APPROVED"
+    );
+
+    const existingTemplates = await db.select()
       .from(whatsappTemplates)
-      .where(and(
-        eq(whatsappTemplates.tenantId, tenantId),
-        eq(whatsappTemplates.status, "pending")
-      ));
+      .where(eq(whatsappTemplates.tenantId, tenantId));
 
+    let imported = 0;
     let updated = 0;
-    for (const local of pendingTemplates) {
-      const match = gupshupTemplates.find(
-        (g) => g.elementName === local.name || g.id === local.gupshupTemplateId
-      );
-      if (!match) continue;
 
-      const gStatus = match.status?.toLowerCase();
-      if (gStatus === "approved") {
+    for (const remote of approvedRemote) {
+      if (!remote.elementName || !remote.id) continue;
+
+      const existing = existingTemplates.find(
+        (e) => e.gupshupTemplateId === remote.id || e.name === remote.elementName
+      );
+
+      let bodyText = remote.elementName;
+      try {
+        if (remote.data && typeof remote.data === "string") {
+          bodyText = remote.data;
+        } else if (remote.meta) {
+          const metaObj = typeof remote.meta === "string" ? JSON.parse(remote.meta) : remote.meta;
+          if (metaObj.example) bodyText = metaObj.example;
+        }
+      } catch {}
+
+      if (existing) {
         await db.update(whatsappTemplates)
-          .set({ status: "approved", gupshupTemplateId: match.id, updatedAt: new Date() })
-          .where(eq(whatsappTemplates.id, local.id));
+          .set({
+            status: "approved",
+            gupshupTemplateId: remote.id,
+            category: (remote.category?.toLowerCase() as any) || existing.category,
+            language: remote.languageCode || existing.language,
+            bodyText,
+            updatedAt: new Date(),
+          })
+          .where(eq(whatsappTemplates.id, existing.id));
         updated++;
-      } else if (gStatus === "rejected" || gStatus === "disabled") {
-        await db.update(whatsappTemplates)
-          .set({ status: "rejected", rejectionReason: match.reason || "Rejected by WhatsApp", updatedAt: new Date() })
-          .where(eq(whatsappTemplates.id, local.id));
-        updated++;
+      } else {
+        await db.insert(whatsappTemplates).values({
+          tenantId,
+          name: remote.elementName,
+          category: (remote.category?.toLowerCase() as any) || "utility",
+          language: remote.languageCode || "es",
+          headerText: null,
+          bodyText,
+          footerText: null,
+          buttons: [],
+          variablesSample: {},
+          gupshupTemplateId: remote.id,
+          status: "approved",
+        });
+        imported++;
       }
     }
 
-    return res.json({ success: true, updatedCount: updated });
+    return res.json({ success: true, imported, updated, total: approvedRemote.length });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
