@@ -17,7 +17,8 @@
     "build:all": "electron-builder --win --mac --publish never"
   },
   "dependencies": {
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.1.0",
+    "qrcode": "^1.5.3"
   },
   "devDependencies": {
     "electron": "^28.0.0",

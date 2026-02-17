@@ -116,15 +116,25 @@ export default function AdminWhatsAppConfig() {
     },
     onSuccess: (data: any) => {
       if (data.success) {
-        let description = t("whatsapp.connectionSuccessDesc" as any) || "Gupshup Messaging API verified.";
+        let description = "";
+        if (data.walletOk) {
+          description += "API Key: OK";
+          if (data.walletBalance != null) description += ` (Balance: ${data.walletBalance})`;
+          description += ". ";
+        }
+        if (data.appVerified) {
+          description += "App: Verified. ";
+        } else if (data.appError) {
+          description += `App: ${data.appError}. `;
+        }
         if (data.partnerStatus === "ok") {
-          description += " " + (t("admin.whatsapp_partner_ok" as any) || "Partner API (templates): OK");
+          description += "Template API: OK";
         } else if (data.partnerStatus === "auth_failed") {
-          description += " " + (t("admin.whatsapp_partner_auth_failed" as any) || "Partner API: Authentication failed - check email/secret");
+          description += "Template API: Auth failed - check Profile API Key";
         } else if (data.partnerStatus === "failed") {
-          description += " " + (t("admin.whatsapp_partner_failed" as any) || "Partner API (templates): Failed - check App ID");
+          description += "Template API: Failed - check App ID";
         } else {
-          description += " " + (t("admin.whatsapp_partner_not_configured" as any) || "Partner API (templates): Not configured");
+          description += "Template API: Not configured";
         }
         toast({
           title: t("whatsapp.connectionSuccess" as any) || "Connection Successful",

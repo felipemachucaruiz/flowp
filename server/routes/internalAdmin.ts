@@ -1521,6 +1521,7 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
       return res.json({ success: false, error: "App name and sender phone must be configured before testing connection." });
     }
 
+    // Step 1: Verify API key via wallet balance check
     const walletResp = await fetch("https://api.gupshup.io/sm/api/v2/wallet/balance", {
       headers: { "apikey": apiKey },
     });
@@ -1536,44 +1537,44 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
         }
       } catch {}
     }
-
-    const testParams = new URLSearchParams();
-    testParams.append("channel", "whatsapp");
-    testParams.append("source", senderPhone);
-    testParams.append("destination", senderPhone);
-    testParams.append("src.name", appName);
-    testParams.append("message", JSON.stringify({ isHSM: "false", type: "text", text: "Flowp connection test" }));
-
-    const response = await fetch("https://api.gupshup.io/wa/api/v1/msg", {
-      method: "POST",
-      headers: {
-        "apikey": apiKey,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: testParams.toString(),
-    });
-
-    const msgData = await response.json();
-    if (!response.ok || (msgData.status !== "submitted" && !msgData.messageId)) {
-      const errorMsg = msgData?.message || msgData?.error || JSON.stringify(msgData);
-      if (response.status === 401 || response.status === 403) {
-        return res.json({ success: false, error: "Invalid API key - authentication failed. Use the API key from your Gupshup app settings (starts with sk_)." });
+    
+    if (!walletOk) {
+      if (walletResp.status === 401 || walletResp.status === 403) {
+        return res.json({ success: false, error: "Invalid API key - authentication failed. Check your Gupshup API key." });
       }
-      return res.json({ success: false, error: `Messaging API error: ${errorMsg}` });
+      return res.json({ success: false, error: "Could not verify API key. Gupshup API returned: " + walletResp.status });
     }
 
+    // Step 2: Verify app name exists via health/app endpoint
+    let appVerified = false;
+    let appError = "";
+    try {
+      const healthResp = await fetch(`https://api.gupshup.io/wa/app/${encodeURIComponent(appName)}/health`, {
+        headers: { "apikey": apiKey },
+      });
+      if (healthResp.ok) {
+        appVerified = true;
+      } else {
+        const healthData = await healthResp.json().catch(() => ({}));
+        appError = healthData?.message || `App verification returned HTTP ${healthResp.status}`;
+      }
+    } catch (e: any) {
+      appError = e.message;
+    }
+
+    // Step 3: Check Profile API key / template management access
     let partnerStatus = "not_configured";
     let partnerError = "";
     const tokenResult = await getPartnerToken();
     const appIdVal = await getGupshupAppId();
     if (tokenResult.status === "ok" && appIdVal) {
       try {
-        const partnerResp = await fetch(
-          `https://partner.gupshup.io/partner/app/${encodeURIComponent(appIdVal)}/templates?pageSize=1`,
-          { headers: { "Authorization": tokenResult.token } }
+        const templateResp = await fetch(
+          `https://api.gupshup.io/wa/app/${encodeURIComponent(appIdVal)}/template`,
+          { headers: { "apikey": tokenResult.token } }
         );
-        partnerStatus = partnerResp.ok ? "ok" : "failed";
-        if (!partnerResp.ok) partnerError = `HTTP ${partnerResp.status}`;
+        partnerStatus = templateResp.ok ? "ok" : "failed";
+        if (!templateResp.ok) partnerError = `HTTP ${templateResp.status}`;
       } catch (e: any) {
         partnerStatus = "failed";
         partnerError = e.message;
@@ -1583,7 +1584,7 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
       partnerError = tokenResult.error;
     }
 
-    return res.json({ success: true, appName, partnerStatus, partnerError, walletOk, walletBalance });
+    return res.json({ success: true, appName, appVerified, appError, partnerStatus, partnerError, walletOk, walletBalance });
   } catch (error: any) {
     const msg = typeof error === "object" && error !== null
       ? (error.message || (error.error ? (typeof error.error === "string" ? error.error : JSON.stringify(error.error)) : JSON.stringify(error)))
