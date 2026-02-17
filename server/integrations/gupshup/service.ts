@@ -12,6 +12,8 @@ import {
   addonDefinitions,
   tenants,
   platformConfig,
+  whatsappTemplateTriggers,
+  whatsappTemplates,
   PAID_ADDONS,
 } from "@shared/schema";
 import { eq, and, or, desc, sql, inArray } from "drizzle-orm";
@@ -273,18 +275,25 @@ export async function sendTemplateMessage(
   }).returning();
 
   try {
-    const client = createGupshupClient(globalCreds.apiKey);
-    const data = await client.message.send({
-      channel: "whatsapp",
-      source: globalCreds.senderPhone,
-      destination: destinationPhone,
-      "src.name": globalCreds.appName,
-      message: {
-        isHSM: "true",
-        type: "text",
-        text: JSON.stringify({ id: templateId, params: templateParams }),
+    console.log(`[whatsapp] Sending template "${templateId}" to ${destinationPhone} with params:`, templateParams);
+    const body = new URLSearchParams();
+    body.append("channel", "whatsapp");
+    body.append("source", globalCreds.senderPhone);
+    body.append("destination", destinationPhone);
+    body.append("src.name", globalCreds.appName);
+    body.append("template", JSON.stringify({ id: templateId, params: templateParams }));
+
+    const response = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
+      method: "POST",
+      headers: {
+        "apikey": globalCreds.apiKey,
+        "Content-Type": "application/x-www-form-urlencoded",
       },
+      body: body.toString(),
     });
+
+    const data = await response.json();
+    console.log(`[whatsapp] Template send response:`, JSON.stringify(data));
 
     if (data && (data.status === "submitted" || data.messageId)) {
       await deductMessage(tenantId);
@@ -528,6 +537,37 @@ export async function sendDocumentMessage(
   }
 }
 
+async function getTriggeredTemplate(tenantId: string, event: string): Promise<{ templateName: string; gupshupTemplateId: string; bodyText: string } | null> {
+  try {
+    const [trigger] = await db.select()
+      .from(whatsappTemplateTriggers)
+      .where(and(
+        eq(whatsappTemplateTriggers.tenantId, tenantId),
+        eq(whatsappTemplateTriggers.event, event as any),
+        eq(whatsappTemplateTriggers.enabled, true),
+      ))
+      .limit(1);
+    if (!trigger) return null;
+
+    const [template] = await db.select()
+      .from(whatsappTemplates)
+      .where(and(
+        eq(whatsappTemplates.id, trigger.templateId),
+        eq(whatsappTemplates.status, "approved"),
+      ))
+      .limit(1);
+    if (!template || !template.gupshupTemplateId) return null;
+
+    return {
+      templateName: template.name,
+      gupshupTemplateId: template.gupshupTemplateId,
+      bodyText: template.bodyText,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function sendReceiptNotification(
   tenantId: string,
   customerPhone: string,
@@ -536,7 +576,8 @@ export async function sendReceiptNotification(
   companyName: string,
   currency: string = "COP",
   pointsEarned: number = 0,
-  receiptPdfUrl?: string
+  receiptPdfUrl?: string,
+  customerName?: string
 ): Promise<void> {
   try {
     const addonCheck = await requireWhatsappAddon(tenantId);
@@ -555,6 +596,29 @@ export async function sendReceiptNotification(
       maximumFractionDigits: 0,
     }).format(parseFloat(total));
 
+    const triggeredTemplate = await getTriggeredTemplate(tenantId, "sale_completed");
+    if (triggeredTemplate) {
+      console.log(`[whatsapp] Using approved template "${triggeredTemplate.templateName}" (ID: ${triggeredTemplate.gupshupTemplateId}) for sale_completed`);
+      const templateParams = [
+        customerName || "Cliente",
+        orderNumber,
+        formattedTotal,
+        companyName,
+      ];
+      const result = await sendTemplateMessage(
+        tenantId,
+        customerPhone,
+        triggeredTemplate.gupshupTemplateId,
+        templateParams,
+        "receipt"
+      );
+      if (!result.success) {
+        console.error(`[whatsapp] Template message failed for tenant ${tenantId}: ${result.error}`);
+      }
+      return;
+    }
+
+    console.warn(`[whatsapp] No approved template trigger for sale_completed, falling back to session message`);
     let message = `*${companyName}* - Recibo de compra\n\nOrden: #${orderNumber}\nTotal: ${formattedTotal}`;
     if (pointsEarned > 0) {
       message += `\n\nPuntos ganados: +${pointsEarned.toLocaleString()}`;

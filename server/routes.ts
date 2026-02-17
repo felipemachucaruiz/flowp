@@ -2086,7 +2086,8 @@ export async function registerRoutes(
             tenant?.name || "Flowp",
             tenant?.currency || "COP",
             pointsEarned,
-            receiptPdfUrl
+            receiptPdfUrl,
+            customer.name
           ).catch(err => console.error("[whatsapp] receipt notification error:", err));
         }
       }
@@ -2429,7 +2430,8 @@ export async function registerRoutes(
               tenantForWa?.name || "Flowp",
               tenantForWa?.currency || "COP",
               pointsEarned,
-              receiptPdfUrl
+              receiptPdfUrl,
+              customer.name
             ).catch(err => console.error("[whatsapp] receipt notification error:", err));
           }
         }
