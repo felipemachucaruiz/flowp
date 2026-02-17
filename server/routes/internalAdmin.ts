@@ -1506,25 +1506,54 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
     });
     const appName = (appNameConfig?.value || "").trim();
 
-    const response = await fetch(`https://api.gupshup.io/sm/api/v1/users/${encodeURIComponent(appName)}`, {
+    const senderPhoneConfig = await db.query.platformConfig.findFirst({
+      where: eq(platformConfig.key, "gupshup_sender_phone"),
+    });
+    const senderPhone = (senderPhoneConfig?.value || "").trim();
+
+    if (!appName || !senderPhone) {
+      return res.json({ success: false, error: "App name and sender phone must be configured before testing connection." });
+    }
+
+    const walletResp = await fetch("https://api.gupshup.io/sm/api/v2/wallet/balance", {
+      headers: { "apikey": apiKey },
+    });
+
+    let walletOk = false;
+    let walletBalance: number | null = null;
+    if (walletResp.ok) {
+      try {
+        const wd = await walletResp.json();
+        if (wd.status === "success") {
+          walletOk = true;
+          walletBalance = wd.balance;
+        }
+      } catch {}
+    }
+
+    const testParams = new URLSearchParams();
+    testParams.append("channel", "whatsapp");
+    testParams.append("source", senderPhone);
+    testParams.append("destination", senderPhone);
+    testParams.append("src.name", appName);
+    testParams.append("message", JSON.stringify({ isHSM: "false", type: "text", text: "Flowp connection test" }));
+
+    const response = await fetch("https://api.gupshup.io/wa/api/v1/msg", {
+      method: "POST",
       headers: {
         "apikey": apiKey,
         "Content-Type": "application/x-www-form-urlencoded",
       },
+      body: testParams.toString(),
     });
 
-    if (!response.ok) {
-      const text = await response.text();
+    const msgData = await response.json();
+    if (!response.ok || (msgData.status !== "submitted" && !msgData.messageId)) {
+      const errorMsg = msgData?.message || msgData?.error || JSON.stringify(msgData);
       if (response.status === 401 || response.status === 403) {
-        return res.json({ success: false, error: "Invalid API key - authentication failed. Verify your key and app name in the Gupshup dashboard." });
+        return res.json({ success: false, error: "Invalid API key - authentication failed. Use the API key from your Gupshup app settings (starts with sk_)." });
       }
-      let errorDetail = text;
-      try {
-        const parsed = JSON.parse(text);
-        errorDetail = parsed.message || parsed.error || text;
-      } catch {}
-      if (typeof errorDetail === "object") errorDetail = JSON.stringify(errorDetail);
-      return res.json({ success: false, error: `Messaging API: HTTP ${response.status}: ${errorDetail}` });
+      return res.json({ success: false, error: `Messaging API error: ${errorMsg}` });
     }
 
     let partnerStatus = "not_configured";
@@ -1548,7 +1577,7 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
       partnerError = tokenResult.error;
     }
 
-    return res.json({ success: true, appName, partnerStatus, partnerError });
+    return res.json({ success: true, appName, partnerStatus, partnerError, walletOk, walletBalance });
   } catch (error: any) {
     const msg = typeof error === "object" && error !== null
       ? (error.message || (error.error ? (typeof error.error === "string" ? error.error : JSON.stringify(error.error)) : JSON.stringify(error)))
