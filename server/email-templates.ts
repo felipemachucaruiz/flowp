@@ -267,8 +267,8 @@ export function getEmailWrapper(content: string, data: EmailTemplateData = {}): 
 </head>
 <body>
   <div class="email-container">
-    <div class="header">
-      ${companyLogo && companyLogo.startsWith('http') ? `<img src="${companyLogo}" alt="${companyName}" style="max-height: 60px; max-width: 200px;" />` : `<h1 class="header-text">${companyName}</h1>`}
+    <div class="header" style="background: linear-gradient(135deg, ${primaryColor} 0%, #8B5CF6 100%); padding: 32px; text-align: center;">
+      ${companyLogo && companyLogo.startsWith('http') ? `<img src="${companyLogo}" alt="${companyName}" style="max-height: 60px; max-width: 200px;" />` : `<h1 class="header-text" style="color: #ffffff; font-size: 24px; font-weight: 700; margin: 0; letter-spacing: -0.5px;">${companyName}</h1>`}
     </div>
     
     <div class="content">
