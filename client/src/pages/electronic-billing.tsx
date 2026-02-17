@@ -11,8 +11,9 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { 
   FileText, CheckCircle, XCircle, Clock, AlertTriangle, 
-  Search, Eye, Download, RefreshCw, Settings
+  Search, Eye, Download, RefreshCw, Settings, Plus
 } from "lucide-react";
+import { Link } from "wouter";
 
 export default function ElectronicBillingPage() {
   const { tenant, user } = useAuth();
@@ -140,10 +141,20 @@ export default function ElectronicBillingPage() {
             {t("ebilling.subtitle")}
           </p>
         </div>
-        <Button variant="outline" onClick={() => refetch()} data-testid="button-refresh">
-          <RefreshCw className="h-4 w-4 mr-2" />
-          {t("common.refresh")}
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {isConfigured && (
+            <Link href="/electronic-billing/support-doc">
+              <Button data-testid="button-new-support-doc">
+                <Plus className="h-4 w-4 mr-2" />
+                {t("ebilling.supportDoc.create")}
+              </Button>
+            </Link>
+          )}
+          <Button variant="outline" onClick={() => refetch()} data-testid="button-refresh">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            {t("common.refresh")}
+          </Button>
+        </div>
       </div>
 
       {!isConfigured && (

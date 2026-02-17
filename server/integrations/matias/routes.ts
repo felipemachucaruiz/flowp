@@ -16,6 +16,8 @@ import {
   getDocumentStatus,
   downloadDocumentFile,
   processPendingDocuments,
+  getNextDocumentNumber,
+  checkDocumentQuota,
 } from "./index";
 
 export const matiasRouter = Router();
@@ -195,6 +197,163 @@ matiasRouter.get("/documents/:id/pdf", async (req: Request, res: Response) => {
     res.setHeader("Content-Disposition", `inline; filename="document-${doc.documentNumber}.pdf"`);
     res.send(pdfBuffer);
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+matiasRouter.post("/support-doc", async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  if (!tenantId) {
+    return res.status(400).json({ error: "Tenant ID required" });
+  }
+
+  const { supplier, items, notes, date } = req.body;
+
+  if (!supplier || !supplier.name || !supplier.idNumber || !items || !items.length) {
+    return res.status(400).json({ error: "Missing required fields: supplier (name, idNumber), items" });
+  }
+
+  try {
+    const config = await db.query.tenantIntegrationsMatias.findFirst({
+      where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+    });
+
+    if (!config || !config.isEnabled) {
+      return res.status(400).json({ error: "MATIAS not configured or disabled" });
+    }
+
+    const resolutionNumber = config.defaultResolutionNumber || "";
+    const prefix = config.defaultPrefix || "";
+
+    if (!resolutionNumber) {
+      return res.status(400).json({ error: "No resolution number configured" });
+    }
+
+    const idTypeMap: Record<string, number> = { cc: 1, nit: 2, passport: 3, ce: 4, ti: 5 };
+    const supplierIdType = idTypeMap[supplier.idType?.toLowerCase() || "cc"] || 1;
+
+    const docDate = date ? new Date(date) : new Date();
+    const dateStr = docDate.toISOString().split("T")[0];
+    const timeStr = docDate.toISOString().split("T")[1].split(".")[0];
+
+    const roundTo2 = (n: number) => Math.round(n * 100) / 100;
+
+    const invoiceLines = items.map((item: any, idx: number) => {
+      const qty = Number(item.quantity) || 1;
+      const price = Number(item.unitPrice) || 0;
+      const taxPercent = Number(item.taxPercent) || 0;
+      const lineExtension = roundTo2(qty * price);
+      const taxAmount = roundTo2(lineExtension * taxPercent / 100);
+
+      return {
+        invoiced_quantity: String(qty),
+        unit_measure_id: 70,
+        line_extension_amount: String(lineExtension),
+        description: item.description || `Item ${idx + 1}`,
+        code: item.code || String(idx + 1),
+        type_item_identification_id: 4,
+        price_amount: String(price),
+        base_quantity: String(qty),
+        tax_totals: taxPercent > 0 ? [{
+          tax_id: "01",
+          tax_amount: taxAmount,
+          taxable_amount: lineExtension,
+          percent: taxPercent,
+        }] : [{
+          tax_id: "ZY",
+          tax_amount: 0,
+          taxable_amount: lineExtension,
+          percent: 0,
+        }],
+      };
+    });
+
+    let totalLineExtension = 0;
+    let totalTax = 0;
+    for (const item of items) {
+      const qty = Number(item.quantity) || 1;
+      const price = Number(item.unitPrice) || 0;
+      const taxPercent = Number(item.taxPercent) || 0;
+      const lineExt = roundTo2(qty * price);
+      totalLineExtension += lineExt;
+      totalTax += roundTo2(lineExt * taxPercent / 100);
+    }
+    totalLineExtension = roundTo2(totalLineExtension);
+    totalTax = roundTo2(totalTax);
+    const payableAmount = roundTo2(totalLineExtension + totalTax);
+
+    const supportDocPayload = {
+      type_document_id: 11,
+      resolution_number: resolutionNumber,
+      prefix,
+      number: 0,
+      date: dateStr,
+      time: timeStr,
+      notes: notes || "",
+      supplier: {
+        dni: supplier.idNumber,
+        company_name: supplier.name,
+        name: supplier.name,
+        phone: supplier.phone || "",
+        address: supplier.address || "",
+        email: supplier.email || "",
+        identity_document_id: supplierIdType,
+        type_organization_id: supplierIdType === 2 ? 1 : 2,
+        tax_regime_id: 2,
+        tax_level_id: 5,
+        city_id: supplier.cityId ? Number(supplier.cityId) : 149,
+      },
+      legal_monetary_totals: {
+        line_extension_amount: String(totalLineExtension),
+        tax_exclusive_amount: String(totalLineExtension),
+        tax_inclusive_amount: String(payableAmount),
+        payable_amount: String(payableAmount),
+      },
+      tax_totals: totalTax > 0 ? [{
+        tax_id: "01",
+        tax_amount: totalTax,
+        taxable_amount: totalLineExtension,
+        percent: items[0]?.taxPercent || 19,
+      }] : undefined,
+      invoice_lines: invoiceLines,
+    };
+
+    const quotaCheck = await checkDocumentQuota(tenantId);
+    if (!quotaCheck.allowed) {
+      return res.json({ success: false, message: `Quota exceeded: ${quotaCheck.reason}` });
+    }
+
+    const documentNumber = await getNextDocumentNumber(tenantId, resolutionNumber, prefix);
+
+    const finalPayload = {
+      ...supportDocPayload,
+      number: documentNumber,
+    };
+
+    const [doc] = await db.insert(matiasDocumentQueue).values({
+      tenantId,
+      kind: "SUPPORT_DOC",
+      sourceType: "purchase",
+      sourceId: `manual-${Date.now()}`,
+      resolutionNumber,
+      prefix,
+      documentNumber,
+      status: "PENDING",
+      requestJson: finalPayload,
+    }).returning();
+
+    const result = { id: doc.id, documentNumber };
+
+    const success = await processDocument(result.id);
+
+    res.json({
+      success,
+      documentId: result.id,
+      documentNumber: result.documentNumber,
+      message: success ? "Support document submitted to DIAN" : "Document queued but submission pending",
+    });
+  } catch (error: any) {
+    console.error("[MATIAS] Support doc error:", error);
     res.status(500).json({ error: error.message });
   }
 });

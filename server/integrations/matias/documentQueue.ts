@@ -14,7 +14,7 @@ import { eq, and, sql, lte, gte } from "drizzle-orm";
 import { getMatiasClient } from "./matiasClient";
 import { buildPosPayload, buildPosCreditNotePayload } from "./payloadBuilders";
 import { MATIAS_DOCUMENT_TYPES } from "./types";
-import type { MatiasPayload, MatiasNotePayload } from "./types";
+import type { MatiasPayload, MatiasNotePayload, MatiasSupportDocPayload } from "./types";
 
 interface QuotaCheckResult {
   allowed: boolean;
@@ -25,7 +25,7 @@ interface QuotaCheckResult {
   overagePolicy?: string;
 }
 
-async function checkDocumentQuota(tenantId: string): Promise<QuotaCheckResult> {
+export async function checkDocumentQuota(tenantId: string): Promise<QuotaCheckResult> {
   const now = new Date();
   
   // Find active subscription for tenant
@@ -426,7 +426,7 @@ export async function processDocument(documentId: string): Promise<boolean> {
   }
 
   try {
-    let payload: MatiasPayload | MatiasNotePayload | null = null;
+    let payload: MatiasPayload | MatiasNotePayload | MatiasSupportDocPayload | null = null;
 
     switch (doc.kind) {
       case "POS":
@@ -441,10 +441,8 @@ export async function processDocument(documentId: string): Promise<boolean> {
         // Check if requestJson already contains a built payload (from a previous attempt)
         const existingPayload = doc.requestJson as any;
         if (existingPayload?.type_document_id === MATIAS_DOCUMENT_TYPES.CREDIT_NOTE && existingPayload?.billing_reference) {
-          // Use the already-built payload from previous attempt
           payload = existingPayload as MatiasNotePayload;
         } else {
-          // Credit note data is stored in requestJson when first queued
           const cnData = doc.requestJson as {
             orderId: string;
             refundAmount: number;
@@ -474,8 +472,13 @@ export async function processDocument(documentId: string): Promise<boolean> {
         break;
       case "INVOICE":
         break;
-      case "SUPPORT_DOC":
+      case "SUPPORT_DOC": {
+        const sdPayload = doc.requestJson as any;
+        if (sdPayload?.type_document_id === MATIAS_DOCUMENT_TYPES.SUPPORT_DOCUMENT) {
+          payload = sdPayload as MatiasSupportDocPayload;
+        }
         break;
+      }
       case "SUPPORT_ADJUSTMENT":
         break;
     }
@@ -511,6 +514,9 @@ export async function processDocument(documentId: string): Promise<boolean> {
         break;
       case "POS_DEBIT_NOTE":
         response = await client.submitDebitNote(payload as MatiasNotePayload);
+        break;
+      case "SUPPORT_DOC":
+        response = await client.submitSupportDocument(payload as MatiasSupportDocPayload);
         break;
       default:
         response = { success: false, message: "Unsupported document type" };
@@ -785,16 +791,22 @@ export async function submitDocumentSync(params: {
     }
 
     // Build payload
-    let payload: MatiasPayload | MatiasNotePayload | null = null;
+    let payload: MatiasPayload | MatiasNotePayload | MatiasSupportDocPayload | null = null;
 
     switch (params.kind) {
       case "POS":
         payload = await buildPosPayload(params.sourceId, resolutionNumber, prefix, documentNumber);
         break;
+      case "SUPPORT_DOC": {
+        const existingReqJson = (params as any).requestJson;
+        if (existingReqJson?.type_document_id === MATIAS_DOCUMENT_TYPES.SUPPORT_DOCUMENT) {
+          payload = { ...existingReqJson, number: documentNumber, resolution_number: resolutionNumber, prefix } as MatiasSupportDocPayload;
+        }
+        break;
+      }
       case "POS_CREDIT_NOTE":
       case "POS_DEBIT_NOTE":
       case "INVOICE":
-      case "SUPPORT_DOC":
       case "SUPPORT_ADJUSTMENT":
         break;
     }
@@ -823,6 +835,9 @@ export async function submitDocumentSync(params: {
         break;
       case "POS_DEBIT_NOTE":
         response = await client.submitDebitNote(payload as MatiasNotePayload);
+        break;
+      case "SUPPORT_DOC":
+        response = await client.submitSupportDocument(payload as MatiasSupportDocPayload);
         break;
       default:
         response = { success: false, message: "Unsupported document type" };
