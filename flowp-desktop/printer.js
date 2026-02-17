@@ -376,6 +376,14 @@ async function buildReceipt(data) {
   // Initialize printer
   commands.push(0x1B, 0x40); // ESC @
   
+  // Open cash drawer FIRST if requested (before receipt prints)
+  if (data.openCashDrawer) {
+    // ESC p 0 t1 t2 - kick cash drawer pin 2
+    commands.push(0x1B, 0x70, 0x00, 0x32, 0xFA);
+    // Also try pin 5 for compatibility with different drawer models
+    commands.push(0x1B, 0x70, 0x01, 0x32, 0xFA);
+  }
+  
   // Center alignment
   commands.push(0x1B, 0x61, 0x01);
   
@@ -548,24 +556,27 @@ async function buildReceipt(data) {
     for (var j = 0; j < data.items.length; j++) {
       var item = data.items[j];
       var qty = item.quantity || 1;
-      var name = (item.name || '').substring(0, 20);
+      var name = (item.name || '').substring(0, 24);
       var itemTotal = item.total || 0;
       var unitPrice = item.unitPrice || item.price || 0;
       
-      // Item line with quantity and name
-      commands.push.apply(commands, Buffer.from(qty + 'x ' + name + '\n'));
+      // Line 1: qty x name
+      var itemLine = qty + 'x ' + name;
+      commands.push.apply(commands, Buffer.from(itemLine + '\n'));
       
-      // Price line - show unit price if different from total (when qty > 1)
+      // Line 2: right-aligned total (with unit price if qty > 1)
+      commands.push(0x1B, 0x61, 0x02); // Right align
       if (qty > 1 && unitPrice > 0) {
-        commands.push.apply(commands, Buffer.from('   @' + currencySymbol + formatNumber(unitPrice) + ' = ' + currencySymbol + formatNumber(itemTotal) + '\n'));
+        commands.push.apply(commands, Buffer.from('@' + currencySymbol + formatNumber(unitPrice) + ' = ' + currencySymbol + formatNumber(itemTotal) + '\n'));
       } else {
-        commands.push.apply(commands, Buffer.from('   ' + currencySymbol + formatNumber(itemTotal) + '\n'));
+        commands.push.apply(commands, Buffer.from(currencySymbol + formatNumber(itemTotal) + '\n'));
       }
+      commands.push(0x1B, 0x61, 0x00); // Back to left align
       
       // Modifiers if any
       if (item.modifiers && item.modifiers.length > 0) {
         var mods = Array.isArray(item.modifiers) ? item.modifiers.join(', ') : item.modifiers;
-        commands.push.apply(commands, Buffer.from('   + ' + mods + '\n'));
+        commands.push.apply(commands, Buffer.from('  + ' + mods + '\n'));
       }
     }
   }
@@ -579,14 +590,34 @@ async function buildReceipt(data) {
     commands.push.apply(commands, Buffer.from(tr.subtotal + ': ' + currencySymbol + formatNumber(data.subtotal) + '\n'));
   }
   
-  // Support both 'tax' and 'taxAmount' field names
-  var taxAmount = data.tax !== undefined ? data.tax : data.taxAmount;
-  if (taxAmount !== undefined && taxAmount > 0) {
-    var taxLabel = tr.tax;
-    if (data.taxRate) {
-      taxLabel = tr.tax + ' (' + data.taxRate + '%)';
+  // Support taxes array (individual tax lines) or single tax amount
+  if (data.taxes && data.taxes.length > 0) {
+    for (var ti = 0; ti < data.taxes.length; ti++) {
+      var taxEntry = data.taxes[ti];
+      // Abbreviate long tax names to fit thermal paper (max ~18 chars for label)
+      var taxName = taxEntry.name || tr.tax;
+      if (taxName.length > 18) {
+        // Use abbreviation: e.g. "IVA - Impuesto al Valor Agregado" -> "IVA"
+        var dashIndex = taxName.indexOf(' - ');
+        if (dashIndex > 0) {
+          taxName = taxName.substring(0, dashIndex);
+        } else {
+          taxName = taxName.substring(0, 18);
+        }
+      }
+      var taxLineLabel = taxName + ' (' + (taxEntry.rate || 0) + '%)';
+      commands.push.apply(commands, Buffer.from(taxLineLabel + ': ' + currencySymbol + formatNumber(taxEntry.amount || 0) + '\n'));
     }
-    commands.push.apply(commands, Buffer.from(taxLabel + ': ' + currencySymbol + formatNumber(taxAmount) + '\n'));
+  } else {
+    // Support both 'tax' and 'taxAmount' field names (single tax)
+    var taxAmount = data.tax !== undefined ? data.tax : data.taxAmount;
+    if (taxAmount !== undefined && taxAmount > 0) {
+      var taxLabel = tr.tax;
+      if (data.taxRate) {
+        taxLabel = tr.tax + ' (' + data.taxRate + '%)';
+      }
+      commands.push.apply(commands, Buffer.from(taxLabel + ': ' + currencySymbol + formatNumber(taxAmount) + '\n'));
+    }
   }
   
   if (data.discount && data.discount > 0) {
@@ -605,9 +636,10 @@ async function buildReceipt(data) {
   // Payment info - support payments array
   if (data.payments && data.payments.length > 0) {
     commands.push(0x0A);
+    var paymentLabels = { 'cash': tr.cash, 'card': (lang === 'es' ? 'Tarjeta' : lang === 'pt' ? 'Cartao' : 'Card') };
     for (var p = 0; p < data.payments.length; p++) {
       var payment = data.payments[p];
-      var payType = payment.type ? payment.type.toUpperCase() : 'PAYMENT';
+      var payType = paymentLabels[payment.type] || (payment.type ? payment.type.toUpperCase() : 'PAYMENT');
       commands.push.apply(commands, Buffer.from(payType + ': ' + currencySymbol + formatNumber(payment.amount) + '\n'));
     }
   } else if (data.paymentMethod) {
@@ -668,9 +700,14 @@ async function buildReceipt(data) {
     commands.push(0x0A);
     
     // QR Code - print as bitmap if available
-    if (data.electronicBilling.qrCode && Jimp) {
+    // Generate QR from explicit qrCode field, or fall back to DIAN URL from CUFE
+    var qrContent = data.electronicBilling.qrCode;
+    if (!qrContent && data.electronicBilling.cufe) {
+      qrContent = 'https://catalogo-vpfe.dian.gov.co/User/SearchDocument?DocumentKey=' + data.electronicBilling.cufe;
+    }
+    
+    if (qrContent && Jimp) {
       try {
-        // Generate QR code using the qrcode library if available, otherwise skip
         var QRCode = null;
         try {
           QRCode = require('qrcode');
@@ -679,14 +716,12 @@ async function buildReceipt(data) {
         }
         
         if (QRCode) {
-          // Generate QR code as data URL
-          var qrDataUrl = await QRCode.toDataURL(data.electronicBilling.qrCode, {
+          var qrDataUrl = await QRCode.toDataURL(qrContent, {
             width: 200,
             margin: 1,
             errorCorrectionLevel: 'M'
           });
           
-          // Convert to ESC/POS bitmap (200px width for thermal printer)
           var qrBuffer = await imageToEscPos(qrDataUrl, 200);
           commands.push.apply(commands, qrBuffer);
           commands.push(0x0A);
@@ -796,8 +831,12 @@ async function printReceipt(printerName, receiptData) {
 
 // Open cash drawer
 function openCashDrawer(printerName) {
-  // ESC p 0 25 250 - standard cash drawer command
-  var drawerCommand = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA]);
+  // Send cash drawer kick on both pins for maximum compatibility
+  // ESC p m t1 t2 - m=pin (0=pin2, 1=pin5), t1=on-time, t2=off-time
+  var drawerCommand = Buffer.from([
+    0x1B, 0x70, 0x00, 0x32, 0xFA,  // Pin 2: on=100ms, off=500ms
+    0x1B, 0x70, 0x01, 0x32, 0xFA   // Pin 5: on=100ms, off=500ms
+  ]);
   return printRaw(printerName, drawerCommand);
 }
 
