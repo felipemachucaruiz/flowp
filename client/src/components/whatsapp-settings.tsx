@@ -148,7 +148,7 @@ export function WhatsAppSettings() {
       if (!res.ok) throw new Error("Failed to load usage");
       return res.json();
     },
-    enabled: !!tenant?.id && !!config?.configured,
+    enabled: !!tenant?.id,
   });
 
   const { data: packages, isLoading: packagesLoading } = useQuery<WhatsAppPackage[]>({
@@ -173,7 +173,7 @@ export function WhatsAppSettings() {
       if (!res.ok) throw new Error("Failed to load logs");
       return res.json();
     },
-    enabled: !!tenant?.id && !!config?.configured,
+    enabled: !!tenant?.id,
   });
 
   const subscribeMutation = useMutation({

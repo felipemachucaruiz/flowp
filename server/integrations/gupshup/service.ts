@@ -58,9 +58,24 @@ export function decrypt(encryptedText: string): string {
 }
 
 export async function getWhatsappConfig(tenantId: string) {
-  return db.query.tenantWhatsappIntegrations.findFirst({
+  const config = await db.query.tenantWhatsappIntegrations.findFirst({
     where: eq(tenantWhatsappIntegrations.tenantId, tenantId),
   });
+  return config;
+}
+
+export async function ensureWhatsappConfig(tenantId: string) {
+  let config = await db.query.tenantWhatsappIntegrations.findFirst({
+    where: eq(tenantWhatsappIntegrations.tenantId, tenantId),
+  });
+  if (!config) {
+    const [created] = await db.insert(tenantWhatsappIntegrations).values({
+      tenantId,
+      enabled: true,
+    }).returning();
+    config = created;
+  }
+  return config;
 }
 
 export async function getDecryptedApiKey(tenantId: string): Promise<string | null> {

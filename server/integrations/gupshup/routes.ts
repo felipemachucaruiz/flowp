@@ -14,6 +14,7 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import {
   encrypt,
   getWhatsappConfig,
+  ensureWhatsappConfig,
   testConnection,
   sendTemplateMessage,
   sendSessionMessage,
@@ -51,6 +52,9 @@ whatsappRouter.get("/addon-status", async (req: Request, res: Response) => {
   }
   try {
     const check = await requireWhatsappAddon(tenantId);
+    if (check.allowed) {
+      await ensureWhatsappConfig(tenantId);
+    }
     return res.json({ hasAddon: check.allowed });
   } catch {
     return res.json({ hasAddon: false });
@@ -60,7 +64,7 @@ whatsappRouter.get("/addon-status", async (req: Request, res: Response) => {
 whatsappRouter.get("/config", whatsappAddonGate, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   try {
-    const config = await getWhatsappConfig(tenantId);
+    const config = await ensureWhatsappConfig(tenantId);
     if (!config) {
       return res.json({ configured: false });
     }
