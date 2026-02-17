@@ -244,26 +244,25 @@ matiasRouter.post("/support-doc", async (req: Request, res: Response) => {
       const taxPercent = Number(item.taxPercent) || 0;
       const lineExtension = roundTo2(qty * price);
       const taxAmount = roundTo2(lineExtension * taxPercent / 100);
+      let itemCode = (item.code || String(idx + 1)).replace(/[^a-zA-Z0-9\-_]/g, '').substring(0, 20);
+      if (!itemCode) itemCode = String(idx + 1);
 
       return {
         invoiced_quantity: String(qty),
         unit_measure_id: 70,
-        line_extension_amount: String(lineExtension),
-        description: item.description || `Item ${idx + 1}`,
-        code: item.code || String(idx + 1),
+        line_extension_amount: lineExtension.toFixed(2),
+        free_of_charge_indicator: false,
+        description: (item.description || `Item ${idx + 1}`).substring(0, 300),
+        code: itemCode,
         type_item_identification_id: 4,
-        price_amount: String(price),
+        reference_price_id: 1,
+        price_amount: price.toFixed(2),
         base_quantity: String(qty),
-        tax_totals: taxPercent > 0 ? [{
-          tax_id: "01",
-          tax_amount: taxAmount,
-          taxable_amount: lineExtension,
+        tax_totals: [{
+          tax_id: 1,
+          tax_amount: roundTo2(taxAmount),
+          taxable_amount: roundTo2(lineExtension),
           percent: taxPercent,
-        }] : [{
-          tax_id: "ZY",
-          tax_amount: 0,
-          taxable_amount: lineExtension,
-          percent: 0,
         }],
       };
     });
@@ -281,6 +280,33 @@ matiasRouter.post("/support-doc", async (req: Request, res: Response) => {
     totalLineExtension = roundTo2(totalLineExtension);
     totalTax = roundTo2(totalTax);
     const payableAmount = roundTo2(totalLineExtension + totalTax);
+
+    const paymentMethodId = supplier.paymentMethodId || 1;
+    const meansPaymentId = supplier.meansPaymentId || 10;
+
+    const taxTotalsArray: any[] = [];
+    const taxGroups: Record<number, { taxAmount: number; taxableAmount: number }> = {};
+    for (const item of items) {
+      const qty = Number(item.quantity) || 1;
+      const price = Number(item.unitPrice) || 0;
+      const taxPercent = Number(item.taxPercent) || 0;
+      const lineExt = roundTo2(qty * price);
+      const taxAmt = roundTo2(lineExt * taxPercent / 100);
+      if (!taxGroups[taxPercent]) {
+        taxGroups[taxPercent] = { taxAmount: 0, taxableAmount: 0 };
+      }
+      taxGroups[taxPercent].taxAmount += taxAmt;
+      taxGroups[taxPercent].taxableAmount += lineExt;
+    }
+    for (const [pct, grp] of Object.entries(taxGroups)) {
+      const percent = Number(pct);
+      taxTotalsArray.push({
+        tax_id: percent > 0 ? 1 : 13,
+        tax_amount: roundTo2(grp.taxAmount),
+        taxable_amount: roundTo2(grp.taxableAmount),
+        percent,
+      });
+    }
 
     const supportDocPayload = {
       type_document_id: 11,
@@ -304,18 +330,23 @@ matiasRouter.post("/support-doc", async (req: Request, res: Response) => {
         city_id: supplier.cityId ? Number(supplier.cityId) : 149,
       },
       legal_monetary_totals: {
-        line_extension_amount: String(totalLineExtension),
-        tax_exclusive_amount: String(totalLineExtension),
-        tax_inclusive_amount: String(payableAmount),
-        payable_amount: String(payableAmount),
+        line_extension_amount: totalLineExtension.toFixed(2),
+        tax_exclusive_amount: totalLineExtension.toFixed(2),
+        tax_inclusive_amount: payableAmount.toFixed(2),
+        payable_amount: payableAmount.toFixed(2),
       },
-      tax_totals: totalTax > 0 ? [{
-        tax_id: "01",
-        tax_amount: totalTax,
+      tax_totals: taxTotalsArray.length > 0 ? taxTotalsArray : [{
+        tax_id: 13,
+        tax_amount: 0,
         taxable_amount: totalLineExtension,
-        percent: items[0]?.taxPercent || 19,
-      }] : undefined,
+        percent: 0,
+      }],
       invoice_lines: invoiceLines,
+      payments: [{
+        payment_method_id: paymentMethodId,
+        means_payment_id: meansPaymentId,
+        value_paid: payableAmount.toFixed(2),
+      }],
     };
 
     const quotaCheck = await checkDocumentQuota(tenantId);
