@@ -47,7 +47,7 @@ function makeAbsoluteUrl(path: string | null | undefined): string | undefined {
   if (!path) return undefined;
   if (path.startsWith("http")) return path;
   if (path.startsWith("data:")) return path;
-  const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "flowp.replit.app"}`;
+  const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "pos.flowp.app"}`;
   return `${appUrl}${path.startsWith("/") ? "" : "/"}${path}`;
 }
 import { generateInternalToken } from "./middleware/internalAuth";
@@ -517,7 +517,7 @@ export async function registerRoutes(
         displayLanguage = tenant?.language || "en";
       }
 
-      const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || process.env.APP_URL || 'https://flowp.replit.app';
+      const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || process.env.APP_URL || 'https://pos.flowp.app';
       emailService.sendPasswordResetEmail(email, token, user.name || user.username, displayLanguage, undefined, origin)
         .catch(err => console.error("Failed to send password reset email:", err));
 
@@ -2075,7 +2075,7 @@ export async function registerRoutes(
           const orderTotal = parseFloat(tab.total);
           const pointsEarned = Math.floor(orderTotal / 1000);
           const token = createReceiptToken(id, tenantId);
-          const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "flowp.replit.app"}`;
+          const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "pos.flowp.app"}`;
           const receiptPdfUrl = `${appUrl}/api/receipt-pdf/${token}`;
           const fullPhone = `${customer.phoneCountryCode || "57"}${customer.phone.replace(/\D/g, "")}`;
           sendReceiptNotification(
@@ -2419,7 +2419,7 @@ export async function registerRoutes(
           if (customer.phone) {
             const tenantForWa = await storage.getTenant(tenantId);
             const token = createReceiptToken(order.id, tenantId);
-            const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "flowp.replit.app"}`;
+            const appUrl = process.env.APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN || "pos.flowp.app"}`;
             const receiptPdfUrl = `${appUrl}/api/receipt-pdf/${token}`;
             const fullPhone = `${customer.phoneCountryCode || "57"}${customer.phone.replace(/\D/g, "")}`;
             sendReceiptNotification(

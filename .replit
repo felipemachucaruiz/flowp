@@ -49,3 +49,4 @@ defaultBucketID = "replit-objstore-5fed7d17-9074-4f93-901e-16efb3e94697"
 
 [userenv.shared]
 INTERNAL_ADMIN_SECRET = "flowp-admin-setup-2026"
+APP_URL = "https://pos.flowp.app"

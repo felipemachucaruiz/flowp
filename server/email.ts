@@ -183,7 +183,7 @@ class EmailService {
 
   async sendPasswordResetEmail(email: string, resetToken: string, userName: string, language: string = "en", tenantData?: { companyName?: string; companyLogo?: string }, baseUrl?: string): Promise<boolean> {
     const customTemplate = await storage.getEmailTemplate("password_reset");
-    const appUrl = baseUrl || process.env.APP_URL || 'https://flowp.replit.app';
+    const appUrl = baseUrl || process.env.APP_URL || 'https://pos.flowp.app';
     const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
     
     let subject: string;
