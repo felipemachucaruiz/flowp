@@ -149,7 +149,7 @@ export async function getPartnerToken(): Promise<PartnerTokenResult> {
   }
 
   try {
-    const keys = ["gupshup_partner_email", "gupshup_partner_secret"];
+    const keys = ["gupshup_profile_api_key", "gupshup_partner_email", "gupshup_partner_secret"];
     const configs = await db.select()
       .from(platformConfig)
       .where(inArray(platformConfig.key, keys));
@@ -157,6 +157,16 @@ export async function getPartnerToken(): Promise<PartnerTokenResult> {
     const configMap: Record<string, any> = {};
     for (const c of configs) {
       configMap[c.key] = c;
+    }
+
+    const profileApiKeyRow = configMap["gupshup_profile_api_key"];
+    if (profileApiKeyRow?.encryptedValue) {
+      const profileKey = decrypt(profileApiKeyRow.encryptedValue);
+      cachedPartnerToken = {
+        token: profileKey,
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      };
+      return { status: "ok", token: profileKey };
     }
 
     const emailRow = configMap["gupshup_partner_email"];

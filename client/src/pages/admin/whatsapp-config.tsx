@@ -27,6 +27,7 @@ interface GlobalConfig {
   enabled: boolean;
   partnerEmail: string;
   hasPartnerSecret: boolean;
+  hasProfileApiKey: boolean;
   appId: string;
 }
 
@@ -41,6 +42,7 @@ export default function AdminWhatsAppConfig() {
   const [enabled, setEnabled] = useState(false);
   const [partnerEmail, setPartnerEmail] = useState("");
   const [partnerSecret, setPartnerSecret] = useState("");
+  const [profileApiKey, setProfileApiKey] = useState("");
   const [appId, setAppId] = useState("");
   const { data: config, isLoading } = useQuery<GlobalConfig>({
     queryKey: ["/api/internal-admin/whatsapp/global-config"],
@@ -75,6 +77,9 @@ export default function AdminWhatsAppConfig() {
       }
       if (partnerSecret) {
         payload.partnerSecret = partnerSecret;
+      }
+      if (profileApiKey) {
+        payload.profileApiKey = profileApiKey;
       }
       const res = await adminFetch("/api/internal-admin/whatsapp/global-config", {
         method: "POST",
@@ -267,13 +272,34 @@ export default function AdminWhatsAppConfig() {
               <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
                 <Shield className="w-4 h-4 text-muted-foreground mt-0.5" />
                 <p className="text-xs text-muted-foreground">
-                  {t("admin.whatsapp_partner_note" as any) || "Partner API credentials are required for creating and managing WhatsApp message templates. Get these from the Gupshup Partner Portal (Settings > Generate Secret)."}
+                  {t("admin.whatsapp_partner_note" as any) || "Profile API Key is required for managing WhatsApp message templates. Get it from Gupshup Dashboard > Profile > API Keys."}
+                </p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium" htmlFor="profile-api-key">
+                  {t("admin.whatsapp_profile_api_key" as any) || "Profile API Key"}
+                </label>
+                <Input
+                  id="profile-api-key"
+                  type="password"
+                  value={profileApiKey}
+                  onChange={(e) => setProfileApiKey(e.target.value)}
+                  placeholder={
+                    config?.hasProfileApiKey
+                      ? "********** (stored encrypted)"
+                      : "Enter Gupshup Profile API Key"
+                  }
+                  data-testid="input-profile-api-key"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("admin.whatsapp_profile_api_key_note" as any) || "Found in Gupshup Dashboard > Profile section. Required for template submission and sync."}
                 </p>
               </div>
 
               <div className="space-y-1">
                 <label className="text-sm font-medium" htmlFor="partner-email">
-                  {t("admin.whatsapp_partner_email" as any) || "Partner Email"}
+                  {t("admin.whatsapp_partner_email" as any) || "Partner Email (optional)"}
                 </label>
                 <Input
                   id="partner-email"
@@ -287,7 +313,7 @@ export default function AdminWhatsAppConfig() {
 
               <div className="space-y-1">
                 <label className="text-sm font-medium" htmlFor="partner-secret">
-                  {t("admin.whatsapp_partner_secret" as any) || "Client Secret"}
+                  {t("admin.whatsapp_partner_secret" as any) || "Client Secret (optional)"}
                 </label>
                 <Input
                   id="partner-secret"
@@ -302,7 +328,7 @@ export default function AdminWhatsAppConfig() {
                   data-testid="input-partner-secret"
                 />
                 <p className="text-xs text-muted-foreground">
-                  {t("admin.whatsapp_partner_secret_note" as any) || "Generated from Settings page in the Gupshup Partner Portal"}
+                  {t("admin.whatsapp_partner_secret_note" as any) || "Fallback: used only if Profile API Key is not set"}
                 </p>
               </div>
 

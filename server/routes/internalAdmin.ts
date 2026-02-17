@@ -1402,14 +1402,14 @@ internalAdminRouter.get("/whatsapp/usage", internalAuth, async (req: Request, re
 
 internalAdminRouter.get("/whatsapp/global-config", internalAuth, async (req: Request, res: Response) => {
   try {
-    const keys = ["gupshup_api_key", "gupshup_app_name", "gupshup_sender_phone", "whatsapp_global_enabled", "gupshup_partner_email", "gupshup_partner_secret", "gupshup_app_id"];
+    const keys = ["gupshup_api_key", "gupshup_app_name", "gupshup_sender_phone", "whatsapp_global_enabled", "gupshup_partner_email", "gupshup_partner_secret", "gupshup_profile_api_key", "gupshup_app_id"];
     const configs = await db.select()
       .from(platformConfig)
       .where(inArray(platformConfig.key, keys));
 
     const configMap: Record<string, string | null> = {};
     for (const c of configs) {
-      if (c.key === "gupshup_api_key" || c.key === "gupshup_partner_secret") {
+      if (c.key === "gupshup_api_key" || c.key === "gupshup_partner_secret" || c.key === "gupshup_profile_api_key") {
         configMap[c.key] = c.encryptedValue ? "configured" : null;
       } else {
         configMap[c.key] = c.value;
@@ -1423,6 +1423,7 @@ internalAdminRouter.get("/whatsapp/global-config", internalAuth, async (req: Req
       enabled: configMap["whatsapp_global_enabled"] === "true",
       partnerEmail: configMap["gupshup_partner_email"] || "",
       hasPartnerSecret: configMap["gupshup_partner_secret"] === "configured",
+      hasProfileApiKey: configMap["gupshup_profile_api_key"] === "configured",
       appId: configMap["gupshup_app_id"] || "",
     });
   } catch (error: any) {
@@ -1432,7 +1433,7 @@ internalAdminRouter.get("/whatsapp/global-config", internalAuth, async (req: Req
 
 internalAdminRouter.post("/whatsapp/global-config", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
-    const { gupshupApiKey, appName, senderPhone, enabled, partnerEmail, partnerSecret, appId } = req.body;
+    const { gupshupApiKey, appName, senderPhone, enabled, partnerEmail, partnerSecret, profileApiKey, appId } = req.body;
 
     const upsertConfig = async (key: string, value?: string, encryptedValue?: string) => {
       const existing = await db.query.platformConfig.findFirst({
@@ -1474,6 +1475,11 @@ internalAdminRouter.post("/whatsapp/global-config", internalAuth, requireRole(["
     if (partnerSecret) {
       const trimmedSecret = partnerSecret.trim();
       await upsertConfig("gupshup_partner_secret", null, gupshupEncrypt(trimmedSecret));
+      shouldClearPartnerCache = true;
+    }
+    if (profileApiKey) {
+      const trimmedProfileKey = profileApiKey.trim();
+      await upsertConfig("gupshup_profile_api_key", null, gupshupEncrypt(trimmedProfileKey));
       shouldClearPartnerCache = true;
     }
     if (appId !== undefined) {
