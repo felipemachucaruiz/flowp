@@ -601,13 +601,15 @@ export async function sendReceiptNotification(
     const triggeredTemplate = await getTriggeredTemplate(tenantId, "sale_completed");
     if (triggeredTemplate) {
       console.log(`[whatsapp] Using approved template "${triggeredTemplate.templateName}" (ID: ${triggeredTemplate.gupshupTemplateId}) for sale_completed`);
-      const templateParams = [
+      const varCount = (triggeredTemplate.bodyText || "").match(/\{\{\d+\}\}/g)?.length || 4;
+      const allParams = [
         customerName || "Cliente",
         orderNumber,
         formattedTotal,
         companyName,
         pointsEarned > 0 ? `+${pointsEarned.toLocaleString()}` : "0",
       ];
+      const templateParams = allParams.slice(0, varCount);
       const result = await sendTemplateMessage(
         tenantId,
         customerPhone,
@@ -704,9 +706,12 @@ export async function sendLowStockNotification(
 }
 
 export async function processDeliveryStatus(payload: any): Promise<void> {
-  const msgId = payload.gsId || payload.messageId || payload.id;
+  const msgId = payload.gsId || payload.id || payload.messageId;
   const evtType = (payload.type || payload.eventType || "").toString().toLowerCase();
-  if (!msgId) return;
+  if (!msgId) {
+    console.log(`[whatsapp] No messageId found in delivery status payload, skipping`);
+    return;
+  }
 
   let status: "sent" | "delivered" | "read" | "failed" = "sent";
   if (evtType === "delivered") status = "delivered";

@@ -725,8 +725,9 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
 
     if (payload.type === "message-event") {
       const eventPayload = payload.payload || payload;
-      console.log("[WhatsApp Webhook] Delivery event:", eventPayload.type || eventPayload.eventType, "| msgId:", eventPayload.gsId || eventPayload.messageId, "| dest:", eventPayload.destination, "| error:", eventPayload.errorCode, eventPayload.reason);
-      await processDeliveryStatus(eventPayload);
+      const innerPayload = eventPayload.payload || {};
+      console.log("[WhatsApp Webhook] Delivery event:", eventPayload.type, "| gsId:", eventPayload.gsId, "| id:", eventPayload.id, "| dest:", eventPayload.destination, "| errorCode:", innerPayload.code, "| reason:", innerPayload.reason);
+      await processDeliveryStatus({ ...eventPayload, errorCode: innerPayload.code, reason: innerPayload.reason });
       return res.status(200).json({ status: "ok" });
     }
 
