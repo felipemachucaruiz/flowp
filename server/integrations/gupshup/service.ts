@@ -208,6 +208,14 @@ export async function getPartnerToken(): Promise<PartnerTokenResult> {
   }
 }
 
+export async function getProfileApiKey(): Promise<string | null> {
+  const config = await db.query.platformConfig.findFirst({
+    where: eq(platformConfig.key, "gupshup_profile_api_key"),
+  });
+  if (!config?.encryptedValue) return null;
+  return decrypt(config.encryptedValue);
+}
+
 export async function getGupshupAppId(): Promise<string | null> {
   const config = await db.query.platformConfig.findFirst({
     where: eq(platformConfig.key, "gupshup_app_id"),
