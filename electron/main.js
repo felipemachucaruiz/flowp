@@ -257,10 +257,17 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
       : '';
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-      <style>body{font-family:monospace;font-size:${receipt.fontSize || 12}px;margin:0;padding:4px;width:280px;}
-      table{width:100%;border-collapse:collapse;}td{padding:1px 0;vertical-align:top;}
+      <style>
+      @page{margin:0;size:auto;}
+      *{box-sizing:border-box;}
+      body{font-family:monospace;font-size:${receipt.fontSize || 12}px;margin:0;padding:2mm;width:100%;max-width:72mm;}
+      table{width:100%;border-collapse:collapse;table-layout:fixed;}
+      td{padding:1px 0;vertical-align:top;overflow:hidden;text-overflow:ellipsis;}
+      td.right{width:35%;white-space:nowrap;}
       .right{text-align:right;}.center{text-align:center;}.bold{font-weight:bold;}
-      .line{border-top:1px dashed #000;margin:4px 0;}</style></head><body>
+      .line{border-top:1px dashed #000;margin:4px 0;}
+      img{max-width:100%!important;}
+      </style></head><body>
       ${logoHtml}
       <div class="center bold">${receipt.businessName || ''}</div>
       ${receipt.taxId ? `<div class="center">${receipt.taxIdLabel || 'NIT'}: ${receipt.taxId}</div>` : ''}
@@ -299,7 +306,7 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
 
     printWin.webContents.on('did-finish-load', () => {
       printWin.webContents.print(
-        { silent: true, printBackground: true, deviceName: printerName },
+        { silent: true, printBackground: true, deviceName: printerName, margins: { marginType: 'none' } },
         (success, failureReason) => {
           printWin.close();
           if (success && receipt.openCashDrawer) {
