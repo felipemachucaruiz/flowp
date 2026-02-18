@@ -165,6 +165,49 @@ ipcMain.handle('get-printers', async () => {
   }
 });
 
+// Fetch a remote/relative image URL and return as base64 data URL
+async function fetchImageAsBase64(url) {
+  if (!url) return null;
+  if (url.startsWith('data:')) return url;
+  try {
+    let fullUrl = url;
+    if (url.startsWith('/')) {
+      fullUrl = (isDev ? 'http://localhost:5000' : prodUrl) + url;
+    }
+    const protocol = fullUrl.startsWith('https') ? require('https') : require('http');
+    return new Promise((resolve) => {
+      protocol.get(fullUrl, (response) => {
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          const redirectUrl = response.headers.location;
+          if (redirectUrl) {
+            fetchImageAsBase64(redirectUrl).then(resolve);
+            return;
+          }
+        }
+        if (response.statusCode !== 200) {
+          console.log('Failed to fetch logo image:', response.statusCode, fullUrl);
+          resolve(null);
+          return;
+        }
+        const contentType = response.headers['content-type'] || 'image/png';
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(chunk));
+        response.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          resolve(`data:${contentType};base64,${buffer.toString('base64')}`);
+        });
+        response.on('error', () => resolve(null));
+      }).on('error', (e) => {
+        console.error('Logo fetch error:', e.message);
+        resolve(null);
+      });
+    });
+  } catch (e) {
+    console.error('Logo fetch exception:', e.message);
+    return null;
+  }
+}
+
 ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
   // Generate QR code data URL if electronic billing info exists
   let qrDataUrl = '';
@@ -181,12 +224,19 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
     }
   }
 
+  // Convert logo URL to base64 data URL so it works in data: HTML context
+  let logoDataUrl = null;
+  if (receipt.logoUrl) {
+    logoDataUrl = await fetchImageAsBase64(receipt.logoUrl);
+  }
+
   return new Promise((resolve) => {
     const items = receipt.items || [];
     const payments = receipt.payments || [];
     const taxes = receipt.taxes || [];
-    const logoHtml = receipt.logoUrl
-      ? `<div style="text-align:center;margin-bottom:4px;"><img src="${receipt.logoUrl}" style="max-width:100%;height:auto;" /></div>`
+    const logoMaxWidth = receipt.logoSize ? `${receipt.logoSize}px` : '100%';
+    const logoHtml = logoDataUrl
+      ? `<div style="text-align:center;margin-bottom:4px;"><img src="${logoDataUrl}" style="max-width:${logoMaxWidth};height:auto;" /></div>`
       : '';
     const customerHtml = receipt.customerInfo
       ? `<div style="border-top:1px dashed #000;padding-top:4px;margin-top:4px;font-size:11px;">
