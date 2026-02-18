@@ -498,24 +498,31 @@ function PrintBridgeSettings() {
         if (detectedPrinters.length > 0) {
           setPrinters(detectedPrinters);
           setIsAuthenticated(true);
-          // Sync selected printer with server config
-          const configuredPrinter = status.printerConfig?.printerName || '';
-          setSelectedPrinter(configuredPrinter);
+          if (isElectron) {
+            const savedPrinter = localStorage.getItem('flowp_electron_printer');
+            const savedBarcode = localStorage.getItem('flowp_electron_barcode_printer');
+            if (savedPrinter) {
+              setSelectedPrinter(savedPrinter);
+            }
+            if (savedBarcode) {
+              setSelectedBarcodePrinter(savedBarcode);
+            }
+          } else {
+            const configuredPrinter = status.printerConfig?.printerName || '';
+            setSelectedPrinter(configuredPrinter);
+          }
         } else {
           setPrinters([]);
           setIsAuthenticated(false);
-          setSelectedPrinter('');
         }
       } else {
         setIsAuthenticated(false);
         setPrinters([]);
-        setSelectedPrinter('');
       }
     } catch {
       setBridgeStatus({ isAvailable: false });
       setIsAuthenticated(false);
       setPrinters([]);
-      setSelectedPrinter('');
     }
     setIsChecking(false);
   };
@@ -547,18 +554,14 @@ function PrintBridgeSettings() {
   };
 
   useEffect(() => {
-    checkBridgeStatus();
     if (isElectron) {
       const savedPrinter = localStorage.getItem('flowp_electron_printer');
-      if (savedPrinter) {
-        setSelectedPrinter(savedPrinter);
-      }
-      const savedBarcodePrinter = localStorage.getItem('flowp_electron_barcode_printer');
-      if (savedBarcodePrinter) {
-        setSelectedBarcodePrinter(savedBarcodePrinter);
-      }
+      if (savedPrinter) setSelectedPrinter(savedPrinter);
+      const savedBarcode = localStorage.getItem('flowp_electron_barcode_printer');
+      if (savedBarcode) setSelectedBarcodePrinter(savedBarcode);
     }
-    const interval = setInterval(checkBridgeStatus, 10000);
+    checkBridgeStatus();
+    const interval = setInterval(checkBridgeStatus, 30000);
     return () => clearInterval(interval);
   }, [isElectron]);
 
