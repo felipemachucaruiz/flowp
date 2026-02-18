@@ -117,15 +117,11 @@ export default function AdminWhatsAppConfig() {
     onSuccess: (data: any) => {
       if (data.success) {
         let description = "";
-        if (data.walletOk) {
-          description += "API Key: OK";
-          if (data.walletBalance != null) description += ` (Balance: ${data.walletBalance})`;
-          description += ". ";
-        }
         if (data.appVerified) {
-          description += "App: Verified. ";
-        } else if (data.appError) {
-          description += `App: ${data.appError}. `;
+          description += "API Key: OK. App: Verified. ";
+        }
+        if (data.walletBalance != null) {
+          description += `Balance: ${data.walletBalance}. `;
         }
         if (data.partnerStatus === "ok") {
           description += "Template API: OK";

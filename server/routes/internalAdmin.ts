@@ -1521,46 +1521,42 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
       return res.json({ success: false, error: "App name and sender phone must be configured before testing connection." });
     }
 
-    // Step 1: Verify API key via wallet balance check
-    const walletResp = await fetch("https://api.gupshup.io/sm/api/v2/wallet/balance", {
-      headers: { "apikey": apiKey },
-    });
-
-    let walletOk = false;
-    let walletBalance: number | null = null;
-    if (walletResp.ok) {
-      try {
-        const wd = await walletResp.json();
-        if (wd.status === "success") {
-          walletOk = true;
-          walletBalance = wd.balance;
-        }
-      } catch {}
-    }
-    
-    if (!walletOk) {
-      if (walletResp.status === 401 || walletResp.status === 403) {
-        return res.json({ success: false, error: "Invalid API key - authentication failed. Check your Gupshup API key." });
-      }
-      return res.json({ success: false, error: "Could not verify API key. Gupshup API returned: " + walletResp.status });
-    }
-
-    // Step 2: Verify app name exists via health/app endpoint
+    // Step 1: Verify API key + app name via WhatsApp settings endpoint
+    let apiKeyOk = false;
     let appVerified = false;
     let appError = "";
+    let walletBalance: number | null = null;
+
     try {
-      const healthResp = await fetch(`https://api.gupshup.io/wa/app/${encodeURIComponent(appName)}/health`, {
+      const settingsResp = await fetch(`https://api.gupshup.io/wa/app/${encodeURIComponent(appName)}/settings`, {
         headers: { "apikey": apiKey },
       });
-      if (healthResp.ok) {
+      if (settingsResp.ok) {
+        apiKeyOk = true;
         appVerified = true;
+      } else if (settingsResp.status === 401 || settingsResp.status === 403) {
+        return res.json({ success: false, error: "Invalid API key - authentication failed. Check your Gupshup API key." });
       } else {
-        const healthData = await healthResp.json().catch(() => ({}));
-        appError = healthData?.message || `App verification returned HTTP ${healthResp.status}`;
+        apiKeyOk = true;
+        const settingsData = await settingsResp.json().catch(() => ({}));
+        appError = settingsData?.message || `App '${appName}' not found (HTTP ${settingsResp.status})`;
       }
     } catch (e: any) {
-      appError = e.message;
+      return res.json({ success: false, error: `Connection error: ${e.message}` });
     }
+
+    // Step 2: Try wallet balance (optional, may not work with app-level keys)
+    try {
+      const walletResp = await fetch("https://api.gupshup.io/sm/api/v2/wallet/balance", {
+        headers: { "apikey": apiKey },
+      });
+      if (walletResp.ok) {
+        const wd = await walletResp.json().catch(() => ({}));
+        if (wd.status === "success") {
+          walletBalance = wd.balance;
+        }
+      }
+    } catch {}
 
     // Step 3: Check Profile API key / template management access
     let partnerStatus = "not_configured";
@@ -1584,7 +1580,11 @@ internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requi
       partnerError = tokenResult.error;
     }
 
-    return res.json({ success: true, appName, appVerified, appError, partnerStatus, partnerError, walletOk, walletBalance });
+    if (!appVerified && appError) {
+      return res.json({ success: false, error: appError });
+    }
+
+    return res.json({ success: true, appName, appVerified, partnerStatus, partnerError, walletBalance });
   } catch (error: any) {
     const msg = typeof error === "object" && error !== null
       ? (error.message || (error.error ? (typeof error.error === "string" ? error.error : JSON.stringify(error.error)) : JSON.stringify(error)))
