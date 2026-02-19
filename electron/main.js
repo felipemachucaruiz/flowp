@@ -258,12 +258,12 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
       <style>
-      @page{margin:0;size:auto;}
+      @page{margin:0mm 1mm;size:auto;}
       *{box-sizing:border-box;}
-      body{font-family:monospace;font-size:${receipt.fontSize || 12}px;margin:0;padding:2mm;width:100%;max-width:72mm;}
+      body{font-family:monospace;font-size:${receipt.fontSize || 12}px;margin:0;padding:1mm 2mm;width:100%;max-width:76mm;}
       table{width:100%;border-collapse:collapse;table-layout:fixed;}
-      td{padding:1px 0;vertical-align:top;overflow:hidden;text-overflow:ellipsis;}
-      td.right{width:35%;white-space:nowrap;}
+      td{padding:1px 0;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word;}
+      td:last-child{width:30%;text-align:right;white-space:nowrap;}
       .right{text-align:right;}.center{text-align:center;}.bold{font-weight:bold;}
       .line{border-top:1px dashed #000;margin:4px 0;}
       img{max-width:100%!important;}
@@ -306,7 +306,7 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
 
     printWin.webContents.on('did-finish-load', () => {
       printWin.webContents.print(
-        { silent: true, printBackground: true, deviceName: printerName, margins: { marginType: 'none' } },
+        { silent: true, printBackground: true, deviceName: printerName, margins: { marginType: 'printableArea' } },
         (success, failureReason) => {
           printWin.close();
           if (success && receipt.openCashDrawer) {
