@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { Lock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { PinPad } from "@/components/pin-pad";
 
 export function triggerManualLock() {
   window.dispatchEvent(new CustomEvent("flowp-manual-lock"));
@@ -18,7 +18,6 @@ export function LockScreen() {
   const [isVerifying, setIsVerifying] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lockedRef = useRef(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const autoLockEnabled = (tenant as any)?.autoLockEnabled === true;
   const autoLockTimeout = ((tenant as any)?.autoLockTimeout || 5) * 60 * 1000;
@@ -61,15 +60,8 @@ export function LockScreen() {
     };
   }, [autoLockEnabled, userHasPin, resetTimer]);
 
-  useEffect(() => {
-    if (isLocked && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isLocked]);
-
-  const handleSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (pin.length < 4 || isVerifying) return;
+  const handleSubmit = async (pinValue: string) => {
+    if (pinValue.length < 4 || isVerifying) return;
     setIsVerifying(true);
     setError("");
     try {
@@ -80,7 +72,7 @@ export function LockScreen() {
           "x-user-id": user?.id || "",
           "x-tenant-id": (tenant as any)?.id || "",
         },
-        body: JSON.stringify({ pin }),
+        body: JSON.stringify({ pin: pinValue }),
       });
       if (res.ok) {
         lockedRef.current = false;
@@ -106,7 +98,7 @@ export function LockScreen() {
 
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex items-center justify-center">
-      <div className="flex flex-col items-center gap-6 p-8 max-w-sm w-full">
+      <div className="flex flex-col items-center gap-5 p-8 max-w-sm w-full">
         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
           <Lock className="w-8 h-8 text-muted-foreground" />
         </div>
@@ -115,26 +107,15 @@ export function LockScreen() {
           <p className="text-sm text-muted-foreground" data-testid="text-lock-screen-user">{user?.name}</p>
           <p className="text-sm text-muted-foreground">{t("lock_screen.enter_pin")}</p>
         </div>
-        <form onSubmit={handleSubmit} className="w-full max-w-[200px]">
-          <Input
-            ref={inputRef}
-            type="password"
-            inputMode="numeric"
-            maxLength={6}
-            value={pin}
-            onChange={(e) => {
-              const val = e.target.value.replace(/\D/g, "");
-              setPin(val);
-              setError("");
-            }}
-            className="text-center text-2xl tracking-[0.5em]"
-            autoFocus
-            data-testid="input-lock-pin"
-          />
-          <Button type="submit" className="w-full mt-3" disabled={pin.length < 4 || isVerifying} data-testid="button-unlock">
-            {t("lock_screen.unlock") || "Unlock"}
-          </Button>
-        </form>
+        <PinPad
+          value={pin}
+          onChange={(val) => { setPin(val); setError(""); }}
+          onSubmit={handleSubmit}
+          minLength={4}
+          maxLength={6}
+          disabled={isVerifying}
+          submitLabel={isVerifying ? "..." : (t("lock_screen.unlock") || "Unlock")}
+        />
         {error && (
           <div className="flex items-center gap-2 text-destructive text-sm" data-testid="text-lock-error">
             <AlertCircle className="w-4 h-4" />

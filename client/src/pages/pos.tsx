@@ -47,7 +47,7 @@ import {
   Lock,
   DoorOpen,
 } from "lucide-react";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { PinPad } from "@/components/pin-pad";
 import { NetworkStatusIndicator } from "@/components/network-status-indicator";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { saveOfflineOrder } from "@/lib/offline-storage";
@@ -123,7 +123,7 @@ export default function POSPage() {
   const [drawerPinLoading, setDrawerPinLoading] = useState(false);
 
   const handleOpenDrawer = async (pin: string) => {
-    if (pin.length !== 4) return;
+    if (pin.length < 4) return;
     setDrawerPinLoading(true);
     try {
       const res = await apiRequest("POST", "/api/auth/verify-pin", { pin });
@@ -1787,31 +1787,23 @@ export default function POSPage() {
 
       {/* Cash Drawer PIN Dialog */}
       <Dialog open={showDrawerPinDialog} onOpenChange={setShowDrawerPinDialog}>
-        <DialogContent className="sm:max-w-xs">
+        <DialogContent className="sm:max-w-[340px]">
           <DialogHeader>
-            <DialogTitle data-testid="text-drawer-pin-title">{t("pos.open_drawer_title")}</DialogTitle>
+            <DialogTitle data-testid="text-drawer-pin-title" className="text-center">{t("pos.open_drawer_title")}</DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col items-center gap-4 py-4">
-            <DoorOpen className="w-12 h-12 text-muted-foreground" />
+          <div className="flex flex-col items-center gap-3 py-2">
+            <DoorOpen className="w-10 h-10 text-muted-foreground" />
             <p className="text-sm text-muted-foreground text-center">{t("pos.open_drawer_pin")}</p>
-            <InputOTP
-              maxLength={4}
+            <PinPad
               value={drawerPin}
-              onChange={(val) => {
-                setDrawerPin(val);
-                if (val.length === 4) handleOpenDrawer(val);
-              }}
+              onChange={setDrawerPin}
+              onSubmit={handleOpenDrawer}
+              minLength={4}
+              maxLength={6}
               disabled={drawerPinLoading}
-              data-testid="input-drawer-pin"
-            >
-              <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
-              </InputOTPGroup>
-            </InputOTP>
-            {drawerPinLoading && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
+              active={showDrawerPinDialog}
+              submitLabel={drawerPinLoading ? "..." : t("pos.open_drawer")}
+            />
           </div>
         </DialogContent>
       </Dialog>
