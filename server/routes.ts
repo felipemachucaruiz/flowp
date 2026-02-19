@@ -2524,6 +2524,8 @@ export async function registerRoutes(
             cufe: matiasResult.cufe,
             qrCode: matiasResult.qrCode,
             trackId: matiasResult.trackId,
+            prefix: matiasResult.prefix,
+            documentNumber: matiasResult.documentNumber,
           })
           .where(eq(orders.id, order.id));
 
@@ -2538,6 +2540,7 @@ export async function registerRoutes(
           cufe: matiasResult.cufe,
           qrCode: matiasResult.qrCode,
           prefix: matiasResult.prefix,
+          dianDocNumber: matiasResult.documentNumber,
           trackId: matiasResult.trackId,
           resolutionNumber: matiasConfigForReceipt?.defaultResolutionNumber,
           resolutionStartDate: matiasConfigForReceipt?.defaultResolutionStartDate,

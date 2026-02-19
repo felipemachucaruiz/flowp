@@ -603,7 +603,7 @@ export default function POSPage() {
           electronicBilling: response.cufe ? {
             cufe: response.cufe,
             qrCode: response.qrCode,
-            documentNumber: response.orderNumber,
+            documentNumber: response.dianDocNumber || response.orderNumber,
             prefix: response.prefix,
             resolutionNumber: response.resolutionNumber,
             resolutionStartDate: response.resolutionStartDate,

@@ -196,7 +196,7 @@ export default function SalesHistoryPage() {
         return {
           cufe: order.cufe,
           qrCode: order.qrCode || undefined,
-          documentNumber: order.orderNumber.toString(),
+          documentNumber: (order.documentNumber || order.orderNumber).toString(),
           prefix: order.prefix || undefined,
           resolutionNumber: invoiceDocType?.resolution,
           resolutionStartDate: invoiceDocType?.resolutionStartDate || undefined,
