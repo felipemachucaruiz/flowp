@@ -11,15 +11,23 @@ interface FlowpDesktopAPI {
   openCashDrawer: (printerName: string) => Promise<{ success: boolean; error?: string }>;
 }
 
+interface ElectronAPI {
+  isElectron: boolean;
+  getAppVersion: () => Promise<string>;
+  getPlatform: () => Promise<string>;
+  printSilent: (html: string, printerName?: string) => Promise<{ success: boolean; error?: string }>;
+}
+
 declare global {
   interface Window {
     flowpDesktop?: FlowpDesktopAPI;
+    electronAPI?: ElectronAPI;
   }
 }
 
 // Check if running in Electron desktop app
 function isElectron(): boolean {
-  return !!(window.flowpDesktop?.isElectron);
+  return !!(window.flowpDesktop?.isElectron) || !!(window.electronAPI?.isElectron);
 }
 
 interface PrintBridgeStatus {
@@ -172,7 +180,11 @@ class PrintBridgeClient {
     // Check if running in Electron desktop app first
     if (isElectron()) {
       try {
-        const version = await window.flowpDesktop!.getVersion();
+        const version = window.flowpDesktop
+          ? await window.flowpDesktop.getVersion()
+          : window.electronAPI
+            ? await window.electronAPI.getAppVersion()
+            : 'unknown';
         console.log('[Electron] Desktop app detected, version:', version);
         this.statusCache = {
           isAvailable: true,
@@ -269,28 +281,55 @@ class PrintBridgeClient {
     return false;
   }
 
+  private async resolveElectronPrinter(printerName?: string): Promise<string | undefined> {
+    let targetPrinter = printerName;
+    if (!targetPrinter) {
+      targetPrinter = localStorage.getItem('flowp_electron_printer') || undefined;
+    }
+    if (!targetPrinter && window.flowpDesktop) {
+      try {
+        const printers = await window.flowpDesktop.getPrinters();
+        const defaultPrinter = printers.find(p => p.isDefault);
+        targetPrinter = defaultPrinter?.name || printers[0]?.name;
+      } catch (e) {
+        console.log('[Electron] Error getting printers:', e);
+      }
+    }
+    return targetPrinter;
+  }
+
   async printReceipt(receipt: ReceiptData, printerName?: string): Promise<{ success: boolean; error?: string }> {
     // Use Electron API if available
     if (isElectron()) {
-      try {
-        // Get saved printer from localStorage, or fall back to default
-        let targetPrinter = printerName;
-        if (!targetPrinter) {
-          targetPrinter = localStorage.getItem('flowp_electron_printer') || undefined;
+      const targetPrinter = await this.resolveElectronPrinter(printerName);
+
+      // Try flowpDesktop.printReceipt first (sends structured data to main process)
+      if (window.flowpDesktop?.printReceipt && targetPrinter) {
+        try {
+          const result = await window.flowpDesktop.printReceipt(targetPrinter, receipt);
+          if (result.success) return result;
+          console.log('[Electron] flowpDesktop.printReceipt failed:', result.error);
+        } catch (e) {
+          console.log('[Electron] flowpDesktop.printReceipt error, trying fallback:', e);
         }
-        if (!targetPrinter) {
-          const printers = await window.flowpDesktop!.getPrinters();
-          const defaultPrinter = printers.find(p => p.isDefault);
-          targetPrinter = defaultPrinter?.name || printers[0]?.name;
-        }
-        if (!targetPrinter) {
-          return { success: false, error: 'No printer available' };
-        }
-        return await window.flowpDesktop!.printReceipt(targetPrinter, receipt);
-      } catch (e) {
-        console.log('[Electron] Print error:', e);
-        return { success: false, error: e instanceof Error ? e.message : 'Print failed' };
       }
+
+      // Fallback: generate HTML and use electronAPI.printSilent
+      if (window.electronAPI?.printSilent) {
+        try {
+          const html = this.generateReceiptHTML(receipt);
+          const result = await window.electronAPI.printSilent(html, targetPrinter);
+          return result;
+        } catch (e) {
+          console.log('[Electron] electronAPI.printSilent error:', e);
+          return { success: false, error: e instanceof Error ? e.message : 'Print failed' };
+        }
+      }
+
+      if (!targetPrinter) {
+        return { success: false, error: 'No printer available' };
+      }
+      return { success: false, error: 'No Electron print API available' };
     }
 
     // Fall back to PrintBridge HTTP
@@ -309,6 +348,83 @@ class PrintBridgeClient {
         error: error instanceof Error ? error.message : 'Print bridge not available' 
       };
     }
+  }
+
+  async printSilentHTML(html: string, printerName?: string): Promise<{ success: boolean; error?: string }> {
+    if (isElectron() && window.electronAPI?.printSilent) {
+      try {
+        const targetPrinter = await this.resolveElectronPrinter(printerName);
+        return await window.electronAPI.printSilent(html, targetPrinter);
+      } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : 'Print failed' };
+      }
+    }
+    return { success: false, error: 'electronAPI.printSilent not available' };
+  }
+
+  private generateReceiptHTML(receipt: ReceiptData): string {
+    const items = receipt.items || [];
+    const payments = receipt.payments || [];
+    const taxes = receipt.taxes || [];
+    const fontSize = receipt.fontSize || 12;
+    const logoHtml = receipt.logoUrl
+      ? `<div style="text-align:center;margin-bottom:4px;"><img src="${receipt.logoUrl}" style="max-width:${receipt.logoSize ? `${receipt.logoSize}px` : '100%'};height:auto;" /></div>`
+      : '';
+    const customerHtml = receipt.customerInfo
+      ? `<div style="border-top:1px dashed #000;padding-top:4px;margin-top:4px;font-size:11px;">
+          ${receipt.customerInfo.name ? `<div>${receipt.customerInfo.name}</div>` : ''}
+          ${receipt.customerInfo.idNumber ? `<div>${receipt.customerInfo.idType || 'ID'}: ${receipt.customerInfo.idNumber}</div>` : ''}
+          ${receipt.customerInfo.phone ? `<div>Tel: ${receipt.customerInfo.phone}</div>` : ''}
+        </div>`
+      : '';
+    const eBillingHtml = receipt.electronicBilling
+      ? `<div style="border-top:1px dashed #000;padding-top:6px;margin-top:6px;text-align:center;">
+          ${receipt.electronicBilling.documentNumber ? `<div style="font-size:${fontSize}px;font-weight:bold;">${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.documentNumber}</div>` : ''}
+          ${receipt.electronicBilling.resolutionNumber ? `<div style="margin-top:4px;font-size:${Math.max(fontSize - 1, 10)}px;">Resolucion DIAN No.<br/>${receipt.electronicBilling.resolutionNumber}</div>` : ''}
+          ${receipt.electronicBilling.resolutionStartDate && receipt.electronicBilling.resolutionEndDate ? `<div style="font-size:${Math.max(fontSize - 1, 10)}px;">Vigencia: ${receipt.electronicBilling.resolutionStartDate} - ${receipt.electronicBilling.resolutionEndDate}</div>` : ''}
+          ${receipt.electronicBilling.authRangeFrom && receipt.electronicBilling.authRangeTo ? `<div style="font-size:${Math.max(fontSize - 1, 10)}px;">Rango: ${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.authRangeFrom} - ${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.authRangeTo}</div>` : ''}
+          ${receipt.electronicBilling.cufe ? `<div style="margin-top:4px;font-size:${Math.max(fontSize - 2, 9)}px;word-break:break-all;text-align:left;line-height:1.3;">CUFE:<br/>${receipt.electronicBilling.cufe}</div>` : ''}
+        </div>`
+      : '';
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8">
+      <style>
+      @page{margin:0mm 1mm;size:auto;}
+      *{box-sizing:border-box;}
+      body{font-family:monospace;font-size:${fontSize}px;margin:0;padding:1mm 2mm;width:100%;max-width:76mm;}
+      table{width:100%;border-collapse:collapse;table-layout:fixed;}
+      td{padding:1px 0;vertical-align:top;word-wrap:break-word;overflow-wrap:break-word;}
+      td:last-child{width:30%;text-align:right;white-space:nowrap;}
+      .right{text-align:right;}.center{text-align:center;}.bold{font-weight:bold;}
+      .line{border-top:1px dashed #000;margin:4px 0;}
+      img{max-width:100%!important;}
+      </style></head><body>
+      ${logoHtml}
+      <div class="center bold">${receipt.businessName || ''}</div>
+      ${receipt.taxId ? `<div class="center">${receipt.taxIdLabel || 'NIT'}: ${receipt.taxId}</div>` : ''}
+      ${receipt.address ? `<div class="center">${receipt.address}</div>` : ''}
+      ${receipt.phone ? `<div class="center">${receipt.phone}</div>` : ''}
+      ${receipt.headerText ? `<div class="center">${receipt.headerText}</div>` : ''}
+      <div class="line"></div>
+      ${receipt.orderNumber ? `<div><strong>#${receipt.orderNumber}</strong></div>` : ''}
+      ${receipt.date ? `<div>${receipt.date}</div>` : ''}
+      ${receipt.cashier ? `<div>${receipt.cashier}</div>` : ''}
+      ${customerHtml}
+      <div class="line"></div>
+      <table>${items.map(item => `<tr><td>${item.quantity}x ${item.name}${item.modifiers ? `<br><small>${item.modifiers}</small>` : ''}</td><td class="right">$${item.total.toLocaleString()}</td></tr>`).join('')}</table>
+      <div class="line"></div>
+      <table>
+        <tr><td>Subtotal</td><td class="right">$${(receipt.subtotal || 0).toLocaleString()}</td></tr>
+        ${receipt.discount ? `<tr><td>Desc${receipt.discountPercent ? ` (${receipt.discountPercent}%)` : ''}</td><td class="right">-$${receipt.discount.toLocaleString()}</td></tr>` : ''}
+        ${taxes.map(tax => `<tr><td>${tax.name} (${tax.rate}%)</td><td class="right">$${tax.amount.toLocaleString()}</td></tr>`).join('')}
+        ${receipt.tax && taxes.length === 0 ? `<tr><td>IVA${receipt.taxRate ? ` (${receipt.taxRate}%)` : ''}</td><td class="right">$${receipt.tax.toLocaleString()}</td></tr>` : ''}
+        <tr class="bold"><td><strong>TOTAL</strong></td><td class="right"><strong>$${(receipt.total || 0).toLocaleString()}</strong></td></tr>
+      </table>
+      ${payments.length > 0 ? `<div class="line"></div><table>${payments.map(p => `<tr><td>${p.type}</td><td class="right">$${p.amount.toLocaleString()}</td></tr>`).join('')}</table>` : ''}
+      ${receipt.change ? `<div>Cambio: $${receipt.change.toLocaleString()}</div>` : ''}
+      ${eBillingHtml}
+      ${receipt.footerText ? `<div class="line"></div><div class="center">${receipt.footerText}</div>` : ''}
+      </body></html>`;
   }
 
   async printRaw(base64Data: string): Promise<{ success: boolean; error?: string }> {

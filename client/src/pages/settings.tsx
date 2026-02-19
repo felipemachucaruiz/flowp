@@ -4296,6 +4296,46 @@ export default function SettingsPage() {
                       } else {
                         toast({ title: t("printing.test_error"), description: result.error, variant: "destructive" });
                       }
+                    } else if (printBridge.isElectronApp()) {
+                      const fontSize = receiptForm.watch("receiptFontSize") || 12;
+                      const fontFamily = receiptForm.watch("receiptFontFamily") || "monospace";
+                      const fontFamilyMap: Record<string, string> = {
+                        monospace: "'Courier New', monospace",
+                        "sans-serif": "Arial, Helvetica, sans-serif",
+                        serif: "'Times New Roman', Georgia, serif",
+                      };
+                      const cssFontFamily = fontFamilyMap[fontFamily] || fontFamilyMap.monospace;
+                      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+                        @page{margin:0mm 1mm;size:auto;}*{box-sizing:border-box;}
+                        body{font-family:${cssFontFamily};font-size:${fontSize}px;margin:0;padding:1mm 2mm;width:100%;max-width:76mm;}
+                        .center{text-align:center;}.bold{font-weight:bold;}.line{border-top:1px dashed #000;margin:4px 0;}
+                        table{width:100%;border-collapse:collapse;}td{padding:1px 0;}td:last-child{text-align:right;}
+                        </style></head><body>
+                        ${receiptForm.watch("receiptShowLogo") && receiptLogoPath ? `<div class="center"><img src="${receiptLogoPath}" style="max-width:${receiptForm.watch("receiptLogoSize") || 200}px;height:auto;" /></div>` : ""}
+                        <div class="center bold">${tenant?.name || "Business Name"}</div>
+                        ${receiptForm.watch("receiptShowAddress") && tenant?.address ? `<div class="center">${tenant.address}</div>` : ""}
+                        ${receiptForm.watch("receiptShowPhone") && tenant?.phone ? `<div class="center">Tel: ${tenant.phone}</div>` : ""}
+                        ${tenant?.receiptTaxId ? `<div class="center">${t("pos.tax_id")}: ${tenant.receiptTaxId}</div>` : ""}
+                        <div class="line"></div>
+                        <div><strong>#TEST-1234</strong></div><div>${formatDate(new Date())}</div>
+                        <div class="line"></div>
+                        <table><tr><td>2x ${t("printing.sample_item")} 1</td><td>$10.00</td></tr>
+                        <tr><td>1x ${t("printing.sample_item")} 2</td><td>$15.00</td></tr></table>
+                        <div class="line"></div>
+                        <table><tr><td>${t("pos.subtotal")}</td><td>$25.00</td></tr>
+                        <tr><td>${t("pos.tax")} (${tenant?.taxRate || 10}%)</td><td>$2.50</td></tr>
+                        <tr class="bold"><td><strong>TOTAL</strong></td><td><strong>$27.50</strong></td></tr></table>
+                        <div class="line"></div>
+                        <table><tr><td>${t("pos.payment_cash")}</td><td>$30.00</td></tr></table>
+                        <div>Cambio: $2.50</div>
+                        ${receiptForm.watch("receiptFooterText") ? `<div class="line"></div><div class="center">${receiptForm.watch("receiptFooterText")}</div>` : ""}
+                        </body></html>`;
+                      const silentResult = await printBridge.printSilentHTML(html);
+                      if (silentResult.success) {
+                        toast({ title: t("printing.test_printed") });
+                      } else {
+                        toast({ title: t("printing.test_error"), description: silentResult.error, variant: "destructive" });
+                      }
                     } else {
                       printTestReceiptBrowser();
                       toast({ title: t("printing.test_printed_browser") });

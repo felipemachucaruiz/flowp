@@ -4145,6 +4145,256 @@ export async function registerRoutes(
     }
   });
 
+  // ===== PURCHASE ORDER PDF & EMAIL =====
+
+  app.get("/api/purchase-orders/:id/pdf", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
+
+      const order = await storage.getPurchaseOrder(req.params.id);
+      if (!order || order.tenantId !== tenantId) return res.status(404).json({ message: "Purchase order not found" });
+
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) return res.status(404).json({ message: "Tenant not found" });
+
+      const items = await storage.getPurchaseOrderItems(order.id);
+      const supplier = order.supplierId ? await storage.getSupplier(order.supplierId) : null;
+      const products = await storage.getProductsByTenant(tenantId);
+
+      let warehouseName: string | undefined;
+      if (order.destinationWarehouseId) {
+        const wh = await storage.getWarehouse(order.destinationWarehouseId);
+        warehouseName = wh?.name;
+      }
+
+      let createdByName: string | undefined;
+      if (order.createdBy) {
+        const user = await storage.getUser(order.createdBy);
+        createdByName = user?.name;
+      }
+
+      const language = (req.query.lang as string) || tenant.language || "es";
+      const currency = tenant.currency || "USD";
+
+      const { generatePurchaseOrderPDF } = await import("./po-pdf");
+
+      const lineItems = items.map(item => {
+        const product = item.productId ? products.find(p => p.id === item.productId) : null;
+        const unitCost = parseFloat(item.unitCost || "0");
+        return {
+          code: product?.sku || product?.barcode || null,
+          description: product?.name || (item as any).ingredientName || "-",
+          quantity: item.quantity,
+          unitCost,
+          total: item.quantity * unitCost,
+        };
+      });
+
+      if (!lineItems.some(i => i.description !== "-")) {
+        let ingredientsList: any[] = [];
+        try { ingredientsList = await storage.getIngredientsByTenant(tenantId); } catch {}
+        lineItems.forEach(item => {
+          const origItem = items.find(i => {
+            const prod = i.productId ? products.find(p => p.id === i.productId) : null;
+            return (prod?.name || "-") === item.description && i.quantity === item.quantity;
+          });
+          if (origItem?.ingredientId && item.description === "-") {
+            const ing = ingredientsList.find(i => i.id === origItem.ingredientId);
+            if (ing) item.description = ing.name;
+          }
+        });
+      }
+
+      for (const item of lineItems) {
+        if (item.description === "-") {
+          const origItem = items.find(i => i.quantity === item.quantity && parseFloat(i.unitCost || "0") === item.unitCost);
+          if (origItem?.ingredientId) {
+            try {
+              const ingredientsList = await storage.getIngredientsByTenant(tenantId);
+              const ing = ingredientsList.find(i => i.id === origItem.ingredientId);
+              if (ing) item.description = ing.name;
+            } catch {}
+          }
+        }
+      }
+
+      const poData = {
+        orderNumber: order.orderNumber,
+        date: order.createdAt ? new Date(order.createdAt).toISOString() : new Date().toISOString(),
+        expectedDate: order.expectedDate ? new Date(order.expectedDate).toISOString() : null,
+        status: order.status,
+        notes: order.notes,
+        createdByName,
+        warehouseName,
+        items: lineItems,
+        subtotal: parseFloat(order.subtotal || "0"),
+        tax: parseFloat(order.tax || "0"),
+        total: parseFloat(order.total || "0"),
+        currency,
+        company: {
+          name: tenant.name,
+          address: tenant.address,
+          phone: tenant.phone,
+          taxId: tenant.receiptTaxId,
+          logo: tenant.logo,
+          city: tenant.city,
+          country: tenant.country,
+        },
+        supplier: supplier ? {
+          name: supplier.name,
+          contactName: supplier.contactName,
+          email: supplier.email,
+          phone: supplier.phone,
+          address: supplier.address,
+          taxId: supplier.taxId,
+          documentType: supplier.documentType,
+          identification: supplier.identification,
+          paymentTermsType: supplier.paymentTermsType,
+          paymentTermsDays: supplier.paymentTermsDays,
+        } : { name: "-" },
+      };
+
+      const pdfBuffer = await generatePurchaseOrderPDF(poData, language);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="PO-${order.orderNumber}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("PO PDF error:", error);
+      res.status(500).json({ message: "Failed to generate purchase order PDF" });
+    }
+  });
+
+  app.post("/api/purchase-orders/:id/send-email", async (req: Request, res: Response) => {
+    try {
+      const tenantId = req.headers["x-tenant-id"] as string;
+      if (!tenantId) return res.status(401).json({ message: "Unauthorized" });
+
+      const order = await storage.getPurchaseOrder(req.params.id);
+      if (!order || order.tenantId !== tenantId) return res.status(404).json({ message: "Purchase order not found" });
+
+      const tenant = await storage.getTenant(tenantId);
+      if (!tenant) return res.status(404).json({ message: "Tenant not found" });
+
+      const supplier = order.supplierId ? await storage.getSupplier(order.supplierId) : null;
+      if (!supplier?.email) return res.status(400).json({ message: "Supplier has no email configured" });
+
+      const items = await storage.getPurchaseOrderItems(order.id);
+      const products = await storage.getProductsByTenant(tenantId);
+
+      let warehouseName: string | undefined;
+      if (order.destinationWarehouseId) {
+        const wh = await storage.getWarehouse(order.destinationWarehouseId);
+        warehouseName = wh?.name;
+      }
+
+      let createdByName: string | undefined;
+      if (order.createdBy) {
+        const user = await storage.getUser(order.createdBy);
+        createdByName = user?.name;
+      }
+
+      const language = tenant.language || "es";
+      const currency = tenant.currency || "USD";
+
+      const { generatePurchaseOrderPDF } = await import("./po-pdf");
+
+      let ingredientsList: any[] = [];
+      try { ingredientsList = await storage.getIngredientsByTenant(tenantId); } catch {}
+
+      const lineItems = items.map(item => {
+        const product = item.productId ? products.find(p => p.id === item.productId) : null;
+        const ingredient = item.ingredientId ? ingredientsList.find(i => i.id === item.ingredientId) : null;
+        const unitCost = parseFloat(item.unitCost || "0");
+        return {
+          code: product?.sku || product?.barcode || null,
+          description: product?.name || ingredient?.name || "-",
+          quantity: item.quantity,
+          unitCost,
+          total: item.quantity * unitCost,
+        };
+      });
+
+      const poData = {
+        orderNumber: order.orderNumber,
+        date: order.createdAt ? new Date(order.createdAt).toISOString() : new Date().toISOString(),
+        expectedDate: order.expectedDate ? new Date(order.expectedDate).toISOString() : null,
+        status: order.status,
+        notes: order.notes,
+        createdByName,
+        warehouseName,
+        items: lineItems,
+        subtotal: parseFloat(order.subtotal || "0"),
+        tax: parseFloat(order.tax || "0"),
+        total: parseFloat(order.total || "0"),
+        currency,
+        company: {
+          name: tenant.name,
+          address: tenant.address,
+          phone: tenant.phone,
+          taxId: tenant.receiptTaxId,
+          logo: tenant.logo,
+          city: tenant.city,
+          country: tenant.country,
+        },
+        supplier: {
+          name: supplier.name,
+          contactName: supplier.contactName,
+          email: supplier.email,
+          phone: supplier.phone,
+          address: supplier.address,
+          taxId: supplier.taxId,
+          documentType: supplier.documentType,
+          identification: supplier.identification,
+          paymentTermsType: supplier.paymentTermsType,
+          paymentTermsDays: supplier.paymentTermsDays,
+        },
+      };
+
+      const pdfBuffer = await generatePurchaseOrderPDF(poData, language);
+
+      const poLabels: Record<string, Record<string, string>> = {
+        en: { subject: "Purchase Order", body: "Please find the attached purchase order from", regards: "Best regards" },
+        es: { subject: "Orden de Compra", body: "Adjunta encontrará la orden de compra de", regards: "Cordialmente" },
+        pt: { subject: "Ordem de Compra", body: "Segue em anexo a ordem de compra de", regards: "Atenciosamente" },
+      };
+      const labels = poLabels[language] || poLabels.es;
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #16a34a;">${labels.subject} - ${order.orderNumber}</h2>
+          <p>${supplier.contactName ? `${supplier.contactName},` : ""}</p>
+          <p>${labels.body} <strong>${tenant.name}</strong>.</p>
+          <p>${labels.regards},<br/>${createdByName || tenant.name}</p>
+        </div>
+      `;
+
+      const sent = await emailService.sendEmail({
+        to: supplier.email,
+        subject: `${labels.subject} - ${order.orderNumber} | ${tenant.name}`,
+        html,
+        attachments: [{
+          filename: `PO-${order.orderNumber}.pdf`,
+          content: pdfBuffer,
+          contentType: "application/pdf",
+        }],
+      });
+
+      if (sent) {
+        if (order.status === "draft") {
+          await storage.updatePurchaseOrder(order.id, { status: "sent" as any });
+        }
+        res.json({ success: true, message: "Purchase order sent to supplier" });
+      } else {
+        res.status(500).json({ message: "Failed to send email. Please check your email settings." });
+      }
+    } catch (error) {
+      console.error("PO email error:", error);
+      res.status(500).json({ message: "Failed to send purchase order email" });
+    }
+  });
+
   // ===== INGREDIENT INVENTORY ROUTES (Pro feature for restaurants) =====
 
   // Middleware to check Pro feature access

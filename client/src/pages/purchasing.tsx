@@ -25,7 +25,7 @@ import type { Supplier, PurchaseOrder, PurchaseOrderItem, Product, Ingredient } 
 import {
   Truck, Plus, Search, Edit, Trash2, Package, CheckCircle,
   ShoppingCart, Loader2, Leaf,
-  RefreshCw, Send, FileText, Warehouse,
+  RefreshCw, Send, FileText, Warehouse, Printer, Download, Mail,
 } from "lucide-react";
 
 type SupplierFormData = {
@@ -154,6 +154,8 @@ export default function PurchasingPage() {
   const [orderDetailTab, setOrderDetailTab] = useState<string>("items");
   const [showDeleteOrderDialog, setShowDeleteOrderDialog] = useState(false);
   const [orderDetailsLoading, setOrderDetailsLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
 
   const { data: suppliers, isLoading: suppliersLoading } = useQuery<Supplier[]>({ queryKey: ["/api/suppliers"] });
   const { data: purchaseOrders, isLoading: ordersLoading } = useQuery<PurchaseOrder[]>({ queryKey: ["/api/purchase-orders"] });
@@ -250,6 +252,65 @@ export default function PurchasingPage() {
     },
     onSuccess: () => { toast({ title: t("purchasing.order_created") }); queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] }); queryClient.invalidateQueries({ queryKey: ["/api/reorder-suggestions"] }); setSelectedReorderItems(new Set()); setReorderQuantities({}); setReorderSupplierId(""); },
   });
+
+  const handleDownloadPDF = async (orderId: string, orderNumber: string) => {
+    setPdfLoading(true);
+    try {
+      const res = await apiRequest("GET", `/api/purchase-orders/${orderId}/pdf?lang=${language}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PO-${orderNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: t("purchasing.po_sent_error"), variant: "destructive" });
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handlePrintPO = async (orderId: string) => {
+    setPdfLoading(true);
+    try {
+      const res = await apiRequest("GET", `/api/purchase-orders/${orderId}/pdf?lang=${language}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const printWindow = window.open(url, "_blank");
+      if (printWindow) {
+        printWindow.addEventListener("load", () => {
+          printWindow.print();
+        });
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch {
+      toast({ title: t("purchasing.po_sent_error"), variant: "destructive" });
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleSendToSupplier = async (orderId: string) => {
+    const supplier = suppliers?.find(s => s.id === selectedOrder?.supplierId);
+    if (!supplier?.email) {
+      toast({ title: t("purchasing.no_supplier_email"), variant: "destructive" });
+      return;
+    }
+    setEmailSending(true);
+    try {
+      await apiRequest("POST", `/api/purchase-orders/${orderId}/send-email`);
+      toast({ title: t("purchasing.po_sent_success") });
+      queryClient.invalidateQueries({ queryKey: ["/api/purchase-orders"] });
+      if (selectedOrder) fetchOrderDetails(selectedOrder.id);
+    } catch {
+      toast({ title: t("purchasing.po_sent_error"), variant: "destructive" });
+    } finally {
+      setEmailSending(false);
+    }
+  };
 
   const fetchOrderDetails = async (orderId: string) => {
     setOrderDetailsLoading(true);
@@ -671,6 +732,17 @@ export default function PurchasingPage() {
                 {selectedOrder.status !== "cancelled" && selectedOrder.status !== "received" && (
                   <Button size="sm" variant="outline" onClick={() => updateOrderStatusMutation.mutate({ id: selectedOrder.id, status: "cancelled" })} data-testid="button-cancel-order-status">{t("purchasing.status_cancelled")}</Button>
                 )}
+              </div>
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                <Button size="sm" variant="outline" onClick={() => handlePrintPO(selectedOrder.id)} disabled={pdfLoading} data-testid="button-print-po">
+                  {pdfLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Printer className="w-4 h-4 mr-1" />}{t("purchasing.print_po")}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleDownloadPDF(selectedOrder.id, selectedOrder.orderNumber)} disabled={pdfLoading} data-testid="button-download-po-pdf">
+                  {pdfLoading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Download className="w-4 h-4 mr-1" />}{t("purchasing.download_pdf")}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => handleSendToSupplier(selectedOrder.id)} disabled={emailSending || !selectedOrder.supplierId} data-testid="button-send-po-email">
+                  {emailSending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Mail className="w-4 h-4 mr-1" />}{emailSending ? t("purchasing.sending") : t("purchasing.send_to_supplier")}
+                </Button>
               </div>
 
               <Tabs value={orderDetailTab} onValueChange={setOrderDetailTab}>
