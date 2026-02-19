@@ -324,41 +324,105 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
   });
 });
 
-// Trigger cash drawer via ESC/POS command sent through Electron's print system
-// This is the proven method that works with thermal printers
+// Send raw ESC/POS bytes to printer using Windows Spooler API via PowerShell
+// The HTML print method does NOT work for raw commands - Windows print drivers
+// convert everything to graphics, so ESC/POS commands never reach the printer.
+// This uses the Win32 winspool.Drv API to send raw bytes directly.
 function triggerCashDrawer(printerName) {
   return new Promise((resolve) => {
     try {
-      const ESC = '\x1B';
-      const drawerKickCmd = ESC + '\x70\x00\x19\xFA';
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
-        <style>@media print { body { visibility: hidden; } }</style></head>
-        <body><pre style="font-size:1px;">${drawerKickCmd}</pre></body></html>`;
+      const { exec } = require('child_process');
+      const fs = require('fs');
+      const os = require('os');
 
-      const printWin = new BrowserWindow({
-        show: false,
-        width: 100,
-        height: 100,
-        webPreferences: { nodeIntegration: false, contextIsolation: true },
-      });
+      // ESC p 0 25 250 = kick drawer pin 2, ESC p 1 25 250 = kick drawer pin 5
+      const drawerCmd = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA, 0x1B, 0x70, 0x01, 0x19, 0xFA]);
+      const ts = Date.now();
+      const tempBin = path.join(os.tmpdir(), `flowp-drawer-${ts}.bin`);
+      fs.writeFileSync(tempBin, drawerCmd);
 
-      printWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+      if (process.platform === 'win32') {
+        const tempPs1 = path.join(os.tmpdir(), `flowp-drawer-${ts}.ps1`);
+        const safePrinter = printerName.replace(/'/g, "''");
+        const safeBin = tempBin.replace(/\\/g, '\\\\');
 
-      printWin.webContents.on('did-finish-load', () => {
-        printWin.webContents.print(
-          { silent: true, printBackground: false, deviceName: printerName },
-          (success, failureReason) => {
-            printWin.close();
-            resolve({ success, error: failureReason || undefined });
+        const psScript = [
+          "Add-Type -TypeDefinition @'",
+          "using System;",
+          "using System.Runtime.InteropServices;",
+          "public class RawPrint {",
+          "  [StructLayout(LayoutKind.Sequential)] public struct DOCINFOA {",
+          "    [MarshalAs(UnmanagedType.LPStr)] public string pDocName;",
+          "    [MarshalAs(UnmanagedType.LPStr)] public string pOutputFile;",
+          "    [MarshalAs(UnmanagedType.LPStr)] public string pDatatype;",
+          "  }",
+          "  [DllImport(\"winspool.Drv\", EntryPoint=\"OpenPrinterA\", SetLastError=true, CharSet=CharSet.Ansi, ExactSpelling=true)]",
+          "  public static extern bool OpenPrinter(string p, out IntPtr hP, IntPtr d);",
+          "  [DllImport(\"winspool.Drv\", EntryPoint=\"ClosePrinter\", SetLastError=true)]",
+          "  public static extern bool ClosePrinter(IntPtr hP);",
+          "  [DllImport(\"winspool.Drv\", EntryPoint=\"StartDocPrinterA\", SetLastError=true, CharSet=CharSet.Ansi, ExactSpelling=true)]",
+          "  public static extern bool StartDocPrinter(IntPtr hP, int l, ref DOCINFOA di);",
+          "  [DllImport(\"winspool.Drv\", EntryPoint=\"EndDocPrinter\", SetLastError=true)]",
+          "  public static extern bool EndDocPrinter(IntPtr hP);",
+          "  [DllImport(\"winspool.Drv\", EntryPoint=\"StartPagePrinter\", SetLastError=true)]",
+          "  public static extern bool StartPagePrinter(IntPtr hP);",
+          "  [DllImport(\"winspool.Drv\", EntryPoint=\"EndPagePrinter\", SetLastError=true)]",
+          "  public static extern bool EndPagePrinter(IntPtr hP);",
+          "  [DllImport(\"winspool.Drv\", EntryPoint=\"WritePrinter\", SetLastError=true)]",
+          "  public static extern bool WritePrinter(IntPtr hP, IntPtr b, int c, out int w);",
+          "  public static bool Send(string printer, byte[] data) {",
+          "    IntPtr hP;",
+          "    if (!OpenPrinter(printer, out hP, IntPtr.Zero)) return false;",
+          "    DOCINFOA di = new DOCINFOA() { pDocName = \"FlowpDrawer\", pOutputFile = null, pDatatype = \"RAW\" };",
+          "    if (!StartDocPrinter(hP, 1, ref di)) { ClosePrinter(hP); return false; }",
+          "    StartPagePrinter(hP);",
+          "    IntPtr pb = Marshal.AllocCoTaskMem(data.Length);",
+          "    Marshal.Copy(data, 0, pb, data.Length);",
+          "    int written; WritePrinter(hP, pb, data.Length, out written);",
+          "    Marshal.FreeCoTaskMem(pb);",
+          "    EndPagePrinter(hP); EndDocPrinter(hP); ClosePrinter(hP);",
+          "    return written > 0;",
+          "  }",
+          "}",
+          "'@",
+          `$bytes = [System.IO.File]::ReadAllBytes('${safeBin}')`,
+          `$ok = [RawPrint]::Send('${safePrinter}', $bytes)`,
+          `Remove-Item '${safeBin}' -ErrorAction SilentlyContinue`,
+          "if ($ok) { exit 0 } else { exit 1 }",
+        ].join("\r\n");
+
+        fs.writeFileSync(tempPs1, psScript, 'utf8');
+
+        exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${tempPs1}"`,
+          { timeout: 8000 },
+          (error, stdout, stderr) => {
+            try { fs.unlinkSync(tempBin); } catch(e) {}
+            try { fs.unlinkSync(tempPs1); } catch(e) {}
+            if (error) {
+              console.error('Cash drawer error:', stderr || error.message);
+              resolve({ success: false, error: stderr || error.message });
+            } else {
+              resolve({ success: true });
+            }
           }
         );
-      });
-
-      printWin.webContents.on('did-fail-load', () => {
-        printWin.close();
-        resolve({ success: false, error: 'Failed to send drawer command' });
-      });
+      } else {
+        // macOS/Linux: use lp with raw option
+        const safePrinter = printerName.replace(/'/g, "'\\''");
+        exec(`lp -d '${safePrinter}' -o raw '${tempBin}'`,
+          { timeout: 5000 },
+          (error) => {
+            try { fs.unlinkSync(tempBin); } catch(e) {}
+            if (error) {
+              resolve({ success: false, error: error.message });
+            } else {
+              resolve({ success: true });
+            }
+          }
+        );
+      }
     } catch (e) {
+      console.error('Cash drawer trigger error:', e);
       resolve({ success: false, error: e.message || 'Cash drawer failed' });
     }
   });
