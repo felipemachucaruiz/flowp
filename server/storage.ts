@@ -652,6 +652,15 @@ export class DatabaseStorage implements IStorage {
             .where(eq(customers.id, order.customerId));
           customer = cust || null;
         }
+
+        let cashierName: string | null = null;
+        if (order.userId) {
+          const [usr] = await db
+            .select({ name: users.name })
+            .from(users)
+            .where(eq(users.id, order.userId));
+          cashierName = usr?.name || null;
+        }
         
         // Get total returns for this order
         let totalReturns = "0";
@@ -691,6 +700,7 @@ export class DatabaseStorage implements IStorage {
           items,
           payments: orderPayments,
           customer,
+          cashierName,
           totalReturns,
         };
       })

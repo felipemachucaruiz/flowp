@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { formatCurrency } from "@/lib/currency";
 import { es, ptBR, enUS } from "date-fns/locale";
-import type { Order, Customer } from "@shared/schema";
+import type { Order, Customer, TaxRate } from "@shared/schema";
 import {
   Search,
   Calendar,
@@ -58,7 +58,9 @@ interface OrderWithItems extends Order {
     id: string;
     method: string;
     amount: string;
+    transactionId?: string;
   }[];
+  cashierName?: string | null;
   creditNoteStatus?: string | null;
   hasReturns?: boolean | null;
   totalReturns?: string;
@@ -147,6 +149,11 @@ export default function SalesHistoryPage() {
     enabled: !!tenant?.id,
   });
 
+  const { data: taxRatesData } = useQuery<TaxRate[]>({
+    queryKey: ["/api/tax-rates"],
+    enabled: !!tenant?.id,
+  });
+
   const currency = tenant?.currency || "USD";
 
   const toggleOrderExpansion = (orderId: string) => {
@@ -174,11 +181,33 @@ export default function SalesHistoryPage() {
       };
     }) || [];
 
-    // Calculate tax rate from stored order amounts (tax rate was applied at time of sale)
     const subtotal = parseFloat(order.subtotal);
     const taxAmount = parseFloat(order.taxAmount || "0");
     const taxRate = subtotal > 0 ? (taxAmount / subtotal) * 100 : 0;
-    
+
+    const activeTaxRates = taxRatesData?.filter(t => t.isActive) || [];
+    const taxes = activeTaxRates.length > 0
+      ? activeTaxRates.map(tax => ({
+          name: tax.name,
+          rate: parseFloat(tax.rate || "0"),
+          amount: subtotal * parseFloat(tax.rate || "0") / 100,
+        }))
+      : undefined;
+
+    const orderPayments = order.payments?.map(p => ({
+      type: p.method as "cash" | "card",
+      amount: parseFloat(p.amount),
+      transactionId: p.transactionId,
+    }));
+
+    const paymentMethod = order.payments && order.payments.length > 1
+      ? "split"
+      : order.payments?.[0]?.method || "cash";
+
+    const invoiceDocType = ebillingConfig?.documentTypes?.find(d => d.type === "invoice");
+
+    const discountAmount = parseFloat(order.discountAmount || "0");
+
     printReceipt(tenant, {
       orderNumber: order.orderNumber.toString(),
       date: order.createdAt ? new Date(order.createdAt) : new Date(),
@@ -186,25 +215,33 @@ export default function SalesHistoryPage() {
       subtotal,
       taxAmount,
       taxRate,
+      taxes,
       total: parseFloat(order.total),
-      paymentMethod: order.payments?.[0]?.method || "cash",
+      discount: discountAmount > 0 ? discountAmount : undefined,
+      paymentMethod,
+      payments: orderPayments,
       cashReceived: undefined,
       change: undefined,
-      cashier: undefined,
-      electronicBilling: order.cufe ? (() => {
-        const invoiceDocType = ebillingConfig?.documentTypes?.find(d => d.type === "invoice");
-        return {
-          cufe: order.cufe,
-          qrCode: order.qrCode || undefined,
-          documentNumber: (order.documentNumber || order.orderNumber).toString(),
-          prefix: order.prefix || undefined,
-          resolutionNumber: invoiceDocType?.resolution,
-          resolutionStartDate: invoiceDocType?.resolutionStartDate || undefined,
-          resolutionEndDate: invoiceDocType?.resolutionEndDate || undefined,
-          authRangeFrom: invoiceDocType?.startingNumber || undefined,
-          authRangeTo: invoiceDocType?.endingNumber || undefined,
-        };
-      })() : undefined,
+      cashier: order.cashierName || undefined,
+      customerInfo: order.customer ? {
+        name: order.customer.name,
+        idNumber: order.customer.idNumber,
+        idType: order.customer.idType,
+        phone: order.customer.phone,
+        email: order.customer.email,
+        loyaltyPoints: order.customer.loyaltyPoints,
+      } : undefined,
+      electronicBilling: order.cufe ? {
+        cufe: order.cufe,
+        qrCode: order.qrCode || undefined,
+        documentNumber: (order.documentNumber || order.orderNumber).toString(),
+        prefix: order.prefix || undefined,
+        resolutionNumber: invoiceDocType?.resolution,
+        resolutionStartDate: invoiceDocType?.resolutionStartDate || undefined,
+        resolutionEndDate: invoiceDocType?.resolutionEndDate || undefined,
+        authRangeFrom: invoiceDocType?.startingNumber || undefined,
+        authRangeTo: invoiceDocType?.endingNumber || undefined,
+      } : undefined,
     });
   };
 
