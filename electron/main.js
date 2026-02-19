@@ -335,8 +335,13 @@ function triggerCashDrawer(printerName) {
       const fs = require('fs');
       const os = require('os');
 
-      // ESC p 0 25 250 = kick drawer pin 2, ESC p 1 25 250 = kick drawer pin 5
-      const drawerCmd = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA, 0x1B, 0x70, 0x01, 0x19, 0xFA]);
+      // ESC p 0 60 120 = kick drawer pin 2 with proper pulse duration
+      // ESC p 1 60 120 = kick drawer pin 5 with proper pulse duration
+      // 0x30=48 (60ms on-time), 0x3C=60 (120ms off-time) ensures reliable solenoid activation
+      const drawerCmd = Buffer.from([
+        0x1B, 0x70, 0x00, 0x30, 0x3C,  // Drawer 1 (Pin 2)
+        0x1B, 0x70, 0x01, 0x30, 0x3C,  // Drawer 2 (Pin 5)
+      ]);
       const ts = Date.now();
       const tempBin = path.join(os.tmpdir(), `flowp-drawer-${ts}.bin`);
       fs.writeFileSync(tempBin, drawerCmd);
