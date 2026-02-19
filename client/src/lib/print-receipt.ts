@@ -99,6 +99,7 @@ interface ReceiptData {
   discountPercent?: number;
   payments?: PaymentEntry[];
   electronicBilling?: ElectronicBillingInfo;
+  isReprint?: boolean;
 }
 
 async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise<boolean> {
@@ -174,7 +175,7 @@ async function tryPrintBridge(tenant: Tenant | null, data: ReceiptData): Promise
       change: data.change,
       currency: tenant?.currency || "USD",
       footerText: tenant?.receiptFooterText || undefined,
-      openCashDrawer: data.paymentMethod === "cash" || data.payments?.some(p => p.type === "cash"),
+      openCashDrawer: data.isReprint ? false : (data.paymentMethod === "cash" || data.payments?.some(p => p.type === "cash")),
       cutPaper: true,
       cutBeforeCoupon: !!(tenant?.couponEnabled && tenant?.couponText),
       couponEnabled: tenant?.couponEnabled || false,

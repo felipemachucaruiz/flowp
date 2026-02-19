@@ -223,6 +223,7 @@ export default function SalesHistoryPage() {
       cashReceived: undefined,
       change: undefined,
       cashier: order.cashierName || undefined,
+      isReprint: true,
       customerInfo: order.customer ? {
         name: order.customer.name,
         idNumber: order.customer.idNumber,
