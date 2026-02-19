@@ -246,13 +246,13 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
         </div>`
       : '';
     const eBillingHtml = receipt.electronicBilling
-      ? `<div style="border-top:1px dashed #000;padding-top:4px;margin-top:4px;font-size:9px;word-break:break-all;text-align:center;">
-          ${receipt.electronicBilling.documentNumber ? `<div style="font-size:12px;font-weight:bold;">${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.documentNumber}</div>` : ''}
-          ${receipt.electronicBilling.resolutionNumber ? `<div style="margin-top:4px;">Resolucion DIAN No. ${receipt.electronicBilling.resolutionNumber}</div>` : ''}
-          ${receipt.electronicBilling.resolutionStartDate && receipt.electronicBilling.resolutionEndDate ? `<div>Vigencia: ${receipt.electronicBilling.resolutionStartDate} - ${receipt.electronicBilling.resolutionEndDate}</div>` : ''}
-          ${receipt.electronicBilling.authRangeFrom && receipt.electronicBilling.authRangeTo ? `<div>Rango: ${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.authRangeFrom} - ${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.authRangeTo}</div>` : ''}
-          ${qrDataUrl ? `<div style="margin:6px auto;"><img src="${qrDataUrl}" style="width:35mm;height:35mm;image-rendering:pixelated;" /></div>` : ''}
-          ${receipt.electronicBilling.cufe ? `<div style="text-align:left;">CUFE: ${receipt.electronicBilling.cufe}</div>` : ''}
+      ? `<div style="border-top:1px dashed #000;padding-top:6px;margin-top:6px;text-align:center;">
+          ${receipt.electronicBilling.documentNumber ? `<div style="font-size:${receipt.fontSize || 12}px;font-weight:bold;">${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.documentNumber}</div>` : ''}
+          ${receipt.electronicBilling.resolutionNumber ? `<div style="margin-top:4px;font-size:${Math.max((receipt.fontSize || 12) - 1, 10)}px;">Resolucion DIAN No.<br/>${receipt.electronicBilling.resolutionNumber}</div>` : ''}
+          ${receipt.electronicBilling.resolutionStartDate && receipt.electronicBilling.resolutionEndDate ? `<div style="font-size:${Math.max((receipt.fontSize || 12) - 1, 10)}px;">Vigencia: ${receipt.electronicBilling.resolutionStartDate} - ${receipt.electronicBilling.resolutionEndDate}</div>` : ''}
+          ${receipt.electronicBilling.authRangeFrom && receipt.electronicBilling.authRangeTo ? `<div style="font-size:${Math.max((receipt.fontSize || 12) - 1, 10)}px;">Rango: ${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.authRangeFrom} - ${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.authRangeTo}</div>` : ''}
+          ${qrDataUrl ? `<div style="margin:6px auto;"><img src="${qrDataUrl}" style="width:30mm;height:30mm;image-rendering:pixelated;" /></div>` : ''}
+          ${receipt.electronicBilling.cufe ? `<div style="margin-top:4px;font-size:${Math.max((receipt.fontSize || 12) - 2, 9)}px;word-break:break-all;text-align:left;line-height:1.3;">CUFE:<br/>${receipt.electronicBilling.cufe}</div>` : ''}
         </div>`
       : '';
 
