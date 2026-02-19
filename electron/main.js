@@ -324,29 +324,44 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
   });
 });
 
-// Helper to trigger cash drawer via ESC/POS raw command
+// Trigger cash drawer via ESC/POS command sent through Electron's print system
+// This is the proven method that works with thermal printers
 function triggerCashDrawer(printerName) {
-  try {
-    const { exec } = require('child_process');
-    const fs = require('fs');
-    const os = require('os');
-    const drawerCmd = Buffer.from([0x1B, 0x70, 0x00, 0x32, 0xFA, 0x1B, 0x70, 0x01, 0x32, 0xFA]);
-    const tempFile = require('path').join(os.tmpdir(), 'flowp-drawer-' + Date.now() + '.bin');
-    fs.writeFileSync(tempFile, drawerCmd);
-    if (process.platform === 'win32') {
-      const safePrinter = (printerName || '').replace(/"/g, '\\"');
-      exec(`copy /b "${tempFile}" "\\\\localhost\\${safePrinter}"`, () => {
-        try { fs.unlinkSync(tempFile); } catch(e) {}
+  return new Promise((resolve) => {
+    try {
+      const ESC = '\x1B';
+      const drawerKickCmd = ESC + '\x70\x00\x19\xFA';
+      const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+        <style>@media print { body { visibility: hidden; } }</style></head>
+        <body><pre style="font-size:1px;">${drawerKickCmd}</pre></body></html>`;
+
+      const printWin = new BrowserWindow({
+        show: false,
+        width: 100,
+        height: 100,
+        webPreferences: { nodeIntegration: false, contextIsolation: true },
       });
-    } else {
-      const safePrinter = (printerName || '').replace(/'/g, "'\\''");
-      exec(`lp -d '${safePrinter}' -o raw '${tempFile}'`, () => {
-        try { fs.unlinkSync(tempFile); } catch(e) {}
+
+      printWin.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+
+      printWin.webContents.on('did-finish-load', () => {
+        printWin.webContents.print(
+          { silent: true, printBackground: false, deviceName: printerName },
+          (success, failureReason) => {
+            printWin.close();
+            resolve({ success, error: failureReason || undefined });
+          }
+        );
       });
+
+      printWin.webContents.on('did-fail-load', () => {
+        printWin.close();
+        resolve({ success: false, error: 'Failed to send drawer command' });
+      });
+    } catch (e) {
+      resolve({ success: false, error: e.message || 'Cash drawer failed' });
     }
-  } catch (e) {
-    console.error('Cash drawer trigger error:', e);
-  }
+  });
 }
 
 ipcMain.handle('print-raw', async (event, printerName, rawBase64) => {
@@ -387,12 +402,10 @@ ipcMain.handle('print-raw', async (event, printerName, rawBase64) => {
 });
 
 ipcMain.handle('open-cash-drawer', async (event, printerName) => {
-  try {
-    triggerCashDrawer(printerName);
-    return { success: true };
-  } catch (e) {
-    return { success: false, error: e.message || 'Cash drawer failed' };
+  if (!printerName) {
+    return { success: false, error: 'No printer specified' };
   }
+  return triggerCashDrawer(printerName);
 });
 
 ipcMain.handle('print-silent', async (event, html, printerName) => {
