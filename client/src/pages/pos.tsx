@@ -45,7 +45,9 @@ import {
   Check,
   UserCheck,
   Lock,
+  DoorOpen,
 } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { NetworkStatusIndicator } from "@/components/network-status-indicator";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { saveOfflineOrder } from "@/lib/offline-storage";
@@ -116,6 +118,36 @@ export default function POSPage() {
   const [appliedReward, setAppliedReward] = useState<LoyaltyReward | null>(null);
   const [freeProductItemId, setFreeProductItemId] = useState<string | null>(null);
   const [selectedSalesRep, setSelectedSalesRep] = useState<UserType | null>(null);
+  const [showDrawerPinDialog, setShowDrawerPinDialog] = useState(false);
+  const [drawerPin, setDrawerPin] = useState("");
+  const [drawerPinLoading, setDrawerPinLoading] = useState(false);
+
+  const handleOpenDrawer = async (pin: string) => {
+    if (pin.length !== 4) return;
+    setDrawerPinLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/auth/verify-pin", { pin });
+      const data = await res.json();
+      if (data.success) {
+        setShowDrawerPinDialog(false);
+        setDrawerPin("");
+        const result = await printBridge.openCashDrawer();
+        if (result?.success !== false) {
+          toast({ title: t("pos.drawer_opened") });
+        } else {
+          toast({ title: t("pos.drawer_error"), variant: "destructive" });
+        }
+      } else {
+        toast({ title: t("pos.wrong_pin"), variant: "destructive" });
+        setDrawerPin("");
+      }
+    } catch {
+      toast({ title: t("pos.wrong_pin"), variant: "destructive" });
+      setDrawerPin("");
+    } finally {
+      setDrawerPinLoading(false);
+    }
+  };
 
   const discountRate = parseFloat(discountPercent || "0");
   
@@ -1018,6 +1050,18 @@ export default function POSPage() {
                 <X className="w-3.5 h-3.5 mr-1" />
                 {t("pos.clear")}
               </Button>
+              {tenant?.openCashDrawer && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => { setDrawerPin(""); setShowDrawerPinDialog(true); }}
+                  data-testid="button-open-drawer"
+                >
+                  <DoorOpen className="w-3.5 h-3.5 mr-1" />
+                  {t("pos.open_drawer")}
+                </Button>
+              )}
             </div>
 
             {isTabMode ? (
@@ -1738,6 +1782,37 @@ export default function POSPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cash Drawer PIN Dialog */}
+      <Dialog open={showDrawerPinDialog} onOpenChange={setShowDrawerPinDialog}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle data-testid="text-drawer-pin-title">{t("pos.open_drawer_title")}</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <DoorOpen className="w-12 h-12 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground text-center">{t("pos.open_drawer_pin")}</p>
+            <InputOTP
+              maxLength={4}
+              value={drawerPin}
+              onChange={(val) => {
+                setDrawerPin(val);
+                if (val.length === 4) handleOpenDrawer(val);
+              }}
+              disabled={drawerPinLoading}
+              data-testid="input-drawer-pin"
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+                <InputOTPSlot index={3} />
+              </InputOTPGroup>
+            </InputOTP>
+            {drawerPinLoading && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
+          </div>
         </DialogContent>
       </Dialog>
 
