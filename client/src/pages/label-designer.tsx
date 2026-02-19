@@ -683,7 +683,10 @@ export default function LabelDesignerPage() {
   const electronSilentPrint = useCallback(async () => {
     await waitForCanvasReady();
     const el = document.querySelector('.print-labels');
-    if (!el) return;
+    if (!el) {
+      toast({ title: "No labels to print", variant: "destructive" });
+      return;
+    }
     const clone = el.cloneNode(true) as HTMLElement;
     clone.querySelectorAll('canvas').forEach((canvas) => {
       const key = canvas.getAttribute('data-copy-key');
@@ -709,12 +712,16 @@ export default function LabelDesignerPage() {
       || localStorage.getItem('flowp_electron_printer')
       || undefined;
     try {
-      await (window as any).electronAPI.printSilent(html, barcodePrinter);
+      const result = await (window as any).electronAPI.printSilent(html, barcodePrinter);
+      if (!result?.success) {
+        console.error('[Electron] Label print failed:', result?.error);
+        toast({ title: t("labels.print_error") || "Print failed", description: result?.error, variant: "destructive" });
+      }
     } catch (e) {
-      console.error('[Electron] Label print failed:', e);
-      window.print();
+      console.error('[Electron] Label print error:', e);
+      toast({ title: t("labels.print_error") || "Print failed", variant: "destructive" });
     }
-  }, [template, waitForCanvasReady]);
+  }, [template, waitForCanvasReady, toast, t]);
 
   const handlePrint = () => {
     if (selectedProducts.length === 0) {
@@ -722,12 +729,6 @@ export default function LabelDesignerPage() {
       return;
     }
     setShowPreview(true);
-    const isElectronApp = !!(window as any).electronAPI?.isElectron && (window as any).electronAPI?.printSilent;
-    if (isElectronApp) {
-      setTimeout(() => electronSilentPrint(), 500);
-    } else {
-      setTimeout(() => window.print(), 300);
-    }
   };
 
   const filteredProducts = products.filter(p =>
