@@ -217,7 +217,7 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
     if (qrContent) {
       try {
         const QRCode = require('qrcode');
-        qrDataUrl = await QRCode.toDataURL(qrContent, { width: 200, margin: 1, errorCorrectionLevel: 'M' });
+        qrDataUrl = await QRCode.toDataURL(qrContent, { width: 600, margin: 2, errorCorrectionLevel: 'H', color: { dark: '#000000', light: '#ffffff' } });
       } catch (e) {
         console.log('QR code generation not available:', e.message);
       }
@@ -251,7 +251,7 @@ ipcMain.handle('print-receipt', async (event, printerName, receipt) => {
           ${receipt.electronicBilling.resolutionNumber ? `<div style="margin-top:4px;font-size:${Math.max((receipt.fontSize || 12) - 1, 10)}px;">Resolucion DIAN No.<br/>${receipt.electronicBilling.resolutionNumber}</div>` : ''}
           ${receipt.electronicBilling.resolutionStartDate && receipt.electronicBilling.resolutionEndDate ? `<div style="font-size:${Math.max((receipt.fontSize || 12) - 1, 10)}px;">Vigencia: ${receipt.electronicBilling.resolutionStartDate} - ${receipt.electronicBilling.resolutionEndDate}</div>` : ''}
           ${receipt.electronicBilling.authRangeFrom && receipt.electronicBilling.authRangeTo ? `<div style="font-size:${Math.max((receipt.fontSize || 12) - 1, 10)}px;">Rango: ${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.authRangeFrom} - ${receipt.electronicBilling.prefix || ''}${receipt.electronicBilling.authRangeTo}</div>` : ''}
-          ${qrDataUrl ? `<div style="margin:6px auto;"><img src="${qrDataUrl}" style="width:30mm;height:30mm;image-rendering:pixelated;" /></div>` : ''}
+          ${qrDataUrl ? `<div style="margin:8px auto;text-align:center;"><img src="${qrDataUrl}" style="width:38mm;height:38mm;image-rendering:pixelated;image-rendering:-moz-crisp-edges;image-rendering:crisp-edges;-ms-interpolation-mode:nearest-neighbor;" /></div>` : ''}
           ${receipt.electronicBilling.cufe ? `<div style="margin-top:4px;font-size:${Math.max((receipt.fontSize || 12) - 2, 9)}px;word-break:break-all;text-align:left;line-height:1.3;">CUFE:<br/>${receipt.electronicBilling.cufe}</div>` : ''}
         </div>`
       : '';
