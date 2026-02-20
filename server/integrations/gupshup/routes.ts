@@ -13,7 +13,7 @@ import {
   tenants,
   PAID_ADDONS,
 } from "@shared/schema";
-import { eq, and, desc, asc, sql, ilike, or } from "drizzle-orm";
+import { eq, and, desc, asc, sql, ilike, or, inArray } from "drizzle-orm";
 import {
   encrypt,
   getWhatsappConfig,
@@ -761,18 +761,36 @@ function normalizePhone(phone: string): string {
   return cleaned;
 }
 
+function getPhoneVariants(phone: string): string[] {
+  const normalized = normalizePhone(phone);
+  const withPlus = `+${normalized}`;
+  const variants = [phone, normalized, withPlus];
+
+  if (normalized.startsWith("521") && normalized.length === 13) {
+    const without1 = "52" + normalized.substring(3);
+    variants.push(without1, `+${without1}`);
+  } else if (normalized.startsWith("52") && !normalized.startsWith("521") && normalized.length === 12) {
+    const with1 = "521" + normalized.substring(2);
+    variants.push(with1, `+${with1}`);
+  }
+
+  if (normalized.startsWith("55") && normalized.length === 13) {
+    const without9 = "55" + normalized.substring(4);
+    variants.push(without9, `+${without9}`);
+  }
+
+  return [...new Set(variants)];
+}
+
 async function getOrCreateConversation(tenantId: string, phone: string, customerName?: string) {
   const normalized = normalizePhone(phone);
   const withPlus = `+${normalized}`;
+  const variants = getPhoneVariants(phone);
 
   let conversation = await db.query.whatsappConversations.findFirst({
     where: and(
       eq(whatsappConversations.tenantId, tenantId),
-      or(
-        eq(whatsappConversations.customerPhone, phone),
-        eq(whatsappConversations.customerPhone, normalized),
-        eq(whatsappConversations.customerPhone, withPlus)
-      )
+      inArray(whatsappConversations.customerPhone, variants)
     ),
   });
 
