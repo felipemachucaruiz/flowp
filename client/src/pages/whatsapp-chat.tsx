@@ -438,6 +438,13 @@ export default function WhatsAppChatPage() {
     const file = e.target.files?.[0];
     if (!file || !selectedConversation) return;
 
+    const ABSOLUTE_MAX = 100 * 1024 * 1024;
+    if (file.size > ABSOLUTE_MAX) {
+      toast({ title: t("common.error"), description: t("whatsapp_chat.file_over_100mb" as any) || "Files larger than 100MB cannot be sent via WhatsApp", variant: "destructive" });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     let contentType: "image" | "video" | "audio" | "document" = "document";
     if (file.type.startsWith("image/")) contentType = "image";
     else if (file.type.startsWith("video/")) contentType = "video";
