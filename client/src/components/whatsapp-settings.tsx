@@ -51,6 +51,7 @@ interface WhatsAppConfig {
   notifyDailySummary?: boolean;
   businessHours?: string;
   supportInfo?: string;
+  catalogId?: string;
   lastError?: string;
   errorCount?: number;
 }
@@ -127,6 +128,7 @@ export function WhatsAppSettings() {
   const [notifyDailySummary, setNotifyDailySummary] = useState(false);
   const [businessHours, setBusinessHours] = useState("");
   const [supportInfo, setSupportInfo] = useState("");
+  const [catalogId, setCatalogId] = useState("");
 
   const [logsPage, setLogsPage] = useState(0);
 
@@ -149,6 +151,7 @@ export function WhatsAppSettings() {
       setNotifyDailySummary(config.notifyDailySummary || false);
       setBusinessHours(config.businessHours || "");
       setSupportInfo(config.supportInfo || "");
+      setCatalogId(config.catalogId || "");
     }
     setConfigLoaded(true);
   }
@@ -344,6 +347,7 @@ export function WhatsAppSettings() {
         notifyDailySummary,
         businessHours,
         supportInfo,
+        catalogId,
       });
       return res.json();
     },
@@ -643,6 +647,24 @@ export function WhatsAppSettings() {
                 placeholder="Para soporte contacta a nuestro equipo..."
                 rows={3}
                 data-testid="textarea-support-info"
+              />
+            </div>
+
+            <Separator />
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium" htmlFor="catalog-id">
+                {t("whatsapp.catalogId" as any) || "WhatsApp Catalog ID"}
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {t("whatsapp.catalogIdDesc" as any) || "Your Meta Commerce catalog ID for sending product lists via WhatsApp"}
+              </p>
+              <Input
+                id="catalog-id"
+                value={catalogId}
+                onChange={(e) => setCatalogId(e.target.value)}
+                placeholder="123456789012345"
+                data-testid="input-catalog-id"
               />
             </div>
           </CardContent>

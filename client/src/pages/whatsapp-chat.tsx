@@ -35,7 +35,11 @@ import {
   ArrowLeft,
   Music,
   X,
+  ShoppingCart,
+  Package,
+  Loader2,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Conversation {
   id: string;
@@ -190,6 +194,11 @@ export default function WhatsAppChatPage() {
   const [customerSearch, setCustomerSearch] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMobileConversation, setShowMobileConversation] = useState(false);
+  const [catalogDialog, setCatalogDialog] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [catalogHeader, setCatalogHeader] = useState("");
+  const [catalogBody, setCatalogBody] = useState("");
+  const [catalogFooter, setCatalogFooter] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -240,6 +249,64 @@ export default function WhatsAppChatPage() {
     setNewChatName(c.name);
   };
 
+  interface Product {
+    id: string;
+    name: string;
+    sku: string | null;
+    price: string;
+    categoryId: string | null;
+    image: string | null;
+    isActive: boolean;
+  }
+
+  interface Category {
+    id: string;
+    name: string;
+  }
+
+  interface WhatsAppConfig {
+    configured: boolean;
+    catalogId?: string;
+    enabled?: boolean;
+  }
+
+  const { data: whatsappConfig } = useQuery<WhatsAppConfig>({
+    queryKey: ["whatsapp", "config"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/config", {
+        headers: { "x-tenant-id": tenantId },
+      });
+      if (!res.ok) throw new Error("Failed to load config");
+      return res.json();
+    },
+    enabled: !!tenantId && hasChat,
+  });
+
+  const { data: catalogProducts } = useQuery<Product[]>({
+    queryKey: ["/api/products", "catalog"],
+    queryFn: async () => {
+      const res = await fetch("/api/products", {
+        headers: { "x-tenant-id": tenantId },
+      });
+      if (!res.ok) throw new Error("Failed to load products");
+      const data = await res.json();
+      return (Array.isArray(data) ? data : data.products || []).filter((p: Product) => p.isActive);
+    },
+    enabled: !!tenantId && catalogDialog,
+  });
+
+  const { data: catalogCategories } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/categories", {
+        headers: { "x-tenant-id": tenantId },
+      });
+      if (!res.ok) throw new Error("Failed to load categories");
+      return res.json();
+    },
+    enabled: !!tenantId && catalogDialog,
+  });
+
   const { data: messages, isLoading: loadingMessages } = useQuery<ChatMessage[]>({
     queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"],
     queryFn: async () => {
@@ -274,6 +341,29 @@ export default function WhatsAppChatPage() {
       setMessageInput("");
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
+    },
+    onError: (err: any) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const sendCatalogMutation = useMutation({
+    mutationFn: async (data: { conversationId: string; productIds: string[]; headerText: string; bodyText: string; footerText: string }) => {
+      const res = await apiRequest("POST", "/api/whatsapp/chat/send-catalog", {
+        ...data,
+        senderName: user?.name || user?.username || "Staff",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setCatalogDialog(false);
+      setSelectedProductIds([]);
+      setCatalogHeader("");
+      setCatalogBody("");
+      setCatalogFooter("");
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
+      toast({ title: t("common.success"), description: t("whatsapp_chat.catalog_sent" as any) || "Product catalog sent!" });
     },
     onError: (err: any) => {
       toast({ title: t("common.error"), description: err.message, variant: "destructive" });
@@ -707,6 +797,18 @@ export default function WhatsAppChatPage() {
                     <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => fileInputRef.current?.click()} data-testid="button-attach-file">
                       <Paperclip className="w-5 h-5 text-muted-foreground" />
                     </Button>
+                    {whatsappConfig?.catalogId && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="flex-shrink-0 h-9 w-9"
+                        onClick={() => setCatalogDialog(true)}
+                        title={t("whatsapp_chat.send_catalog" as any) || "Send Product Catalog"}
+                        data-testid="button-send-catalog"
+                      >
+                        <ShoppingCart className="w-5 h-5 text-muted-foreground" />
+                      </Button>
+                    )}
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -862,6 +964,151 @@ export default function WhatsAppChatPage() {
           >
             {t("whatsapp_chat.start_chat")}
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={catalogDialog} onOpenChange={(open) => {
+        setCatalogDialog(open);
+        if (!open) {
+          setSelectedProductIds([]);
+          setCatalogHeader("");
+          setCatalogBody("");
+          setCatalogFooter("");
+        }
+      }}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5" />
+              {t("whatsapp_chat.send_catalog" as any) || "Send Product Catalog"}
+            </DialogTitle>
+            <DialogDescription>
+              {t("whatsapp_chat.catalog_description" as any) || "Select up to 30 products to send as an interactive catalog message."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            <div className="space-y-2">
+              <Label>{t("whatsapp_chat.catalog_header" as any) || "Header"}</Label>
+              <Input
+                value={catalogHeader}
+                onChange={(e) => setCatalogHeader(e.target.value)}
+                placeholder={t("whatsapp_chat.catalog_header_placeholder" as any) || "Our Products"}
+                data-testid="input-catalog-header"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("whatsapp_chat.catalog_body_text" as any) || "Message"}</Label>
+              <Input
+                value={catalogBody}
+                onChange={(e) => setCatalogBody(e.target.value)}
+                placeholder={t("whatsapp_chat.catalog_body_placeholder" as any) || "Check out our selection!"}
+                data-testid="input-catalog-body"
+              />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <Label>{t("whatsapp_chat.select_products" as any) || "Select Products"}</Label>
+              <Badge variant="outline" data-testid="badge-product-count">
+                {selectedProductIds.length}/30
+              </Badge>
+            </div>
+
+            <ScrollArea className="flex-1 border rounded-lg min-h-0" style={{ maxHeight: "300px" }}>
+              <div className="p-2 space-y-1">
+                {(() => {
+                  const prods = catalogProducts || [];
+                  const cats = catalogCategories || [];
+                  const catMap = Object.fromEntries(cats.map(c => [c.id, c.name]));
+                  const grouped: Record<string, Product[]> = {};
+                  prods.forEach(p => {
+                    const catName = p.categoryId && catMap[p.categoryId] ? catMap[p.categoryId] : (t("whatsapp_chat.uncategorized" as any) || "Uncategorized");
+                    if (!grouped[catName]) grouped[catName] = [];
+                    grouped[catName].push(p);
+                  });
+
+                  if (prods.length === 0) {
+                    return (
+                      <div className="text-center text-sm text-muted-foreground py-8">
+                        {t("whatsapp_chat.no_products" as any) || "No active products found"}
+                      </div>
+                    );
+                  }
+
+                  return Object.entries(grouped).map(([catName, products]) => (
+                    <div key={catName} className="mb-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">{catName}</p>
+                      {products.map(product => {
+                        const isSelected = selectedProductIds.includes(product.id);
+                        return (
+                          <div
+                            key={product.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedProductIds(prev => prev.filter(id => id !== product.id));
+                              } else if (selectedProductIds.length < 30) {
+                                setSelectedProductIds(prev => [...prev, product.id]);
+                              }
+                            }}
+                            className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${isSelected ? "bg-primary/10 ring-1 ring-primary/20" : "hover:bg-muted/50"}`}
+                            data-testid={`catalog-product-${product.id}`}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => {}}
+                              className="pointer-events-none"
+                            />
+                            {product.image ? (
+                              <img src={product.image} alt={product.name} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                                <Package className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{product.name}</p>
+                              {product.sku && <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>}
+                            </div>
+                            <span className="text-sm font-medium text-muted-foreground flex-shrink-0">
+                              ${parseFloat(product.price).toLocaleString()}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ));
+                })()}
+              </div>
+            </ScrollArea>
+
+            <Button
+              className="w-full"
+              onClick={() => {
+                if (!selectedConversation) return;
+                sendCatalogMutation.mutate({
+                  conversationId: selectedConversation.id,
+                  productIds: selectedProductIds,
+                  headerText: catalogHeader,
+                  bodyText: catalogBody,
+                  footerText: catalogFooter,
+                });
+              }}
+              disabled={selectedProductIds.length === 0 || sendCatalogMutation.isPending}
+              data-testid="button-send-catalog-confirm"
+            >
+              {sendCatalogMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {t("common.loading")}
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  {t("whatsapp_chat.send_catalog_button" as any) || `Send ${selectedProductIds.length} Product${selectedProductIds.length !== 1 ? "s" : ""}`}
+                </>
+              )}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

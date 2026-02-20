@@ -11,6 +11,9 @@ import {
   whatsappTemplates,
   whatsappTemplateTriggers,
   tenants,
+  products,
+  categories,
+  whatsappCatalogOrders,
   PAID_ADDONS,
 } from "@shared/schema";
 import { eq, and, desc, asc, sql, ilike, or, inArray } from "drizzle-orm";
@@ -87,6 +90,7 @@ whatsappRouter.get("/config", whatsappAddonGate, async (req: Request, res: Respo
       notifyDailySummary: config.notifyDailySummary,
       businessHours: config.businessHours,
       supportInfo: config.supportInfo,
+      catalogId: config.catalogId,
       lastError: config.lastError,
       errorCount: config.errorCount,
     });
@@ -109,6 +113,7 @@ whatsappRouter.post("/config", whatsappAddonGate, async (req: Request, res: Resp
       notifyDailySummary,
       businessHours,
       supportInfo,
+      catalogId,
     } = req.body;
 
     const existing = await getWhatsappConfig(tenantId);
@@ -129,6 +134,7 @@ whatsappRouter.post("/config", whatsappAddonGate, async (req: Request, res: Resp
     if (notifyDailySummary !== undefined) updateData.notifyDailySummary = notifyDailySummary;
     if (businessHours !== undefined) updateData.businessHours = businessHours;
     if (supportInfo !== undefined) updateData.supportInfo = supportInfo;
+    if (catalogId !== undefined) updateData.catalogId = catalogId;
 
     if (existing) {
       await db.update(tenantWhatsappIntegrations)
@@ -1022,6 +1028,106 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
       return res.status(200).json({ status: "ok" });
     }
 
+    if (payload.type === "order") {
+      const orderPayload = payload.payload || payload;
+      const senderPhone = orderPayload.source || orderPayload.sender?.phone;
+      const senderName = orderPayload.sender?.name || null;
+      const destinationPhone = payload.destination || orderPayload.destination || "";
+      const appName = payload.app || "";
+
+      console.log(`[WhatsApp Webhook] Order received from ${senderPhone}`);
+
+      let config = null;
+      if (destinationPhone) {
+        config = await db.query.tenantWhatsappIntegrations.findFirst({
+          where: eq(tenantWhatsappIntegrations.senderPhone, destinationPhone.replace(/^\+/, "")),
+        });
+        if (!config) {
+          config = await db.query.tenantWhatsappIntegrations.findFirst({
+            where: eq(tenantWhatsappIntegrations.senderPhone, destinationPhone),
+          });
+        }
+      }
+      if (!config && appName) {
+        config = await db.query.tenantWhatsappIntegrations.findFirst({
+          where: eq(tenantWhatsappIntegrations.gupshupAppName, appName),
+        });
+      }
+      if (!config) {
+        const allConfigs = await db.select().from(tenantWhatsappIntegrations).where(eq(tenantWhatsappIntegrations.enabled, true));
+        if (allConfigs.length === 1) config = allConfigs[0];
+      }
+
+      if (!config || !senderPhone) {
+        return res.status(200).json({ status: "ok" });
+      }
+
+      const conversation = await getOrCreateConversation(config.tenantId, senderPhone, senderName || undefined);
+
+      const orderData = orderPayload.order || orderPayload;
+      const items = (orderData.product_items || orderData.items || []).map((item: any) => ({
+        productId: item.product_retailer_id || item.productId || "",
+        quantity: parseInt(item.quantity || "1", 10),
+        price: item.item_price || item.price || "0",
+        currency: item.currency || "COP",
+        name: item.name || "",
+      }));
+
+      const totalAmount = items.reduce((sum: number, item: any) => sum + (parseFloat(item.price) * item.quantity), 0);
+
+      const [catalogOrder] = await db.insert(whatsappCatalogOrders).values({
+        tenantId: config.tenantId,
+        conversationId: conversation.id,
+        customerPhone: senderPhone,
+        customerName: senderName,
+        catalogId: config.catalogId || null,
+        items,
+        totalAmount: totalAmount.toFixed(2),
+        currency: items[0]?.currency || "COP",
+        providerMessageId: orderPayload.id || orderPayload.messageId || null,
+        status: "received",
+      }).returning();
+
+      const orderSummary = items.map((i: any) => `${i.quantity}x ${i.name || i.productId}`).join(", ");
+      const previewText = `[order] ${items.length} items - $${totalAmount.toFixed(2)}`;
+
+      const [chatMsg] = await db.insert(whatsappChatMessages).values({
+        conversationId: conversation.id,
+        tenantId: config.tenantId,
+        direction: "inbound",
+        contentType: "text" as any,
+        body: `🛒 ${previewText}: ${orderSummary.substring(0, 200)}`,
+        senderPhone,
+        senderName,
+        providerMessageId: orderPayload.id || orderPayload.messageId || null,
+        status: "delivered",
+      }).returning();
+
+      await db.update(whatsappConversations)
+        .set({
+          lastMessageAt: new Date(),
+          lastMessagePreview: previewText,
+          lastInboundAt: new Date(),
+          unreadCount: sql`${whatsappConversations.unreadCount} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(whatsappConversations.id, conversation.id));
+
+      broadcastToTenant(config.tenantId, {
+        type: "whatsapp_message",
+        conversationId: conversation.id,
+        message: chatMsg,
+      });
+
+      broadcastToTenant(config.tenantId, {
+        type: "whatsapp_catalog_order",
+        conversationId: conversation.id,
+        order: catalogOrder,
+      });
+
+      return res.status(200).json({ status: "ok" });
+    }
+
     return res.status(200).json({ status: "ok" });
   } catch (error: any) {
     console.error("[WhatsApp Webhook] Error:", error);
@@ -1702,6 +1808,176 @@ whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Resp
     }
 
     return res.json({ success: true });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.post("/chat/send-catalog", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const { conversationId, productIds, headerText, bodyText, footerText, senderName } = req.body;
+
+    if (!conversationId) {
+      return res.status(400).json({ error: "conversationId required" });
+    }
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(400).json({ error: "productIds array required (1-30 items)" });
+    }
+    if (productIds.length > 30) {
+      return res.status(400).json({ error: "Maximum 30 products allowed per catalog message" });
+    }
+
+    const conversation = await db.query.whatsappConversations.findFirst({
+      where: and(
+        eq(whatsappConversations.id, conversationId),
+        eq(whatsappConversations.tenantId, tenantId)
+      ),
+    });
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    const creds = await getEffectiveGupshupCredentials(tenantId);
+    if (!creds) {
+      return res.status(400).json({ error: "WhatsApp service not configured" });
+    }
+
+    const config = await getWhatsappConfig(tenantId);
+    if (!config?.enabled) {
+      return res.status(400).json({ error: "WhatsApp not enabled for this tenant" });
+    }
+    if (!config.catalogId) {
+      return res.status(400).json({ error: "WhatsApp Catalog ID not configured. Set it in WhatsApp settings." });
+    }
+
+    const lastInbound = conversation.lastInboundAt ? new Date(conversation.lastInboundAt).getTime() : 0;
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    if (!lastInbound || (Date.now() - lastInbound) >= twentyFourHours) {
+      return res.status(400).json({ error: "session_closed", message: "The 24-hour messaging window is closed." });
+    }
+
+    const quota = await validateQuota(tenantId);
+    if (!quota.allowed) {
+      return res.status(403).json({ error: quota.error });
+    }
+
+    const selectedProducts = await db.select().from(products)
+      .where(and(
+        eq(products.tenantId, tenantId),
+        inArray(products.id, productIds)
+      ));
+
+    if (selectedProducts.length === 0) {
+      return res.status(400).json({ error: "No valid products found" });
+    }
+
+    const categoryIds = [...new Set(selectedProducts.map(p => p.categoryId).filter(Boolean))];
+    let categoryMap: Record<string, string> = {};
+    if (categoryIds.length > 0) {
+      const cats = await db.select().from(categories)
+        .where(inArray(categories.id, categoryIds as string[]));
+      categoryMap = Object.fromEntries(cats.map(c => [c.id, c.name]));
+    }
+
+    const sectionMap: Record<string, typeof selectedProducts> = {};
+    for (const product of selectedProducts) {
+      const sectionTitle = product.categoryId && categoryMap[product.categoryId]
+        ? categoryMap[product.categoryId]
+        : "Products";
+      if (!sectionMap[sectionTitle]) {
+        sectionMap[sectionTitle] = [];
+      }
+      sectionMap[sectionTitle].push(product);
+    }
+
+    const sectionEntries = Object.entries(sectionMap);
+    if (sectionEntries.length > 10) {
+      return res.status(400).json({ error: "Maximum 10 sections (categories) allowed. Select products from fewer categories." });
+    }
+
+    const sections = sectionEntries.map(([title, prods]) => ({
+      title,
+      rows: prods.map(p => ({
+        id: p.sku || p.id,
+      })),
+    }));
+
+    const gupshupMessage = {
+      type: "product_details",
+      subType: "product_list",
+      header: headerText || "Our Products",
+      body: bodyText || "Check out our selection!",
+      footer: footerText || "",
+      action: {
+        catalogId: config.catalogId,
+        sections,
+      },
+    };
+
+    const response = await fetch("https://api.gupshup.io/wa/api/v1/msg", {
+      method: "POST",
+      headers: {
+        "apikey": creds.apiKey,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        channel: "whatsapp",
+        source: creds.senderPhone,
+        destination: conversation.customerPhone,
+        "src.name": creds.appName,
+        message: JSON.stringify(gupshupMessage),
+      }).toString(),
+    });
+
+    const data = await response.json();
+
+    if (data && (data.status === "submitted" || data.messageId)) {
+      await deductMessage(tenantId);
+
+      const productNames = selectedProducts.map(p => p.name).join(", ");
+      const previewText = `[catalog] ${selectedProducts.length} products`;
+
+      const [chatMsg] = await db.insert(whatsappChatMessages).values({
+        conversationId,
+        tenantId,
+        direction: "outbound",
+        contentType: "text" as any,
+        body: `📦 ${previewText}: ${productNames.substring(0, 200)}`,
+        senderName: senderName || null,
+        providerMessageId: data.messageId || null,
+        status: "sent",
+      }).returning();
+
+      await db.update(whatsappConversations)
+        .set({
+          lastMessageAt: new Date(),
+          lastMessagePreview: previewText,
+          updatedAt: new Date(),
+        })
+        .where(eq(whatsappConversations.id, conversationId));
+
+      await db.insert(whatsappMessageLogs).values({
+        tenantId,
+        direction: "outbound",
+        phone: conversation.customerPhone,
+        messageType: "manual",
+        messageBody: previewText,
+        providerMessageId: data.messageId || null,
+        status: "sent",
+      });
+
+      broadcastToTenant(tenantId, {
+        type: "whatsapp_message",
+        conversationId,
+        message: chatMsg,
+      });
+
+      return res.json({ success: true, message: chatMsg });
+    } else {
+      const errorMsg = data?.message || JSON.stringify(data);
+      return res.status(400).json({ error: errorMsg });
+    }
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
