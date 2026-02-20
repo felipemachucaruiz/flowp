@@ -410,12 +410,7 @@ export default function WhatsAppChatPage() {
       return res.json();
     },
     onSuccess: () => {
-      if (selectedConversation) {
-        setSelectedConversation({
-          ...selectedConversation,
-          lastInboundAt: new Date().toISOString(),
-        });
-      }
+      setSelectedConversation(prev => prev ? { ...prev, lastInboundAt: new Date().toISOString() } : null);
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
       toast({ title: t("whatsapp_chat.greeting_sent" as any) });
@@ -428,8 +423,19 @@ export default function WhatsAppChatPage() {
   useEffect(() => {
     if (selectedConversation && conversations.length > 0) {
       const updated = conversations.find(c => c.id === selectedConversation.id);
-      if (updated && updated.lastInboundAt !== selectedConversation.lastInboundAt) {
-        setSelectedConversation(updated);
+      if (updated) {
+        const serverInbound = updated.lastInboundAt ? new Date(updated.lastInboundAt).getTime() : 0;
+        const localInbound = selectedConversation.lastInboundAt ? new Date(selectedConversation.lastInboundAt).getTime() : 0;
+        if (serverInbound > localInbound || updated.lastMessageAt !== selectedConversation.lastMessageAt || updated.unreadCount !== selectedConversation.unreadCount) {
+          setSelectedConversation(prev => {
+            if (!prev) return updated;
+            const prevInbound = prev.lastInboundAt ? new Date(prev.lastInboundAt).getTime() : 0;
+            return {
+              ...updated,
+              lastInboundAt: prevInbound > serverInbound ? prev.lastInboundAt : updated.lastInboundAt,
+            };
+          });
+        }
       }
     }
   }, [conversations]);
