@@ -545,6 +545,13 @@ whatsappRouter.post("/templates/sync-from-gupshup", whatsappAddonGate, async (re
       languageCode?: string; meta?: string; data?: string; templateType?: string;
     }> = data.templates || data || [];
 
+    const remoteIds = new Set<string>();
+    const remoteNames = new Set<string>();
+    for (const g of gupshupTemplates) {
+      if (g.id) remoteIds.add(g.id);
+      if (g.elementName) remoteNames.add(g.elementName);
+    }
+
     const approvedRemote = gupshupTemplates.filter(
       (g) => g.status?.toLowerCase() === "approved" || g.status?.toUpperCase() === "APPROVED"
     );
@@ -555,6 +562,7 @@ whatsappRouter.post("/templates/sync-from-gupshup", whatsappAddonGate, async (re
 
     let imported = 0;
     let updated = 0;
+    let deleted = 0;
 
     for (const remote of approvedRemote) {
       if (!remote.elementName || !remote.id) continue;
@@ -603,7 +611,22 @@ whatsappRouter.post("/templates/sync-from-gupshup", whatsappAddonGate, async (re
       }
     }
 
-    return res.json({ success: true, imported, updated, total: approvedRemote.length });
+    for (const local of existingTemplates) {
+      if (local.gupshupTemplateId && !remoteIds.has(local.gupshupTemplateId) && !remoteNames.has(local.name)) {
+        await db.delete(whatsappTemplates).where(eq(whatsappTemplates.id, local.id));
+        deleted++;
+      } else if (local.gupshupTemplateId && remoteIds.has(local.gupshupTemplateId)) {
+        const remoteEntry = gupshupTemplates.find(g => g.id === local.gupshupTemplateId);
+        if (remoteEntry && remoteEntry.status?.toLowerCase() !== "approved" && local.status === "approved") {
+          await db.update(whatsappTemplates)
+            .set({ status: remoteEntry.status?.toLowerCase() === "rejected" ? "rejected" : "pending", updatedAt: new Date() })
+            .where(eq(whatsappTemplates.id, local.id));
+          updated++;
+        }
+      }
+    }
+
+    return res.json({ success: true, imported, updated, deleted, total: approvedRemote.length });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
