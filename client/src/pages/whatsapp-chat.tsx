@@ -53,16 +53,13 @@ interface Conversation {
 }
 
 function isSessionWindowOpen(conversation: Conversation): boolean {
-  if (conversation.lastInboundAt) {
-    const inboundTime = new Date(conversation.lastInboundAt).getTime();
-    const now = Date.now();
-    const twentyFourHours = 24 * 60 * 60 * 1000;
-    return (now - inboundTime) < twentyFourHours;
+  if (!conversation.lastInboundAt) {
+    return false;
   }
-  const createdTime = new Date(conversation.createdAt).getTime();
+  const inboundTime = new Date(conversation.lastInboundAt).getTime();
   const now = Date.now();
-  const fiveMinutes = 5 * 60 * 1000;
-  return (now - createdTime) < fiveMinutes;
+  const twentyFourHours = 24 * 60 * 60 * 1000;
+  return (now - inboundTime) < twentyFourHours;
 }
 
 interface ChatMessage {

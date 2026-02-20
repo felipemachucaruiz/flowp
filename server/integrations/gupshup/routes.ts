@@ -1279,6 +1279,12 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
       return res.status(400).json({ error: "WhatsApp not enabled for this tenant" });
     }
 
+    const lastInbound = conversation.lastInboundAt ? new Date(conversation.lastInboundAt).getTime() : 0;
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    if (!lastInbound || (Date.now() - lastInbound) >= twentyFourHours) {
+      return res.status(400).json({ error: "session_closed", message: "The 24-hour messaging window is closed. Use the greeting template to re-engage this customer." });
+    }
+
     const quota = await validateQuota(tenantId);
     if (!quota.allowed) {
       return res.status(403).json({ error: quota.error });
@@ -1419,25 +1425,33 @@ whatsappRouter.post("/chat/send-greeting", whatsappAddonGate, async (req: Reques
     }
 
     const variableMapping = trigger.variableMapping || {};
+    const hasMapping = Object.keys(variableMapping).length > 0;
     const templateParams: string[] = [];
     const allText = [template.headerText, template.bodyText, template.footerText].filter(Boolean).join(" ");
     const matches = allText.match(/\{\{(\d+)\}\}/g) || [];
     const paramIndices = [...new Set(matches.map(m => parseInt(m.replace(/\D/g, ""))))].sort((a, b) => a - b);
     const paramCount = paramIndices.length > 0 ? Math.max(...paramIndices) : 0;
 
-    let tenantData: { name: string } | null = null;
-    for (let i = 1; i <= paramCount; i++) {
-      const key = variableMapping[String(i)] || variableMapping[`{{${i}}}`] || "";
-      if (key === "customer_name") {
-        templateParams.push(conversation.customerName || conversation.customerPhone);
-      } else if (key === "company_name") {
-        if (!tenantData) {
-          const found = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
-          tenantData = found ? { name: found.name } : { name: "" };
+    const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+    const customerName = conversation.customerName || conversation.customerPhone;
+    const companyName = tenant?.name || "";
+
+    if (!hasMapping && paramCount > 0) {
+      for (let i = 1; i <= paramCount; i++) {
+        if (i === 1) templateParams.push(customerName);
+        else if (i === 2) templateParams.push(companyName);
+        else templateParams.push("");
+      }
+    } else {
+      for (let i = 1; i <= paramCount; i++) {
+        const key = variableMapping[String(i)] || variableMapping[`{{${i}}}`] || "";
+        if (key === "customer_name") {
+          templateParams.push(customerName);
+        } else if (key === "company_name") {
+          templateParams.push(companyName);
+        } else {
+          templateParams.push(key || "");
         }
-        templateParams.push(tenantData.name || "");
-      } else {
-        templateParams.push(key || "");
       }
     }
 
