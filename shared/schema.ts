@@ -2266,6 +2266,7 @@ export const whatsappTriggerEventEnum = pgEnum("whatsapp_trigger_event", [
   "order_ready",
   "payment_received",
   "daily_summary",
+  "conversation_start",
 ]);
 
 export const whatsappTemplateTriggers = pgTable("whatsapp_template_triggers", {
@@ -2302,6 +2303,7 @@ export const whatsappConversations = pgTable("whatsapp_conversations", {
   customerName: text("customer_name"),
   lastMessageAt: timestamp("last_message_at").defaultNow(),
   lastMessagePreview: text("last_message_preview"),
+  lastInboundAt: timestamp("last_inbound_at"),
   unreadCount: integer("unread_count").default(0),
   isActive: boolean("is_active").default(true),
   assignedUserId: integer("assigned_user_id"),

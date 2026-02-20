@@ -33,6 +33,7 @@ import {
   CheckCircle,
   AlertTriangle,
   Download,
+  MessageCircle,
 } from "lucide-react";
 
 interface WhatsappTemplate {
@@ -65,6 +66,7 @@ interface WhatsappTrigger {
 }
 
 const TRIGGER_EVENTS = [
+  { value: "conversation_start", labelKey: "whatsapp.trigger_conversation_start" as any, defaultLabel: "Inicio de conversación", icon: MessageCircle },
   { value: "sale_completed", labelKey: "whatsapp.trigger_sale_completed" as any, defaultLabel: "Venta completada", icon: CheckCircle },
   { value: "low_stock_alert", labelKey: "whatsapp.trigger_low_stock" as any, defaultLabel: "Alerta stock bajo", icon: AlertTriangle },
   { value: "order_ready", labelKey: "whatsapp.trigger_order_ready" as any, defaultLabel: "Orden lista", icon: Zap },
@@ -73,6 +75,10 @@ const TRIGGER_EVENTS = [
 ];
 
 const EVENT_VARIABLES: Record<string, Array<{ key: string; labelKey: string }>> = {
+  conversation_start: [
+    { key: "customer_name", labelKey: "whatsapp.var_customer_name" },
+    { key: "company_name", labelKey: "whatsapp.var_company_name" },
+  ],
   sale_completed: [
     { key: "customer_name", labelKey: "whatsapp.var_customer_name" },
     { key: "order_number", labelKey: "whatsapp.var_order_number" },

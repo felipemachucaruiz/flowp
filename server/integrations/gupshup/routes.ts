@@ -10,6 +10,7 @@ import {
   tenantAddons,
   whatsappTemplates,
   whatsappTemplateTriggers,
+  tenants,
   PAID_ADDONS,
 } from "@shared/schema";
 import { eq, and, desc, asc, sql, ilike, or } from "drizzle-orm";
@@ -915,6 +916,7 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
         .set({
           lastMessageAt: new Date(),
           lastMessagePreview: previewText,
+          lastInboundAt: new Date(),
           unreadCount: sql`${whatsappConversations.unreadCount} + 1`,
           updatedAt: new Date(),
         })
@@ -1349,6 +1351,138 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
       const errorMsg = data?.message || JSON.stringify(data);
       return res.status(400).json({ error: errorMsg });
     }
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.post("/chat/send-greeting", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const { conversationId, senderName } = req.body;
+    if (!conversationId) {
+      return res.status(400).json({ error: "conversationId required" });
+    }
+
+    const conversation = await db.query.whatsappConversations.findFirst({
+      where: and(
+        eq(whatsappConversations.id, conversationId),
+        eq(whatsappConversations.tenantId, tenantId)
+      ),
+    });
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    const trigger = await db.query.whatsappTemplateTriggers.findFirst({
+      where: and(
+        eq(whatsappTemplateTriggers.tenantId, tenantId),
+        eq(whatsappTemplateTriggers.event, "conversation_start"),
+        eq(whatsappTemplateTriggers.enabled, true)
+      ),
+    });
+    if (!trigger) {
+      return res.status(400).json({ error: "no_greeting_template", message: "No greeting template configured for conversation_start trigger" });
+    }
+
+    const template = await db.query.whatsappTemplates.findFirst({
+      where: and(
+        eq(whatsappTemplates.id, trigger.templateId),
+        eq(whatsappTemplates.tenantId, tenantId)
+      ),
+    });
+    if (!template || template.status !== "approved") {
+      return res.status(400).json({ error: "template_not_approved", message: "Greeting template is not approved" });
+    }
+
+    const variableMapping = trigger.variableMapping || {};
+    const templateParams: string[] = [];
+    const allText = [template.headerText, template.bodyText, template.footerText].filter(Boolean).join(" ");
+    const matches = allText.match(/\{\{(\d+)\}\}/g) || [];
+    const paramIndices = [...new Set(matches.map(m => parseInt(m.replace(/\D/g, ""))))].sort((a, b) => a - b);
+    const paramCount = paramIndices.length > 0 ? Math.max(...paramIndices) : 0;
+
+    let tenantData: { name: string } | null = null;
+    for (let i = 1; i <= paramCount; i++) {
+      const key = variableMapping[String(i)] || variableMapping[`{{${i}}}`] || "";
+      if (key === "customer_name") {
+        templateParams.push(conversation.customerName || conversation.customerPhone);
+      } else if (key === "company_name") {
+        if (!tenantData) {
+          const found = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+          tenantData = found ? { name: found.name } : { name: "" };
+        }
+        templateParams.push(tenantData.name || "");
+      } else {
+        templateParams.push(key || "");
+      }
+    }
+
+    const result = await sendTemplateMessage(tenantId, conversation.customerPhone, template.name, templateParams, "manual");
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    const previewText = `[template] ${template.name}`;
+    const [chatMsg] = await db.insert(whatsappChatMessages).values({
+      conversationId,
+      tenantId,
+      direction: "outbound",
+      contentType: "text",
+      body: template.bodyText || previewText,
+      senderName: senderName || null,
+      providerMessageId: result.messageId || null,
+      status: "sent",
+    }).returning();
+
+    await db.update(whatsappConversations)
+      .set({
+        lastMessageAt: new Date(),
+        lastMessagePreview: previewText,
+        updatedAt: new Date(),
+      })
+      .where(eq(whatsappConversations.id, conversationId));
+
+    broadcastToTenant(tenantId, {
+      type: "whatsapp_message",
+      conversationId,
+      message: chatMsg,
+    });
+
+    return res.json({ success: true, message: chatMsg });
+  } catch (error: any) {
+    console.error("[whatsapp] send-greeting error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.get("/chat/greeting-status", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const trigger = await db.query.whatsappTemplateTriggers.findFirst({
+      where: and(
+        eq(whatsappTemplateTriggers.tenantId, tenantId),
+        eq(whatsappTemplateTriggers.event, "conversation_start"),
+        eq(whatsappTemplateTriggers.enabled, true)
+      ),
+    });
+
+    if (!trigger) {
+      return res.json({ configured: false });
+    }
+
+    const template = await db.query.whatsappTemplates.findFirst({
+      where: and(
+        eq(whatsappTemplates.id, trigger.templateId),
+        eq(whatsappTemplates.tenantId, tenantId)
+      ),
+    });
+
+    return res.json({
+      configured: true,
+      approved: template?.status === "approved",
+      templateName: template?.name || null,
+    });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }

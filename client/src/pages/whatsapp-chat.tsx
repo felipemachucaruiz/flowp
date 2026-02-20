@@ -44,11 +44,25 @@ interface Conversation {
   customerName: string | null;
   lastMessageAt: string;
   lastMessagePreview: string | null;
+  lastInboundAt: string | null;
   unreadCount: number;
   isActive: boolean;
   assignedUserId: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+function isSessionWindowOpen(conversation: Conversation): boolean {
+  if (conversation.lastInboundAt) {
+    const inboundTime = new Date(conversation.lastInboundAt).getTime();
+    const now = Date.now();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    return (now - inboundTime) < twentyFourHours;
+  }
+  const createdTime = new Date(conversation.createdAt).getTime();
+  const now = Date.now();
+  const fiveMinutes = 5 * 60 * 1000;
+  return (now - createdTime) < fiveMinutes;
 }
 
 interface ChatMessage {
@@ -286,6 +300,39 @@ export default function WhatsAppChatPage() {
       toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     },
   });
+
+  const { data: greetingStatus } = useQuery<{ configured: boolean; approved: boolean; templateName: string | null }>({
+    queryKey: ["/api/whatsapp/chat/greeting-status"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/chat/greeting-status", {
+        headers: { "x-tenant-id": tenantId },
+      });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!tenantId && hasChat,
+    staleTime: 60000,
+  });
+
+  const sendGreetingMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      const res = await apiRequest("POST", "/api/whatsapp/chat/send-greeting", {
+        conversationId,
+        senderName: user?.name || user?.username || "Staff",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
+      toast({ title: t("whatsapp_chat.greeting_sent" as any) });
+    },
+    onError: (err: any) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const sessionOpen = selectedConversation ? isSessionWindowOpen(selectedConversation) : false;
 
   useEffect(() => {
     if (selectedConversation?.unreadCount && selectedConversation.unreadCount > 0) {
@@ -528,56 +575,84 @@ export default function WhatsAppChatPage() {
             </ScrollArea>
 
             <div className="border-t p-2 bg-background relative">
-              {showEmojiPicker && (
-                <div className="absolute bottom-full left-0 mb-1 bg-popover border rounded-lg shadow-lg p-2 grid grid-cols-10 gap-1 z-50">
-                  {emojis.map((emoji) => (
-                    <button
-                      key={emoji}
-                      onClick={() => {
-                        setMessageInput(prev => prev + emoji);
-                        setShowEmojiPicker(false);
-                      }}
-                      className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded text-lg"
-                      data-testid={`emoji-${emoji}`}
+              {!sessionOpen ? (
+                <div className="flex flex-col items-center gap-2 py-2" data-testid="session-closed-banner">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>{t("whatsapp_chat.session_closed" as any)}</span>
+                  </div>
+                  {greetingStatus?.configured && greetingStatus?.approved ? (
+                    <Button
+                      size="default"
+                      onClick={() => sendGreetingMutation.mutate(selectedConversation!.id)}
+                      disabled={sendGreetingMutation.isPending}
+                      data-testid="button-send-greeting"
                     >
-                      {emoji}
-                    </button>
-                  ))}
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      {sendGreetingMutation.isPending
+                        ? t("common.loading")
+                        : t("whatsapp_chat.send_greeting" as any)}
+                    </Button>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center px-4" data-testid="text-no-greeting-template">
+                      {t("whatsapp_chat.no_greeting_configured" as any)}
+                    </p>
+                  )}
                 </div>
+              ) : (
+                <>
+                  {showEmojiPicker && (
+                    <div className="absolute bottom-full left-0 mb-1 bg-popover border rounded-lg shadow-lg p-2 grid grid-cols-10 gap-1 z-50">
+                      {emojis.map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => {
+                            setMessageInput(prev => prev + emoji);
+                            setShowEmojiPicker(false);
+                          }}
+                          className="w-8 h-8 flex items-center justify-center hover:bg-muted rounded text-lg"
+                          data-testid={`emoji-${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => setShowEmojiPicker(!showEmojiPicker)} data-testid="button-emoji-picker">
+                      <Smile className="w-5 h-5 text-muted-foreground" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => fileInputRef.current?.click()} data-testid="button-attach-file">
+                      <Paperclip className="w-5 h-5 text-muted-foreground" />
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
+                      onChange={handleFileUpload}
+                      data-testid="input-file-upload"
+                    />
+                    <Input
+                      placeholder={t("whatsapp_chat.type_message")}
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      className="flex-1 h-9"
+                      data-testid="input-message"
+                    />
+                    <Button
+                      size="icon"
+                      className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
+                      onClick={handleSend}
+                      disabled={!messageInput.trim() || sendMessageMutation.isPending}
+                      data-testid="button-send-message"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </>
               )}
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => setShowEmojiPicker(!showEmojiPicker)} data-testid="button-emoji-picker">
-                  <Smile className="w-5 h-5 text-muted-foreground" />
-                </Button>
-                <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => fileInputRef.current?.click()} data-testid="button-attach-file">
-                  <Paperclip className="w-5 h-5 text-muted-foreground" />
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
-                  onChange={handleFileUpload}
-                  data-testid="input-file-upload"
-                />
-                <Input
-                  placeholder={t("whatsapp_chat.type_message")}
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  className="flex-1 h-9"
-                  data-testid="input-message"
-                />
-                <Button
-                  size="icon"
-                  className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
-                  onClick={handleSend}
-                  disabled={!messageInput.trim() || sendMessageMutation.isPending}
-                  data-testid="button-send-message"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
             </div>
           </>
         ) : (
