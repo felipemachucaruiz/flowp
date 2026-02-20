@@ -1256,6 +1256,34 @@ whatsappRouter.post("/chat/conversations/:id/read", whatsappAddonGate, async (re
   const tenantId = req.headers["x-tenant-id"] as string;
   const conversationId = req.params.id;
   try {
+    const unreadInbound = await db.query.whatsappChatMessages.findMany({
+      where: and(
+        eq(whatsappChatMessages.conversationId, conversationId),
+        eq(whatsappChatMessages.tenantId, tenantId),
+        eq(whatsappChatMessages.direction, "inbound"),
+      ),
+      orderBy: [desc(whatsappChatMessages.createdAt)],
+      limit: 20,
+    });
+
+    const creds = await getEffectiveGupshupCredentials(tenantId);
+    if (creds?.appId && creds?.apiKey) {
+      const recentInbound = unreadInbound.filter(m => m.providerMessageId?.startsWith("wamid."));
+      for (const msg of recentInbound.slice(0, 5)) {
+        try {
+          await fetch(
+            `https://api.gupshup.io/wa/app/${encodeURIComponent(creds.appId)}/msg/${encodeURIComponent(msg.providerMessageId!)}/read`,
+            {
+              method: "PUT",
+              headers: { "apikey": creds.apiKey },
+            }
+          );
+        } catch (e) {
+          console.warn(`[whatsapp] Failed to send read receipt for ${msg.providerMessageId}:`, (e as any).message);
+        }
+      }
+    }
+
     await db.update(whatsappConversations)
       .set({ unreadCount: 0, updatedAt: new Date() })
       .where(and(
