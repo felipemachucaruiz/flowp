@@ -826,11 +826,41 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
         return res.status(200).json({ status: "ok" });
       }
 
-      const config = await db.query.tenantWhatsappIntegrations.findFirst({
-        where: eq(tenantWhatsappIntegrations.senderPhone, inbound.destination || ""),
-      });
+      const destinationPhone = payload.destination || inbound.destination || "";
+      const appName = payload.app || "";
+
+      console.log(`[WhatsApp Webhook] Inbound from ${senderPhone}, destination: "${destinationPhone}", app: "${appName}"`);
+
+      let config = null;
+
+      if (destinationPhone) {
+        config = await db.query.tenantWhatsappIntegrations.findFirst({
+          where: eq(tenantWhatsappIntegrations.senderPhone, destinationPhone),
+        });
+        if (!config) {
+          const cleanedDest = destinationPhone.replace(/^\+/, "");
+          config = await db.query.tenantWhatsappIntegrations.findFirst({
+            where: eq(tenantWhatsappIntegrations.senderPhone, cleanedDest),
+          });
+        }
+      }
+
+      if (!config && appName) {
+        config = await db.query.tenantWhatsappIntegrations.findFirst({
+          where: eq(tenantWhatsappIntegrations.gupshupAppName, appName),
+        });
+      }
 
       if (!config) {
+        const allConfigs = await db.select().from(tenantWhatsappIntegrations).where(eq(tenantWhatsappIntegrations.enabled, true));
+        if (allConfigs.length === 1) {
+          config = allConfigs[0];
+          console.log(`[WhatsApp Webhook] Fallback: single active tenant config found for tenant ${config.tenantId}`);
+        }
+      }
+
+      if (!config) {
+        console.warn(`[WhatsApp Webhook] No tenant found for destination="${destinationPhone}" app="${appName}"`);
         return res.status(200).json({ status: "ok" });
       }
 
