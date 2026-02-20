@@ -865,9 +865,20 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
         else if (evtType === "read") chatStatus = "read";
         else if (evtType === "failed") chatStatus = "failed";
 
-        await db.update(whatsappChatMessages)
+        const [updatedMsg] = await db.update(whatsappChatMessages)
           .set({ status: chatStatus })
-          .where(eq(whatsappChatMessages.providerMessageId, msgId));
+          .where(eq(whatsappChatMessages.providerMessageId, msgId))
+          .returning();
+
+        if (updatedMsg) {
+          broadcastToTenant(updatedMsg.tenantId, {
+            type: "whatsapp_status",
+            conversationId: updatedMsg.conversationId,
+            messageId: updatedMsg.id,
+            providerMessageId: msgId,
+            status: chatStatus,
+          });
+        }
       }
       return res.status(200).json({ status: "ok" });
     }

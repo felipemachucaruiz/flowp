@@ -361,6 +361,9 @@ export default function WhatsAppChatPage() {
             queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
           }
         }
+        if (data.type === "whatsapp_status" && data.conversationId === selectedConversation?.id) {
+          queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
+        }
       } catch {}
     };
 
