@@ -2139,6 +2139,8 @@ export const tenantWhatsappIntegrations = pgTable("tenant_whatsapp_integrations"
   gupshupAppId: text("gupshup_app_id"),
   senderPhone: text("sender_phone"),
 
+  catalogId: text("catalog_id"),
+
   approvedTemplates: jsonb("approved_templates").$type<string[]>().default([]),
 
   notifyOnSale: boolean("notify_on_sale").default(false),
@@ -2343,3 +2345,25 @@ export const insertWhatsappChatMessageSchema = createInsertSchema(whatsappChatMe
 });
 export type WhatsappChatMessage = typeof whatsappChatMessages.$inferSelect;
 export type InsertWhatsappChatMessage = z.infer<typeof insertWhatsappChatMessageSchema>;
+
+export const whatsappCatalogOrders = pgTable("whatsapp_catalog_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  conversationId: varchar("conversation_id").references(() => whatsappConversations.id),
+  customerPhone: text("customer_phone").notNull(),
+  customerName: text("customer_name"),
+  catalogId: text("catalog_id"),
+  items: jsonb("items").$type<{ productId: string; quantity: number; price: string; currency: string; name?: string }[]>().notNull(),
+  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }),
+  currency: text("currency").default("COP"),
+  providerMessageId: text("provider_message_id"),
+  status: text("status").default("received"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWhatsappCatalogOrderSchema = createInsertSchema(whatsappCatalogOrders).omit({
+  id: true,
+  createdAt: true,
+});
+export type WhatsappCatalogOrder = typeof whatsappCatalogOrders.$inferSelect;
+export type InsertWhatsappCatalogOrder = z.infer<typeof insertWhatsappCatalogOrderSchema>;
