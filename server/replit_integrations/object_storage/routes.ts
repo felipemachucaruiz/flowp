@@ -107,7 +107,7 @@ export function registerObjectStorageRoutes(app: Express): void {
 
   const mediaUpload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 16 * 1024 * 1024 },
+    limits: { fileSize: 100 * 1024 * 1024 },
   });
 
   app.post("/api/upload/media", mediaUpload.single("file"), async (req, res) => {

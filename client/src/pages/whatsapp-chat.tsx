@@ -385,12 +385,91 @@ export default function WhatsAppChatPage() {
     }
   };
 
+  const WA_LIMITS = {
+    image: 5 * 1024 * 1024,
+    video: 16 * 1024 * 1024,
+    audio: 16 * 1024 * 1024,
+    document: 100 * 1024 * 1024,
+  };
+
+  const compressImage = (file: File, maxSizeBytes: number): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let quality = 0.85;
+        let maxDim = 2048;
+        if (file.size > maxSizeBytes * 2) {
+          quality = 0.6;
+          maxDim = 1600;
+        } else if (file.size > maxSizeBytes) {
+          quality = 0.7;
+          maxDim = 1920;
+        }
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const ratio = Math.min(maxDim / width, maxDim / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas not supported"));
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error("Compression failed"));
+            const compressed = new File([blob], file.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
+            resolve(compressed);
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Failed to load image")); };
+      img.src = url;
+    });
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedConversation) return;
 
+    let contentType: "image" | "video" | "audio" | "document" = "document";
+    if (file.type.startsWith("image/")) contentType = "image";
+    else if (file.type.startsWith("video/")) contentType = "video";
+    else if (file.type.startsWith("audio/")) contentType = "audio";
+
+    const maxSize = WA_LIMITS[contentType];
+    let fileToUpload = file;
+
+    if (file.size > maxSize && contentType === "image") {
+      try {
+        toast({ title: t("whatsapp_chat.compressing_image" as any) || "Compressing image..." });
+        fileToUpload = await compressImage(file, maxSize);
+        if (fileToUpload.size > maxSize) {
+          const limitMB = Math.round(maxSize / (1024 * 1024));
+          toast({ title: t("common.error"), description: `${t("whatsapp_chat.file_too_large" as any) || "File too large"}. Max: ${limitMB}MB`, variant: "destructive" });
+          if (fileInputRef.current) fileInputRef.current.value = "";
+          return;
+        }
+      } catch {
+        toast({ title: t("common.error"), description: t("whatsapp_chat.upload_failed"), variant: "destructive" });
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+    } else if (file.size > maxSize) {
+      const limitMB = Math.round(maxSize / (1024 * 1024));
+      toast({ title: t("common.error"), description: `${t("whatsapp_chat.file_too_large" as any) || "File too large"}. Max: ${limitMB}MB`, variant: "destructive" });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", fileToUpload);
 
     try {
       const res = await fetch("/api/upload/media", {
@@ -405,17 +484,13 @@ export default function WhatsAppChatPage() {
       }
 
       const { url } = await res.json();
-      let contentType = "document";
-      if (file.type.startsWith("image/")) contentType = "image";
-      else if (file.type.startsWith("video/")) contentType = "video";
-      else if (file.type.startsWith("audio/")) contentType = "audio";
 
       sendMessageMutation.mutate({
         conversationId: selectedConversation.id,
         contentType,
         mediaUrl: url,
-        mediaMimeType: file.type,
-        mediaFilename: file.name,
+        mediaMimeType: fileToUpload.type,
+        mediaFilename: fileToUpload.name,
         caption: "",
       });
     } catch {
