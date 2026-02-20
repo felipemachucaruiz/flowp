@@ -1460,13 +1460,18 @@ whatsappRouter.post("/chat/send-greeting", whatsappAddonGate, async (req: Reques
       return res.status(400).json({ error: result.error });
     }
 
-    const previewText = `[template] ${template.name}`;
+    let resolvedBody = template.bodyText || "";
+    for (let i = 0; i < templateParams.length; i++) {
+      resolvedBody = resolvedBody.replace(new RegExp(`\\{\\{${i + 1}\\}\\}`, "g"), templateParams[i]);
+    }
+
+    const previewText = resolvedBody.substring(0, 100) || `[template] ${template.name}`;
     const [chatMsg] = await db.insert(whatsappChatMessages).values({
       conversationId,
       tenantId,
       direction: "outbound",
       contentType: "text",
-      body: template.bodyText || previewText,
+      body: resolvedBody,
       senderName: senderName || null,
       providerMessageId: result.messageId || null,
       status: "sent",
