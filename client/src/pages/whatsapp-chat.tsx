@@ -410,6 +410,12 @@ export default function WhatsAppChatPage() {
       return res.json();
     },
     onSuccess: () => {
+      if (selectedConversation) {
+        setSelectedConversation({
+          ...selectedConversation,
+          lastInboundAt: new Date().toISOString(),
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
       toast({ title: t("whatsapp_chat.greeting_sent" as any) });
@@ -418,6 +424,15 @@ export default function WhatsAppChatPage() {
       toast({ title: t("common.error"), description: err.message, variant: "destructive" });
     },
   });
+
+  useEffect(() => {
+    if (selectedConversation && conversations.length > 0) {
+      const updated = conversations.find(c => c.id === selectedConversation.id);
+      if (updated && updated.lastInboundAt !== selectedConversation.lastInboundAt) {
+        setSelectedConversation(updated);
+      }
+    }
+  }, [conversations]);
 
   const sessionOpen = selectedConversation ? isSessionWindowOpen(selectedConversation) : false;
 
