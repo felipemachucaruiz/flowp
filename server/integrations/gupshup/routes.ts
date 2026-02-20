@@ -932,6 +932,93 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
 });
 
 // ==========================================
+// BUSINESS PROFILE ROUTES
+// ==========================================
+
+whatsappRouter.get("/profile", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const globalCreds = await getGlobalGupshupCredentials();
+    if (!globalCreds) {
+      return res.status(400).json({ error: "WhatsApp service not configured" });
+    }
+
+    const appId = await getGupshupAppId();
+    if (!appId) {
+      return res.status(400).json({ error: "Gupshup App ID not configured" });
+    }
+
+    const apiKey = globalCreds.apiKey;
+    const response = await fetch(`https://api.gupshup.io/wa/app/${appId}/settings`, {
+      method: "GET",
+      headers: {
+        "apikey": apiKey,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`[whatsapp] Profile fetch failed: ${response.status} ${text}`);
+      return res.status(response.status).json({ error: "Failed to fetch profile" });
+    }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (error: any) {
+    console.error(`[whatsapp] Profile error:`, error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const globalCreds = await getGlobalGupshupCredentials();
+    if (!globalCreds) {
+      return res.status(400).json({ error: "WhatsApp service not configured" });
+    }
+
+    const appId = await getGupshupAppId();
+    if (!appId) {
+      return res.status(400).json({ error: "Gupshup App ID not configured" });
+    }
+
+    const apiKey = globalCreds.apiKey;
+    const { about, description, address, email, vertical, websites } = req.body;
+
+    const profileData: Record<string, any> = {};
+    if (about !== undefined) profileData.about = about;
+    if (description !== undefined) profileData.description = description;
+    if (address !== undefined) profileData.address = address;
+    if (email !== undefined) profileData.email = email;
+    if (vertical !== undefined) profileData.vertical = vertical;
+    if (websites !== undefined) profileData.websites = websites;
+
+    const response = await fetch(`https://api.gupshup.io/wa/app/${appId}/settings`, {
+      method: "PUT",
+      headers: {
+        "apikey": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(profileData),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`[whatsapp] Profile update failed: ${response.status} ${text}`);
+      return res.status(response.status).json({ error: "Failed to update profile" });
+    }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (error: any) {
+    console.error(`[whatsapp] Profile update error:`, error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
 // CHAT ROUTES
 // ==========================================
 

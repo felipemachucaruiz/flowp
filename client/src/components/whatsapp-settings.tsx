@@ -21,6 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   MessageCircle,
   Send,
@@ -31,6 +33,8 @@ import {
   Loader2,
   CheckCircle,
   XCircle,
+  User,
+  Save,
 } from "lucide-react";
 
 interface WhatsAppConfig {
@@ -107,6 +111,13 @@ export function WhatsAppSettings() {
   const queryClient = useQueryClient();
 
   const [configLoaded, setConfigLoaded] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [profileAbout, setProfileAbout] = useState("");
+  const [profileDescription, setProfileDescription] = useState("");
+  const [profileAddress, setProfileAddress] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [profileVertical, setProfileVertical] = useState("");
+  const [profileWebsites, setProfileWebsites] = useState("");
 
   const [notifyOnSale, setNotifyOnSale] = useState(false);
   const [notifyOnLowStock, setNotifyOnLowStock] = useState(false);
@@ -162,6 +173,64 @@ export function WhatsAppSettings() {
     },
     enabled: !!tenant?.id,
   });
+
+  const { data: profileData, isLoading: profileLoading } = useQuery<any>({
+    queryKey: ["whatsapp", "profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/profile", {
+        headers: { "x-tenant-id": tenant?.id || "" },
+      });
+      if (!res.ok) throw new Error("Failed to load profile");
+      return res.json();
+    },
+    enabled: !!tenant?.id && !!config?.configured,
+  });
+
+  if (profileData && !profileLoaded) {
+    setProfileAbout(profileData.about || "");
+    setProfileDescription(profileData.description || "");
+    setProfileAddress(profileData.address || "");
+    setProfileEmail(profileData.email || "");
+    setProfileVertical(profileData.vertical || "");
+    setProfileWebsites(Array.isArray(profileData.websites) ? profileData.websites.join(", ") : profileData.websites || "");
+    setProfileLoaded(true);
+  }
+
+  const profileMutation = useMutation({
+    mutationFn: async (data: Record<string, any>) => {
+      const res = await apiRequest("PUT", "/api/whatsapp/profile", data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "profile"] });
+      toast({
+        title: t("common.success" as any) || "Success",
+        description: t("whatsapp.profileUpdated" as any) || "Business profile updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("common.error" as any) || "Error",
+        description: error.message || "Failed to update profile",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleProfileSave = () => {
+    const websites = profileWebsites
+      .split(",")
+      .map((w) => w.trim())
+      .filter(Boolean);
+    profileMutation.mutate({
+      about: profileAbout,
+      description: profileDescription,
+      address: profileAddress,
+      email: profileEmail,
+      vertical: profileVertical,
+      websites,
+    });
+  };
 
   const { data: logsData, isLoading: logsLoading } = useQuery<LogsResponse>({
     queryKey: ["whatsapp", "logs", logsPage],
@@ -629,6 +698,126 @@ export function WhatsAppSettings() {
               <p className="text-sm text-muted-foreground" data-testid="text-no-logs">
                 {t("whatsapp.noLogs" as any) || "No message logs found."}
               </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {config?.configured && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              {t("whatsapp.businessProfile" as any) || "Business Profile"}
+            </CardTitle>
+            <CardDescription>
+              {t("whatsapp.businessProfileDesc" as any) || "Manage your WhatsApp Business profile information visible to customers."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {profileLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin" />
+              </div>
+            ) : (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-about" data-testid="label-profile-about">
+                      {t("whatsapp.profileAbout" as any) || "About"}
+                    </Label>
+                    <Input
+                      id="profile-about"
+                      value={profileAbout}
+                      onChange={(e) => setProfileAbout(e.target.value)}
+                      placeholder={t("whatsapp.profileAboutPlaceholder" as any) || "Short description about your business"}
+                      maxLength={139}
+                      data-testid="input-profile-about"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-email" data-testid="label-profile-email">
+                      {t("whatsapp.profileEmail" as any) || "Email"}
+                    </Label>
+                    <Input
+                      id="profile-email"
+                      type="email"
+                      value={profileEmail}
+                      onChange={(e) => setProfileEmail(e.target.value)}
+                      placeholder="contact@example.com"
+                      data-testid="input-profile-email"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile-description" data-testid="label-profile-description">
+                    {t("whatsapp.profileDescription" as any) || "Description"}
+                  </Label>
+                  <Textarea
+                    id="profile-description"
+                    value={profileDescription}
+                    onChange={(e) => setProfileDescription(e.target.value)}
+                    placeholder={t("whatsapp.profileDescriptionPlaceholder" as any) || "Detailed description of your business"}
+                    rows={3}
+                    maxLength={512}
+                    data-testid="input-profile-description"
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-address" data-testid="label-profile-address">
+                      {t("whatsapp.profileAddress" as any) || "Address"}
+                    </Label>
+                    <Input
+                      id="profile-address"
+                      value={profileAddress}
+                      onChange={(e) => setProfileAddress(e.target.value)}
+                      placeholder={t("whatsapp.profileAddressPlaceholder" as any) || "Business address"}
+                      maxLength={256}
+                      data-testid="input-profile-address"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profile-vertical" data-testid="label-profile-vertical">
+                      {t("whatsapp.profileVertical" as any) || "Business Category"}
+                    </Label>
+                    <Input
+                      id="profile-vertical"
+                      value={profileVertical}
+                      onChange={(e) => setProfileVertical(e.target.value)}
+                      placeholder={t("whatsapp.profileVerticalPlaceholder" as any) || "e.g., Restaurant, Retail"}
+                      data-testid="input-profile-vertical"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile-websites" data-testid="label-profile-websites">
+                    {t("whatsapp.profileWebsites" as any) || "Websites"}
+                  </Label>
+                  <Input
+                    id="profile-websites"
+                    value={profileWebsites}
+                    onChange={(e) => setProfileWebsites(e.target.value)}
+                    placeholder={t("whatsapp.profileWebsitesPlaceholder" as any) || "https://example.com, https://shop.example.com"}
+                    data-testid="input-profile-websites"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {t("whatsapp.profileWebsitesHint" as any) || "Separate multiple URLs with commas"}
+                  </p>
+                </div>
+                <Button
+                  onClick={handleProfileSave}
+                  disabled={profileMutation.isPending}
+                  data-testid="button-save-profile"
+                >
+                  {profileMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
+                  {t("common.save" as any) || "Save"}
+                </Button>
+              </>
             )}
           </CardContent>
         </Card>
