@@ -2128,7 +2128,10 @@ export class DatabaseStorage implements IStorage {
     const tier = (plan as any).tier || "basic";
     const planBusinessType = (plan as any).businessType || tenantBusinessType;
     const planFeatures = (plan.features as string[]) || [];
-    const effectiveFeatures = planFeatures.length > 0 ? planFeatures : getTierFeaturesForType(planBusinessType, tier) as string[];
+    const tierFeatures = getTierFeaturesForType(planBusinessType, tier) as string[];
+    const effectiveFeatures = planFeatures.length > 0 
+      ? [...new Set([...planFeatures, ...tierFeatures])]
+      : tierFeatures;
     const tierDefaults = getTierLimitsForType(planBusinessType, tier);
     
     return {
