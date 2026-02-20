@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import multer from "multer";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 /**
@@ -101,6 +102,52 @@ export function registerObjectStorageRoutes(app: Express): void {
         return res.status(404).json({ error: "Object not found" });
       }
       return res.status(500).json({ error: "Failed to serve object" });
+    }
+  });
+
+  const mediaUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 16 * 1024 * 1024 },
+  });
+
+  app.post("/api/upload/media", mediaUpload.single("file"), async (req, res) => {
+    try {
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ error: "No file provided" });
+      }
+
+      const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+
+      const uploadResponse = await fetch(uploadURL, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.mimetype || "application/octet-stream",
+        },
+        body: file.buffer,
+      });
+
+      if (!uploadResponse.ok) {
+        const text = await uploadResponse.text();
+        console.error("Media upload to storage failed:", uploadResponse.status, text);
+        return res.status(500).json({ error: "Failed to upload file to storage" });
+      }
+
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+      const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
+      const publicUrl = `${protocol}://${host}${objectPath}`;
+
+      res.json({
+        url: publicUrl,
+        objectPath,
+        filename: file.originalname,
+        contentType: file.mimetype,
+        size: file.size,
+      });
+    } catch (error) {
+      console.error("Error in media upload:", error);
+      res.status(500).json({ error: "Failed to upload media" });
     }
   });
 }

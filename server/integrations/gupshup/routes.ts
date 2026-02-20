@@ -731,18 +731,31 @@ whatsappRouter.delete("/triggers/:id", whatsappAddonGate, async (req: Request, r
 // ==========================================
 // HELPER: Get or create conversation for a phone
 // ==========================================
+function normalizePhone(phone: string): string {
+  let cleaned = phone.replace(/[\s\-()]/g, "");
+  if (cleaned.startsWith("+")) cleaned = cleaned.substring(1);
+  return cleaned;
+}
+
 async function getOrCreateConversation(tenantId: string, phone: string, customerName?: string) {
+  const normalized = normalizePhone(phone);
+  const withPlus = `+${normalized}`;
+
   let conversation = await db.query.whatsappConversations.findFirst({
     where: and(
       eq(whatsappConversations.tenantId, tenantId),
-      eq(whatsappConversations.customerPhone, phone)
+      or(
+        eq(whatsappConversations.customerPhone, phone),
+        eq(whatsappConversations.customerPhone, normalized),
+        eq(whatsappConversations.customerPhone, withPlus)
+      )
     ),
   });
 
   if (!conversation) {
     const [created] = await db.insert(whatsappConversations).values({
       tenantId,
-      customerPhone: phone,
+      customerPhone: withPlus,
       customerName: customerName || null,
       unreadCount: 0,
       isActive: true,
