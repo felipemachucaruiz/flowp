@@ -49,6 +49,7 @@ import {
   Landmark,
   Lock,
   KeyRound,
+  MessageCircle,
 } from "lucide-react";
 import { triggerManualLock } from "@/components/lock-screen";
 import { useState, useEffect } from "react";
@@ -301,6 +302,14 @@ export function AppSidebar() {
       url: "/sales-history",
       icon: Receipt,
       page: "sales-history",
+    },
+    {
+      title: t("nav.whatsapp_chat") || "WhatsApp",
+      url: "/whatsapp-chat",
+      icon: MessageCircle,
+      page: "whatsapp-chat",
+      requiredFeature: SUBSCRIPTION_FEATURES.WHATSAPP_CHAT as SubscriptionFeature,
+      minTier: "pro",
     },
     {
       title: t("nav.ebilling") || "E-Billing",

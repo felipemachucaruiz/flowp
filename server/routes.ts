@@ -86,7 +86,7 @@ function createPublicReceiptUrl(orderId: string, tenantId: string): string {
 // WebSocket clients by tenant for real-time KDS updates
 const wsClients = new Map<string, Set<WebSocket>>();
 
-function broadcastToTenant(tenantId: string, message: any) {
+export function broadcastToTenant(tenantId: string, message: any) {
   const clients = wsClients.get(tenantId);
   if (clients) {
     const data = JSON.stringify(message);

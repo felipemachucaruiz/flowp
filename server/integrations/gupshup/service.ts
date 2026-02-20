@@ -3,6 +3,8 @@ import { db } from "../../db";
 import {
   tenantWhatsappIntegrations,
   whatsappMessageLogs,
+  whatsappConversations,
+  whatsappChatMessages,
   tenantWhatsappSubscriptions,
   whatsappPackages,
   tenantAddons,
@@ -280,6 +282,62 @@ export async function deductMessage(tenantId: string): Promise<boolean> {
     })
     .where(eq(tenantWhatsappSubscriptions.id, sub.id));
   return true;
+}
+
+export async function saveNotificationToConversation(
+  tenantId: string,
+  customerPhone: string,
+  messageBody: string,
+  contentType: "text" | "notification" | "document" = "notification",
+  extra?: { mediaUrl?: string; mediaMimeType?: string; mediaFilename?: string; caption?: string; providerMessageId?: string }
+): Promise<void> {
+  try {
+    let conversation = await db.query.whatsappConversations.findFirst({
+      where: and(
+        eq(whatsappConversations.tenantId, tenantId),
+        eq(whatsappConversations.customerPhone, customerPhone)
+      ),
+    });
+
+    if (!conversation) {
+      const [created] = await db.insert(whatsappConversations).values({
+        tenantId,
+        customerPhone,
+        unreadCount: 0,
+        isActive: true,
+      }).returning();
+      conversation = created;
+    }
+
+    await db.insert(whatsappChatMessages).values({
+      conversationId: conversation.id,
+      tenantId,
+      direction: "outbound",
+      contentType: contentType as any,
+      body: messageBody,
+      mediaUrl: extra?.mediaUrl || null,
+      mediaMimeType: extra?.mediaMimeType || null,
+      mediaFilename: extra?.mediaFilename || null,
+      caption: extra?.caption || null,
+      senderName: "System",
+      providerMessageId: extra?.providerMessageId || null,
+      status: "sent",
+    });
+
+    const preview = contentType === "document"
+      ? `[PDF] ${(extra?.mediaFilename || "").substring(0, 80)}`
+      : messageBody.substring(0, 100);
+
+    await db.update(whatsappConversations)
+      .set({
+        lastMessageAt: new Date(),
+        lastMessagePreview: preview,
+        updatedAt: new Date(),
+      })
+      .where(eq(whatsappConversations.id, conversation.id));
+  } catch (err) {
+    console.error(`[whatsapp] Failed to save notification to conversation:`, err);
+  }
 }
 
 export async function sendTemplateMessage(
@@ -683,11 +741,17 @@ export async function sendReceiptNotification(
           console.error(`[whatsapp] Text fallback also failed for tenant ${tenantId}: ${textResult.error}`);
         }
       }
+      await saveNotificationToConversation(tenantId, customerPhone, message, "document", {
+        mediaUrl: receiptPdfUrl,
+        mediaMimeType: "application/pdf",
+        mediaFilename: `Recibo_${orderNumber}.pdf`,
+      });
     } else {
       const result = await sendSessionMessage(tenantId, customerPhone, message, "receipt");
       if (!result.success) {
         console.error(`[whatsapp] Session message failed for tenant ${tenantId}: ${result.error}`);
       }
+      await saveNotificationToConversation(tenantId, customerPhone, message, "notification");
     }
   } catch (err) {
     console.error(`[whatsapp] Failed to send receipt notification for tenant ${tenantId}:`, err);
@@ -718,6 +782,7 @@ export async function sendLowStockNotification(
     message += `\n\nPor favor reponga inventario.`;
 
     await sendSessionMessage(tenantId, ownerPhone, message, "alert");
+    await saveNotificationToConversation(tenantId, ownerPhone, message, "notification");
   } catch (err) {
     console.error(`[whatsapp] Failed to send low stock notification for tenant ${tenantId}:`, err);
   }

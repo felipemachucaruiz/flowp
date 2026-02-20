@@ -143,6 +143,7 @@ export function canAccessPage(role: UserRole | string | undefined, page: string)
     tables: ['tables.view'],
     kitchen: ['kitchen.view'],
     'cash-register': ['cash_register.view', 'cash_register.open_close', 'cash_register.manage'],
+    'whatsapp-chat': ['settings.view'],
   };
   
   const required = pagePermissions[page];

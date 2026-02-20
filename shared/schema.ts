@@ -726,6 +726,7 @@ export const SUBSCRIPTION_FEATURES = {
   INGREDIENTS_RECIPES: "ingredients_recipes",
   TIPS_ANALYTICS: "tips_analytics",
   REPORTS_EXPORT: "reports_export",
+  WHATSAPP_CHAT: "whatsapp_chat",
 } as const;
 
 export type SubscriptionFeature = typeof SUBSCRIPTION_FEATURES[keyof typeof SUBSCRIPTION_FEATURES];
@@ -737,6 +738,7 @@ export const RETAIL_TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
     SUBSCRIPTION_FEATURES.INVENTORY_ADVANCED,
     SUBSCRIPTION_FEATURES.REPORTS_DETAILED,
     SUBSCRIPTION_FEATURES.LABEL_DESIGNER,
+    SUBSCRIPTION_FEATURES.WHATSAPP_CHAT,
   ],
   enterprise: [
     SUBSCRIPTION_FEATURES.USER_MANAGEMENT,
@@ -748,6 +750,7 @@ export const RETAIL_TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
     SUBSCRIPTION_FEATURES.ECOMMERCE_INTEGRATIONS,
     SUBSCRIPTION_FEATURES.SECURITY_AUDIT,
     SUBSCRIPTION_FEATURES.REPORTS_EXPORT,
+    SUBSCRIPTION_FEATURES.WHATSAPP_CHAT,
   ],
 };
 
@@ -763,6 +766,7 @@ export const RESTAURANT_TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
     SUBSCRIPTION_FEATURES.INGREDIENTS_RECIPES,
     SUBSCRIPTION_FEATURES.MODIFIERS_ADVANCED,
     SUBSCRIPTION_FEATURES.INVENTORY_ADVANCED,
+    SUBSCRIPTION_FEATURES.WHATSAPP_CHAT,
   ],
   enterprise: [
     SUBSCRIPTION_FEATURES.LABEL_DESIGNER,
@@ -778,6 +782,7 @@ export const RESTAURANT_TIER_FEATURES: Record<string, SubscriptionFeature[]> = {
     SUBSCRIPTION_FEATURES.ECOMMERCE_INTEGRATIONS,
     SUBSCRIPTION_FEATURES.SECURITY_AUDIT,
     SUBSCRIPTION_FEATURES.REPORTS_EXPORT,
+    SUBSCRIPTION_FEATURES.WHATSAPP_CHAT,
   ],
 };
 
@@ -2284,3 +2289,58 @@ export const insertWhatsappTemplateTriggerSchema = createInsertSchema(whatsappTe
 });
 export type WhatsappTemplateTrigger = typeof whatsappTemplateTriggers.$inferSelect;
 export type InsertWhatsappTemplateTrigger = z.infer<typeof insertWhatsappTemplateTriggerSchema>;
+
+// ==========================================
+// WHATSAPP TWO-WAY CHAT
+// ==========================================
+
+export const whatsappChatContentTypeEnum = pgEnum("whatsapp_chat_content_type", [
+  "text", "image", "video", "audio", "document", "sticker", "location", "contact", "notification"
+]);
+
+export const whatsappConversations = pgTable("whatsapp_conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  customerPhone: text("customer_phone").notNull(),
+  customerName: text("customer_name"),
+  lastMessageAt: timestamp("last_message_at").defaultNow(),
+  lastMessagePreview: text("last_message_preview"),
+  unreadCount: integer("unread_count").default(0),
+  isActive: boolean("is_active").default(true),
+  assignedUserId: integer("assigned_user_id"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertWhatsappConversationSchema = createInsertSchema(whatsappConversations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type WhatsappConversation = typeof whatsappConversations.$inferSelect;
+export type InsertWhatsappConversation = z.infer<typeof insertWhatsappConversationSchema>;
+
+export const whatsappChatMessages = pgTable("whatsapp_chat_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => whatsappConversations.id, { onDelete: "cascade" }),
+  tenantId: varchar("tenant_id").notNull().references(() => tenants.id),
+  direction: whatsappMessageDirectionEnum("direction").notNull(),
+  contentType: whatsappChatContentTypeEnum("content_type").notNull().default("text"),
+  body: text("body"),
+  mediaUrl: text("media_url"),
+  mediaMimeType: text("media_mime_type"),
+  mediaFilename: text("media_filename"),
+  caption: text("caption"),
+  senderPhone: text("sender_phone"),
+  senderName: text("sender_name"),
+  providerMessageId: text("provider_message_id"),
+  status: whatsappMessageStatusEnum("status").default("sent"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertWhatsappChatMessageSchema = createInsertSchema(whatsappChatMessages).omit({
+  id: true,
+  createdAt: true,
+});
+export type WhatsappChatMessage = typeof whatsappChatMessages.$inferSelect;
+export type InsertWhatsappChatMessage = z.infer<typeof insertWhatsappChatMessageSchema>;

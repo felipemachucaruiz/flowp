@@ -3,6 +3,8 @@ import { db } from "../../db";
 import {
   tenantWhatsappIntegrations,
   whatsappMessageLogs,
+  whatsappConversations,
+  whatsappChatMessages,
   tenantWhatsappSubscriptions,
   whatsappPackages,
   tenantAddons,
@@ -10,7 +12,7 @@ import {
   whatsappTemplateTriggers,
   PAID_ADDONS,
 } from "@shared/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, asc, sql, ilike, or } from "drizzle-orm";
 import {
   encrypt,
   getWhatsappConfig,
@@ -20,6 +22,7 @@ import {
   sendSessionMessage,
   requireWhatsappAddon,
   validateQuota,
+  deductMessage,
   processDeliveryStatus,
   getActiveSubscription,
   getGlobalGupshupCredentials,
@@ -27,6 +30,7 @@ import {
   getProfileApiKey,
   getGupshupAppId,
 } from "./service";
+import { broadcastToTenant } from "../../routes";
 
 export const whatsappRouter = Router();
 
@@ -723,6 +727,69 @@ whatsappRouter.delete("/triggers/:id", whatsappAddonGate, async (req: Request, r
   }
 });
 
+// ==========================================
+// HELPER: Get or create conversation for a phone
+// ==========================================
+async function getOrCreateConversation(tenantId: string, phone: string, customerName?: string) {
+  let conversation = await db.query.whatsappConversations.findFirst({
+    where: and(
+      eq(whatsappConversations.tenantId, tenantId),
+      eq(whatsappConversations.customerPhone, phone)
+    ),
+  });
+
+  if (!conversation) {
+    const [created] = await db.insert(whatsappConversations).values({
+      tenantId,
+      customerPhone: phone,
+      customerName: customerName || null,
+      unreadCount: 0,
+      isActive: true,
+    }).returning();
+    conversation = created;
+  } else if (customerName && !conversation.customerName) {
+    await db.update(whatsappConversations)
+      .set({ customerName, updatedAt: new Date() })
+      .where(eq(whatsappConversations.id, conversation.id));
+    conversation.customerName = customerName;
+  }
+  return conversation;
+}
+
+function detectContentType(payload: any): { contentType: string; body?: string; mediaUrl?: string; mediaMimeType?: string; mediaFilename?: string; caption?: string } {
+  const msgPayload = payload.payload || payload;
+  const type = (msgPayload.type || "text").toLowerCase();
+
+  if (type === "image" || type === "file" || type === "document" || type === "video" || type === "audio" || type === "sticker") {
+    const contentType = type === "file" ? "document" : type;
+    return {
+      contentType,
+      mediaUrl: msgPayload.url || msgPayload.mediaUrl || "",
+      mediaMimeType: msgPayload.contentType || msgPayload.mimeType || "",
+      mediaFilename: msgPayload.filename || msgPayload.name || "",
+      caption: msgPayload.caption || msgPayload.text || "",
+      body: msgPayload.caption || msgPayload.text || `[${contentType}]`,
+    };
+  }
+
+  if (type === "location") {
+    return {
+      contentType: "location",
+      body: `📍 ${msgPayload.latitude || ""},${msgPayload.longitude || ""}`,
+    };
+  }
+
+  if (type === "contact") {
+    const name = msgPayload.name || (msgPayload.contacts?.[0]?.name?.formatted_name) || "Contact";
+    return { contentType: "contact", body: `👤 ${name}` };
+  }
+
+  return { contentType: "text", body: msgPayload.text || payload.text || "" };
+}
+
+// ==========================================
+// WEBHOOK (updated for two-way chat)
+// ==========================================
 whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
   try {
     const payload = req.body;
@@ -731,15 +798,28 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
     if (payload.type === "message-event") {
       const eventPayload = payload.payload || payload;
       const innerPayload = eventPayload.payload || {};
-      console.log("[WhatsApp Webhook] Delivery event:", eventPayload.type, "| gsId:", eventPayload.gsId, "| id:", eventPayload.id, "| dest:", eventPayload.destination, "| errorCode:", innerPayload.code, "| reason:", innerPayload.reason);
+      console.log("[WhatsApp Webhook] Delivery event:", eventPayload.type, "| gsId:", eventPayload.gsId, "| id:", eventPayload.id);
       await processDeliveryStatus({ ...eventPayload, errorCode: innerPayload.code, reason: innerPayload.reason });
+
+      const msgId = eventPayload.gsId || eventPayload.id || eventPayload.messageId;
+      if (msgId) {
+        const evtType = (eventPayload.type || "").toLowerCase();
+        let chatStatus: "sent" | "delivered" | "read" | "failed" = "sent";
+        if (evtType === "delivered") chatStatus = "delivered";
+        else if (evtType === "read") chatStatus = "read";
+        else if (evtType === "failed") chatStatus = "failed";
+
+        await db.update(whatsappChatMessages)
+          .set({ status: chatStatus })
+          .where(eq(whatsappChatMessages.providerMessageId, msgId));
+      }
       return res.status(200).json({ status: "ok" });
     }
 
     if (payload.type === "message") {
       const inbound = payload.payload || payload;
       const senderPhone = inbound.source || inbound.sender?.phone;
-      const messageText = inbound.payload?.text || inbound.text || "";
+      const senderName = inbound.sender?.name || inbound.senderName || null;
 
       if (!senderPhone) {
         return res.status(200).json({ status: "ok" });
@@ -753,6 +833,9 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
         return res.status(200).json({ status: "ok" });
       }
 
+      const detected = detectContentType(inbound);
+      const messageText = detected.body || "";
+
       await db.insert(whatsappMessageLogs).values({
         tenantId: config.tenantId,
         direction: "inbound",
@@ -760,6 +843,43 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
         messageType: "command",
         messageBody: messageText,
         status: "delivered",
+      });
+
+      const conversation = await getOrCreateConversation(config.tenantId, senderPhone, senderName || undefined);
+
+      const [chatMsg] = await db.insert(whatsappChatMessages).values({
+        conversationId: conversation.id,
+        tenantId: config.tenantId,
+        direction: "inbound",
+        contentType: detected.contentType as any,
+        body: detected.body || null,
+        mediaUrl: detected.mediaUrl || null,
+        mediaMimeType: detected.mediaMimeType || null,
+        mediaFilename: detected.mediaFilename || null,
+        caption: detected.caption || null,
+        senderPhone,
+        senderName,
+        providerMessageId: inbound.id || inbound.messageId || null,
+        status: "delivered",
+      }).returning();
+
+      const previewText = detected.contentType === "text"
+        ? (messageText.substring(0, 100))
+        : `[${detected.contentType}] ${(detected.caption || "").substring(0, 80)}`;
+
+      await db.update(whatsappConversations)
+        .set({
+          lastMessageAt: new Date(),
+          lastMessagePreview: previewText,
+          unreadCount: sql`${whatsappConversations.unreadCount} + 1`,
+          updatedAt: new Date(),
+        })
+        .where(eq(whatsappConversations.id, conversation.id));
+
+      broadcastToTenant(config.tenantId, {
+        type: "whatsapp_message",
+        conversationId: conversation.id,
+        message: chatMsg,
       });
 
       const command = messageText.trim().toUpperCase();
@@ -771,12 +891,34 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
         replyText = config.businessHours || "Nuestro horario de atención: Lun-Vie 8:00-18:00, Sáb 9:00-13:00";
       } else if (command === "AYUDA") {
         replyText = config.supportInfo || "Para soporte contacta a nuestro equipo. Escribe RECIBO para consultar facturas o HORARIO para ver nuestro horario.";
-      } else {
-        replyText = "No entendí tu mensaje. Escribe:\n- RECIBO para consultar facturas\n- HORARIO para ver nuestro horario\n- AYUDA para información de soporte";
       }
 
       if (replyText) {
         await sendSessionMessage(config.tenantId, senderPhone, replyText, "auto_reply");
+
+        const [autoMsg] = await db.insert(whatsappChatMessages).values({
+          conversationId: conversation.id,
+          tenantId: config.tenantId,
+          direction: "outbound",
+          contentType: "text",
+          body: replyText,
+          senderName: "Bot",
+          status: "sent",
+        }).returning();
+
+        await db.update(whatsappConversations)
+          .set({
+            lastMessageAt: new Date(),
+            lastMessagePreview: replyText.substring(0, 100),
+            updatedAt: new Date(),
+          })
+          .where(eq(whatsappConversations.id, conversation.id));
+
+        broadcastToTenant(config.tenantId, {
+          type: "whatsapp_message",
+          conversationId: conversation.id,
+          message: autoMsg,
+        });
       }
 
       return res.status(200).json({ status: "ok" });
@@ -786,5 +928,332 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("[WhatsApp Webhook] Error:", error);
     return res.status(200).json({ status: "ok" });
+  }
+});
+
+// ==========================================
+// CHAT ROUTES
+// ==========================================
+
+whatsappRouter.get("/chat/conversations", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const search = req.query.search as string;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const offset = parseInt(req.query.offset as string) || 0;
+
+    let whereClause = eq(whatsappConversations.tenantId, tenantId);
+
+    if (search) {
+      whereClause = and(
+        whereClause,
+        or(
+          ilike(whatsappConversations.customerPhone, `%${search}%`),
+          ilike(whatsappConversations.customerName, `%${search}%`)
+        )
+      ) as any;
+    }
+
+    const conversations = await db.select()
+      .from(whatsappConversations)
+      .where(whereClause)
+      .orderBy(desc(whatsappConversations.lastMessageAt))
+      .limit(limit)
+      .offset(offset);
+
+    const [countResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(whatsappConversations)
+      .where(eq(whatsappConversations.tenantId, tenantId));
+
+    return res.json({ conversations, total: countResult?.count || 0 });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.get("/chat/conversations/:id/messages", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  const conversationId = req.params.id;
+  try {
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const before = req.query.before as string;
+
+    let whereClause = and(
+      eq(whatsappChatMessages.conversationId, conversationId),
+      eq(whatsappChatMessages.tenantId, tenantId)
+    );
+
+    const messages = await db.select()
+      .from(whatsappChatMessages)
+      .where(whereClause as any)
+      .orderBy(desc(whatsappChatMessages.createdAt))
+      .limit(limit);
+
+    return res.json(messages.reverse());
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.post("/chat/conversations/:id/read", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  const conversationId = req.params.id;
+  try {
+    await db.update(whatsappConversations)
+      .set({ unreadCount: 0, updatedAt: new Date() })
+      .where(and(
+        eq(whatsappConversations.id, conversationId),
+        eq(whatsappConversations.tenantId, tenantId)
+      ));
+    return res.json({ success: true });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const { conversationId, contentType, body, mediaUrl, mediaMimeType, mediaFilename, caption, senderName } = req.body;
+
+    if (!conversationId) {
+      return res.status(400).json({ error: "conversationId required" });
+    }
+
+    const conversation = await db.query.whatsappConversations.findFirst({
+      where: and(
+        eq(whatsappConversations.id, conversationId),
+        eq(whatsappConversations.tenantId, tenantId)
+      ),
+    });
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    const globalCreds = await getGlobalGupshupCredentials();
+    if (!globalCreds) {
+      return res.status(400).json({ error: "WhatsApp service not configured" });
+    }
+
+    const config = await getWhatsappConfig(tenantId);
+    if (!config?.enabled) {
+      return res.status(400).json({ error: "WhatsApp not enabled for this tenant" });
+    }
+
+    const quota = await validateQuota(tenantId);
+    if (!quota.allowed) {
+      return res.status(403).json({ error: quota.error });
+    }
+
+    const msgType = contentType || "text";
+    let gupshupMessage: any;
+    let previewText = "";
+
+    if (msgType === "text") {
+      gupshupMessage = { isHSM: "false", type: "text", text: body };
+      previewText = (body || "").substring(0, 100);
+    } else if (msgType === "image") {
+      gupshupMessage = { type: "image", originalUrl: mediaUrl, caption: caption || "" };
+      previewText = `[image] ${(caption || "").substring(0, 80)}`;
+    } else if (msgType === "video") {
+      gupshupMessage = { type: "video", url: mediaUrl, caption: caption || "" };
+      previewText = `[video] ${(caption || "").substring(0, 80)}`;
+    } else if (msgType === "audio") {
+      gupshupMessage = { type: "audio", url: mediaUrl };
+      previewText = "[audio]";
+    } else if (msgType === "document") {
+      gupshupMessage = { type: "file", url: mediaUrl, filename: mediaFilename || "document", caption: caption || "" };
+      previewText = `[document] ${mediaFilename || ""}`;
+    } else if (msgType === "sticker") {
+      gupshupMessage = { type: "sticker", url: mediaUrl };
+      previewText = "[sticker]";
+    } else {
+      return res.status(400).json({ error: `Unsupported content type: ${msgType}` });
+    }
+
+    const response = await fetch("https://api.gupshup.io/wa/api/v1/msg", {
+      method: "POST",
+      headers: {
+        "apikey": globalCreds.apiKey,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        channel: "whatsapp",
+        source: globalCreds.senderPhone,
+        destination: conversation.customerPhone,
+        "src.name": globalCreds.appName,
+        message: JSON.stringify(gupshupMessage),
+      }).toString(),
+    });
+
+    const data = await response.json();
+
+    if (data && (data.status === "submitted" || data.messageId)) {
+      await deductMessage(tenantId);
+
+      const [chatMsg] = await db.insert(whatsappChatMessages).values({
+        conversationId,
+        tenantId,
+        direction: "outbound",
+        contentType: msgType as any,
+        body: body || caption || null,
+        mediaUrl: mediaUrl || null,
+        mediaMimeType: mediaMimeType || null,
+        mediaFilename: mediaFilename || null,
+        caption: caption || null,
+        senderName: senderName || null,
+        providerMessageId: data.messageId || null,
+        status: "sent",
+      }).returning();
+
+      await db.update(whatsappConversations)
+        .set({
+          lastMessageAt: new Date(),
+          lastMessagePreview: previewText,
+          updatedAt: new Date(),
+        })
+        .where(eq(whatsappConversations.id, conversationId));
+
+      await db.insert(whatsappMessageLogs).values({
+        tenantId,
+        direction: "outbound",
+        phone: conversation.customerPhone,
+        messageType: "manual",
+        messageBody: previewText,
+        providerMessageId: data.messageId || null,
+        status: "sent",
+      });
+
+      broadcastToTenant(tenantId, {
+        type: "whatsapp_message",
+        conversationId,
+        message: chatMsg,
+      });
+
+      return res.json({ success: true, message: chatMsg });
+    } else {
+      const errorMsg = data?.message || JSON.stringify(data);
+      return res.status(400).json({ error: errorMsg });
+    }
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.post("/chat/new-conversation", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const { customerPhone, customerName } = req.body;
+    if (!customerPhone) {
+      return res.status(400).json({ error: "customerPhone required" });
+    }
+
+    const conversation = await getOrCreateConversation(tenantId, customerPhone, customerName);
+    return res.json(conversation);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// WHATSAPP BUSINESS PROFILE MANAGEMENT
+// ==========================================
+
+whatsappRouter.get("/profile", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const profileKey = await getProfileApiKey();
+    const appId = await getGupshupAppId();
+    if (!profileKey || !appId) {
+      return res.status(400).json({ error: "Profile API not configured" });
+    }
+
+    const config = await getWhatsappConfig(tenantId);
+    if (!config?.senderPhone) {
+      return res.status(400).json({ error: "WhatsApp phone number not configured for this tenant" });
+    }
+
+    const response = await fetch(
+      `https://api.gupshup.io/wa/app/${encodeURIComponent(appId)}/phone/${encodeURIComponent(config.senderPhone)}/profile`,
+      { headers: { "apikey": profileKey } }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      return res.status(400).json({ error: `Failed to fetch profile: ${text.substring(0, 200)}` });
+    }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const profileKey = await getProfileApiKey();
+    const appId = await getGupshupAppId();
+    if (!profileKey || !appId) {
+      return res.status(400).json({ error: "Profile API not configured" });
+    }
+
+    const config = await getWhatsappConfig(tenantId);
+    if (!config?.senderPhone) {
+      return res.status(400).json({ error: "WhatsApp phone number not configured for this tenant" });
+    }
+
+    const { about, address, description, email, vertical, websites, profilePicUrl } = req.body;
+
+    const profileData: any = {};
+    if (about !== undefined) profileData.about = about;
+    if (address !== undefined) profileData.address = address;
+    if (description !== undefined) profileData.description = description;
+    if (email !== undefined) profileData.email = email;
+    if (vertical !== undefined) profileData.vertical = vertical;
+    if (websites !== undefined) profileData.websites = websites;
+
+    if (Object.keys(profileData).length > 0) {
+      const response = await fetch(
+        `https://api.gupshup.io/wa/app/${encodeURIComponent(appId)}/phone/${encodeURIComponent(config.senderPhone)}/profile`,
+        {
+          method: "POST",
+          headers: {
+            "apikey": profileKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(profileData),
+        }
+      );
+
+      if (!response.ok) {
+        const text = await response.text();
+        return res.status(400).json({ error: `Failed to update profile: ${text.substring(0, 200)}` });
+      }
+    }
+
+    if (profilePicUrl) {
+      const picResponse = await fetch(
+        `https://api.gupshup.io/wa/app/${encodeURIComponent(appId)}/phone/${encodeURIComponent(config.senderPhone)}/profile/photo`,
+        {
+          method: "POST",
+          headers: {
+            "apikey": profileKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ url: profilePicUrl }),
+        }
+      );
+
+      if (!picResponse.ok) {
+        const text = await picResponse.text();
+        return res.json({ success: true, warning: `Profile updated but photo failed: ${text.substring(0, 200)}` });
+      }
+    }
+
+    return res.json({ success: true });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
   }
 });
