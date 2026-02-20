@@ -1455,7 +1455,7 @@ whatsappRouter.post("/chat/send-greeting", whatsappAddonGate, async (req: Reques
       }
     }
 
-    const result = await sendTemplateMessage(tenantId, conversation.customerPhone, template.name, templateParams, "manual");
+    const result = await sendTemplateMessage(tenantId, conversation.customerPhone, template.gupshupTemplateId || template.name, templateParams, "manual");
     if (!result.success) {
       return res.status(400).json({ error: result.error });
     }
