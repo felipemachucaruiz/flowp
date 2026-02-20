@@ -2136,6 +2136,7 @@ export const tenantWhatsappIntegrations = pgTable("tenant_whatsapp_integrations"
 
   gupshupApiKeyEncrypted: text("gupshup_api_key_encrypted"),
   gupshupAppName: text("gupshup_app_name"),
+  gupshupAppId: text("gupshup_app_id"),
   senderPhone: text("sender_phone"),
 
   approvedTemplates: jsonb("approved_templates").$type<string[]>().default([]),

@@ -128,6 +128,7 @@ export async function getGlobalGupshupCredentials(): Promise<{
 export async function getEffectiveGupshupCredentials(tenantId: string): Promise<{
   apiKey: string;
   appName: string;
+  appId: string;
   senderPhone: string;
 } | null> {
   try {
@@ -138,9 +139,11 @@ export async function getEffectiveGupshupCredentials(tenantId: string): Promise<
     if (tenantConfig?.enabled && tenantConfig?.gupshupApiKeyEncrypted) {
       const tenantApiKey = decrypt(tenantConfig.gupshupApiKeyEncrypted);
       if (tenantApiKey) {
+        const globalAppId = await getGupshupAppId();
         return {
           apiKey: tenantApiKey,
           appName: tenantConfig.gupshupAppName || "",
+          appId: tenantConfig.gupshupAppId || globalAppId || "",
           senderPhone: tenantConfig.senderPhone || "",
         };
       }
@@ -148,16 +151,18 @@ export async function getEffectiveGupshupCredentials(tenantId: string): Promise<
 
     const globalCreds = await getGlobalGupshupCredentials();
     if (!globalCreds) return null;
+    const globalAppId = await getGupshupAppId();
 
     if (tenantConfig?.enabled && tenantConfig?.senderPhone) {
       return {
         apiKey: globalCreds.apiKey,
         appName: tenantConfig.gupshupAppName || globalCreds.appName,
+        appId: tenantConfig.gupshupAppId || globalAppId || "",
         senderPhone: tenantConfig.senderPhone,
       };
     }
 
-    return globalCreds;
+    return { ...globalCreds, appId: globalAppId || "" };
   } catch {
     return null;
   }

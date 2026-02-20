@@ -944,16 +944,14 @@ whatsappRouter.get("/profile", whatsappAddonGate, async (req: Request, res: Resp
       return res.status(400).json({ error: "WhatsApp service not configured" });
     }
 
-    const appId = await getGupshupAppId();
-    if (!appId) {
+    if (!creds.appId) {
       return res.status(400).json({ error: "Gupshup App ID not configured" });
     }
 
-    const apiKey = creds.apiKey;
-    const response = await fetch(`https://api.gupshup.io/wa/app/${appId}/settings`, {
+    const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/settings`, {
       method: "GET",
       headers: {
-        "apikey": apiKey,
+        "apikey": creds.apiKey,
         "Content-Type": "application/json",
       },
     });
@@ -980,8 +978,7 @@ whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Resp
       return res.status(400).json({ error: "WhatsApp service not configured" });
     }
 
-    const appId = await getGupshupAppId();
-    if (!appId) {
+    if (!creds.appId) {
       return res.status(400).json({ error: "Gupshup App ID not configured" });
     }
 
@@ -996,7 +993,7 @@ whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Resp
     if (vertical !== undefined) profileData.vertical = vertical;
     if (websites !== undefined) profileData.websites = websites;
 
-    const response = await fetch(`https://api.gupshup.io/wa/app/${appId}/settings`, {
+    const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/settings`, {
       method: "PUT",
       headers: {
         "apikey": apiKey,

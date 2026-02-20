@@ -107,6 +107,7 @@ export default function AdminTenants() {
   const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false);
   const [waPhone, setWaPhone] = useState("");
   const [waAppName, setWaAppName] = useState("");
+  const [waAppId, setWaAppId] = useState("");
   const [waApiKey, setWaApiKey] = useState("");
   const [waEnabled, setWaEnabled] = useState(false);
 
@@ -164,6 +165,7 @@ export default function AdminTenants() {
     enabled: boolean;
     senderPhone: string;
     gupshupAppName: string;
+    gupshupAppId: string;
     hasApiKey: boolean;
   }>({
     queryKey: ["/api/internal-admin/tenants", selectedTenant?.id, "whatsapp-config"],
@@ -179,6 +181,7 @@ export default function AdminTenants() {
     if (waConfig) {
       setWaPhone(waConfig.senderPhone || "");
       setWaAppName(waConfig.gupshupAppName || "");
+      setWaAppId(waConfig.gupshupAppId || "");
       setWaEnabled(waConfig.enabled);
       setWaApiKey("");
     }
@@ -189,6 +192,7 @@ export default function AdminTenants() {
       const payload: Record<string, unknown> = {
         senderPhone: waPhone,
         gupshupAppName: waAppName,
+        gupshupAppId: waAppId,
         enabled: waEnabled,
       };
       if (waApiKey) payload.gupshupApiKey = waApiKey;
@@ -903,6 +907,18 @@ export default function AdminTenants() {
                   placeholder="my-whatsapp-app"
                   data-testid="input-wa-app-name"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="wa-app-id">{t("admin.whatsapp_app_id" as any) || "Gupshup App ID"}</Label>
+                <Input
+                  id="wa-app-id"
+                  value={waAppId}
+                  onChange={(e) => setWaAppId(e.target.value)}
+                  placeholder="e.g. abc123def456"
+                  data-testid="input-wa-app-id"
+                />
+                <p className="text-xs text-muted-foreground">{t("admin.whatsapp_app_id_hint" as any) || "The Gupshup App ID created for this tenant's WhatsApp number"}</p>
               </div>
 
               <div className="space-y-2">
