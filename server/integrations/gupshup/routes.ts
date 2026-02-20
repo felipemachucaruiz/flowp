@@ -1413,6 +1413,32 @@ whatsappRouter.post("/chat/conversations/:id/read", whatsappAddonGate, async (re
   }
 });
 
+whatsappRouter.delete("/chat/conversations/:id", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  const conversationId = req.params.id;
+  try {
+    const conversation = await db.query.whatsappConversations.findFirst({
+      where: and(
+        eq(whatsappConversations.id, conversationId),
+        eq(whatsappConversations.tenantId, tenantId)
+      ),
+    });
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversation not found" });
+    }
+
+    await db.delete(whatsappConversations)
+      .where(and(
+        eq(whatsappConversations.id, conversationId),
+        eq(whatsappConversations.tenantId, tenantId)
+      ));
+
+    return res.json({ success: true });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   try {

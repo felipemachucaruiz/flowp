@@ -38,7 +38,9 @@ import {
   ShoppingCart,
   Package,
   Loader2,
+  Trash2,
 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 
 interface Conversation {
@@ -420,6 +422,21 @@ export default function WhatsAppChatPage() {
     },
   });
 
+  const deleteConversationMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      await apiRequest("DELETE", `/api/whatsapp/chat/conversations/${conversationId}`);
+    },
+    onSuccess: () => {
+      setSelectedConversation(null);
+      setShowMobileConversation(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
+      toast({ title: t("whatsapp_chat.chat_deleted" as any) });
+    },
+    onError: (err: any) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
   useEffect(() => {
     if (selectedConversation && conversations.length > 0) {
       const updated = conversations.find(c => c.id === selectedConversation.id);
@@ -747,6 +764,32 @@ export default function WhatsAppChatPage() {
               <Button variant="ghost" size="icon" data-testid="button-phone-call">
                 <Phone className="w-4 h-4" />
               </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" data-testid="button-delete-conversation">
+                    <Trash2 className="w-4 h-4 text-destructive" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("whatsapp_chat.delete_chat_title" as any)}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("whatsapp_chat.delete_chat_confirm" as any)}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      onClick={() => deleteConversationMutation.mutate(selectedConversation!.id)}
+                      disabled={deleteConversationMutation.isPending}
+                      data-testid="button-confirm-delete-conversation"
+                    >
+                      {deleteConversationMutation.isPending ? t("common.loading") : t("common.delete")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
 
             <ScrollArea className="flex-1 p-4">
