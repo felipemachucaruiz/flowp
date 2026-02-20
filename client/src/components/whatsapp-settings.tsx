@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth-context";
@@ -35,6 +35,8 @@ import {
   XCircle,
   User,
   Save,
+  Camera,
+  Upload,
 } from "lucide-react";
 
 interface WhatsAppConfig {
@@ -113,6 +115,7 @@ export function WhatsAppSettings() {
   const [configLoaded, setConfigLoaded] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [profileAbout, setProfileAbout] = useState("");
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [profileDescription, setProfileDescription] = useState("");
   const [profileAddress, setProfileAddress] = useState("");
   const [profileEmail, setProfileEmail] = useState("");
@@ -216,6 +219,73 @@ export function WhatsAppSettings() {
       });
     },
   });
+
+  const { data: profilePhotoData } = useQuery<any>({
+    queryKey: ["whatsapp", "profile", "photo"],
+    queryFn: async () => {
+      const res = await fetch("/api/whatsapp/profile/photo", {
+        headers: { "x-tenant-id": tenant?.id || "" },
+      });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!tenant?.id && !!config?.configured,
+  });
+
+  const profilePhotoUrl = profilePhotoData?.message || profilePhotoData?.url || null;
+
+  const photoMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch("/api/whatsapp/profile/photo", {
+        method: "PUT",
+        headers: { "x-tenant-id": tenant?.id || "" },
+        body: formData,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Upload failed" }));
+        throw new Error(err.error || "Failed to upload profile photo");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "profile", "photo"] });
+      toast({
+        title: t("common.success" as any) || "Success",
+        description: t("whatsapp.profilePhotoUpdated" as any) || "Profile photo updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: t("common.error" as any) || "Error",
+        description: error.message || "Failed to upload profile photo",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: t("common.error" as any) || "Error",
+        description: t("whatsapp.profilePhotoTooLarge" as any) || "Image must be less than 5 MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: t("common.error" as any) || "Error",
+        description: t("whatsapp.profilePhotoInvalidType" as any) || "Please select an image file (JPEG or PNG).",
+        variant: "destructive",
+      });
+      return;
+    }
+    photoMutation.mutate(file);
+  };
 
   const handleProfileSave = () => {
     const websites = profileWebsites
@@ -721,6 +791,66 @@ export function WhatsAppSettings() {
               </div>
             ) : (
               <>
+                <div className="flex items-center gap-6 pb-4 border-b">
+                  <div className="relative group">
+                    <div className="w-20 h-20 rounded-full overflow-hidden bg-muted flex items-center justify-center border-2 border-border">
+                      {profilePhotoUrl ? (
+                        <img
+                          src={profilePhotoUrl}
+                          alt={t("whatsapp.profilePhoto" as any) || "Profile photo"}
+                          className="w-full h-full object-cover"
+                          data-testid="img-profile-photo"
+                        />
+                      ) : (
+                        <User className="w-8 h-8 text-muted-foreground" />
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => photoInputRef.current?.click()}
+                      disabled={photoMutation.isPending}
+                      className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                      data-testid="button-change-profile-photo"
+                    >
+                      {photoMutation.isPending ? (
+                        <Loader2 className="w-5 h-5 text-white animate-spin" />
+                      ) : (
+                        <Camera className="w-5 h-5 text-white" />
+                      )}
+                    </button>
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/jpg"
+                      onChange={handlePhotoSelect}
+                      className="hidden"
+                      data-testid="input-profile-photo"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">
+                      {t("whatsapp.profilePhoto" as any) || "Profile Photo"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("whatsapp.profilePhotoHint" as any) || "JPEG or PNG, max 5 MB. This photo will be visible to your WhatsApp contacts."}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => photoInputRef.current?.click()}
+                      disabled={photoMutation.isPending}
+                      data-testid="button-upload-profile-photo"
+                    >
+                      {photoMutation.isPending ? (
+                        <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                      ) : (
+                        <Upload className="w-3 h-3 mr-1" />
+                      )}
+                      {t("whatsapp.uploadPhoto" as any) || "Upload Photo"}
+                    </Button>
+                  </div>
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="profile-about" data-testid="label-profile-about">

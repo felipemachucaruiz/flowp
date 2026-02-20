@@ -1016,6 +1016,92 @@ whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Resp
   }
 });
 
+whatsappRouter.get("/profile/photo", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const creds = await getEffectiveGupshupCredentials(tenantId);
+    if (!creds) {
+      return res.status(400).json({ error: "WhatsApp service not configured" });
+    }
+    if (!creds.appId) {
+      return res.status(400).json({ error: "Gupshup App ID not configured" });
+    }
+
+    const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile/photo`, {
+      method: "GET",
+      headers: { "apikey": creds.apiKey },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`[whatsapp] Profile photo fetch failed: ${response.status} ${text}`);
+      return res.status(response.status).json({ error: "Failed to fetch profile photo" });
+    }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (error: any) {
+    console.error(`[whatsapp] Profile photo error:`, error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+whatsappRouter.put("/profile/photo", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const creds = await getEffectiveGupshupCredentials(tenantId);
+    if (!creds) {
+      return res.status(400).json({ error: "WhatsApp service not configured" });
+    }
+    if (!creds.appId) {
+      return res.status(400).json({ error: "Gupshup App ID not configured" });
+    }
+
+    const multer = (await import("multer")).default;
+    const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+    await new Promise<void>((resolve, reject) => {
+      upload.single("image")(req, res, (err: any) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    const file = (req as any).file;
+    if (!file) {
+      return res.status(400).json({ error: "No image file provided" });
+    }
+
+    const FormData = (await import("form-data")).default;
+    const formData = new FormData();
+    formData.append("image", file.buffer, {
+      filename: file.originalname || "profile.jpg",
+      contentType: file.mimetype || "image/jpeg",
+    });
+
+    const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile/photo`, {
+      method: "PUT",
+      headers: {
+        "apikey": creds.apiKey,
+        ...formData.getHeaders(),
+      },
+      body: formData as any,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error(`[whatsapp] Profile photo upload failed: ${response.status} ${text}`);
+      return res.status(response.status).json({ error: "Failed to upload profile photo" });
+    }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (error: any) {
+    console.error(`[whatsapp] Profile photo upload error:`, error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
 // ==========================================
 // CHAT ROUTES
 // ==========================================

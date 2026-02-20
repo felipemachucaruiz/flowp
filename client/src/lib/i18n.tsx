@@ -1045,6 +1045,12 @@ const translations = {
     "whatsapp.profileWebsitesPlaceholder": "https://example.com, https://shop.example.com",
     "whatsapp.profileWebsitesHint": "Separate multiple URLs with commas",
     "whatsapp.profileUpdated": "Business profile updated successfully.",
+    "whatsapp.profilePhoto": "Profile Photo",
+    "whatsapp.profilePhotoHint": "JPEG or PNG, max 5 MB. This photo will be visible to your WhatsApp contacts.",
+    "whatsapp.uploadPhoto": "Upload Photo",
+    "whatsapp.profilePhotoUpdated": "Profile photo updated successfully.",
+    "whatsapp.profilePhotoTooLarge": "Image must be less than 5 MB.",
+    "whatsapp.profilePhotoInvalidType": "Please select an image file (JPEG or PNG).",
     "purchasing.title": "Purchasing",
     "purchasing.subtitle": "Manage suppliers and purchase orders",
     "purchasing.suppliers": "Suppliers",
@@ -3762,6 +3768,12 @@ const translations = {
     "whatsapp.profileWebsitesPlaceholder": "https://ejemplo.com, https://tienda.ejemplo.com",
     "whatsapp.profileWebsitesHint": "Separa múltiples URLs con comas",
     "whatsapp.profileUpdated": "Perfil del negocio actualizado exitosamente.",
+    "whatsapp.profilePhoto": "Foto de Perfil",
+    "whatsapp.profilePhotoHint": "JPEG o PNG, máximo 5 MB. Esta foto será visible para tus contactos de WhatsApp.",
+    "whatsapp.uploadPhoto": "Subir Foto",
+    "whatsapp.profilePhotoUpdated": "Foto de perfil actualizada exitosamente.",
+    "whatsapp.profilePhotoTooLarge": "La imagen debe ser menor a 5 MB.",
+    "whatsapp.profilePhotoInvalidType": "Selecciona un archivo de imagen (JPEG o PNG).",
 
     // Purchasing / Restocking
     "nav.purchasing": "Compras",
@@ -6411,6 +6423,12 @@ const translations = {
     "whatsapp.profileWebsitesPlaceholder": "https://exemplo.com, https://loja.exemplo.com",
     "whatsapp.profileWebsitesHint": "Separe múltiplas URLs com vírgulas",
     "whatsapp.profileUpdated": "Perfil do negócio atualizado com sucesso.",
+    "whatsapp.profilePhoto": "Foto do Perfil",
+    "whatsapp.profilePhotoHint": "JPEG ou PNG, máximo 5 MB. Esta foto será visível para seus contatos do WhatsApp.",
+    "whatsapp.uploadPhoto": "Enviar Foto",
+    "whatsapp.profilePhotoUpdated": "Foto do perfil atualizada com sucesso.",
+    "whatsapp.profilePhotoTooLarge": "A imagem deve ter menos de 5 MB.",
+    "whatsapp.profilePhotoInvalidType": "Selecione um arquivo de imagem (JPEG ou PNG).",
     
     // Purchasing / Restocking
     "nav.purchasing": "Compras",
