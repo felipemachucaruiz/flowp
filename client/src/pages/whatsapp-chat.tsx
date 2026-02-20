@@ -175,6 +175,8 @@ export default function WhatsAppChatPage() {
   const [newChatDialog, setNewChatDialog] = useState(false);
   const [newChatPhone, setNewChatPhone] = useState("");
   const [newChatName, setNewChatName] = useState("");
+  const [newChatMode, setNewChatMode] = useState<"customer" | "manual">("customer");
+  const [customerSearch, setCustomerSearch] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMobileConversation, setShowMobileConversation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -200,6 +202,32 @@ export default function WhatsAppChatPage() {
   });
 
   const conversations = conversationsData?.conversations || [];
+
+  interface Customer {
+    id: string;
+    name: string;
+    phone: string | null;
+    phoneCountryCode: string | null;
+    email: string | null;
+  }
+
+  const { data: customers } = useQuery<Customer[]>({
+    queryKey: ["/api/customers/search"],
+    enabled: !!tenantId && newChatDialog,
+  });
+
+  const filteredCustomers = (customers || []).filter(c => {
+    if (!c.phone) return false;
+    if (!customerSearch) return true;
+    const q = customerSearch.toLowerCase();
+    return c.name.toLowerCase().includes(q) || (c.phone || "").includes(q) || (c.email || "").toLowerCase().includes(q);
+  });
+
+  const selectCustomer = (c: Customer) => {
+    const phone = c.phoneCountryCode && c.phone ? `+${c.phoneCountryCode}${c.phone}` : c.phone || "";
+    setNewChatPhone(phone);
+    setNewChatName(c.name);
+  };
 
   const { data: messages, isLoading: loadingMessages } = useQuery<ChatMessage[]>({
     queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"],
@@ -569,40 +597,120 @@ export default function WhatsAppChatPage() {
         )}
       </div>
 
-      <Dialog open={newChatDialog} onOpenChange={setNewChatDialog}>
-        <DialogContent>
+      <Dialog open={newChatDialog} onOpenChange={(open) => {
+        setNewChatDialog(open);
+        if (!open) {
+          setNewChatPhone("");
+          setNewChatName("");
+          setCustomerSearch("");
+          setNewChatMode("customer");
+        }
+      }}>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t("whatsapp_chat.new_conversation")}</DialogTitle>
             <DialogDescription>{t("whatsapp_chat.new_conversation_desc")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>{t("whatsapp_chat.phone_number")}</Label>
-              <Input
-                placeholder="+573001234567"
-                value={newChatPhone}
-                onChange={(e) => setNewChatPhone(e.target.value)}
-                data-testid="input-new-chat-phone"
-              />
-            </div>
-            <div>
-              <Label>{t("whatsapp_chat.customer_name")}</Label>
-              <Input
-                placeholder={t("whatsapp_chat.customer_name_placeholder")}
-                value={newChatName}
-                onChange={(e) => setNewChatName(e.target.value)}
-                data-testid="input-new-chat-name"
-              />
-            </div>
-            <Button
-              className="w-full"
-              onClick={() => newConversationMutation.mutate({ customerPhone: newChatPhone, customerName: newChatName || undefined })}
-              disabled={!newChatPhone.trim() || newConversationMutation.isPending}
-              data-testid="button-start-conversation"
+
+          <div className="flex gap-1 p-1 bg-muted rounded-lg">
+            <button
+              className={`flex-1 text-sm py-1.5 px-3 rounded-md transition-colors ${newChatMode === "customer" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setNewChatMode("customer")}
+              data-testid="tab-select-customer"
             >
-              {t("whatsapp_chat.start_chat")}
-            </Button>
+              {t("whatsapp_chat.from_customers")}
+            </button>
+            <button
+              className={`flex-1 text-sm py-1.5 px-3 rounded-md transition-colors ${newChatMode === "manual" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+              onClick={() => setNewChatMode("manual")}
+              data-testid="tab-manual-phone"
+            >
+              {t("whatsapp_chat.manual_entry")}
+            </button>
           </div>
+
+          {newChatMode === "customer" ? (
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder={t("whatsapp_chat.search_customers")}
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  className="pl-9 h-9"
+                  data-testid="input-search-customers"
+                />
+              </div>
+              <ScrollArea className="h-[220px] border rounded-lg">
+                {filteredCustomers.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    {t("whatsapp_chat.no_customers_with_phone")}
+                  </div>
+                ) : (
+                  filteredCustomers.map((c) => {
+                    const fullPhone = c.phoneCountryCode && c.phone ? `+${c.phoneCountryCode}${c.phone}` : c.phone || "";
+                    const isSelected = newChatPhone === fullPhone && newChatName === c.name;
+                    return (
+                      <div
+                        key={c.id}
+                        onClick={() => selectCustomer(c)}
+                        className={`flex items-center gap-3 p-2.5 cursor-pointer hover:bg-muted/50 transition-colors border-b last:border-0 ${isSelected ? "bg-primary/5 ring-1 ring-primary/20" : ""}`}
+                        data-testid={`customer-option-${c.id}`}
+                      >
+                        <Avatar className="w-8 h-8 flex-shrink-0">
+                          <AvatarFallback className="text-xs bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300">
+                            {c.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{c.name}</p>
+                          <p className="text-xs text-muted-foreground">{fullPhone}</p>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
+                      </div>
+                    );
+                  })
+                )}
+              </ScrollArea>
+              {newChatPhone && (
+                <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg text-sm">
+                  <Check className="w-4 h-4 text-green-500" />
+                  <span className="font-medium truncate">{newChatName}</span>
+                  <span className="text-muted-foreground">{newChatPhone}</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <Label>{t("whatsapp_chat.phone_number")}</Label>
+                <Input
+                  placeholder="+573001234567"
+                  value={newChatPhone}
+                  onChange={(e) => setNewChatPhone(e.target.value)}
+                  data-testid="input-new-chat-phone"
+                />
+              </div>
+              <div>
+                <Label>{t("whatsapp_chat.customer_name")}</Label>
+                <Input
+                  placeholder={t("whatsapp_chat.customer_name_placeholder")}
+                  value={newChatName}
+                  onChange={(e) => setNewChatName(e.target.value)}
+                  data-testid="input-new-chat-name"
+                />
+              </div>
+            </div>
+          )}
+
+          <Button
+            className="w-full"
+            onClick={() => newConversationMutation.mutate({ customerPhone: newChatPhone, customerName: newChatName || undefined })}
+            disabled={!newChatPhone.trim() || newConversationMutation.isPending}
+            data-testid="button-start-conversation"
+          >
+            {t("whatsapp_chat.start_chat")}
+          </Button>
         </DialogContent>
       </Dialog>
     </div>

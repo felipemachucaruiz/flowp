@@ -1026,6 +1026,10 @@ const translations = {
     "whatsapp_chat.type_message": "Type a message...",
     "whatsapp_chat.yesterday": "Yesterday",
     "whatsapp_chat.upload_failed": "Failed to upload file",
+    "whatsapp_chat.from_customers": "From Customers",
+    "whatsapp_chat.manual_entry": "Manual Number",
+    "whatsapp_chat.search_customers": "Search customers...",
+    "whatsapp_chat.no_customers_with_phone": "No customers with phone numbers found",
     "purchasing.title": "Purchasing",
     "purchasing.subtitle": "Manage suppliers and purchase orders",
     "purchasing.suppliers": "Suppliers",
@@ -3724,6 +3728,10 @@ const translations = {
     "whatsapp_chat.type_message": "Escribe un mensaje...",
     "whatsapp_chat.yesterday": "Ayer",
     "whatsapp_chat.upload_failed": "Error al subir archivo",
+    "whatsapp_chat.from_customers": "De Clientes",
+    "whatsapp_chat.manual_entry": "Número Manual",
+    "whatsapp_chat.search_customers": "Buscar clientes...",
+    "whatsapp_chat.no_customers_with_phone": "No se encontraron clientes con número de teléfono",
 
     // Purchasing / Restocking
     "nav.purchasing": "Compras",
@@ -6354,6 +6362,10 @@ const translations = {
     "whatsapp_chat.type_message": "Digite uma mensagem...",
     "whatsapp_chat.yesterday": "Ontem",
     "whatsapp_chat.upload_failed": "Erro ao enviar arquivo",
+    "whatsapp_chat.from_customers": "Dos Clientes",
+    "whatsapp_chat.manual_entry": "Número Manual",
+    "whatsapp_chat.search_customers": "Buscar clientes...",
+    "whatsapp_chat.no_customers_with_phone": "Nenhum cliente com número de telefone encontrado",
     
     // Purchasing / Restocking
     "nav.purchasing": "Compras",
