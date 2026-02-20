@@ -244,9 +244,7 @@ export default function WhatsAppChatPage() {
 
   const markReadMutation = useMutation({
     mutationFn: async (conversationId: string) => {
-      await apiRequest("POST", `/api/whatsapp/chat/conversations/${conversationId}/read`, undefined, {
-        headers: { "x-tenant-id": tenantId },
-      });
+      await apiRequest("POST", `/api/whatsapp/chat/conversations/${conversationId}/read`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
@@ -258,8 +256,6 @@ export default function WhatsAppChatPage() {
       const res = await apiRequest("POST", "/api/whatsapp/chat/send", {
         ...data,
         senderName: user?.name || user?.username || "Staff",
-      }, {
-        headers: { "x-tenant-id": tenantId },
       });
       return res.json();
     },
@@ -275,9 +271,7 @@ export default function WhatsAppChatPage() {
 
   const newConversationMutation = useMutation({
     mutationFn: async (data: { customerPhone: string; customerName?: string }) => {
-      const res = await apiRequest("POST", "/api/whatsapp/chat/new-conversation", data, {
-        headers: { "x-tenant-id": tenantId },
-      });
+      const res = await apiRequest("POST", "/api/whatsapp/chat/new-conversation", data);
       return res.json();
     },
     onSuccess: (data) => {
