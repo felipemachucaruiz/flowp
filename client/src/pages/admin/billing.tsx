@@ -112,6 +112,7 @@ const PRO_FEATURES = [
   { id: "multi_location", label: "Multi-Location", description: "Manage multiple store locations" },
   { id: "loyalty_program", label: "Loyalty Program", description: "Customer loyalty and rewards" },
   { id: "electronic_invoicing", label: "Electronic Invoicing", description: "DIAN electronic invoicing (Colombia)" },
+  { id: "whatsapp_chat", label: "WhatsApp Chat", description: "Two-way WhatsApp messaging with customers, media support, and real-time conversations" },
   { id: "api_access", label: "API Access", description: "External API integrations" },
 ];
 

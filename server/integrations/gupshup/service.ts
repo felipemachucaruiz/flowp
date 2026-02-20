@@ -125,6 +125,44 @@ export async function getGlobalGupshupCredentials(): Promise<{
   }
 }
 
+export async function getEffectiveGupshupCredentials(tenantId: string): Promise<{
+  apiKey: string;
+  appName: string;
+  senderPhone: string;
+} | null> {
+  try {
+    const tenantConfig = await db.query.tenantWhatsappIntegrations.findFirst({
+      where: eq(tenantWhatsappIntegrations.tenantId, tenantId),
+    });
+
+    if (tenantConfig?.enabled && tenantConfig?.gupshupApiKeyEncrypted) {
+      const tenantApiKey = decrypt(tenantConfig.gupshupApiKeyEncrypted);
+      if (tenantApiKey) {
+        return {
+          apiKey: tenantApiKey,
+          appName: tenantConfig.gupshupAppName || "",
+          senderPhone: tenantConfig.senderPhone || "",
+        };
+      }
+    }
+
+    const globalCreds = await getGlobalGupshupCredentials();
+    if (!globalCreds) return null;
+
+    if (tenantConfig?.enabled && tenantConfig?.senderPhone) {
+      return {
+        apiKey: globalCreds.apiKey,
+        appName: tenantConfig.gupshupAppName || globalCreds.appName,
+        senderPhone: tenantConfig.senderPhone,
+      };
+    }
+
+    return globalCreds;
+  } catch {
+    return null;
+  }
+}
+
 async function gupshupSendMessage(apiKey: string, params: Record<string, string>): Promise<any> {
   const body = new URLSearchParams(params);
   const response = await fetch("https://api.gupshup.io/wa/api/v1/msg", {
@@ -347,9 +385,9 @@ export async function sendTemplateMessage(
   templateParams: string[],
   messageType: "receipt" | "alert" | "manual" | "command" | "auto_reply" = "manual"
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const globalCreds = await getGlobalGupshupCredentials();
-  if (!globalCreds) {
-    return { success: false, error: "Global WhatsApp service not configured or disabled" };
+  const creds = await getEffectiveGupshupCredentials(tenantId);
+  if (!creds) {
+    return { success: false, error: "WhatsApp service not configured or disabled" };
   }
 
   const tenantConfig = await getWhatsappConfig(tenantId);
@@ -375,15 +413,15 @@ export async function sendTemplateMessage(
     console.log(`[whatsapp] Sending template "${templateId}" to ${destinationPhone} with params:`, templateParams);
     const body = new URLSearchParams();
     body.append("channel", "whatsapp");
-    body.append("source", globalCreds.senderPhone);
+    body.append("source", creds.senderPhone);
     body.append("destination", destinationPhone);
-    body.append("src.name", globalCreds.appName);
+    body.append("src.name", creds.appName);
     body.append("template", JSON.stringify({ id: templateId, params: templateParams }));
 
     const response = await fetch("https://api.gupshup.io/wa/api/v1/template/msg", {
       method: "POST",
       headers: {
-        "apikey": globalCreds.apiKey,
+        "apikey": creds.apiKey,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: body.toString(),
@@ -430,9 +468,9 @@ export async function sendSessionMessage(
   messageText: string,
   messageType: "receipt" | "alert" | "manual" | "command" | "auto_reply" = "auto_reply"
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const globalCreds = await getGlobalGupshupCredentials();
-  if (!globalCreds) {
-    return { success: false, error: "Global WhatsApp service not configured or disabled" };
+  const creds = await getEffectiveGupshupCredentials(tenantId);
+  if (!creds) {
+    return { success: false, error: "WhatsApp service not configured or disabled" };
   }
 
   const tenantConfig = await getWhatsappConfig(tenantId);
@@ -455,12 +493,12 @@ export async function sendSessionMessage(
   }).returning();
 
   try {
-    console.log(`[whatsapp] Sending text to ${destinationPhone} from ${globalCreds.senderPhone} (app: ${globalCreds.appName})`);
-    const data = await gupshupSendMessage(globalCreds.apiKey, {
+    console.log(`[whatsapp] Sending text to ${destinationPhone} from ${creds.senderPhone} (app: ${creds.appName})`);
+    const data = await gupshupSendMessage(creds.apiKey, {
       channel: "whatsapp",
-      source: globalCreds.senderPhone,
+      source: creds.senderPhone,
       destination: destinationPhone,
-      "src.name": globalCreds.appName,
+      "src.name": creds.appName,
       message: JSON.stringify({ isHSM: "false", type: "text", text: messageText }),
     });
 
@@ -491,17 +529,17 @@ export async function sendSessionMessage(
 }
 
 export async function testConnection(tenantId: string): Promise<{ success: boolean; error?: string }> {
-  const globalCreds = await getGlobalGupshupCredentials();
-  if (!globalCreds) {
-    return { success: false, error: "Global WhatsApp service not configured or disabled" };
+  const creds = await getEffectiveGupshupCredentials(tenantId);
+  if (!creds) {
+    return { success: false, error: "WhatsApp service not configured or disabled" };
   }
 
   try {
-    const data = await gupshupSendMessage(globalCreds.apiKey, {
+    const data = await gupshupSendMessage(creds.apiKey, {
       channel: "whatsapp",
-      source: globalCreds.senderPhone,
-      destination: globalCreds.senderPhone,
-      "src.name": globalCreds.appName,
+      source: creds.senderPhone,
+      destination: creds.senderPhone,
+      "src.name": creds.appName,
       message: JSON.stringify({ isHSM: "false", type: "text", text: "Flowp connection test" }),
     });
     if (data && (data.status === "submitted" || data.messageId)) {
@@ -558,9 +596,9 @@ export async function sendDocumentMessage(
   caption: string,
   messageType: "receipt" | "alert" | "manual" = "receipt"
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const globalCreds = await getGlobalGupshupCredentials();
-  if (!globalCreds) {
-    return { success: false, error: "Global WhatsApp service not configured or disabled" };
+  const creds = await getEffectiveGupshupCredentials(tenantId);
+  if (!creds) {
+    return { success: false, error: "WhatsApp service not configured or disabled" };
   }
 
   const tenantConfig = await getWhatsappConfig(tenantId);
@@ -584,11 +622,11 @@ export async function sendDocumentMessage(
 
   try {
     console.log(`[whatsapp] Sending document to ${destinationPhone}: ${documentUrl}`);
-    const data = await gupshupSendMessage(globalCreds.apiKey, {
+    const data = await gupshupSendMessage(creds.apiKey, {
       channel: "whatsapp",
-      source: globalCreds.senderPhone,
+      source: creds.senderPhone,
       destination: destinationPhone,
-      "src.name": globalCreds.appName,
+      "src.name": creds.appName,
       message: JSON.stringify({ type: "file", url: documentUrl, filename, caption }),
     });
 

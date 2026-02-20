@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, Search, MoreHorizontal, Ban, CheckCircle, Settings, Key, Gift, XCircle } from "lucide-react";
+import { Building2, Search, MoreHorizontal, Ban, CheckCircle, Settings, Key, Gift, XCircle, MessageCircle, Phone, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import {
   DropdownMenu,
@@ -39,6 +39,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { queryClient } from "@/lib/queryClient";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useToast } from "@/hooks/use-toast";
@@ -103,6 +104,12 @@ export default function AdminTenants() {
   const [compReason, setCompReason] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState("");
 
+  const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false);
+  const [waPhone, setWaPhone] = useState("");
+  const [waAppName, setWaAppName] = useState("");
+  const [waApiKey, setWaApiKey] = useState("");
+  const [waEnabled, setWaEnabled] = useState(false);
+
   const AVAILABLE_FEATURES = [
     { id: "restaurant_bom", label: t("admin.feature_bom"), description: t("admin.feature_bom_desc") },
     { id: "advanced_reporting", label: t("admin.feature_reporting"), description: t("admin.feature_reporting_desc") },
@@ -151,6 +158,61 @@ export default function AdminTenants() {
     },
     enabled: !!selectedTenant && (showCompDialog || showFeaturesDialog),
   });
+
+  const { data: waConfig, isLoading: waConfigLoading } = useQuery<{
+    configured: boolean;
+    enabled: boolean;
+    senderPhone: string;
+    gupshupAppName: string;
+    hasApiKey: boolean;
+  }>({
+    queryKey: ["/api/internal-admin/tenants", selectedTenant?.id, "whatsapp-config"],
+    queryFn: async () => {
+      const res = await adminFetch(`/api/internal-admin/tenants/${selectedTenant?.id}/whatsapp-config`);
+      if (!res.ok) throw new Error("Failed to fetch WhatsApp config");
+      return res.json();
+    },
+    enabled: !!selectedTenant && showWhatsAppDialog,
+  });
+
+  useEffect(() => {
+    if (waConfig) {
+      setWaPhone(waConfig.senderPhone || "");
+      setWaAppName(waConfig.gupshupAppName || "");
+      setWaEnabled(waConfig.enabled);
+      setWaApiKey("");
+    }
+  }, [waConfig]);
+
+  const saveWhatsAppMutation = useMutation({
+    mutationFn: async () => {
+      const payload: Record<string, unknown> = {
+        senderPhone: waPhone,
+        gupshupAppName: waAppName,
+        enabled: waEnabled,
+      };
+      if (waApiKey) payload.gupshupApiKey = waApiKey;
+      const res = await adminFetch(`/api/internal-admin/tenants/${selectedTenant?.id}/whatsapp-config`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error("Failed to save WhatsApp config");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/internal-admin/tenants", selectedTenant?.id, "whatsapp-config"] });
+      setShowWhatsAppDialog(false);
+      toast({ title: t("common.success" as any) || "Success", description: t("admin.whatsapp_config_saved" as any) || "WhatsApp configuration saved." });
+    },
+    onError: () => {
+      toast({ title: t("common.error" as any) || "Error", description: t("admin.whatsapp_config_error" as any) || "Failed to save WhatsApp config.", variant: "destructive" });
+    },
+  });
+
+  const openWhatsAppDialog = (tenant: Tenant) => {
+    setSelectedTenant(tenant);
+    setShowWhatsAppDialog(true);
+  };
 
   const suspendMutation = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
@@ -481,6 +543,10 @@ export default function AdminTenants() {
                           <Key className="h-4 w-4 mr-2" />
                           {t("admin.reset_user_password")}
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openWhatsAppDialog(tenant)} data-testid={`button-whatsapp-config-${tenant.id}`}>
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          {t("admin.whatsapp_config" as any) || "WhatsApp Config"}
+                        </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {tenant.status !== "suspended" ? (
                           <DropdownMenuItem
@@ -781,6 +847,97 @@ export default function AdminTenants() {
               data-testid="button-reset-password"
             >
               {resetPasswordMutation.isPending ? t("admin.resetting") : t("admin.reset_password")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* WhatsApp Config Dialog */}
+      <Dialog open={showWhatsAppDialog} onOpenChange={setShowWhatsAppDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-green-500" />
+              WhatsApp Config - {selectedTenant?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {t("admin.whatsapp_config_desc" as any) || "Configure per-tenant WhatsApp phone number and Gupshup credentials. Leave blank to use global settings."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {waConfigLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-4 py-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t("admin.whatsapp_enabled" as any) || "Enabled"}</Label>
+                  <p className="text-xs text-muted-foreground">{t("admin.whatsapp_enabled_desc" as any) || "Enable WhatsApp for this tenant"}</p>
+                </div>
+                <Switch checked={waEnabled} onCheckedChange={setWaEnabled} data-testid="switch-wa-enabled" />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="wa-phone">
+                  <Phone className="h-3.5 w-3.5 inline mr-1" />
+                  {t("admin.whatsapp_phone" as any) || "WhatsApp Phone Number"}
+                </Label>
+                <Input
+                  id="wa-phone"
+                  value={waPhone}
+                  onChange={(e) => setWaPhone(e.target.value)}
+                  placeholder="+573001234567"
+                  data-testid="input-wa-phone"
+                />
+                <p className="text-xs text-muted-foreground">{t("admin.whatsapp_phone_hint" as any) || "Custom WhatsApp number for this tenant (with country code)"}</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="wa-app-name">{t("admin.whatsapp_app_name" as any) || "Gupshup App Name"}</Label>
+                <Input
+                  id="wa-app-name"
+                  value={waAppName}
+                  onChange={(e) => setWaAppName(e.target.value)}
+                  placeholder="my-whatsapp-app"
+                  data-testid="input-wa-app-name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="wa-api-key">{t("admin.whatsapp_api_key" as any) || "Gupshup API Key"}</Label>
+                <Input
+                  id="wa-api-key"
+                  type="password"
+                  value={waApiKey}
+                  onChange={(e) => setWaApiKey(e.target.value)}
+                  placeholder={waConfig?.hasApiKey ? "••••••••••" : "Enter API key"}
+                  data-testid="input-wa-api-key"
+                />
+                <p className="text-xs text-muted-foreground">{t("admin.whatsapp_api_key_hint" as any) || "Leave blank to keep current key. Only needed for custom tenant setup."}</p>
+              </div>
+
+              {waConfig?.configured && (
+                <div className="flex items-center gap-2 p-2 bg-green-500/10 rounded text-sm">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  {t("admin.whatsapp_configured" as any) || "WhatsApp is configured for this tenant"}
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowWhatsAppDialog(false)}>
+              {t("admin.cancel")}
+            </Button>
+            <Button
+              onClick={() => saveWhatsAppMutation.mutate()}
+              disabled={saveWhatsAppMutation.isPending}
+              data-testid="button-save-wa-config"
+            >
+              {saveWhatsAppMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {t("common.save" as any) || "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

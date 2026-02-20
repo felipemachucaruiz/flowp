@@ -1496,6 +1496,65 @@ internalAdminRouter.post("/whatsapp/global-config", internalAuth, requireRole(["
   }
 });
 
+internalAdminRouter.get("/tenants/:tenantId/whatsapp-config", internalAuth, async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req.params;
+    const config = await db.query.tenantWhatsappIntegrations.findFirst({
+      where: eq(tenantWhatsappIntegrations.tenantId, tenantId),
+    });
+
+    res.json({
+      configured: !!config,
+      enabled: config?.enabled || false,
+      senderPhone: config?.senderPhone || "",
+      gupshupAppName: config?.gupshupAppName || "",
+      hasApiKey: !!config?.gupshupApiKeyEncrypted,
+      notifyOnSale: config?.notifyOnSale || false,
+      notifyOnLowStock: config?.notifyOnLowStock || false,
+      notifyDailySummary: config?.notifyDailySummary || false,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+internalAdminRouter.put("/tenants/:tenantId/whatsapp-config", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
+  try {
+    const { tenantId } = req.params;
+    const { senderPhone, gupshupAppName, gupshupApiKey, enabled } = req.body;
+
+    const existing = await db.query.tenantWhatsappIntegrations.findFirst({
+      where: eq(tenantWhatsappIntegrations.tenantId, tenantId),
+    });
+
+    const updateData: any = { updatedAt: new Date() };
+    if (senderPhone !== undefined) updateData.senderPhone = senderPhone;
+    if (gupshupAppName !== undefined) updateData.gupshupAppName = gupshupAppName;
+    if (enabled !== undefined) updateData.enabled = enabled;
+    if (gupshupApiKey) {
+      updateData.gupshupApiKeyEncrypted = gupshupEncrypt(gupshupApiKey.trim());
+    }
+
+    if (existing) {
+      await db.update(tenantWhatsappIntegrations)
+        .set(updateData)
+        .where(eq(tenantWhatsappIntegrations.tenantId, tenantId));
+    } else {
+      await db.insert(tenantWhatsappIntegrations).values({
+        tenantId,
+        senderPhone: senderPhone || null,
+        gupshupAppName: gupshupAppName || null,
+        gupshupApiKeyEncrypted: gupshupApiKey ? gupshupEncrypt(gupshupApiKey.trim()) : null,
+        enabled: enabled || false,
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 internalAdminRouter.post("/whatsapp/test-global-connection", internalAuth, requireRole(["superadmin"]), async (req: Request, res: Response) => {
   try {
     const apiKeyConfig = await db.query.platformConfig.findFirst({

@@ -26,6 +26,7 @@ import {
   processDeliveryStatus,
   getActiveSubscription,
   getGlobalGupshupCredentials,
+  getEffectiveGupshupCredentials,
   getPartnerToken,
   getProfileApiKey,
   getGupshupAppId,
@@ -938,8 +939,8 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
 whatsappRouter.get("/profile", whatsappAddonGate, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   try {
-    const globalCreds = await getGlobalGupshupCredentials();
-    if (!globalCreds) {
+    const creds = await getEffectiveGupshupCredentials(tenantId);
+    if (!creds) {
       return res.status(400).json({ error: "WhatsApp service not configured" });
     }
 
@@ -948,7 +949,7 @@ whatsappRouter.get("/profile", whatsappAddonGate, async (req: Request, res: Resp
       return res.status(400).json({ error: "Gupshup App ID not configured" });
     }
 
-    const apiKey = globalCreds.apiKey;
+    const apiKey = creds.apiKey;
     const response = await fetch(`https://api.gupshup.io/wa/app/${appId}/settings`, {
       method: "GET",
       headers: {
@@ -974,8 +975,8 @@ whatsappRouter.get("/profile", whatsappAddonGate, async (req: Request, res: Resp
 whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Response) => {
   const tenantId = req.headers["x-tenant-id"] as string;
   try {
-    const globalCreds = await getGlobalGupshupCredentials();
-    if (!globalCreds) {
+    const creds = await getEffectiveGupshupCredentials(tenantId);
+    if (!creds) {
       return res.status(400).json({ error: "WhatsApp service not configured" });
     }
 
@@ -984,7 +985,7 @@ whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Resp
       return res.status(400).json({ error: "Gupshup App ID not configured" });
     }
 
-    const apiKey = globalCreds.apiKey;
+    const apiKey = creds.apiKey;
     const { about, description, address, email, vertical, websites } = req.body;
 
     const profileData: Record<string, any> = {};
@@ -1117,8 +1118,8 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
       return res.status(404).json({ error: "Conversation not found" });
     }
 
-    const globalCreds = await getGlobalGupshupCredentials();
-    if (!globalCreds) {
+    const creds = await getEffectiveGupshupCredentials(tenantId);
+    if (!creds) {
       return res.status(400).json({ error: "WhatsApp service not configured" });
     }
 
@@ -1161,14 +1162,14 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
     const response = await fetch("https://api.gupshup.io/wa/api/v1/msg", {
       method: "POST",
       headers: {
-        "apikey": globalCreds.apiKey,
+        "apikey": creds.apiKey,
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
         channel: "whatsapp",
-        source: globalCreds.senderPhone,
+        source: creds.senderPhone,
         destination: conversation.customerPhone,
-        "src.name": globalCreds.appName,
+        "src.name": creds.appName,
         message: JSON.stringify(gupshupMessage),
       }).toString(),
     });
