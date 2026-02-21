@@ -14,12 +14,11 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 0,
       launchAutoHide: true,
-      backgroundColor: '#f8fafc',
+      backgroundColor: '#ffffff',
       showSpinner: false
     },
     StatusBar: {
       style: 'DARK',
-      backgroundColor: '#f8fafc',
       overlaysWebView: true
     }
   },
@@ -30,7 +29,7 @@ const config: CapacitorConfig = {
   },
   ios: {
     allowsLinkPreview: false,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
     preferredContentMode: 'mobile'
   }
 };

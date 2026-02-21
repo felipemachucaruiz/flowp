@@ -8,7 +8,7 @@ html, body {
   width: 100%;
   margin: 0;
   padding: 0;
-  background-color: hsl(var(--background));
+  background-color: hsl(var(--card));
   overscroll-behavior: none;
 }
 

@@ -182,7 +182,7 @@ export function MobileBottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border md:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-      <div className="flex items-center justify-around h-[72px]">
+      <div className="flex items-end justify-around h-[68px] pb-1">
         {mainNavItems.slice(0, 4).map((item) => {
           const isActive = location === item.url || location.startsWith(item.url + "/");
           return (

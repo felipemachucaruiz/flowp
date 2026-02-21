@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <link rel="icon" type="image/webp" href="/favicon.webp" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#f8fafc" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#131927" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Flowp - Multi-tenant Point of Sale system for Retail and Restaurant businesses" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -13,11 +14,16 @@
     <style>
       /* Prevent flash on iOS - set background before CSS loads */
       html, body, #root {
-        background-color: #f8fafc;
+        background-color: #ffffff;
         margin: 0;
         padding: 0;
         height: 100%;
         width: 100%;
+      }
+      @media (prefers-color-scheme: dark) {
+        html, body, #root {
+          background-color: #131927;
+        }
       }
       body {
         min-height: 100dvh;

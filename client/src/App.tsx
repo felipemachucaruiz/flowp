@@ -237,7 +237,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           <TrialBanner />
-          <main className={cn("flex-1 overflow-hidden", isMobile && "pb-[calc(72px+env(safe-area-inset-bottom,0px))]")}>{children}</main>
+          <main className={cn("flex-1 overflow-hidden", isMobile && "pb-[calc(68px+env(safe-area-inset-bottom,0px))]")}>{children}</main>
         </div>
       </div>
       {isMobile && <MobileBottomNav />}
