@@ -850,7 +850,12 @@ export async function processDeliveryStatus(payload: any): Promise<void> {
     console.log(`[whatsapp] Delivery status for ${msgId}: ${status} | Error: ${errorInfo} | Reason: ${payload.reason || "N/A"}`);
   }
 
+  const updateData: any = { status, updatedAt: new Date() };
+  if (status === "failed" && errorInfo) {
+    updateData.errorMessage = String(errorInfo).substring(0, 500);
+  }
+
   await db.update(whatsappMessageLogs)
-    .set({ status, updatedAt: new Date() })
+    .set(updateData)
     .where(eq(whatsappMessageLogs.providerMessageId, msgId));
 }
