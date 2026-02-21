@@ -1227,21 +1227,41 @@ whatsappRouter.get("/profile", whatsappAddonGate, async (req: Request, res: Resp
       return res.status(400).json({ error: "Gupshup App ID not configured" });
     }
 
-    const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile`, {
-      method: "GET",
-      headers: {
-        "apikey": creds.apiKey,
-      },
-    });
+    const headers = { "apikey": creds.apiKey };
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.error(`[whatsapp] Profile fetch failed: ${response.status} ${text}`);
-      return res.status(response.status).json({ error: "Failed to fetch profile" });
+    const [profileRes, aboutRes] = await Promise.all([
+      fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile`, { method: "GET", headers }),
+      fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile/about`, { method: "GET", headers }),
+    ]);
+
+    if (!profileRes.ok) {
+      const text = await profileRes.text();
+      console.error(`[whatsapp] Profile fetch failed: ${profileRes.status} ${text}`);
+      return res.status(profileRes.status).json({ error: "Failed to fetch profile" });
     }
 
-    const data = await response.json();
-    return res.json(data);
+    const profileData = await profileRes.json();
+    let aboutText = "";
+    if (aboutRes.ok) {
+      try {
+        const aboutData = await aboutRes.json();
+        aboutText = aboutData?.about?.message || aboutData?.about || "";
+      } catch (e) {}
+    }
+
+    const profile = profileData?.profile || profileData || {};
+    const merged = {
+      ...profile,
+      about: aboutText,
+      description: profile.description || "",
+      address: profile.addressLine1 || profile.address || "",
+      email: profile.email || "",
+      vertical: profile.vertical || "",
+      websites: [profile.website1, profile.website2].filter(Boolean),
+      website: profile.website1 || profile.website || "",
+    };
+
+    return res.json(merged);
   } catch (error: any) {
     console.error(`[whatsapp] Profile error:`, error.message);
     return res.status(500).json({ error: error.message });
@@ -1264,7 +1284,7 @@ whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Resp
     const { about, description, address, addressLine1, addressLine2, city, state, country, zipCode, email, vertical, websites, website } = req.body;
 
     const params = new URLSearchParams();
-    if (about !== undefined) params.append("description", about);
+    if (about !== undefined) params.append("about", about);
     if (description !== undefined) params.append("description", description);
     if (addressLine1 !== undefined) params.append("addressLine1", addressLine1);
     if (addressLine2 !== undefined) params.append("addressLine2", addressLine2);
@@ -1272,11 +1292,11 @@ whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Resp
     if (state !== undefined) params.append("state", state);
     if (country !== undefined) params.append("country", country);
     if (zipCode !== undefined) params.append("zipCode", zipCode);
-    if (address !== undefined) params.append("addressLine1", address);
+    if (address !== undefined && !addressLine1) params.append("addressLine1", address);
     if (email !== undefined) params.append("email", email);
     if (vertical !== undefined) params.append("vertical", vertical);
     if (website !== undefined) params.append("website", website);
-    if (websites !== undefined && Array.isArray(websites) && websites.length > 0) {
+    if (websites !== undefined && Array.isArray(websites) && websites.length > 0 && !website) {
       params.append("website", websites[0]);
     }
 
