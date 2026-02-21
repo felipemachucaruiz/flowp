@@ -820,14 +820,14 @@ async function getOrCreateConversation(tenantId: string, phone: string, customer
 
 function detectContentType(payload: any): { contentType: string; body?: string; mediaUrl?: string; mediaMimeType?: string; mediaFilename?: string; caption?: string } {
   const msgPayload = payload.payload || payload;
-  const type = (msgPayload.type || "text").toLowerCase();
+  const type = (payload.type || msgPayload.type || "text").toLowerCase();
 
-  if (type === "image" || type === "file" || type === "document" || type === "video" || type === "audio" || type === "sticker") {
-    const contentType = type === "file" ? "document" : type;
+  if (type === "image" || type === "file" || type === "document" || type === "video" || type === "audio" || type === "voice" || type === "sticker") {
+    const contentType = type === "file" ? "document" : type === "voice" ? "audio" : type;
     return {
       contentType,
-      mediaUrl: msgPayload.url || msgPayload.mediaUrl || "",
-      mediaMimeType: msgPayload.contentType || msgPayload.mimeType || "",
+      mediaUrl: msgPayload.url || msgPayload.mediaUrl || payload.url || "",
+      mediaMimeType: msgPayload.contentType || msgPayload.mimeType || payload.contentType || "",
       mediaFilename: msgPayload.filename || msgPayload.name || "",
       caption: msgPayload.caption || msgPayload.text || "",
       body: msgPayload.caption || msgPayload.text || `[${contentType}]`,
@@ -835,14 +835,15 @@ function detectContentType(payload: any): { contentType: string; body?: string; 
   }
 
   if (type === "location") {
+    const loc = msgPayload.longitude ? msgPayload : payload;
     return {
       contentType: "location",
-      body: `📍 ${msgPayload.latitude || ""},${msgPayload.longitude || ""}`,
+      body: `📍 ${loc.latitude || ""},${loc.longitude || ""}`,
     };
   }
 
   if (type === "contact") {
-    const name = msgPayload.name || (msgPayload.contacts?.[0]?.name?.formatted_name) || "Contact";
+    const name = msgPayload.name || (msgPayload.contacts?.[0]?.name?.formatted_name) || payload.name || "Contact";
     return { contentType: "contact", body: `👤 ${name}` };
   }
 
@@ -937,6 +938,7 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
       }
 
       const detected = detectContentType(inbound);
+      console.log(`[WhatsApp Webhook] Detected content: type="${detected.contentType}", mediaUrl="${(detected.mediaUrl || "").substring(0, 80)}", body="${(detected.body || "").substring(0, 60)}"`);
       const messageText = detected.body || "";
 
       await db.insert(whatsappMessageLogs).values({
