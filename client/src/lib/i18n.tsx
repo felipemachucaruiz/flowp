@@ -21,6 +21,10 @@ const translations = {
     "nav.logout": "Logout",
     "nav.install_app": "Install App",
     "nav.labels": "Labels",
+    "nav.more": "More",
+    "nav.alerts": "Alerts",
+    "nav.electronic_billing": "E-Billing",
+    "nav.subscription": "Subscription",
     
     // POS Page
     "pos.title": "Point of Sale",
@@ -2818,6 +2822,10 @@ const translations = {
     "nav.logout": "Cerrar Sesión",
     "nav.install_app": "Instalar App",
     "nav.labels": "Etiquetas",
+    "nav.more": "Más",
+    "nav.alerts": "Alertas",
+    "nav.electronic_billing": "Facturación Electrónica",
+    "nav.subscription": "Suscripción",
     
     // POS Page
     "pos.title": "Punto de Venta",
@@ -5612,6 +5620,10 @@ const translations = {
     "nav.logout": "Sair",
     "nav.install_app": "Instalar App",
     "nav.labels": "Etiquetas",
+    "nav.more": "Mais",
+    "nav.alerts": "Alertas",
+    "nav.electronic_billing": "Faturação Eletrônica",
+    "nav.subscription": "Assinatura",
     
     // POS Page
     "pos.title": "Ponto de Venda",

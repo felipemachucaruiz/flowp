@@ -115,7 +115,7 @@ export function MobileBottomNav() {
             ]
           : []),
         {
-          title: t("nav.alerts" as any) || "Alerts",
+          title: t("nav.alerts"),
           url: "/alerts",
           icon: AlertTriangle,
         },
@@ -132,7 +132,7 @@ export function MobileBottomNav() {
         ...(hasFeature("electronic_invoicing" as any)
           ? [
               {
-                title: t("nav.electronic_billing" as any) || "E-Billing",
+                title: t("nav.electronic_billing"),
                 url: "/electronic-billing",
                 icon: FileText,
               },
@@ -167,7 +167,7 @@ export function MobileBottomNav() {
           icon: Settings,
         },
         {
-          title: t("nav.subscription" as any) || "Subscription",
+          title: t("nav.subscription"),
           url: "/subscription",
           icon: Receipt,
         },
