@@ -1261,23 +1261,32 @@ whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Resp
     }
 
     const apiKey = creds.apiKey;
-    const { about, description, address, email, vertical, websites } = req.body;
+    const { about, description, address, addressLine1, addressLine2, city, state, country, zipCode, email, vertical, websites, website } = req.body;
 
-    const profileData: Record<string, any> = {};
-    if (about !== undefined) profileData.about = about;
-    if (description !== undefined) profileData.description = description;
-    if (address !== undefined) profileData.address = address;
-    if (email !== undefined) profileData.email = email;
-    if (vertical !== undefined) profileData.vertical = vertical;
-    if (websites !== undefined) profileData.websites = websites;
+    const params = new URLSearchParams();
+    if (about !== undefined) params.append("description", about);
+    if (description !== undefined) params.append("description", description);
+    if (addressLine1 !== undefined) params.append("addressLine1", addressLine1);
+    if (addressLine2 !== undefined) params.append("addressLine2", addressLine2);
+    if (city !== undefined) params.append("city", city);
+    if (state !== undefined) params.append("state", state);
+    if (country !== undefined) params.append("country", country);
+    if (zipCode !== undefined) params.append("zipCode", zipCode);
+    if (address !== undefined) params.append("addressLine1", address);
+    if (email !== undefined) params.append("email", email);
+    if (vertical !== undefined) params.append("vertical", vertical);
+    if (website !== undefined) params.append("website", website);
+    if (websites !== undefined && Array.isArray(websites) && websites.length > 0) {
+      params.append("website", websites[0]);
+    }
 
     const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile`, {
-      method: "POST",
+      method: "PUT",
       headers: {
         "apikey": apiKey,
-        "Content-Type": "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: JSON.stringify(profileData),
+      body: params.toString(),
     });
 
     if (!response.ok) {
@@ -1358,7 +1367,7 @@ whatsappRouter.put("/profile/photo", whatsappAddonGate, async (req: Request, res
     });
 
     const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile/photo`, {
-      method: "POST",
+      method: "PUT",
       headers: {
         "apikey": creds.apiKey,
         ...formData.getHeaders(),
