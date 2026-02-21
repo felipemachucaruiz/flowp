@@ -2377,14 +2377,15 @@ export async function registerRoutes(
         });
       }
 
-      // Award loyalty points and update customer stats if customer is associated
       if (customerId) {
         const customer = await storage.getCustomer(customerId);
-        // Security: Verify customer belongs to the same tenant
         if (customer && customer.tenantId === tenantId) {
-          // Calculate points - 1 point per 1000 currency units (configurable per business)
+          const tenantData = await storage.getTenant(tenantId);
+          const loyaltyEnabled = tenantData?.loyaltyPointsEnabled !== false;
+          const pointsRate = Math.max(1, tenantData?.loyaltyPointsRate || 1);
+          const perAmount = Math.max(1, tenantData?.loyaltyPointsPerAmount || 1000);
           const orderTotal = parseFloat(total.toString());
-          const pointsEarned = Math.floor(orderTotal / 1000);
+          const pointsEarned = loyaltyEnabled && orderTotal > 0 ? Math.floor(orderTotal / perAmount) * pointsRate : 0;
           
           // Calculate net points change (earned minus redeemed)
           const pointsRedeemed = appliedRewardId && appliedRewardPoints ? appliedRewardPoints : 0;
@@ -5147,7 +5148,8 @@ export async function registerRoutes(
         couponEnabled, couponText, openCashDrawer, allowZeroStockSales,
         autoLockEnabled, autoLockTimeout,
         storeHoursEnabled, storeOpenTime, storeCloseTime,
-        subscriptionTier
+        subscriptionTier,
+        loyaltyPointsEnabled, loyaltyPointsRate, loyaltyPointsPerAmount
       } = req.body;
       
       const updated = await storage.updateTenant(tenantId, {
@@ -5181,6 +5183,9 @@ export async function registerRoutes(
         storeOpenTime: storeOpenTime !== undefined ? storeOpenTime : undefined,
         storeCloseTime: storeCloseTime !== undefined ? storeCloseTime : undefined,
         subscriptionTier: subscriptionTier && ["basic", "pro", "enterprise"].includes(subscriptionTier) ? subscriptionTier : undefined,
+        loyaltyPointsEnabled: loyaltyPointsEnabled !== undefined ? loyaltyPointsEnabled : undefined,
+        loyaltyPointsRate: loyaltyPointsRate !== undefined ? Math.max(1, parseInt(loyaltyPointsRate) || 1) : undefined,
+        loyaltyPointsPerAmount: loyaltyPointsPerAmount !== undefined ? Math.max(1, parseInt(loyaltyPointsPerAmount) || 1000) : undefined,
       } as any);
       
       if (!updated) {

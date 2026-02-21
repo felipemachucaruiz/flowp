@@ -71,6 +71,10 @@ export const tenants = pgTable("tenants", {
   couponText: text("coupon_text"),
   // Inventory settings
   allowZeroStockSales: boolean("allow_zero_stock_sales").default(true),
+  // Loyalty points configuration
+  loyaltyPointsEnabled: boolean("loyalty_points_enabled").default(true),
+  loyaltyPointsRate: integer("loyalty_points_rate").default(1),
+  loyaltyPointsPerAmount: integer("loyalty_points_per_amount").default(1000),
   // Store hours settings
   storeOpenTime: text("store_open_time"),
   storeCloseTime: text("store_close_time"),
