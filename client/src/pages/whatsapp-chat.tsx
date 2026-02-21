@@ -132,7 +132,15 @@ function MediaContent({ message }: { message: ChatMessage }) {
   }
 
   if (contentType === "audio" && mediaUrl) {
-    return <audio src={proxiedUrl} controls className="max-w-[240px]" />;
+    const audioSrc = mediaUrl.includes("filemanager.gupshup.io") ? mediaUrl : proxiedUrl;
+    return (
+      <audio controls className="max-w-[240px]" preload="auto">
+        <source src={audioSrc} type="audio/ogg" />
+        <source src={audioSrc} type="audio/mp4" />
+        <source src={audioSrc} type="audio/mpeg" />
+        <source src={audioSrc} />
+      </audio>
+    );
   }
 
   if (contentType === "document" && mediaUrl) {

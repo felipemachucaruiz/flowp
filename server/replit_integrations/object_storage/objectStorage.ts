@@ -102,9 +102,13 @@ export class ObjectStorageService {
       // Get the ACL policy for the object.
       const aclPolicy = await getObjectAclPolicy(file);
       const isPublic = aclPolicy?.visibility === "public";
+      let contentType = metadata.contentType || "application/octet-stream";
+      if (contentType === "audio/x-m4a" || contentType === "audio/m4a") {
+        contentType = "audio/mp4";
+      }
       // Set appropriate headers
       res.set({
-        "Content-Type": metadata.contentType || "application/octet-stream",
+        "Content-Type": contentType,
         "Content-Length": metadata.size,
         "Cache-Control": `${
           isPublic ? "public" : "private"
