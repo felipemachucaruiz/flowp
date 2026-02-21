@@ -1757,78 +1757,49 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
           const [fileBuffer] = await objectFile.download();
           console.log(`[WhatsApp Send] Downloaded audio from storage: ${fileBuffer.length} bytes`);
 
-          const formData = new FormData();
-          formData.append("channel", "whatsapp");
-          formData.append("source", creds.senderPhone);
-          formData.append("destination", conversation.customerPhone);
-          formData.append("src.name", creds.appName);
-          formData.append("message", JSON.stringify({ type: "audio" }));
-          formData.append("file", new Blob([fileBuffer], { type: "audio/ogg" }), "voice-note.ogg");
+          const tokenResult = await getPartnerToken();
+          const appId = await getGupshupAppId();
 
-          const fileResponse = await fetch("https://api.gupshup.io/wa/api/v1/msg", {
-            method: "POST",
-            headers: {
-              "apikey": creds.apiKey,
-            },
-            body: formData,
-          });
+          if (tokenResult.status === "ok" && appId) {
+            const uploadForm = new FormData();
+            uploadForm.append("file", new Blob([fileBuffer], { type: "audio/ogg; codecs=opus" }), "voice-note.ogg");
+            uploadForm.append("file_type", "audio/ogg; codecs=opus");
 
-          const fileData = await fileResponse.json();
-          console.log(`[WhatsApp Send] Gupshup file upload response: HTTP ${fileResponse.status}`, JSON.stringify(fileData));
+            const uploadResp = await fetch(
+              `https://partner.gupshup.io/partner/app/${encodeURIComponent(appId)}/upload/media`,
+              {
+                method: "POST",
+                headers: { "Authorization": tokenResult.token },
+                body: uploadForm,
+              }
+            );
+            const uploadText = await uploadResp.text();
+            console.log(`[WhatsApp Send] Partner media upload response: HTTP ${uploadResp.status} ${uploadText.substring(0, 500)}`);
 
-          if (fileData && (fileData.status === "submitted" || fileData.messageId)) {
-            await deductMessage(tenantId);
+            let mediaHandleUrl: string | null = null;
+            try {
+              const uploadData = JSON.parse(uploadText);
+              mediaHandleUrl = uploadData?.mediaHandleUrl || uploadData?.handleUrl || uploadData?.url || uploadData?.mediaUrl || null;
+              if (!mediaHandleUrl && uploadData?.status === "success" && typeof uploadData?.data === "string") {
+                mediaHandleUrl = uploadData.data;
+              }
+            } catch {}
 
-            const [chatMsg] = await db.insert(whatsappChatMessages).values({
-              conversationId,
-              tenantId,
-              direction: "outbound",
-              contentType: "audio" as any,
-              body: null,
-              mediaUrl: mediaUrl || null,
-              mediaMimeType: mediaMimeType || "audio/ogg; codecs=opus",
-              mediaFilename: mediaFilename || "voice-note.ogg",
-              caption: null,
-              senderName: senderName || null,
-              providerMessageId: fileData.messageId || null,
-              status: "sent",
-            }).returning();
-
-            await db.update(whatsappConversations)
-              .set({
-                lastMessageAt: new Date(),
-                lastMessagePreview: previewText,
-                updatedAt: new Date(),
-              })
-              .where(eq(whatsappConversations.id, conversationId));
-
-            await db.insert(whatsappMessageLogs).values({
-              tenantId,
-              direction: "outbound",
-              phone: conversation.customerPhone,
-              messageType: "manual",
-              messageBody: previewText,
-              providerMessageId: fileData.messageId || null,
-              status: "sent",
-            });
-
-            broadcastToTenant(tenantId, {
-              type: "whatsapp_message",
-              conversationId,
-              message: chatMsg,
-            });
-
-            return res.json({ success: true, message: chatMsg });
+            if (mediaHandleUrl) {
+              console.log(`[WhatsApp Send] Got media handle URL: ${mediaHandleUrl.substring(0, 120)}...`);
+              gupshupMessage = { type: "audio", url: mediaHandleUrl };
+            } else {
+              console.warn(`[WhatsApp Send] Could not extract media handle URL from upload response, falling back to signed URL`);
+            }
           } else {
-            console.error(`[WhatsApp Send] File upload failed:`, JSON.stringify(fileData));
-            return res.status(500).json({ error: "Failed to send audio via file upload", details: fileData });
+            console.warn(`[WhatsApp Send] Partner token not available (status: ${tokenResult.status}), falling back to signed URL`);
           }
-        } catch (fileUploadErr: any) {
-          console.error(`[WhatsApp Send] File upload approach failed, falling back to URL:`, fileUploadErr.message);
+        } catch (uploadErr: any) {
+          console.error(`[WhatsApp Send] Media upload approach failed, falling back to signed URL:`, uploadErr.message);
         }
       }
 
-      console.log(`[WhatsApp Send] Audio URL being sent to Gupshup: ${resolvedMediaUrl.substring(0, 120)}...`);
+      console.log(`[WhatsApp Send] Audio message payload: ${JSON.stringify(gupshupMessage).substring(0, 200)}`);
     } else if (msgType === "document") {
       gupshupMessage = { type: "file", url: resolvedMediaUrl, filename: mediaFilename || "document", caption: caption || "" };
       previewText = `[document] ${mediaFilename || ""}`;
