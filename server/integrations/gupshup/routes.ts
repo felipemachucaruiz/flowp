@@ -1227,11 +1227,10 @@ whatsappRouter.get("/profile", whatsappAddonGate, async (req: Request, res: Resp
       return res.status(400).json({ error: "Gupshup App ID not configured" });
     }
 
-    const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/settings`, {
+    const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile`, {
       method: "GET",
       headers: {
         "apikey": creds.apiKey,
-        "Content-Type": "application/json",
       },
     });
 
@@ -1272,8 +1271,8 @@ whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Resp
     if (vertical !== undefined) profileData.vertical = vertical;
     if (websites !== undefined) profileData.websites = websites;
 
-    const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/settings`, {
-      method: "PUT",
+    const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile`, {
+      method: "POST",
       headers: {
         "apikey": apiKey,
         "Content-Type": "application/json",
@@ -1359,7 +1358,7 @@ whatsappRouter.put("/profile/photo", whatsappAddonGate, async (req: Request, res
     });
 
     const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile/photo`, {
-      method: "PUT",
+      method: "POST",
       headers: {
         "apikey": creds.apiKey,
         ...formData.getHeaders(),
@@ -2001,109 +2000,6 @@ whatsappRouter.post("/chat/new-conversation", whatsappAddonGate, async (req: Req
 
     const conversation = await getOrCreateConversation(tenantId, customerPhone, customerName);
     return res.json(conversation);
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-// ==========================================
-// WHATSAPP BUSINESS PROFILE MANAGEMENT
-// ==========================================
-
-whatsappRouter.get("/profile", whatsappAddonGate, async (req: Request, res: Response) => {
-  const tenantId = req.headers["x-tenant-id"] as string;
-  try {
-    const profileKey = await getProfileApiKey();
-    const appId = await getGupshupAppId();
-    if (!profileKey || !appId) {
-      return res.status(400).json({ error: "Profile API not configured" });
-    }
-
-    const config = await getWhatsappConfig(tenantId);
-    if (!config?.senderPhone) {
-      return res.status(400).json({ error: "WhatsApp phone number not configured for this tenant" });
-    }
-
-    const response = await fetch(
-      `https://api.gupshup.io/wa/app/${encodeURIComponent(appId)}/phone/${encodeURIComponent(config.senderPhone)}/profile`,
-      { headers: { "apikey": profileKey } }
-    );
-
-    if (!response.ok) {
-      const text = await response.text();
-      return res.status(400).json({ error: `Failed to fetch profile: ${text.substring(0, 200)}` });
-    }
-
-    const data = await response.json();
-    return res.json(data);
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-whatsappRouter.put("/profile", whatsappAddonGate, async (req: Request, res: Response) => {
-  const tenantId = req.headers["x-tenant-id"] as string;
-  try {
-    const profileKey = await getProfileApiKey();
-    const appId = await getGupshupAppId();
-    if (!profileKey || !appId) {
-      return res.status(400).json({ error: "Profile API not configured" });
-    }
-
-    const config = await getWhatsappConfig(tenantId);
-    if (!config?.senderPhone) {
-      return res.status(400).json({ error: "WhatsApp phone number not configured for this tenant" });
-    }
-
-    const { about, address, description, email, vertical, websites, profilePicUrl } = req.body;
-
-    const profileData: any = {};
-    if (about !== undefined) profileData.about = about;
-    if (address !== undefined) profileData.address = address;
-    if (description !== undefined) profileData.description = description;
-    if (email !== undefined) profileData.email = email;
-    if (vertical !== undefined) profileData.vertical = vertical;
-    if (websites !== undefined) profileData.websites = websites;
-
-    if (Object.keys(profileData).length > 0) {
-      const response = await fetch(
-        `https://api.gupshup.io/wa/app/${encodeURIComponent(appId)}/phone/${encodeURIComponent(config.senderPhone)}/profile`,
-        {
-          method: "POST",
-          headers: {
-            "apikey": profileKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(profileData),
-        }
-      );
-
-      if (!response.ok) {
-        const text = await response.text();
-        return res.status(400).json({ error: `Failed to update profile: ${text.substring(0, 200)}` });
-      }
-    }
-
-    if (profilePicUrl) {
-      const picResponse = await fetch(
-        `https://api.gupshup.io/wa/app/${encodeURIComponent(appId)}/phone/${encodeURIComponent(config.senderPhone)}/profile/photo`,
-        {
-          method: "POST",
-          headers: {
-            "apikey": profileKey,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url: profilePicUrl }),
-        }
-      );
-
-      if (!picResponse.ok) {
-        const text = await picResponse.text();
-        return res.json({ success: true, warning: `Profile updated but photo failed: ${text.substring(0, 200)}` });
-      }
-    }
-
-    return res.json({ success: true });
   } catch (error: any) {
     return res.status(500).json({ error: error.message });
   }
