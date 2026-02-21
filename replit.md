@@ -21,6 +21,9 @@ Flowp utilizes a React + TypeScript frontend and an Express + PostgreSQL backend
 **UI/UX Decisions:**
 - **Responsive Design**: Features a collapsible sidebar, responsive cart panel, and dynamic product grid columns.
 - **Mobile App Optimization**: Full-screen support, sidebar navigation, safe area insets, large touch targets, and portrait orientation lock.
+- **Mobile Bottom Navigation**: On mobile (< 768px), sidebar is hidden and replaced with a fixed bottom nav bar (`MobileBottomNav`) with 4 main tabs + "More" sheet with categorized navigation links. AppLayout adds safe-area-aware bottom padding to prevent content overlap.
+- **Mobile Components**: Reusable `MobileDataCard`, `MobilePageHeader`, `MobileSearchBar` components in `client/src/components/mobile-data-card.tsx` for consistent mobile patterns.
+- **Mobile CSS Utilities**: `mobile-touch-target`, `mobile-card-list`, `mobile-sticky-actions`, `mobile-full-width-form`, `mobile-page-padding`, `mobile-section-gap` utilities in `index.css` (active only below 768px).
 - **Shadcn components**: Used for reusable UI elements.
 
 **Technical Implementations & Feature Specifications:**

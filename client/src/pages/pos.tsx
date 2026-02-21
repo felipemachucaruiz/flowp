@@ -1312,7 +1312,7 @@ export default function POSPage() {
         <div 
           className="fixed right-4 z-[9999]"
           style={{ 
-            bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+            bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
           }}
         >
           <button

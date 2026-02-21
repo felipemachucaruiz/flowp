@@ -3031,8 +3031,8 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="w-full pb-2">
-          <TabsList className="flex flex-wrap h-auto gap-1 p-1">
+        <div className="w-full pb-2 overflow-x-auto -mx-1 px-1">
+          <TabsList className="inline-flex w-auto min-w-full h-auto gap-1 p-1">
             <TabsTrigger value="business" data-testid="tab-business" className="text-xs sm:text-sm">
               <Store className="w-4 h-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">{t("settings.business")}</span>

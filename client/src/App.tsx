@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Clock, AlertTriangle, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LockScreen } from "@/components/lock-screen";
+import { MobileBottomNav } from "@/components/mobile-bottom-nav";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 import NotFound from "@/pages/not-found";
 import LoginPage from "@/pages/login";
@@ -201,6 +203,7 @@ function SuspendedGate() {
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const isMobile = useIsMobile();
 
   if (!user) {
     return <>{children}</>;
@@ -212,12 +215,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <SidebarProvider style={style as React.CSSProperties} defaultOpen={window.innerWidth >= 1280}>
+    <SidebarProvider style={style as React.CSSProperties} defaultOpen={!isMobile && window.innerWidth >= 1280}>
       <div className="flex h-screen min-h-dvh w-full bg-background safe-area-pt">
-        <AppSidebar />
+        {!isMobile && <AppSidebar />}
         <div className="flex flex-col flex-1 min-w-0">
           <header className="flex h-10 items-center justify-between gap-2 border-b px-3 bg-card shrink-0">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            {!isMobile && <SidebarTrigger data-testid="button-sidebar-toggle" />}
+            {isMobile && <div className="w-1" />}
             <div className="flex items-center gap-2">
               <NotificationCenter />
               <div className="hidden sm:block"><TourButton /></div>
@@ -227,9 +231,10 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
           <TrialBanner />
-          <main className="flex-1 overflow-hidden">{children}</main>
+          <main className={cn("flex-1 overflow-hidden", isMobile && "pb-[calc(56px+env(safe-area-inset-bottom,0px))]")}>{children}</main>
         </div>
       </div>
+      {isMobile && <MobileBottomNav />}
       <SuspendedGate />
       <TourOverlay />
       <LockScreen />

@@ -472,3 +472,40 @@ body {
     height: -webkit-fill-available;
   }
 }
+
+@layer utilities {
+  @media (max-width: 767px) {
+    .mobile-touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    .mobile-card-list > * + * {
+      margin-top: 0.5rem;
+    }
+
+    .mobile-sticky-actions {
+      position: sticky;
+      bottom: 0;
+      padding: 0.75rem 1rem;
+      background-color: hsl(var(--card));
+      border-top: 1px solid hsl(var(--border));
+      z-index: 10;
+    }
+
+    .mobile-full-width-form .form-field,
+    .mobile-full-width-form input,
+    .mobile-full-width-form select,
+    .mobile-full-width-form textarea {
+      width: 100%;
+    }
+
+    .mobile-page-padding {
+      padding: 0.75rem;
+    }
+
+    .mobile-section-gap > * + * {
+      margin-top: 1rem;
+    }
+  }
+}

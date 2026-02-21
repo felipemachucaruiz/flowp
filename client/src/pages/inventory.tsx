@@ -368,29 +368,29 @@ export default function InventoryPage() {
                 const status = getStockStatus(stockLevel);
 
                 return (
-                  <Card key={product.id} className="p-4">
-                    <div className="flex items-center justify-between gap-4">
+                  <Card key={product.id} className="p-3 sm:p-4">
+                    <div className="flex items-center justify-between gap-3 sm:gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <h3 className="font-medium truncate">{product.name}</h3>
+                          <h3 className="font-medium truncate text-sm sm:text-base">{product.name}</h3>
                           <Badge variant="secondary" className="text-xs">
                             {product.sku || t("inventory.no_sku")}
                           </Badge>
                         </div>
-                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                        <div className="flex items-center gap-3 text-xs sm:text-sm text-muted-foreground">
                           {product.barcode && (
                             <span>{t("inventory.barcode")}: {product.barcode}</span>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                         <div className="text-right">
                           <div className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full ${status.color}`} />
-                            <span className="font-bold text-lg">{stockLevel}</span>
+                            <span className="font-bold text-base sm:text-lg">{stockLevel}</span>
                           </div>
-                          <p className="text-xs text-muted-foreground">{status.label}</p>
+                          <p className="text-[10px] sm:text-xs text-muted-foreground">{status.label}</p>
                         </div>
 
                         <div className="flex gap-1">
