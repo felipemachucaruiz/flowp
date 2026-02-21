@@ -46,7 +46,6 @@ import {
   UserCheck,
   Lock,
   DoorOpen,
-  MessageCircle,
 } from "lucide-react";
 import { PinPad } from "@/components/pin-pad";
 import { NetworkStatusIndicator } from "@/components/network-status-indicator";
@@ -55,8 +54,6 @@ import { saveOfflineOrder } from "@/lib/offline-storage";
 import { syncManager } from "@/lib/sync-manager";
 import { CameraBarcodeScanner } from "@/components/camera-barcode-scanner";
 import { StoreClosingAlert } from "@/components/store-closing-alert";
-import { useSubscription } from "@/lib/use-subscription";
-import { SUBSCRIPTION_FEATURES } from "@shared/schema";
 
 export default function POSPage() {
   const [, navigate] = useLocation();
@@ -95,69 +92,6 @@ export default function POSPage() {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [barcodeMode, setBarcodeMode] = useState(false);
   const [showCameraScanner, setShowCameraScanner] = useState(false);
-  const [whatsappProduct, setWhatsappProduct] = useState<Product | null>(null);
-  const [sendingWhatsapp, setSendingWhatsapp] = useState(false);
-
-  const { hasFeature } = useSubscription();
-  const hasWhatsappChat = hasFeature(SUBSCRIPTION_FEATURES.WHATSAPP_CHAT as any);
-  const tenantId = tenant?.id?.toString() || "";
-
-  interface WhatsappConversation {
-    id: string;
-    customerPhone: string;
-    customerName: string | null;
-    lastInboundAt: string | null;
-  }
-
-  const { data: whatsappConversations, isLoading: loadingWhatsappConvos } = useQuery<{ conversations: WhatsappConversation[] }>({
-    queryKey: ["/api/whatsapp/chat/conversations"],
-    queryFn: async () => {
-      const res = await fetch("/api/whatsapp/chat/conversations", {
-        headers: { "x-tenant-id": tenantId },
-      });
-      if (!res.ok) throw new Error("Failed");
-      return res.json();
-    },
-    enabled: !!tenantId && hasWhatsappChat && !!whatsappProduct,
-  });
-
-  const activeConversations = (whatsappConversations?.conversations || []).filter(c => {
-    if (!c.lastInboundAt) return false;
-    const lastInbound = new Date(c.lastInboundAt).getTime();
-    return (Date.now() - lastInbound) < 24 * 60 * 60 * 1000;
-  });
-
-  const handleSendProductToWhatsapp = async (conversationId: string) => {
-    if (!whatsappProduct || !tenantId) return;
-    setSendingWhatsapp(true);
-    try {
-      const currency = tenant?.currency || "COP";
-      const price = formatCurrency(parseFloat(whatsappProduct.price), currency);
-      const productText = `*${whatsappProduct.name}*\n${price}${whatsappProduct.description ? `\n${whatsappProduct.description}` : ""}`;
-
-      if (whatsappProduct.image) {
-        await apiRequest("POST", "/api/whatsapp/chat/send", {
-          conversationId,
-          contentType: "image",
-          mediaUrl: whatsappProduct.image,
-          caption: productText,
-        });
-      } else {
-        await apiRequest("POST", "/api/whatsapp/chat/send", {
-          conversationId,
-          contentType: "text",
-          body: productText,
-        });
-      }
-      toast({ title: t("pos.product_sent" as any) });
-      setWhatsappProduct(null);
-    } catch (err: any) {
-      toast({ title: t("pos.product_send_failed" as any), description: err.message, variant: "destructive" });
-    } finally {
-      setSendingWhatsapp(false);
-    }
-  };
-
   // Split payment state
   interface PaymentEntry {
     id: string;
@@ -1294,59 +1228,45 @@ export default function POSPage() {
                 const stock = getProductStock(product.id);
                 const showOutOfStock = !inStock && product.trackInventory !== false;
                 return (
-                  <div
+                  <button
                     key={product.id}
-                    className={`relative group ${showOutOfStock ? 'opacity-50' : ''}`}
+                    onClick={() => {
+                      if (!canAddToCart(product)) {
+                        toast({
+                          title: t("pos.out_of_stock"),
+                          description: t("pos.out_of_stock_description"),
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      addToCart(product);
+                    }}
+                    className={`flex flex-col items-center justify-center p-3 sm:p-2 sm:rounded-md sm:border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[120px] sm:min-h-[100px] ${showOutOfStock ? 'opacity-50' : ''}`}
+                    data-testid={`button-product-${product.id}`}
                   >
-                    <button
-                      onClick={() => {
-                        if (!canAddToCart(product)) {
-                          toast({
-                            title: t("pos.out_of_stock"),
-                            description: t("pos.out_of_stock_description"),
-                            variant: "destructive",
-                          });
-                          return;
-                        }
-                        addToCart(product);
-                      }}
-                      className="w-full flex flex-col items-center justify-center p-3 sm:p-2 sm:rounded-md sm:border bg-card text-card-foreground hover-elevate active-elevate-2 transition-all min-h-[120px] sm:min-h-[100px]"
-                      data-testid={`button-product-${product.id}`}
-                    >
-                      {product.image ? (
-                        <img 
-                          src={product.image} 
-                          alt={product.name}
-                          className="w-14 h-14 sm:w-12 sm:h-12 object-cover rounded-lg mb-2"
-                        />
-                      ) : (
-                        <div className="w-14 h-14 sm:w-12 sm:h-12 bg-muted rounded-lg mb-2 flex items-center justify-center">
-                          <Package className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground" />
-                        </div>
-                      )}
-                      <span className="font-medium text-sm sm:text-sm text-center line-clamp-2 mb-1">
-                        {product.name}
-                      </span>
-                      <span className="text-primary font-semibold text-sm sm:text-sm">
-                        {formatCurrency(parseFloat(product.price), currency)}
-                      </span>
-                      {showOutOfStock && (
-                        <span className="text-xs text-destructive font-medium">
-                          {t("pos.no_stock")}
-                        </span>
-                      )}
-                    </button>
-                    {hasWhatsappChat && (
-                      <button
-                        onClick={() => setWhatsappProduct(product)}
-                        className="absolute top-1 right-1 p-1 rounded-full bg-green-500/90 text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        data-testid={`button-whatsapp-product-${product.id}`}
-                        title={t("pos.send_to_whatsapp" as any)}
-                      >
-                        <MessageCircle className="w-3.5 h-3.5" />
-                      </button>
+                    {product.image ? (
+                      <img 
+                        src={product.image} 
+                        alt={product.name}
+                        className="w-14 h-14 sm:w-12 sm:h-12 object-cover rounded-lg mb-2"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 sm:w-12 sm:h-12 bg-muted rounded-lg mb-2 flex items-center justify-center">
+                        <Package className="w-7 h-7 sm:w-6 sm:h-6 text-muted-foreground" />
+                      </div>
                     )}
-                  </div>
+                    <span className="font-medium text-sm sm:text-sm text-center line-clamp-2 mb-1">
+                      {product.name}
+                    </span>
+                    <span className="text-primary font-semibold text-sm sm:text-sm">
+                      {formatCurrency(parseFloat(product.price), currency)}
+                    </span>
+                    {showOutOfStock && (
+                      <span className="text-xs text-destructive font-medium">
+                        {t("pos.no_stock")}
+                      </span>
+                    )}
+                  </button>
                 );
               })}
             </div>
@@ -1897,66 +1817,6 @@ export default function POSPage() {
         }}
       />
 
-      <Dialog open={!!whatsappProduct} onOpenChange={(open) => !open && setWhatsappProduct(null)}>
-        <DialogContent className="sm:max-w-md" data-testid="dialog-whatsapp-product">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5 text-green-500" />
-              {t("pos.send_to_whatsapp" as any)}
-            </DialogTitle>
-          </DialogHeader>
-          {whatsappProduct && (
-            <div className="flex items-center gap-3 p-3 bg-muted rounded-lg mb-2">
-              {whatsappProduct.image ? (
-                <img src={whatsappProduct.image} alt={whatsappProduct.name} className="w-12 h-12 object-cover rounded" />
-              ) : (
-                <div className="w-12 h-12 bg-background rounded flex items-center justify-center">
-                  <Package className="w-6 h-6 text-muted-foreground" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{whatsappProduct.name}</p>
-                <p className="text-sm text-primary font-semibold">{formatCurrency(parseFloat(whatsappProduct.price), currency)}</p>
-              </div>
-            </div>
-          )}
-          <p className="text-sm text-muted-foreground">{t("pos.select_conversation" as any)}</p>
-          <div className="max-h-60 overflow-y-auto space-y-1">
-            {loadingWhatsappConvos ? (
-              <div className="flex items-center justify-center py-6">
-                <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              </div>
-            ) : activeConversations.length === 0 ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm font-medium">{t("pos.no_active_conversations" as any)}</p>
-                <p className="text-xs">{t("pos.no_active_conversations_desc" as any)}</p>
-              </div>
-            ) : (
-              activeConversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => handleSendProductToWhatsapp(conv.id)}
-                  disabled={sendingWhatsapp}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
-                  data-testid={`button-whatsapp-conv-${conv.id}`}
-                >
-                  <div className="w-9 h-9 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-                    <User className="w-4 h-4 text-green-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{conv.customerName || conv.customerPhone}</p>
-                    <p className="text-xs text-muted-foreground">{conv.customerPhone}</p>
-                  </div>
-                  {sendingWhatsapp && (
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                  )}
-                </button>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
