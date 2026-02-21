@@ -38,6 +38,8 @@ import {
   Package,
   Loader2,
   Trash2,
+  Mic,
+  Square,
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -220,9 +222,14 @@ export default function WhatsAppChatPage() {
   const [catalogFooter, setCatalogFooter] = useState("");
   const [productPickerDialog, setProductPickerDialog] = useState(false);
   const [productPickerSearch, setProductPickerSearch] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const tenantId = (tenant as any)?.id;
   const hasChat = hasFeature(SUBSCRIPTION_FEATURES.WHATSAPP_CHAT as any);
@@ -663,6 +670,104 @@ export default function WhatsAppChatPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const startRecording = async () => {
+    if (!selectedConversation) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")
+        ? "audio/ogg;codecs=opus"
+        : "audio/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      audioChunksRef.current = [];
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        setRecordingDuration(0);
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+        if (audioBlob.size < 500) return;
+
+        const ext = mimeType.includes("ogg") ? "ogg" : "webm";
+        const file = new File([audioBlob], `voice-note.${ext}`, { type: mimeType });
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const res = await fetch("/api/upload/media", {
+            method: "POST",
+            headers: { "x-tenant-id": tenantId },
+            body: formData,
+          });
+          if (!res.ok) {
+            toast({ title: t("common.error"), description: t("whatsapp_chat.upload_failed"), variant: "destructive" });
+            return;
+          }
+          const { url } = await res.json();
+          sendMessageMutation.mutate({
+            conversationId: selectedConversation!.id,
+            contentType: "audio",
+            mediaUrl: url,
+            mediaMimeType: mimeType,
+            mediaFilename: file.name,
+            caption: "",
+          });
+        } catch {
+          toast({ title: t("common.error"), description: t("whatsapp_chat.upload_failed"), variant: "destructive" });
+        }
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      setRecordingDuration(0);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration(d => d + 1);
+      }, 1000);
+    } catch {
+      toast({ title: t("common.error"), description: t("whatsapp_chat.mic_permission_denied" as any) || "Microphone access denied", variant: "destructive" });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.ondataavailable = null;
+      mediaRecorderRef.current.onstop = () => {
+        mediaRecorderRef.current?.stream?.getTracks().forEach(track => track.stop());
+      };
+      mediaRecorderRef.current.stop();
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    audioChunksRef.current = [];
+    setIsRecording(false);
+    setRecordingDuration(0);
+  };
+
+  const formatRecordingTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
@@ -948,23 +1053,62 @@ export default function WhatsAppChatPage() {
                       onChange={handleFileUpload}
                       data-testid="input-file-upload"
                     />
-                    <Input
-                      placeholder={t("whatsapp_chat.type_message")}
-                      value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      className="flex-1 h-9"
-                      data-testid="input-message"
-                    />
-                    <Button
-                      size="icon"
-                      className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
-                      onClick={handleSend}
-                      disabled={!messageInput.trim() || sendMessageMutation.isPending}
-                      data-testid="button-send-message"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
+                    {isRecording ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="flex-shrink-0 h-9 w-9 text-red-500 hover:text-red-600"
+                          onClick={cancelRecording}
+                          data-testid="button-cancel-recording"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                        <div className="flex-1 flex items-center gap-2 px-3">
+                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                          <span className="text-sm font-medium text-red-500">{formatRecordingTime(recordingDuration)}</span>
+                        </div>
+                        <Button
+                          size="icon"
+                          className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
+                          onClick={stopRecording}
+                          data-testid="button-stop-recording"
+                        >
+                          <Send className="w-4 h-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Input
+                          placeholder={t("whatsapp_chat.type_message")}
+                          value={messageInput}
+                          onChange={(e) => setMessageInput(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="flex-1 h-9"
+                          data-testid="input-message"
+                        />
+                        {messageInput.trim() ? (
+                          <Button
+                            size="icon"
+                            className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
+                            onClick={handleSend}
+                            disabled={sendMessageMutation.isPending}
+                            data-testid="button-send-message"
+                          >
+                            <Send className="w-4 h-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            size="icon"
+                            className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
+                            onClick={startRecording}
+                            data-testid="button-start-recording"
+                          >
+                            <Mic className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </>
+                    )}
                   </div>
                 </>
               )}
