@@ -85,6 +85,21 @@ function createPublicReceiptUrl(orderId: string, tenantId: string): string {
 
 import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
 
+function parseCouponLines(couponText: string | null | undefined): { text: string; bold?: boolean; align?: string; size?: string }[] {
+  if (!couponText) return [];
+  try {
+    const parsed = JSON.parse(couponText);
+    if (parsed.lines && Array.isArray(parsed.lines)) {
+      return parsed.lines;
+    }
+  } catch {
+    if (couponText) {
+      return [{ text: couponText, align: "center", size: "normal" }];
+    }
+  }
+  return [];
+}
+
 async function generateAndUploadReceiptPdf(orderId: string, tenantId: string): Promise<string | null> {
   try {
     const order = await storage.getOrder(orderId);
@@ -93,37 +108,119 @@ async function generateAndUploadReceiptPdf(orderId: string, tenantId: string): P
     const tenant = await storage.getTenant(tenantId);
     const items = await storage.getOrderItems(orderId);
     const paymentsList = await storage.getPaymentsByOrder(orderId);
-    const currencySymbol = getCurrencySymbol(tenant?.currency);
     const lang = tenant?.language || "es";
+    const currency = tenant?.currency || "COP";
+
+    const formatAmount = (amount: number | string) => {
+      const num = typeof amount === "string" ? parseFloat(amount) : amount;
+      const localeMap: Record<string, string> = { COP: "es-CO", MXN: "es-MX", USD: "en-US", EUR: "de-DE", BRL: "pt-BR", ARS: "es-AR", PEN: "es-PE", CLP: "es-CL" };
+      const locale = localeMap[currency] || "en-US";
+      try {
+        return new Intl.NumberFormat(locale, { style: "currency", currency, minimumFractionDigits: currency === "COP" ? 0 : 2, maximumFractionDigits: currency === "COP" ? 0 : 2 }).format(num);
+      } catch { return `$${num.toFixed(2)}`; }
+    };
 
     const itemsForPdf = await Promise.all(items.map(async (item) => {
       const product = await storage.getProduct(item.productId);
       return {
         name: product?.name || "Product",
         quantity: item.quantity,
-        price: `${currencySymbol}${parseFloat(item.unitPrice).toFixed(0)}`,
+        price: formatAmount(item.unitPrice),
+        total: formatAmount(parseFloat(item.unitPrice) * item.quantity),
       };
     }));
 
     const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
+    const dateLocale = lang === "es" ? "es-CO" : lang === "pt" ? "pt-BR" : "en-US";
 
     const matiasConfig = await db.query.tenantIntegrationsMatias.findFirst({
       where: eq(tenantIntegrationsMatias.tenantId, tenantId),
     });
 
+    let customerInfo: { name?: string | null; idNumber?: string | null; idType?: string | null; phone?: string | null; email?: string | null; loyaltyPoints?: number | null } | undefined;
+    if (order.customerId) {
+      const customer = await storage.getCustomer(order.customerId);
+      if (customer) {
+        customerInfo = {
+          name: customer.name,
+          idNumber: customer.idNumber,
+          idType: customer.idType,
+          phone: customer.phone,
+          email: customer.email,
+          loyaltyPoints: customer.loyaltyPoints != null ? Number(customer.loyaltyPoints) : null,
+        };
+      }
+    }
+
+    let cashierName: string | undefined;
+    if (order.userId) {
+      const user = await storage.getUser(order.userId);
+      if (user) {
+        cashierName = user.fullName || user.username;
+      }
+    }
+
+    let taxEntries: { name: string; rate: string; amount: string }[] | undefined;
+    if (tenant) {
+      const taxRates = await storage.getTaxRatesByTenant(tenantId);
+      const activeTaxRates = taxRates.filter(tr => tr.isActive);
+      const orderTaxAmount = parseFloat(order.taxAmount);
+      if (activeTaxRates.length > 0 && orderTaxAmount > 0) {
+        const totalRate = activeTaxRates.reduce((sum, tr) => sum + parseFloat(tr.rate), 0);
+        taxEntries = activeTaxRates.map(tr => {
+          const rate = parseFloat(tr.rate);
+          const proportion = totalRate > 0 ? rate / totalRate : 0;
+          const amount = orderTaxAmount * proportion;
+          return { name: tr.name, rate: rate.toString(), amount: formatAmount(amount) };
+        });
+      }
+    }
+
+    const paymentsForPdf = paymentsList.map(p => ({
+      type: p.method as "cash" | "card",
+      amount: formatAmount(p.amount),
+    }));
+
+    let cashReceivedStr: string | undefined;
+    let changeStr: string | undefined;
+    const cashPayment = paymentsList.find(p => p.method === "cash");
+    if (cashPayment) {
+      const cashAmount = parseFloat(cashPayment.amount);
+      const total = parseFloat(order.total);
+      if (cashAmount > total) {
+        cashReceivedStr = formatAmount(cashAmount);
+        changeStr = formatAmount(cashAmount - total);
+      }
+    }
+
+    const couponLines = tenant?.couponEnabled ? parseCouponLines(tenant?.couponText) : undefined;
+
     const pdfBuffer = await generateReceiptPDF({
-      receiptNumber: order.orderNumber,
-      date: orderDate.toLocaleDateString(lang === "es" ? "es-CO" : lang, { year: "numeric", month: "short", day: "numeric" }),
-      time: orderDate.toLocaleTimeString(lang === "es" ? "es-CO" : lang, { hour: "2-digit", minute: "2-digit" }),
+      receiptNumber: String(order.orderNumber),
+      date: orderDate.toLocaleDateString(dateLocale, { year: "numeric", month: "short", day: "numeric" }),
+      time: orderDate.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit", hour12: false }),
+      cashier: cashierName,
       items: itemsForPdf,
-      subtotal: `${currencySymbol}${parseFloat(order.subtotal).toFixed(0)}`,
-      tax: `${currencySymbol}${parseFloat(order.taxAmount).toFixed(0)}`,
-      total: `${currencySymbol}${parseFloat(order.total).toFixed(0)}`,
+      subtotal: formatAmount(order.subtotal),
+      tax: formatAmount(order.taxAmount),
+      taxes: taxEntries,
+      total: formatAmount(order.total),
+      discount: order.discountAmount && parseFloat(order.discountAmount) > 0 ? formatAmount(order.discountAmount) : undefined,
       paymentMethod: paymentsList[0]?.method || "cash",
+      payments: paymentsForPdf.length > 0 ? paymentsForPdf : undefined,
+      cashReceived: cashReceivedStr,
+      change: changeStr,
       companyName: tenant?.name || "Flowp POS",
-      companyAddress: tenant?.address || undefined,
-      companyPhone: tenant?.phone || undefined,
-      currency: tenant?.currency || "COP",
+      companyLogo: tenant?.receiptShowLogo !== false ? (tenant?.receiptLogo || tenant?.logo || undefined) : undefined,
+      companyAddress: tenant?.receiptShowAddress !== false ? (tenant?.address || undefined) : undefined,
+      companyCity: tenant?.city ? `${tenant.city}${tenant?.country ? `, ${tenant.country}` : ""}` : undefined,
+      companyPhone: tenant?.receiptShowPhone !== false ? (tenant?.phone || undefined) : undefined,
+      companyTaxId: tenant?.receiptTaxId || undefined,
+      headerText: tenant?.receiptHeaderText || undefined,
+      footerText: tenant?.receiptFooterText || undefined,
+      currency,
+      customerInfo,
+      couponLines: couponLines && couponLines.length > 0 ? couponLines : undefined,
       electronicBilling: order.cufe ? {
         cufe: order.cufe,
         documentNumber: order.orderNumber,
