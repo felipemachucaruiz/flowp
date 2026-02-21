@@ -488,13 +488,26 @@ export default function WhatsAppChatPage() {
       try {
         const data = JSON.parse(event.data);
         if (data.type === "whatsapp_message") {
-          queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
-          if (data.conversationId === selectedConversation?.id) {
-            queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
+          if (data.conversationId === selectedConversation?.id && data.message) {
+            queryClient.setQueryData(
+              ["/api/whatsapp/chat/conversations", selectedConversation.id, "messages"],
+              (old: ChatMessage[] | undefined) => old ? [...old, data.message] : [data.message]
+            );
           }
+          queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
         }
         if (data.type === "whatsapp_status" && data.conversationId === selectedConversation?.id) {
-          queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
+          queryClient.setQueryData(
+            ["/api/whatsapp/chat/conversations", selectedConversation.id, "messages"],
+            (old: ChatMessage[] | undefined) => {
+              if (!old) return old;
+              return old.map(msg =>
+                msg.providerMessageId === data.providerMessageId || msg.id === data.messageId
+                  ? { ...msg, status: data.status }
+                  : msg
+              );
+            }
+          );
         }
       } catch {}
     };
