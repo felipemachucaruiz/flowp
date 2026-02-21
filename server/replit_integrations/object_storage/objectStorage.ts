@@ -103,6 +103,9 @@ export class ObjectStorageService {
       if (contentType === "audio/x-m4a" || contentType === "audio/m4a") {
         contentType = "audio/mp4";
       }
+      if (contentType === "audio/ogg" && !contentType.includes("codecs")) {
+        contentType = "audio/ogg; codecs=opus";
+      }
 
       const totalSize = parseInt(String(metadata.size || 0), 10);
       const isMedia = contentType.startsWith("audio/") || contentType.startsWith("video/");

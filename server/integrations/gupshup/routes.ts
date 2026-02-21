@@ -1708,23 +1708,15 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
       } catch {}
     }
 
+    const publicDomain = process.env.REPLIT_DEPLOYMENT_URL
+      || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+      || `${req.headers["x-forwarded-proto"] || req.protocol || "https"}://${req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000"}`;
+
     if (objectPath) {
-      try {
-        const objService = new ObjectStorageService();
-        resolvedMediaUrl = await objService.getSignedDownloadUrl(objectPath, 604800);
-        console.log(`[WhatsApp Send] Resolved object path to signed GCS URL (7-day TTL)`);
-      } catch (signErr: any) {
-        console.error(`[WhatsApp Send] Failed to sign URL for ${objectPath}:`, signErr.message);
-        if (resolvedMediaUrl.startsWith("/")) {
-          const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
-          const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
-          resolvedMediaUrl = `${protocol}://${host}${resolvedMediaUrl}`;
-        }
-      }
+      resolvedMediaUrl = `${publicDomain}${objectPath}`;
+      console.log(`[WhatsApp Send] Using public server URL for media: ${resolvedMediaUrl}`);
     } else if (resolvedMediaUrl && resolvedMediaUrl.startsWith("/")) {
-      const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
-      const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
-      resolvedMediaUrl = `${protocol}://${host}${resolvedMediaUrl}`;
+      resolvedMediaUrl = `${publicDomain}${resolvedMediaUrl}`;
       console.log(`[WhatsApp Send] Resolved relative URL to: ${resolvedMediaUrl}`);
     }
 
