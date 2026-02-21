@@ -134,13 +134,13 @@ function MediaContent({ message }: { message: ChatMessage }) {
   }
 
   if (contentType === "audio" && mediaUrl) {
-    const audioSrc = mediaUrl.includes("filemanager.gupshup.io") ? mediaUrl : proxiedUrl;
     return (
       <audio controls className="max-w-[240px]" preload="auto">
-        <source src={audioSrc} type="audio/ogg" />
-        <source src={audioSrc} type="audio/mp4" />
-        <source src={audioSrc} type="audio/mpeg" />
-        <source src={audioSrc} />
+        <source src={proxiedUrl} type="audio/ogg; codecs=opus" />
+        <source src={proxiedUrl} type="audio/ogg" />
+        <source src={proxiedUrl} type="audio/mp4" />
+        <source src={proxiedUrl} type="audio/mpeg" />
+        <source src={proxiedUrl} />
       </audio>
     );
   }
