@@ -632,7 +632,7 @@ export async function sendDocumentMessage(
       source: creds.senderPhone,
       destination: destinationPhone,
       "src.name": creds.appName,
-      message: JSON.stringify({ type: "file", url: documentUrl, filename }),
+      message: JSON.stringify({ type: "file", url: documentUrl, filename, caption }),
     });
 
     console.log(`[whatsapp] Gupshup doc response:`, JSON.stringify(data));
@@ -741,12 +741,14 @@ export async function sendReceiptNotification(
       }
 
       if (receiptPdfUrl) {
+        const orderDate = new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short" }).format(new Date());
+        const pdfCaption = `📄 *Recibo #${orderNumber}*\n👤 ${customerName || "Cliente"}\n💰 ${formattedTotal}\n📅 ${orderDate}\n\n_${companyName}_`;
         const docResult = await sendDocumentMessage(
           tenantId,
           customerPhone,
           receiptPdfUrl,
           `Recibo_${orderNumber}.pdf`,
-          `Recibo #${orderNumber}`,
+          pdfCaption,
           "receipt"
         );
         if (!docResult.success) {
@@ -769,12 +771,14 @@ export async function sendReceiptNotification(
     message += `\n\nGracias por su compra.`;
 
     if (receiptPdfUrl) {
+      const orderDate = new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short" }).format(new Date());
+      const pdfCaption = `📄 *Recibo #${orderNumber}*\n👤 ${customerName || "Cliente"}\n💰 ${formattedTotal}\n📅 ${orderDate}\n\n_${companyName}_`;
       const docResult = await sendDocumentMessage(
         tenantId,
         customerPhone,
         receiptPdfUrl,
         `Recibo_${orderNumber}.pdf`,
-        message,
+        pdfCaption,
         "receipt"
       );
       if (!docResult.success) {
