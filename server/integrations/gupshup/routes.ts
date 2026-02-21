@@ -1315,6 +1315,41 @@ whatsappRouter.put("/profile/photo", whatsappAddonGate, async (req: Request, res
 // MEDIA PROXY (for Gupshup filemanager URLs that require API key auth)
 // ==========================================
 
+const mediaProxyCache = new Map<string, { buffer: Buffer; contentType: string; fetchedAt: number; size: number }>();
+const MEDIA_CACHE_TTL = 60 * 60 * 1000;
+const MEDIA_CACHE_MAX_BYTES = 50 * 1024 * 1024;
+const MEDIA_CACHE_MAX_ITEM_BYTES = 5 * 1024 * 1024;
+let mediaProxyCacheTotalBytes = 0;
+
+function parseRangeHeader(rangeHeader: string, totalSize: number): { start: number; end: number } | null {
+  const match = rangeHeader.match(/^bytes=(\d*)-(\d*)$/);
+  if (!match) return null;
+
+  let start: number;
+  let end: number;
+
+  if (match[1] === "" && match[2] !== "") {
+    const suffix = parseInt(match[2], 10);
+    if (isNaN(suffix) || suffix <= 0) return null;
+    start = Math.max(0, totalSize - suffix);
+    end = totalSize - 1;
+  } else if (match[1] !== "" && match[2] === "") {
+    start = parseInt(match[1], 10);
+    if (isNaN(start)) return null;
+    end = totalSize - 1;
+  } else {
+    start = parseInt(match[1], 10);
+    end = parseInt(match[2], 10);
+    if (isNaN(start) || isNaN(end)) return null;
+  }
+
+  if (start < 0 || start >= totalSize || end < start || end >= totalSize) {
+    return null;
+  }
+
+  return { start, end };
+}
+
 whatsappRouter.get("/chat/media-proxy", async (req: Request, res: Response) => {
   const tenantId = (req.query.tenantId as string) || (req.headers["x-tenant-id"] as string);
   if (!tenantId) {
@@ -1331,21 +1366,80 @@ whatsappRouter.get("/chat/media-proxy", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "WhatsApp not configured" });
     }
 
-    const response = await fetch(mediaUrl, {
-      headers: { "apikey": creds.apiKey },
-    });
+    const cacheKey = `${tenantId}:${mediaUrl}`;
+    let buffer: Buffer;
+    let contentType: string;
 
-    if (!response.ok) {
-      console.error(`[WhatsApp Media Proxy] Failed to fetch: ${response.status}`);
-      return res.status(response.status).json({ error: "Failed to fetch media" });
+    const cached = mediaProxyCache.get(cacheKey);
+    if (cached && Date.now() - cached.fetchedAt < MEDIA_CACHE_TTL) {
+      buffer = cached.buffer;
+      contentType = cached.contentType;
+    } else {
+      const response = await fetch(mediaUrl, {
+        headers: { "apikey": creds.apiKey },
+      });
+
+      if (!response.ok) {
+        console.error(`[WhatsApp Media Proxy] Failed to fetch: ${response.status}`);
+        return res.status(response.status).json({ error: "Failed to fetch media" });
+      }
+
+      contentType = response.headers.get("content-type") || "application/octet-stream";
+      buffer = Buffer.from(await response.arrayBuffer());
+
+      if (buffer.length <= MEDIA_CACHE_MAX_ITEM_BYTES) {
+        if (cached) {
+          mediaProxyCacheTotalBytes -= cached.size;
+        }
+        while (mediaProxyCacheTotalBytes + buffer.length > MEDIA_CACHE_MAX_BYTES && mediaProxyCache.size > 0) {
+          let oldestKey = "";
+          let oldestTime = Infinity;
+          for (const [k, v] of mediaProxyCache) {
+            if (v.fetchedAt < oldestTime) { oldestTime = v.fetchedAt; oldestKey = k; }
+          }
+          if (oldestKey) {
+            mediaProxyCacheTotalBytes -= mediaProxyCache.get(oldestKey)!.size;
+            mediaProxyCache.delete(oldestKey);
+          }
+        }
+        mediaProxyCache.set(cacheKey, { buffer, contentType, fetchedAt: Date.now(), size: buffer.length });
+        mediaProxyCacheTotalBytes += buffer.length;
+      }
     }
 
-    const contentType = response.headers.get("content-type") || "application/octet-stream";
-    res.setHeader("Content-Type", contentType);
+    if (contentType === "application/octet-stream") {
+      const urlLower = mediaUrl.toLowerCase();
+      if (urlLower.includes("audio") || urlLower.includes("voice") || urlLower.includes("ptt")) {
+        contentType = "audio/ogg";
+      }
+    }
+
+    const rangeHeader = req.headers.range;
+    const totalSize = buffer.length;
+
+    res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Cache-Control", "private, max-age=86400");
 
-    const buffer = await response.arrayBuffer();
-    return res.send(Buffer.from(buffer));
+    if (rangeHeader) {
+      const range = parseRangeHeader(rangeHeader, totalSize);
+      if (!range) {
+        res.setHeader("Content-Range", `bytes */${totalSize}`);
+        return res.status(416).end();
+      }
+
+      const { start, end } = range;
+      const chunkSize = end - start + 1;
+
+      res.status(206);
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Content-Range", `bytes ${start}-${end}/${totalSize}`);
+      res.setHeader("Content-Length", chunkSize);
+      return res.end(buffer.subarray(start, end + 1));
+    }
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Length", totalSize);
+    return res.end(buffer);
   } catch (error: any) {
     console.error(`[WhatsApp Media Proxy] Error:`, error.message);
     return res.status(500).json({ error: error.message });

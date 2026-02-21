@@ -116,6 +116,92 @@ function resolveMediaUrl(url: string, tenantId?: string): string {
   return url;
 }
 
+function AudioPlayer({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [error, setError] = useState(false);
+
+  const togglePlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play().catch(() => setError(true));
+    }
+  }, [isPlaying]);
+
+  const fmtTime = (s: number) => {
+    if (!s || !isFinite(s)) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div className="flex items-center gap-2 min-w-[200px] max-w-[280px] p-1">
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onLoadedMetadata={() => {
+          if (audioRef.current) setDuration(audioRef.current.duration);
+        }}
+        onTimeUpdate={() => {
+          if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+        }}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onEnded={() => { setIsPlaying(false); setCurrentTime(0); }}
+        onError={() => setError(true)}
+      />
+      {error ? (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Music className="w-4 h-4" />
+          <a href={src} target="_blank" rel="noopener noreferrer" className="underline" data-testid="link-download-audio">
+            Download audio
+          </a>
+        </div>
+      ) : (
+        <>
+          <button
+            onClick={togglePlay}
+            className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 hover:bg-primary/20 transition-colors"
+            data-testid="button-audio-play"
+          >
+            {isPlaying ? (
+              <Square className="w-3 h-3 fill-current" />
+            ) : (
+              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current ml-0.5"><polygon points="5,3 19,12 5,21" /></svg>
+            )}
+          </button>
+          <div className="flex-1 min-w-0">
+            <div
+              className="h-1.5 bg-muted rounded-full cursor-pointer relative"
+              onClick={(e) => {
+                if (!audioRef.current || !duration) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const pct = (e.clientX - rect.left) / rect.width;
+                audioRef.current.currentTime = pct * duration;
+              }}
+            >
+              <div
+                className="h-full bg-primary rounded-full transition-all"
+                style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }}
+              />
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              {fmtTime(currentTime)} / {fmtTime(duration)}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function MediaContent({ message, tenantId }: { message: ChatMessage; tenantId?: string }) {
   const { contentType, mediaUrl, mediaFilename, caption, body } = message;
 
@@ -141,13 +227,7 @@ function MediaContent({ message, tenantId }: { message: ChatMessage; tenantId?: 
 
   if (contentType === "audio" && mediaUrl) {
     return (
-      <audio controls className="max-w-[240px]" preload="auto">
-        <source src={proxiedUrl} type="audio/ogg; codecs=opus" />
-        <source src={proxiedUrl} type="audio/ogg" />
-        <source src={proxiedUrl} type="audio/mp4" />
-        <source src={proxiedUrl} type="audio/mpeg" />
-        <source src={proxiedUrl} />
-      </audio>
+      <AudioPlayer src={proxiedUrl} />
     );
   }
 

@@ -1,5 +1,5 @@
 import { Storage, File } from "@google-cloud/storage";
-import { Response } from "express";
+import { Request, Response } from "express";
 import { randomUUID } from "crypto";
 import {
   ObjectAclPolicy,
@@ -94,38 +94,86 @@ export class ObjectStorageService {
     return null;
   }
 
-  // Downloads an object to the response.
-  async downloadObject(file: File, res: Response, cacheTtlSec: number = 3600) {
+  async downloadObject(file: File, res: Response, cacheTtlSec: number = 3600, req?: Request) {
     try {
-      // Get file metadata
       const [metadata] = await file.getMetadata();
-      // Get the ACL policy for the object.
       const aclPolicy = await getObjectAclPolicy(file);
       const isPublic = aclPolicy?.visibility === "public";
       let contentType = metadata.contentType || "application/octet-stream";
       if (contentType === "audio/x-m4a" || contentType === "audio/m4a") {
         contentType = "audio/mp4";
       }
-      // Set appropriate headers
+
+      const totalSize = parseInt(String(metadata.size || 0), 10);
+      const isMedia = contentType.startsWith("audio/") || contentType.startsWith("video/");
+      const rangeHeader = req?.headers?.range;
+
       res.set({
-        "Content-Type": contentType,
-        "Content-Length": metadata.size,
-        "Cache-Control": `${
-          isPublic ? "public" : "private"
-        }, max-age=${cacheTtlSec}`,
+        "Cache-Control": `${isPublic ? "public" : "private"}, max-age=${cacheTtlSec}`,
       });
 
-      // Stream the file to the response
-      const stream = file.createReadStream();
+      if (isMedia) {
+        res.set("Accept-Ranges", "bytes");
+      }
 
-      stream.on("error", (err) => {
-        console.error("Stream error:", err);
-        if (!res.headersSent) {
-          res.status(500).json({ error: "Error streaming file" });
+      if (isMedia && rangeHeader && totalSize > 0) {
+        const rangeMatch = rangeHeader.match(/^bytes=(\d*)-(\d*)$/);
+        let start: number | null = null;
+        let end: number | null = null;
+
+        if (rangeMatch) {
+          if (rangeMatch[1] === "" && rangeMatch[2] !== "") {
+            const suffix = parseInt(rangeMatch[2], 10);
+            if (!isNaN(suffix) && suffix > 0) {
+              start = Math.max(0, totalSize - suffix);
+              end = totalSize - 1;
+            }
+          } else if (rangeMatch[1] !== "" && rangeMatch[2] === "") {
+            start = parseInt(rangeMatch[1], 10);
+            end = totalSize - 1;
+          } else if (rangeMatch[1] !== "" && rangeMatch[2] !== "") {
+            start = parseInt(rangeMatch[1], 10);
+            end = Math.min(parseInt(rangeMatch[2], 10), totalSize - 1);
+          }
         }
-      });
 
-      stream.pipe(res);
+        if (start === null || end === null || isNaN(start) || isNaN(end) || start < 0 || start >= totalSize || end < start) {
+          res.set("Content-Range", `bytes */${totalSize}`);
+          return res.status(416).end();
+        }
+
+        const chunkSize = end - start + 1;
+
+        res.status(206);
+        res.set({
+          "Content-Type": contentType,
+          "Content-Range": `bytes ${start}-${end}/${totalSize}`,
+          "Content-Length": String(chunkSize),
+        });
+
+        const stream = file.createReadStream({ start, end });
+        stream.on("error", (err) => {
+          console.error("Stream error:", err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: "Error streaming file" });
+          }
+        });
+        stream.pipe(res);
+      } else {
+        res.set({
+          "Content-Type": contentType,
+          "Content-Length": String(totalSize),
+        });
+
+        const stream = file.createReadStream();
+        stream.on("error", (err) => {
+          console.error("Stream error:", err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: "Error streaming file" });
+          }
+        });
+        stream.pipe(res);
+      }
     } catch (error) {
       console.error("Error downloading file:", error);
       if (!res.headersSent) {

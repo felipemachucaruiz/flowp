@@ -82,7 +82,7 @@ export function registerObjectStorageRoutes(app: Express): void {
       if (!objectFile) {
         return res.status(404).json({ error: "Object not found" });
       }
-      await objectStorageService.downloadObject(objectFile, res);
+      await objectStorageService.downloadObject(objectFile, res, 3600, req);
     } catch (error) {
       console.error("Error serving public object:", error);
       return res.status(500).json({ error: "Failed to serve object" });
@@ -100,7 +100,7 @@ export function registerObjectStorageRoutes(app: Express): void {
   app.get(/^\/objects\/(.+)$/, async (req, res) => {
     try {
       const objectFile = await objectStorageService.getObjectEntityFile(req.path);
-      await objectStorageService.downloadObject(objectFile, res);
+      await objectStorageService.downloadObject(objectFile, res, 3600, req);
     } catch (error) {
       console.error("Error serving object:", error);
       if (error instanceof ObjectNotFoundError) {
