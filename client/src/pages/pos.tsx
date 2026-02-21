@@ -870,7 +870,7 @@ export default function POSPage() {
   
   const CartContent = () => (
     <>
-      <div className="p-3 border-b">
+      <div className="p-3 border-b" style={isMobile ? { paddingTop: 'calc(0.75rem + env(safe-area-inset-top, 0px))' } : undefined}>
         {isTabMode && (
           <div className="mb-2 p-2 bg-primary/10 rounded-md flex items-center gap-2">
             <Receipt className="w-4 h-4 text-primary" />
@@ -1352,7 +1352,7 @@ export default function POSPage() {
 
       {/* Mobile Cart Sheet */}
       <Sheet open={showMobileCart} onOpenChange={setShowMobileCart}>
-        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] [&>button.absolute]:hidden">
+        <SheetContent side="right" className="w-full sm:max-w-md p-0 flex flex-col pb-[env(safe-area-inset-bottom,0px)] [&>button.absolute]:hidden">
           <SheetHeader className="sr-only">
             <SheetTitle>{t("pos.current_order")}</SheetTitle>
           </SheetHeader>
