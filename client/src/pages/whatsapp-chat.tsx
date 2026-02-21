@@ -502,6 +502,8 @@ export default function WhatsAppChatPage() {
     },
     onSuccess: () => {
       setMessageInput("");
+      const textarea = document.querySelector('[data-testid="input-message"]') as HTMLTextAreaElement;
+      if (textarea) textarea.style.height = "auto";
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
     },
@@ -1294,13 +1296,21 @@ export default function WhatsAppChatPage() {
                           </Button>
                         )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Input
+                      <div className="flex items-end gap-1">
+                        <Textarea
                           placeholder={t("whatsapp_chat.type_message")}
                           value={messageInput}
-                          onChange={(e) => setMessageInput(e.target.value)}
+                          onChange={(e) => {
+                            setMessageInput(e.target.value);
+                            const el = e.target;
+                            el.style.height = "auto";
+                            const lineHeight = 20;
+                            const maxHeight = lineHeight * 4 + 18;
+                            el.style.height = Math.min(el.scrollHeight, maxHeight) + "px";
+                          }}
                           onKeyDown={handleKeyDown}
-                          className="flex-1 h-9"
+                          className="flex-1 min-h-[36px] max-h-[98px] resize-none overflow-y-auto py-2"
+                          rows={1}
                           data-testid="input-message"
                         />
                         {messageInput.trim() ? (
@@ -1326,17 +1336,17 @@ export default function WhatsAppChatPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => setShowEmojiPicker(!showEmojiPicker)} data-testid="button-emoji-picker">
+                    <div className="flex items-end gap-1">
+                      <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9 mb-0.5" onClick={() => setShowEmojiPicker(!showEmojiPicker)} data-testid="button-emoji-picker">
                         <Smile className="w-5 h-5 text-muted-foreground" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => fileInputRef.current?.click()} data-testid="button-attach-file">
+                      <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9 mb-0.5" onClick={() => fileInputRef.current?.click()} data-testid="button-attach-file">
                         <Paperclip className="w-5 h-5 text-muted-foreground" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="flex-shrink-0 h-9 w-9"
+                        className="flex-shrink-0 h-9 w-9 mb-0.5"
                         onClick={() => setProductPickerDialog(true)}
                         title={t("whatsapp_chat.send_product_info" as any) || "Send Product Info"}
                         data-testid="button-send-product-info"
@@ -1347,7 +1357,7 @@ export default function WhatsAppChatPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="flex-shrink-0 h-9 w-9"
+                          className="flex-shrink-0 h-9 w-9 mb-0.5"
                           onClick={() => setCatalogDialog(true)}
                           title={t("whatsapp_chat.send_catalog" as any) || "Send Product Catalog"}
                           data-testid="button-send-catalog"
@@ -1355,18 +1365,26 @@ export default function WhatsAppChatPage() {
                           <ShoppingCart className="w-5 h-5 text-muted-foreground" />
                         </Button>
                       )}
-                      <Input
+                      <Textarea
                         placeholder={t("whatsapp_chat.type_message")}
                         value={messageInput}
-                        onChange={(e) => setMessageInput(e.target.value)}
+                        onChange={(e) => {
+                          setMessageInput(e.target.value);
+                          const el = e.target;
+                          el.style.height = "auto";
+                          const lineHeight = 20;
+                          const maxHeight = lineHeight * 4 + 18;
+                          el.style.height = Math.min(el.scrollHeight, maxHeight) + "px";
+                        }}
                         onKeyDown={handleKeyDown}
-                        className="flex-1 h-9"
+                        className="flex-1 min-h-[36px] max-h-[98px] resize-none overflow-y-auto py-2"
+                        rows={1}
                         data-testid="input-message"
                       />
                       {messageInput.trim() ? (
                         <Button
                           size="icon"
-                          className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
+                          className="flex-shrink-0 h-9 w-9 mb-0.5 bg-green-500 hover:bg-green-600"
                           onClick={handleSend}
                           disabled={sendMessageMutation.isPending}
                           data-testid="button-send-message"
@@ -1376,7 +1394,7 @@ export default function WhatsAppChatPage() {
                       ) : (
                         <Button
                           size="icon"
-                          className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
+                          className="flex-shrink-0 h-9 w-9 mb-0.5 bg-green-500 hover:bg-green-600"
                           onClick={startRecording}
                           data-testid="button-start-recording"
                         >
