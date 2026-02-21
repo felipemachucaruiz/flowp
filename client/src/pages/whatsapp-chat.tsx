@@ -336,6 +336,7 @@ export default function WhatsAppChatPage() {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [messageInput, setMessageInput] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [newChatDialog, setNewChatDialog] = useState(false);
   const [newChatPhone, setNewChatPhone] = useState("");
   const [newChatName, setNewChatName] = useState("");
@@ -502,8 +503,7 @@ export default function WhatsAppChatPage() {
     },
     onSuccess: () => {
       setMessageInput("");
-      const textarea = document.querySelector('[data-testid="input-message"]') as HTMLTextAreaElement;
-      if (textarea) textarea.style.height = "auto";
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
     },
@@ -1298,18 +1298,21 @@ export default function WhatsAppChatPage() {
                       </div>
                       <div className="flex items-end gap-1">
                         <Textarea
+                          ref={textareaRef}
                           placeholder={t("whatsapp_chat.type_message")}
                           value={messageInput}
                           onChange={(e) => {
                             setMessageInput(e.target.value);
-                            const el = e.target;
-                            el.style.height = "auto";
-                            const lineHeight = 20;
-                            const maxHeight = lineHeight * 4 + 18;
-                            el.style.height = Math.min(el.scrollHeight, maxHeight) + "px";
+                            requestAnimationFrame(() => {
+                              const el = textareaRef.current;
+                              if (!el) return;
+                              el.style.height = "36px";
+                              el.style.height = Math.min(el.scrollHeight, 36 * 4) + "px";
+                            });
                           }}
                           onKeyDown={handleKeyDown}
-                          className="flex-1 min-h-[36px] max-h-[98px] resize-none overflow-y-auto py-2"
+                          style={{ minHeight: "36px", maxHeight: `${36 * 4}px` }}
+                          className="flex-1 !min-h-0 resize-none overflow-y-auto py-2"
                           rows={1}
                           data-testid="input-message"
                         />
@@ -1366,18 +1369,21 @@ export default function WhatsAppChatPage() {
                         </Button>
                       )}
                       <Textarea
+                        ref={textareaRef}
                         placeholder={t("whatsapp_chat.type_message")}
                         value={messageInput}
                         onChange={(e) => {
                           setMessageInput(e.target.value);
-                          const el = e.target;
-                          el.style.height = "auto";
-                          const lineHeight = 20;
-                          const maxHeight = lineHeight * 4 + 18;
-                          el.style.height = Math.min(el.scrollHeight, maxHeight) + "px";
+                          requestAnimationFrame(() => {
+                            const el = textareaRef.current;
+                            if (!el) return;
+                            el.style.height = "36px";
+                            el.style.height = Math.min(el.scrollHeight, 36 * 4) + "px";
+                          });
                         }}
                         onKeyDown={handleKeyDown}
-                        className="flex-1 min-h-[36px] max-h-[98px] resize-none overflow-y-auto py-2"
+                        style={{ minHeight: "36px", maxHeight: `${36 * 4}px` }}
+                        className="flex-1 !min-h-0 resize-none overflow-y-auto py-2"
                         rows={1}
                         data-testid="input-message"
                       />
