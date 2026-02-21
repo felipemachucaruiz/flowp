@@ -1696,6 +1696,7 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
 
     let resolvedMediaUrl = mediaUrl || "";
     let objectPath = "";
+    console.log(`[WhatsApp Send] Original mediaUrl: ${resolvedMediaUrl}`);
     if (resolvedMediaUrl && resolvedMediaUrl.startsWith("/objects/")) {
       objectPath = resolvedMediaUrl;
     } else if (resolvedMediaUrl) {
@@ -1707,12 +1708,19 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
         }
       } catch {}
     }
+    console.log(`[WhatsApp Send] Extracted objectPath: "${objectPath}"`);
 
     if (objectPath) {
       try {
         const objService = new ObjectStorageService();
         resolvedMediaUrl = await objService.getSignedDownloadUrl(objectPath, 604800);
-        console.log(`[WhatsApp Send] Using signed GCS URL for media (7-day TTL)`);
+        console.log(`[WhatsApp Send] Signed GCS URL generated: ${resolvedMediaUrl.substring(0, 100)}...`);
+        try {
+          const verifyRes = await fetch(resolvedMediaUrl, { method: "HEAD" });
+          console.log(`[WhatsApp Send] Signed URL verification: status=${verifyRes.status}, content-type=${verifyRes.headers.get("content-type")}, content-length=${verifyRes.headers.get("content-length")}`);
+        } catch (verifyErr: any) {
+          console.error(`[WhatsApp Send] Signed URL verification failed:`, verifyErr.message);
+        }
       } catch (signErr: any) {
         console.error(`[WhatsApp Send] Failed to sign URL for ${objectPath}:`, signErr.message);
         const publicDomain = process.env.REPLIT_DEPLOYMENT_URL
@@ -1768,6 +1776,10 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
     });
 
     const data = await response.json();
+    console.log(`[WhatsApp Send] Gupshup API response: HTTP ${response.status}`, JSON.stringify(data));
+    if (msgType === "audio") {
+      console.log(`[WhatsApp Send] Audio payload sent to Gupshup:`, JSON.stringify(gupshupMessage));
+    }
 
     if (data && (data.status === "submitted" || data.messageId)) {
       await deductMessage(tenantId);
