@@ -1315,8 +1315,11 @@ whatsappRouter.put("/profile/photo", whatsappAddonGate, async (req: Request, res
 // MEDIA PROXY (for Gupshup filemanager URLs that require API key auth)
 // ==========================================
 
-whatsappRouter.get("/chat/media-proxy", whatsappAddonGate, async (req: Request, res: Response) => {
-  const tenantId = req.headers["x-tenant-id"] as string;
+whatsappRouter.get("/chat/media-proxy", async (req: Request, res: Response) => {
+  const tenantId = (req.query.tenantId as string) || (req.headers["x-tenant-id"] as string);
+  if (!tenantId) {
+    return res.status(400).json({ error: "Tenant ID required" });
+  }
   try {
     const mediaUrl = req.query.url as string;
     if (!mediaUrl || !mediaUrl.startsWith("https://filemanager.gupshup.io")) {

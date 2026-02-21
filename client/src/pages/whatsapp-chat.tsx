@@ -103,17 +103,23 @@ function StatusIcon({ status }: { status: string }) {
   }
 }
 
-function resolveMediaUrl(url: string): string {
+function resolveMediaUrl(url: string, tenantId?: string): string {
   if (url && url.includes("filemanager.gupshup.io")) {
-    return `/api/whatsapp/chat/media-proxy?url=${encodeURIComponent(url)}`;
+    return `/api/whatsapp/chat/media-proxy?url=${encodeURIComponent(url)}${tenantId ? `&tenantId=${tenantId}` : ""}`;
+  }
+  if (url && !url.startsWith("/") && url.includes("/objects/")) {
+    try {
+      const u = new URL(url);
+      return u.pathname;
+    } catch {}
   }
   return url;
 }
 
-function MediaContent({ message }: { message: ChatMessage }) {
+function MediaContent({ message, tenantId }: { message: ChatMessage; tenantId?: string }) {
   const { contentType, mediaUrl, mediaFilename, caption, body } = message;
 
-  const proxiedUrl = mediaUrl ? resolveMediaUrl(mediaUrl) : "";
+  const proxiedUrl = mediaUrl ? resolveMediaUrl(mediaUrl, tenantId) : "";
 
   if (contentType === "image" && mediaUrl) {
     return (
@@ -173,7 +179,7 @@ function MediaContent({ message }: { message: ChatMessage }) {
   return <p className="text-sm whitespace-pre-wrap">{body}</p>;
 }
 
-function MessageBubble({ message, isGrouped }: { message: ChatMessage; isGrouped: boolean }) {
+function MessageBubble({ message, isGrouped, tenantId }: { message: ChatMessage; isGrouped: boolean; tenantId?: string }) {
   const isOutbound = message.direction === "outbound";
   const time = new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -190,7 +196,7 @@ function MessageBubble({ message, isGrouped }: { message: ChatMessage; isGrouped
         {!isGrouped && isOutbound && message.senderName && message.senderName !== "System" && message.senderName !== "Bot" && (
           <p className="text-xs font-medium mb-1 opacity-70">{message.senderName}</p>
         )}
-        <MediaContent message={message} />
+        <MediaContent message={message} tenantId={tenantId} />
         <div className={`flex items-center gap-1 justify-end mt-1 ${isOutbound ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
           <span className="text-[10px]">{time}</span>
           {isOutbound && <StatusIcon status={message.status} />}
@@ -930,7 +936,7 @@ export default function WhatsAppChatPage() {
                     const prev = messages?.[i - 1];
                     const isGrouped = prev?.direction === msg.direction && 
                       (new Date(msg.createdAt).getTime() - new Date(prev.createdAt).getTime()) < 60000;
-                    return <MessageBubble key={msg.id} message={msg} isGrouped={isGrouped} />;
+                    return <MessageBubble key={msg.id} message={msg} isGrouped={isGrouped} tenantId={tenantId} />;
                   })}
                   <div ref={messagesEndRef} />
                 </div>
