@@ -412,7 +412,6 @@ export default function WhatsAppChatPage() {
       return res.json();
     },
     onSuccess: () => {
-      setSelectedConversation(prev => prev ? { ...prev, lastInboundAt: new Date().toISOString() } : null);
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations", selectedConversation?.id, "messages"] });
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
       toast({ title: t("whatsapp_chat.greeting_sent" as any) });
@@ -441,17 +440,11 @@ export default function WhatsAppChatPage() {
     if (selectedConversation && conversations.length > 0) {
       const updated = conversations.find(c => c.id === selectedConversation.id);
       if (updated) {
-        const serverInbound = updated.lastInboundAt ? new Date(updated.lastInboundAt).getTime() : 0;
-        const localInbound = selectedConversation.lastInboundAt ? new Date(selectedConversation.lastInboundAt).getTime() : 0;
-        if (serverInbound > localInbound || updated.lastMessageAt !== selectedConversation.lastMessageAt || updated.unreadCount !== selectedConversation.unreadCount) {
-          setSelectedConversation(prev => {
-            if (!prev) return updated;
-            const prevInbound = prev.lastInboundAt ? new Date(prev.lastInboundAt).getTime() : 0;
-            return {
-              ...updated,
-              lastInboundAt: prevInbound > serverInbound ? prev.lastInboundAt : updated.lastInboundAt,
-            };
-          });
+        const changed = updated.lastInboundAt !== selectedConversation.lastInboundAt ||
+          updated.lastMessageAt !== selectedConversation.lastMessageAt ||
+          updated.unreadCount !== selectedConversation.unreadCount;
+        if (changed) {
+          setSelectedConversation(updated);
         }
       }
     }
@@ -813,27 +806,62 @@ export default function WhatsAppChatPage() {
             <div className="border-t p-2 bg-background relative">
               {!sessionOpen ? (
                 <div className="flex flex-col items-center gap-2 py-2" data-testid="session-closed-banner">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Lock className="w-3.5 h-3.5" />
-                    <span>{t("whatsapp_chat.session_closed" as any)}</span>
-                  </div>
-                  {greetingStatus?.configured && greetingStatus?.approved ? (
-                    <Button
-                      size="default"
-                      onClick={() => sendGreetingMutation.mutate(selectedConversation!.id)}
-                      disabled={sendGreetingMutation.isPending}
-                      data-testid="button-send-greeting"
-                    >
-                      <MessageCircle className="w-4 h-4 mr-2" />
-                      {sendGreetingMutation.isPending
-                        ? t("common.loading")
-                        : t("whatsapp_chat.send_greeting" as any)}
-                    </Button>
-                  ) : (
-                    <p className="text-xs text-muted-foreground text-center px-4" data-testid="text-no-greeting-template">
-                      {t("whatsapp_chat.no_greeting_configured" as any)}
-                    </p>
-                  )}
+                  {(() => {
+                    const hasOutboundMessages = (messages || []).some(m => m.direction === "outbound");
+                    const hasNoInbound = !selectedConversation?.lastInboundAt;
+                    const greetingAlreadySent = hasOutboundMessages && hasNoInbound;
+                    
+                    if (greetingAlreadySent) {
+                      return (
+                        <>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>{t("whatsapp_chat.waiting_reply" as any)}</span>
+                          </div>
+                          {greetingStatus?.configured && greetingStatus?.approved && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => sendGreetingMutation.mutate(selectedConversation!.id)}
+                              disabled={sendGreetingMutation.isPending}
+                              data-testid="button-resend-greeting"
+                            >
+                              <MessageCircle className="w-4 h-4 mr-2" />
+                              {sendGreetingMutation.isPending
+                                ? t("common.loading")
+                                : t("whatsapp_chat.resend_greeting" as any)}
+                            </Button>
+                          )}
+                        </>
+                      );
+                    }
+                    
+                    return (
+                      <>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Lock className="w-3.5 h-3.5" />
+                          <span>{t("whatsapp_chat.session_closed" as any)}</span>
+                        </div>
+                        {greetingStatus?.configured && greetingStatus?.approved ? (
+                          <Button
+                            size="default"
+                            onClick={() => sendGreetingMutation.mutate(selectedConversation!.id)}
+                            disabled={sendGreetingMutation.isPending}
+                            data-testid="button-send-greeting"
+                          >
+                            <MessageCircle className="w-4 h-4 mr-2" />
+                            {sendGreetingMutation.isPending
+                              ? t("common.loading")
+                              : t("whatsapp_chat.send_greeting" as any)}
+                          </Button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground text-center px-4" data-testid="text-no-greeting-template">
+                            {t("whatsapp_chat.no_greeting_configured" as any)}
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               ) : (
                 <>

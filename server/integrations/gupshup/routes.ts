@@ -1671,7 +1671,6 @@ whatsappRouter.post("/chat/send-greeting", whatsappAddonGate, async (req: Reques
       .set({
         lastMessageAt: now,
         lastMessagePreview: previewText,
-        lastInboundAt: now,
         updatedAt: now,
       })
       .where(eq(whatsappConversations.id, conversationId));
@@ -1682,7 +1681,7 @@ whatsappRouter.post("/chat/send-greeting", whatsappAddonGate, async (req: Reques
       message: chatMsg,
     });
 
-    return res.json({ success: true, message: chatMsg, sessionOpened: true });
+    return res.json({ success: true, message: chatMsg, greetingSent: true });
   } catch (error: any) {
     console.error("[whatsapp] send-greeting error:", error);
     return res.status(500).json({ error: error.message });
