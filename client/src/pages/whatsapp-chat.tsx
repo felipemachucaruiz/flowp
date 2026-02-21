@@ -984,7 +984,7 @@ export default function WhatsAppChatPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-background" data-testid="whatsapp-chat-page">
+    <div className="flex h-full bg-background" data-testid="whatsapp-chat-page">
       <div className={`w-full md:w-80 lg:w-96 border-r flex flex-col ${showMobileConversation ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 border-b space-y-2">
           <div className="flex items-center justify-between">

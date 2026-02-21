@@ -35,6 +35,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("pos_theme", theme);
     
     updateStatusBarStyle(isDark);
+
+    const themeColor = isDark ? "#0b1120" : "#f8fafc";
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute("content", themeColor);
+    }
   }, [theme]);
 
   const toggleTheme = () => {

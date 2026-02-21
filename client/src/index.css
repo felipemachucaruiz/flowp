@@ -288,6 +288,30 @@ body {
     position: fixed;
     width: 100%;
   }
+
+  /* iOS iPhone optimizations */
+  @supports (-webkit-touch-callout: none) {
+    /* Prevent iOS auto-zoom on input focus (requires 16px min font) */
+    input, select, textarea {
+      font-size: max(16px, 1em);
+    }
+
+    /* Smooth momentum scrolling everywhere */
+    * {
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Remove tap highlight on iOS */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Prevent text size adjustment on orientation change */
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+  }
 }
 
 /**
@@ -506,6 +530,12 @@ body {
 
     .mobile-section-gap > * + * {
       margin-top: 1rem;
+    }
+
+    /* iPhone safe area margin utilities for content that needs horizontal inset */
+    .mobile-safe-horizontal {
+      padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+      padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
     }
   }
 }
