@@ -202,16 +202,55 @@ function AudioPlayer({ src }: { src: string }) {
   );
 }
 
+function ImageLightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+      data-testid="lightbox-overlay"
+    >
+      <button
+        className="absolute top-4 right-4 text-white/80 hover:text-white z-50 p-2"
+        onClick={onClose}
+        data-testid="button-close-lightbox"
+      >
+        <X className="w-6 h-6" />
+      </button>
+      <img
+        src={src}
+        alt={alt}
+        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+        data-testid="lightbox-image"
+      />
+    </div>
+  );
+}
+
 function MediaContent({ message, tenantId }: { message: ChatMessage; tenantId?: string }) {
   const { contentType, mediaUrl, mediaFilename, caption, body } = message;
+  const [showLightbox, setShowLightbox] = useState(false);
 
   const proxiedUrl = mediaUrl ? resolveMediaUrl(mediaUrl, tenantId) : "";
 
   if (contentType === "image" && mediaUrl) {
     return (
       <div>
-        <img src={proxiedUrl} alt={caption || "Image"} className="max-w-[240px] rounded-lg cursor-pointer" onClick={() => window.open(proxiedUrl, "_blank")} />
+        <img
+          src={proxiedUrl}
+          alt={caption || "Image"}
+          className="max-w-[240px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+          onClick={() => setShowLightbox(true)}
+          data-testid="img-chat-image"
+        />
         {caption && <p className="mt-1 text-sm">{caption}</p>}
+        {showLightbox && (
+          <ImageLightbox
+            src={proxiedUrl}
+            alt={caption || "Image"}
+            onClose={() => setShowLightbox(false)}
+          />
+        )}
       </div>
     );
   }
