@@ -201,10 +201,16 @@ export async function generateReceiptPDF(
 
       if (logoBuffer) {
         try {
-          const logoWidth = Math.min(120, contentWidth);
-          const x = (pageWidth - logoWidth) / 2;
-          doc.image(logoBuffer, x, doc.y, { width: logoWidth });
-          doc.moveDown(0.5);
+          const maxLogoWidth = 80;
+          const maxLogoHeight = 60;
+          const x = (pageWidth - maxLogoWidth) / 2;
+          const startY = doc.y;
+          doc.image(logoBuffer, x, startY, {
+            fit: [maxLogoWidth, maxLogoHeight],
+            align: "center",
+            valign: "center",
+          });
+          doc.y = startY + maxLogoHeight + 5;
         } catch (err) {
           console.error("[pdf-receipt] Logo embed failed:", err);
         }
@@ -446,10 +452,9 @@ export async function generateReceiptPDF(
             const qrBuffer = Buffer.from(qrDataUrl.replace(/^data:image\/png;base64,/, ""), "base64");
             const qrSize = 80;
             const qrX = (pageWidth - qrSize) / 2;
-            doc.image(qrBuffer, qrX, doc.y, { width: qrSize, height: qrSize });
-            doc.moveDown(0.3);
-            doc.y += qrSize;
-            doc.moveDown(0.3);
+            const qrStartY = doc.y;
+            doc.image(qrBuffer, qrX, qrStartY, { width: qrSize, height: qrSize });
+            doc.y = qrStartY + qrSize + 5;
           } catch (err) {
             console.error("[pdf-receipt] QR code generation failed:", err);
           }
