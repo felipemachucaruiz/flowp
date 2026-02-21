@@ -1747,56 +1747,17 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
       gupshupMessage = { type: "video", url: resolvedMediaUrl, caption: caption || "" };
       previewText = `[video] ${(caption || "").substring(0, 80)}`;
     } else if (msgType === "audio") {
-      gupshupMessage = { type: "audio", url: resolvedMediaUrl };
       previewText = "[audio]";
 
       if (objectPath) {
-        try {
-          const objService = new ObjectStorageService();
-          const objectFile = await objService.getObjectEntityFile(objectPath);
-          const [fileBuffer] = await objectFile.download();
-          console.log(`[WhatsApp Send] Downloaded audio from storage: ${fileBuffer.length} bytes`);
-
-          const tokenResult = await getPartnerToken();
-          const appId = await getGupshupAppId();
-
-          if (tokenResult.status === "ok" && appId) {
-            const uploadForm = new FormData();
-            uploadForm.append("file", new Blob([fileBuffer], { type: "audio/ogg; codecs=opus" }), "voice-note.ogg");
-            uploadForm.append("file_type", "audio/ogg; codecs=opus");
-
-            const uploadResp = await fetch(
-              `https://partner.gupshup.io/partner/app/${encodeURIComponent(appId)}/upload/media`,
-              {
-                method: "POST",
-                headers: { "Authorization": tokenResult.token },
-                body: uploadForm,
-              }
-            );
-            const uploadText = await uploadResp.text();
-            console.log(`[WhatsApp Send] Partner media upload response: HTTP ${uploadResp.status} ${uploadText.substring(0, 500)}`);
-
-            let mediaHandleUrl: string | null = null;
-            try {
-              const uploadData = JSON.parse(uploadText);
-              mediaHandleUrl = uploadData?.mediaHandleUrl || uploadData?.handleUrl || uploadData?.url || uploadData?.mediaUrl || null;
-              if (!mediaHandleUrl && uploadData?.status === "success" && typeof uploadData?.data === "string") {
-                mediaHandleUrl = uploadData.data;
-              }
-            } catch {}
-
-            if (mediaHandleUrl) {
-              console.log(`[WhatsApp Send] Got media handle URL: ${mediaHandleUrl.substring(0, 120)}...`);
-              gupshupMessage = { type: "audio", url: mediaHandleUrl };
-            } else {
-              console.warn(`[WhatsApp Send] Could not extract media handle URL from upload response, falling back to signed URL`);
-            }
-          } else {
-            console.warn(`[WhatsApp Send] Partner token not available (status: ${tokenResult.status}), falling back to signed URL`);
-          }
-        } catch (uploadErr: any) {
-          console.error(`[WhatsApp Send] Media upload approach failed, falling back to signed URL:`, uploadErr.message);
-        }
+        const publicDomain = process.env.REPLIT_DEPLOYMENT_URL
+          || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+          || `${req.headers["x-forwarded-proto"] || req.protocol || "https"}://${req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000"}`;
+        const serverUrl = `${publicDomain}${objectPath}`;
+        gupshupMessage = { type: "audio", url: serverUrl };
+        console.log(`[WhatsApp Send] Audio using server proxy URL: ${serverUrl}`);
+      } else {
+        gupshupMessage = { type: "audio", url: resolvedMediaUrl };
       }
 
       console.log(`[WhatsApp Send] Audio message payload: ${JSON.stringify(gupshupMessage).substring(0, 200)}`);

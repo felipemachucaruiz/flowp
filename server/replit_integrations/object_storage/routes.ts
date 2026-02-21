@@ -115,24 +115,21 @@ export function registerObjectStorageRoutes(app: Express): void {
     limits: { fileSize: 100 * 1024 * 1024 },
   });
 
-  function convertWebmToOgg(inputBuffer: Buffer): Promise<Buffer> {
+  function convertWebmToMp3(inputBuffer: Buffer): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const id = randomUUID();
       const inputPath = join(tmpdir(), `voice_in_${id}.webm`);
-      const outputPath = join(tmpdir(), `voice_out_${id}.ogg`);
+      const outputPath = join(tmpdir(), `voice_out_${id}.mp3`);
 
       writeFile(inputPath, inputBuffer)
         .then(() => {
           execFile("ffmpeg", [
             "-i", inputPath,
-            "-c:a", "libopus",
-            "-b:a", "64k",
-            "-ar", "48000",
+            "-c:a", "libmp3lame",
+            "-b:a", "128k",
+            "-ar", "44100",
             "-ac", "1",
-            "-application", "audio",
-            "-vbr", "on",
             "-vn",
-            "-f", "ogg",
             "-y",
             outputPath,
           ], { timeout: 30000 }, async (error) => {
@@ -171,13 +168,16 @@ export function registerObjectStorageRoutes(app: Express): void {
         (uploadFilename?.endsWith(".webm") && uploadMimeType.startsWith("audio/"));
       if (isWebmAudio) {
         try {
-          console.log("[Media Upload] Converting WebM audio to OGG Opus for WhatsApp compatibility");
-          uploadBuffer = await convertWebmToOgg(file.buffer);
-          uploadMimeType = "audio/ogg; codecs=opus";
-          uploadFilename = uploadFilename.replace(/\.webm$/, ".ogg");
+          console.log("[Media Upload] Converting WebM audio to MP3 for WhatsApp/Gupshup compatibility");
+          uploadBuffer = await convertWebmToMp3(file.buffer);
+          uploadMimeType = "audio/mpeg";
+          uploadFilename = uploadFilename.replace(/\.webm$/, ".mp3");
+          if (!uploadFilename.endsWith(".mp3")) {
+            uploadFilename = "voice-note.mp3";
+          }
         } catch (convErr: any) {
           console.error("[Media Upload] ffmpeg conversion failed:", convErr.message);
-          return res.status(500).json({ error: "Voice note conversion failed. WhatsApp requires OGG Opus format." });
+          return res.status(500).json({ error: "Voice note conversion failed." });
         }
       }
 
