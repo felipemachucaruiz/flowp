@@ -182,7 +182,7 @@ export function MobileBottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border safe-area-pb md:hidden">
-      <div className="flex items-center justify-around h-14">
+      <div className="flex items-center justify-around h-16">
         {mainNavItems.slice(0, 4).map((item) => {
           const isActive = location === item.url || location.startsWith(item.url + "/");
           return (
@@ -190,15 +190,15 @@ export function MobileBottomNav() {
               <Button
                 variant="ghost"
                 className={cn(
-                  "flex flex-col items-center justify-center min-w-[64px] h-full px-2 py-1.5 gap-0.5 rounded-none no-default-hover-elevate no-default-active-elevate",
+                  "flex flex-col items-center justify-center min-w-[72px] h-full px-3 py-2 gap-1 rounded-none no-default-hover-elevate no-default-active-elevate",
                   isActive
                     ? "text-primary"
                     : "text-muted-foreground"
                 )}
                 data-testid={`mobile-nav-${item.title.toLowerCase().replace(/\s+/g, "-")}`}
               >
-                <item.icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
-                <span className="text-[10px] font-medium leading-none truncate max-w-[64px]">{item.title}</span>
+                <item.icon className={cn("w-6 h-6", isActive && "stroke-[2.5]")} />
+                <span className="text-[11px] font-medium leading-none truncate max-w-[72px]">{item.title}</span>
               </Button>
             </Link>
           );
@@ -208,11 +208,11 @@ export function MobileBottomNav() {
           <SheetTrigger asChild>
             <Button
               variant="ghost"
-              className="flex flex-col items-center justify-center min-w-[64px] h-full px-2 py-1.5 gap-0.5 rounded-none text-muted-foreground no-default-hover-elevate no-default-active-elevate"
+              className="flex flex-col items-center justify-center min-w-[72px] h-full px-3 py-2 gap-1 rounded-none text-muted-foreground no-default-hover-elevate no-default-active-elevate"
               data-testid="mobile-nav-more"
             >
-              <MoreHorizontal className="w-5 h-5" />
-              <span className="text-[10px] font-medium leading-none">{t("nav.more") || "More"}</span>
+              <MoreHorizontal className="w-6 h-6" />
+              <span className="text-[11px] font-medium leading-none">{t("nav.more") || "More"}</span>
             </Button>
           </SheetTrigger>
           <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl px-4 pb-6 safe-area-pb">
