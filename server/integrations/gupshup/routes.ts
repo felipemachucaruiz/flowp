@@ -1379,29 +1379,30 @@ whatsappRouter.put("/profile/photo", whatsappAddonGate, async (req: Request, res
       return res.status(400).json({ error: "No image file provided" });
     }
 
-    const FormData = (await import("form-data")).default;
+    console.log(`[whatsapp] Uploading profile photo: ${file.originalname}, size=${file.size}, type=${file.mimetype}`);
+
+    const blob = new Blob([file.buffer], { type: file.mimetype || "image/jpeg" });
     const formData = new FormData();
-    formData.append("image", file.buffer, {
-      filename: file.originalname || "profile.jpg",
-      contentType: file.mimetype || "image/jpeg",
+    formData.append("image", blob, file.originalname || "profile.jpg");
+
+    const url = `https://api.gupshup.io/wa/app/${creds.appId}/business/profile/photo`;
+    console.log(`[whatsapp] Profile photo PUT to: ${url}`);
+
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: { "apikey": creds.apiKey },
+      body: formData,
     });
 
-    const response = await fetch(`https://api.gupshup.io/wa/app/${creds.appId}/business/profile/photo`, {
-      method: "PUT",
-      headers: {
-        "apikey": creds.apiKey,
-        ...formData.getHeaders(),
-      },
-      body: formData as any,
-    });
+    const text = await response.text();
+    console.log(`[whatsapp] Profile photo upload response: ${response.status} ${text}`);
 
     if (!response.ok) {
-      const text = await response.text();
-      console.error(`[whatsapp] Profile photo upload failed: ${response.status} ${text}`);
-      return res.status(response.status).json({ error: "Failed to upload profile photo" });
+      return res.status(response.status).json({ error: text || "Failed to upload profile photo" });
     }
 
-    const data = await response.json();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { status: "success", message: text }; }
     return res.json(data);
   } catch (error: any) {
     console.error(`[whatsapp] Profile photo upload error:`, error.message);
