@@ -1322,7 +1322,7 @@ export default function POSPage() {
       )}
 
       {/* Mobile Cart Bar - Fixed above bottom nav, hidden when cart is open */}
-      {isMobile && !showMobileCart && cart.length > 0 && (
+      {isMobile && !showMobileCart && !showPaymentDialog && cart.length > 0 && (
         <div 
           className="fixed left-0 right-0 z-[9999] px-3 pb-1"
           style={{ 
