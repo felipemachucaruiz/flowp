@@ -219,10 +219,13 @@ function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen min-h-dvh w-full bg-background">
         {!isMobile && <AppSidebar />}
         <div className="flex flex-col flex-1 min-w-0">
-          <header className={cn(
-            "flex items-center justify-between gap-2 border-b px-3 bg-card shrink-0",
-            isMobile ? "min-h-[44px] py-2 safe-area-pt" : "h-10"
-          )}>
+          <header
+            className={cn(
+              "flex items-center justify-between gap-2 border-b px-3 bg-card shrink-0",
+              isMobile ? "min-h-[44px] py-2" : "h-10"
+            )}
+            style={isMobile ? { paddingTop: 'max(0.5rem, env(safe-area-inset-top, 0px))' } : undefined}
+          >
             {!isMobile && <SidebarTrigger data-testid="button-sidebar-toggle" />}
             {isMobile && <div className="w-1" />}
             <div className="flex items-center gap-2">

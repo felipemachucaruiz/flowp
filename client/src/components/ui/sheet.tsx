@@ -53,19 +53,23 @@ interface SheetContentProps
   extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content>,
     VariantProps<typeof sheetVariants> {}
 
-const sideSheetSafeArea = "pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]";
-
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps & { hideClose?: boolean }
->(({ side = "right", className, children, hideClose, ...props }, ref) => {
+>(({ side = "right", className, children, hideClose, style, ...props }, ref) => {
   const isSideSheet = side === "left" || side === "right";
+  const safeAreaStyle = isSideSheet ? {
+    paddingTop: 'env(safe-area-inset-top, 0px)',
+    paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+    ...style,
+  } : style;
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
         ref={ref}
-        className={cn(sheetVariants({ side }), isSideSheet && sideSheetSafeArea, className)}
+        className={cn(sheetVariants({ side }), className)}
+        style={safeAreaStyle}
         {...props}
       >
         {children}
