@@ -372,7 +372,7 @@ export default function WhatsAppChatPage() {
       return res.json();
     },
     enabled: !!tenantId && hasChat,
-    refetchInterval: 30000,
+    refetchInterval: 5000,
   });
 
   const conversations = conversationsData?.conversations || [];
@@ -471,7 +471,7 @@ export default function WhatsAppChatPage() {
       return res.json();
     },
     enabled: !!tenantId && !!selectedConversation,
-    refetchInterval: 10000,
+    refetchInterval: 5000,
   });
 
   const markReadMutation = useMutation({
@@ -644,7 +644,7 @@ export default function WhatsAppChatPage() {
               (old: ChatMessage[] | undefined) => old ? [...old, data.message] : [data.message]
             );
           }
-          queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
+          queryClient.refetchQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
         }
         if (data.type === "whatsapp_status" && data.conversationId === selectedConversation?.id) {
           queryClient.setQueryData(
