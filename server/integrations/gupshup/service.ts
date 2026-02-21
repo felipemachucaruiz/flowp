@@ -632,7 +632,7 @@ export async function sendDocumentMessage(
       source: creds.senderPhone,
       destination: destinationPhone,
       "src.name": creds.appName,
-      message: JSON.stringify({ type: "file", url: documentUrl, filename, caption }),
+      message: JSON.stringify({ type: "file", url: documentUrl, filename }),
     });
 
     console.log(`[whatsapp] Gupshup doc response:`, JSON.stringify(data));
