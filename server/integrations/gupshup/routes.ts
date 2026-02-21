@@ -1311,6 +1311,44 @@ whatsappRouter.put("/profile/photo", whatsappAddonGate, async (req: Request, res
 });
 
 // ==========================================
+// MEDIA PROXY (for Gupshup filemanager URLs that require API key auth)
+// ==========================================
+
+whatsappRouter.get("/chat/media-proxy", whatsappAddonGate, async (req: Request, res: Response) => {
+  const tenantId = req.headers["x-tenant-id"] as string;
+  try {
+    const mediaUrl = req.query.url as string;
+    if (!mediaUrl || !mediaUrl.startsWith("https://filemanager.gupshup.io")) {
+      return res.status(400).json({ error: "Invalid media URL" });
+    }
+
+    const creds = await getEffectiveGupshupCredentials(tenantId);
+    if (!creds) {
+      return res.status(400).json({ error: "WhatsApp not configured" });
+    }
+
+    const response = await fetch(mediaUrl, {
+      headers: { "apikey": creds.apiKey },
+    });
+
+    if (!response.ok) {
+      console.error(`[WhatsApp Media Proxy] Failed to fetch: ${response.status}`);
+      return res.status(response.status).json({ error: "Failed to fetch media" });
+    }
+
+    const contentType = response.headers.get("content-type") || "application/octet-stream";
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "private, max-age=86400");
+
+    const buffer = await response.arrayBuffer();
+    return res.send(Buffer.from(buffer));
+  } catch (error: any) {
+    console.error(`[WhatsApp Media Proxy] Error:`, error.message);
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
 // CHAT ROUTES
 // ==========================================
 

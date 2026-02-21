@@ -101,13 +101,22 @@ function StatusIcon({ status }: { status: string }) {
   }
 }
 
+function resolveMediaUrl(url: string): string {
+  if (url && url.includes("filemanager.gupshup.io")) {
+    return `/api/whatsapp/chat/media-proxy?url=${encodeURIComponent(url)}`;
+  }
+  return url;
+}
+
 function MediaContent({ message }: { message: ChatMessage }) {
   const { contentType, mediaUrl, mediaFilename, caption, body } = message;
+
+  const proxiedUrl = mediaUrl ? resolveMediaUrl(mediaUrl) : "";
 
   if (contentType === "image" && mediaUrl) {
     return (
       <div>
-        <img src={mediaUrl} alt={caption || "Image"} className="max-w-[240px] rounded-lg cursor-pointer" onClick={() => window.open(mediaUrl, "_blank")} />
+        <img src={proxiedUrl} alt={caption || "Image"} className="max-w-[240px] rounded-lg cursor-pointer" onClick={() => window.open(proxiedUrl, "_blank")} />
         {caption && <p className="mt-1 text-sm">{caption}</p>}
       </div>
     );
@@ -116,19 +125,19 @@ function MediaContent({ message }: { message: ChatMessage }) {
   if (contentType === "video" && mediaUrl) {
     return (
       <div>
-        <video src={mediaUrl} controls className="max-w-[240px] rounded-lg" />
+        <video src={proxiedUrl} controls className="max-w-[240px] rounded-lg" />
         {caption && <p className="mt-1 text-sm">{caption}</p>}
       </div>
     );
   }
 
   if (contentType === "audio" && mediaUrl) {
-    return <audio src={mediaUrl} controls className="max-w-[240px]" />;
+    return <audio src={proxiedUrl} controls className="max-w-[240px]" />;
   }
 
   if (contentType === "document" && mediaUrl) {
     return (
-      <a href={mediaUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted" data-testid="link-document">
+      <a href={proxiedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted" data-testid="link-document">
         <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" />
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{mediaFilename || "Document"}</p>
@@ -139,7 +148,7 @@ function MediaContent({ message }: { message: ChatMessage }) {
   }
 
   if (contentType === "sticker" && mediaUrl) {
-    return <img src={mediaUrl} alt="Sticker" className="w-24 h-24" />;
+    return <img src={proxiedUrl} alt="Sticker" className="w-24 h-24" />;
   }
 
   if (contentType === "notification") {
