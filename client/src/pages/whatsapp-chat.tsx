@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { useSubscription } from "@/lib/use-subscription";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { SUBSCRIPTION_FEATURES } from "@shared/schema";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -241,7 +242,7 @@ function MediaContent({ message, tenantId }: { message: ChatMessage; tenantId?: 
         <img
           src={proxiedUrl}
           alt={caption || "Image"}
-          className="max-w-[240px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+          className="max-w-full sm:max-w-[240px] rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
           onClick={() => setShowLightbox(true)}
           data-testid="img-chat-image"
         />
@@ -260,7 +261,7 @@ function MediaContent({ message, tenantId }: { message: ChatMessage; tenantId?: 
   if (contentType === "video" && mediaUrl) {
     return (
       <div>
-        <video src={proxiedUrl} controls className="max-w-[240px] rounded-lg" />
+        <video src={proxiedUrl} controls className="max-w-full sm:max-w-[240px] rounded-lg" />
         {caption && <p className="mt-1 text-sm">{caption}</p>}
       </div>
     );
@@ -297,7 +298,7 @@ function MediaContent({ message, tenantId }: { message: ChatMessage; tenantId?: 
     );
   }
 
-  return <p className="text-sm whitespace-pre-wrap">{body}</p>;
+  return <p className="text-sm whitespace-pre-wrap break-words">{body}</p>;
 }
 
 function MessageBubble({ message, isGrouped, tenantId }: { message: ChatMessage; isGrouped: boolean; tenantId?: string }) {
@@ -305,8 +306,8 @@ function MessageBubble({ message, isGrouped, tenantId }: { message: ChatMessage;
   const time = new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className={`flex ${isOutbound ? "justify-end" : "justify-start"} ${isGrouped ? "mt-0.5" : "mt-3"}`} data-testid={`message-bubble-${message.id}`}>
-      <div className={`max-w-[75%] rounded-2xl px-3 py-2 ${
+    <div className={`flex ${isOutbound ? "justify-end" : "justify-start"} ${isGrouped ? "mt-0.5" : "mt-3"} px-1`} data-testid={`message-bubble-${message.id}`}>
+      <div className={`max-w-[80%] sm:max-w-[75%] rounded-2xl px-3 py-2 break-words ${
         isOutbound 
           ? "bg-primary text-primary-foreground rounded-br-md" 
           : "bg-muted rounded-bl-md"
@@ -364,6 +365,7 @@ export default function WhatsAppChatPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const isMobile = useIsMobile();
   const tenantId = (tenant as any)?.id;
   const hasChat = hasFeature(SUBSCRIPTION_FEATURES.WHATSAPP_CHAT as any);
 
@@ -985,7 +987,7 @@ export default function WhatsAppChatPage() {
 
   return (
     <div className="flex h-full bg-background" data-testid="whatsapp-chat-page">
-      <div className={`w-full md:w-80 lg:w-96 border-r flex flex-col ${showMobileConversation ? "hidden md:flex" : "flex"}`}>
+      <div className={`w-full md:w-80 lg:w-96 border-r flex flex-col min-h-0 ${showMobileConversation ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 border-b space-y-2">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -1053,21 +1055,21 @@ export default function WhatsAppChatPage() {
         </ScrollArea>
       </div>
 
-      <div className={`flex-1 flex flex-col ${!showMobileConversation ? "hidden md:flex" : "flex"}`}>
+      <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${!showMobileConversation ? "hidden md:flex" : "flex"}`}>
         {selectedConversation ? (
           <>
-            <div className="flex items-center gap-3 p-3 border-b bg-background">
-              <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setShowMobileConversation(false)} data-testid="button-back-conversations">
+            <div className="flex items-center gap-2 p-2 sm:p-3 border-b bg-background shrink-0">
+              <Button variant="ghost" size="icon" className="md:hidden flex-shrink-0" onClick={() => setShowMobileConversation(false)} data-testid="button-back-conversations">
                 <ArrowLeft className="w-4 h-4" />
               </Button>
-              <Avatar className="w-9 h-9">
+              <Avatar className="w-8 h-8 sm:w-9 sm:h-9 flex-shrink-0">
                 <AvatarFallback className="bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-xs">
                   {getInitials(selectedConversation.customerName, selectedConversation.customerPhone)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{selectedConversation.customerName || selectedConversation.customerPhone}</p>
-                <p className="text-xs text-muted-foreground">{selectedConversation.customerPhone}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{selectedConversation.customerPhone}</p>
               </div>
               <TooltipProvider>
                 <Tooltip>
@@ -1131,7 +1133,7 @@ export default function WhatsAppChatPage() {
               </AlertDialog>
             </div>
 
-            <ScrollArea className="flex-1 p-4">
+            <ScrollArea className="flex-1 min-h-0 p-2 sm:p-4">
               {loadingMessages ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   {t("common.loading")}
@@ -1149,7 +1151,7 @@ export default function WhatsAppChatPage() {
               )}
             </ScrollArea>
 
-            <div className="border-t p-2 bg-background relative">
+            <div className="border-t p-2 bg-background relative shrink-0">
               {!sessionOpen ? (
                 <div className="flex flex-col items-center gap-2 py-2" data-testid="session-closed-banner">
                   {(() => {
@@ -1212,7 +1214,7 @@ export default function WhatsAppChatPage() {
               ) : (
                 <>
                   {showEmojiPicker && (
-                    <div className="absolute bottom-full left-0 mb-1 bg-popover border rounded-lg shadow-lg p-2 grid grid-cols-10 gap-1 z-50">
+                    <div className="absolute bottom-full left-0 mb-1 bg-popover border rounded-lg shadow-lg p-2 grid grid-cols-10 gap-1 z-50 max-w-[calc(100vw-1rem)]">
                       {emojis.map((emoji) => (
                         <button
                           key={emoji}
@@ -1228,69 +1230,71 @@ export default function WhatsAppChatPage() {
                       ))}
                     </div>
                   )}
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => setShowEmojiPicker(!showEmojiPicker)} data-testid="button-emoji-picker">
-                      <Smile className="w-5 h-5 text-muted-foreground" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => fileInputRef.current?.click()} data-testid="button-attach-file">
-                      <Paperclip className="w-5 h-5 text-muted-foreground" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="flex-shrink-0 h-9 w-9"
-                      onClick={() => setProductPickerDialog(true)}
-                      title={t("whatsapp_chat.send_product_info" as any) || "Send Product Info"}
-                      data-testid="button-send-product-info"
-                    >
-                      <Package className="w-5 h-5 text-muted-foreground" />
-                    </Button>
-                    {whatsappConfig?.catalogId && (
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    onChange={handleFileUpload}
+                    data-testid="input-file-upload"
+                  />
+                  {isRecording ? (
+                    <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="flex-shrink-0 h-9 w-9"
-                        onClick={() => setCatalogDialog(true)}
-                        title={t("whatsapp_chat.send_catalog" as any) || "Send Product Catalog"}
-                        data-testid="button-send-catalog"
+                        className="flex-shrink-0 h-9 w-9 text-red-500 hover:text-red-600"
+                        onClick={cancelRecording}
+                        data-testid="button-cancel-recording"
                       >
-                        <ShoppingCart className="w-5 h-5 text-muted-foreground" />
+                        <Trash2 className="w-4 h-4" />
                       </Button>
-                    )}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="hidden"
-                      accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
-                      onChange={handleFileUpload}
-                      data-testid="input-file-upload"
-                    />
-                    {isRecording ? (
-                      <>
+                      <div className="flex-1 flex items-center gap-2 px-3">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                        <span className="text-sm font-medium text-red-500">{formatRecordingTime(recordingDuration)}</span>
+                      </div>
+                      <Button
+                        size="icon"
+                        className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
+                        onClick={stopRecording}
+                        data-testid="button-stop-recording"
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : isMobile ? (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-0.5">
+                        <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8" onClick={() => setShowEmojiPicker(!showEmojiPicker)} data-testid="button-emoji-picker">
+                          <Smile className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="flex-shrink-0 h-8 w-8" onClick={() => fileInputRef.current?.click()} data-testid="button-attach-file">
+                          <Paperclip className="w-4 h-4 text-muted-foreground" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="flex-shrink-0 h-9 w-9 text-red-500 hover:text-red-600"
-                          onClick={cancelRecording}
-                          data-testid="button-cancel-recording"
+                          className="flex-shrink-0 h-8 w-8"
+                          onClick={() => setProductPickerDialog(true)}
+                          title={t("whatsapp_chat.send_product_info" as any) || "Send Product Info"}
+                          data-testid="button-send-product-info"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Package className="w-4 h-4 text-muted-foreground" />
                         </Button>
-                        <div className="flex-1 flex items-center gap-2 px-3">
-                          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                          <span className="text-sm font-medium text-red-500">{formatRecordingTime(recordingDuration)}</span>
-                        </div>
-                        <Button
-                          size="icon"
-                          className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
-                          onClick={stopRecording}
-                          data-testid="button-stop-recording"
-                        >
-                          <Send className="w-4 h-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
+                        {whatsappConfig?.catalogId && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="flex-shrink-0 h-8 w-8"
+                            onClick={() => setCatalogDialog(true)}
+                            title={t("whatsapp_chat.send_catalog" as any) || "Send Product Catalog"}
+                            data-testid="button-send-catalog"
+                          >
+                            <ShoppingCart className="w-4 h-4 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
                         <Input
                           placeholder={t("whatsapp_chat.type_message")}
                           value={messageInput}
@@ -1319,9 +1323,68 @@ export default function WhatsAppChatPage() {
                             <Mic className="w-4 h-4" />
                           </Button>
                         )}
-                      </>
-                    )}
-                  </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => setShowEmojiPicker(!showEmojiPicker)} data-testid="button-emoji-picker">
+                        <Smile className="w-5 h-5 text-muted-foreground" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => fileInputRef.current?.click()} data-testid="button-attach-file">
+                        <Paperclip className="w-5 h-5 text-muted-foreground" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="flex-shrink-0 h-9 w-9"
+                        onClick={() => setProductPickerDialog(true)}
+                        title={t("whatsapp_chat.send_product_info" as any) || "Send Product Info"}
+                        data-testid="button-send-product-info"
+                      >
+                        <Package className="w-5 h-5 text-muted-foreground" />
+                      </Button>
+                      {whatsappConfig?.catalogId && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="flex-shrink-0 h-9 w-9"
+                          onClick={() => setCatalogDialog(true)}
+                          title={t("whatsapp_chat.send_catalog" as any) || "Send Product Catalog"}
+                          data-testid="button-send-catalog"
+                        >
+                          <ShoppingCart className="w-5 h-5 text-muted-foreground" />
+                        </Button>
+                      )}
+                      <Input
+                        placeholder={t("whatsapp_chat.type_message")}
+                        value={messageInput}
+                        onChange={(e) => setMessageInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="flex-1 h-9"
+                        data-testid="input-message"
+                      />
+                      {messageInput.trim() ? (
+                        <Button
+                          size="icon"
+                          className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
+                          onClick={handleSend}
+                          disabled={sendMessageMutation.isPending}
+                          data-testid="button-send-message"
+                        >
+                          <Send className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          size="icon"
+                          className="flex-shrink-0 h-9 w-9 bg-green-500 hover:bg-green-600"
+                          onClick={startRecording}
+                          data-testid="button-start-recording"
+                        >
+                          <Mic className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
             </div>
