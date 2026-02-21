@@ -1310,25 +1310,31 @@ export default function POSPage() {
         </div>
       )}
 
-      {/* Mobile Cart FAB - Fixed at bottom right, hidden when cart is open */}
-      {isMobile && !showMobileCart && (
+      {/* Mobile Cart Bar - Fixed above bottom nav, hidden when cart is open */}
+      {isMobile && !showMobileCart && cart.length > 0 && (
         <div 
-          className="fixed right-4 z-[9999]"
+          className="fixed left-0 right-0 z-[9999] px-3 pb-1"
           style={{ 
-            bottom: 'calc(72px + env(safe-area-inset-bottom, 0px))',
+            bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
           }}
         >
           <button
-            className="h-16 w-16 rounded-full shadow-2xl bg-primary text-primary-foreground flex items-center justify-center active:scale-95 transition-transform"
+            className="w-full flex items-center justify-between px-4 py-3 rounded-xl shadow-lg bg-primary text-primary-foreground active:scale-[0.98] transition-transform"
             onClick={() => setShowMobileCart(true)}
             data-testid="button-mobile-cart"
           >
-            <ShoppingCart className="w-7 h-7" />
-            {cart.length > 0 && (
-              <span className="absolute -top-1 -right-1 h-7 w-7 rounded-full bg-destructive text-destructive-foreground text-sm font-bold flex items-center justify-center">
-                {cart.length}
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5" />
+              <span className="font-semibold text-sm">
+                {t("pos.view_order")}
               </span>
-            )}
+              <span className="bg-primary-foreground/20 text-primary-foreground text-xs font-bold px-2 py-0.5 rounded-full">
+                {cart.length} {cart.length === 1 ? "item" : t("pos.items")}
+              </span>
+            </div>
+            <span className="font-bold text-sm">
+              {formatCurrency(getTotalWithDiscount(taxRate), currency)}
+            </span>
           </button>
         </div>
       )}
