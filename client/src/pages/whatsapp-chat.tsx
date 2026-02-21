@@ -26,7 +26,6 @@ import {
   FileText,
   Smile,
   Paperclip,
-  Phone,
   Check,
   CheckCheck,
   Clock,
@@ -754,9 +753,6 @@ export default function WhatsAppChatPage() {
                 <p className="text-sm font-medium truncate">{selectedConversation.customerName || selectedConversation.customerPhone}</p>
                 <p className="text-xs text-muted-foreground">{selectedConversation.customerPhone}</p>
               </div>
-              <Button variant="ghost" size="icon" data-testid="button-phone-call">
-                <Phone className="w-4 h-4" />
-              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="ghost" size="icon" data-testid="button-delete-conversation">
