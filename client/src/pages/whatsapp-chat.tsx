@@ -350,6 +350,7 @@ export default function WhatsAppChatPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isInitialScrollRef = useRef(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -607,10 +608,19 @@ export default function WhatsAppChatPage() {
     if (selectedConversation?.unreadCount && selectedConversation.unreadCount > 0) {
       markReadMutation.mutate(selectedConversation.id);
     }
+    isInitialScrollRef.current = true;
   }, [selectedConversation?.id]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!messages || messages.length === 0) return;
+    if (isInitialScrollRef.current) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+      }, 50);
+      isInitialScrollRef.current = false;
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   useEffect(() => {
