@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import QRCode from "qrcode";
 
 export interface ReceiptItem {
   name: string;
@@ -434,6 +435,25 @@ export async function generateReceiptPDF(
 
         if (data.electronicBilling.cufe) {
           doc.moveDown(0.3);
+
+          try {
+            const dianUrl = `https://catalogo-vpfe.dian.gov.co/User/SearchDocument?DocumentKey=${data.electronicBilling.cufe}`;
+            const qrDataUrl = await QRCode.toDataURL(dianUrl, {
+              width: 200,
+              margin: 1,
+              errorCorrectionLevel: "M",
+            });
+            const qrBuffer = Buffer.from(qrDataUrl.replace(/^data:image\/png;base64,/, ""), "base64");
+            const qrSize = 80;
+            const qrX = (pageWidth - qrSize) / 2;
+            doc.image(qrBuffer, qrX, doc.y, { width: qrSize, height: qrSize });
+            doc.moveDown(0.3);
+            doc.y += qrSize;
+            doc.moveDown(0.3);
+          } catch (err) {
+            console.error("[pdf-receipt] QR code generation failed:", err);
+          }
+
           doc.fontSize(6).font("Helvetica").fillColor("#000000");
           doc.text("CUFE:", 15, doc.y, { width: contentWidth });
           doc.text(data.electronicBilling.cufe, 15, doc.y, { width: contentWidth });
