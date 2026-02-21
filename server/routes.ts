@@ -83,6 +83,102 @@ function createPublicReceiptUrl(orderId: string, tenantId: string): string {
   return `${appUrl}/api/public-receipt/${orderId}?t=${tenantId}&exp=${expiresAt}&sig=${sig}`;
 }
 
+import { objectStorageClient } from "./replit_integrations/object_storage/objectStorage";
+
+async function generateAndUploadReceiptPdf(orderId: string, tenantId: string): Promise<string | null> {
+  try {
+    const order = await storage.getOrder(orderId);
+    if (!order) return null;
+
+    const tenant = await storage.getTenant(tenantId);
+    const items = await storage.getOrderItems(orderId);
+    const paymentsList = await storage.getPaymentsByOrder(orderId);
+    const currencySymbol = getCurrencySymbol(tenant?.currency);
+    const lang = tenant?.language || "es";
+
+    const itemsForPdf = await Promise.all(items.map(async (item) => {
+      const product = await storage.getProduct(item.productId);
+      return {
+        name: product?.name || "Product",
+        quantity: item.quantity,
+        price: `${currencySymbol}${parseFloat(item.unitPrice).toFixed(0)}`,
+      };
+    }));
+
+    const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
+
+    const matiasConfig = await db.query.tenantIntegrationsMatias.findFirst({
+      where: eq(tenantIntegrationsMatias.tenantId, tenantId),
+    });
+
+    const pdfBuffer = await generateReceiptPDF({
+      receiptNumber: order.orderNumber,
+      date: orderDate.toLocaleDateString(lang === "es" ? "es-CO" : lang, { year: "numeric", month: "short", day: "numeric" }),
+      time: orderDate.toLocaleTimeString(lang === "es" ? "es-CO" : lang, { hour: "2-digit", minute: "2-digit" }),
+      items: itemsForPdf,
+      subtotal: `${currencySymbol}${parseFloat(order.subtotal).toFixed(0)}`,
+      tax: `${currencySymbol}${parseFloat(order.taxAmount).toFixed(0)}`,
+      total: `${currencySymbol}${parseFloat(order.total).toFixed(0)}`,
+      paymentMethod: paymentsList[0]?.method || "cash",
+      companyName: tenant?.name || "Flowp POS",
+      companyAddress: tenant?.address || undefined,
+      companyPhone: tenant?.phone || undefined,
+      currency: tenant?.currency || "COP",
+      electronicBilling: order.cufe ? {
+        cufe: order.cufe,
+        documentNumber: order.orderNumber,
+        prefix: order.prefix || matiasConfig?.defaultPrefix,
+        resolutionNumber: matiasConfig?.defaultResolutionNumber,
+        resolutionStartDate: matiasConfig?.defaultResolutionStartDate || undefined,
+        resolutionEndDate: matiasConfig?.defaultResolutionEndDate || undefined,
+        authRangeFrom: matiasConfig?.startingNumber || undefined,
+        authRangeTo: matiasConfig?.endingNumber || undefined,
+      } : undefined,
+    }, lang);
+
+    const privateDir = process.env.PRIVATE_OBJECT_DIR;
+    if (!privateDir) {
+      console.warn("[receipt-pdf] PRIVATE_OBJECT_DIR not set, falling back to public URL");
+      return createPublicReceiptUrl(orderId, tenantId);
+    }
+
+    const objectPath = `${privateDir}/receipts/Recibo_${order.orderNumber}_${orderId.slice(0, 8)}.pdf`;
+    const parts = objectPath.startsWith("/") ? objectPath.slice(1).split("/") : objectPath.split("/");
+    const bucketName = parts[0];
+    const objectName = parts.slice(1).join("/");
+
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    await file.save(Buffer.from(pdfBuffer), {
+      metadata: { contentType: "application/pdf" },
+    });
+
+    const sidecarUrl = "http://127.0.0.1:1106";
+    const signResponse = await fetch(`${sidecarUrl}/object-storage/signed-object-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bucket_name: bucketName,
+        object_name: objectName,
+        method: "GET",
+        expires_at: new Date(Date.now() + RECEIPT_LINK_TTL_MS).toISOString(),
+      }),
+    });
+
+    if (!signResponse.ok) {
+      console.error("[receipt-pdf] Failed to sign URL:", signResponse.status);
+      return createPublicReceiptUrl(orderId, tenantId);
+    }
+
+    const { signed_url } = await signResponse.json() as { signed_url: string };
+    console.log(`[receipt-pdf] Uploaded and signed receipt PDF for order ${order.orderNumber}`);
+    return signed_url;
+  } catch (error) {
+    console.error("[receipt-pdf] Error generating/uploading PDF:", error);
+    return createPublicReceiptUrl(orderId, tenantId);
+  }
+}
+
 // WebSocket clients by tenant for real-time KDS updates
 const wsClients = new Map<string, Set<WebSocket>>();
 
@@ -2122,19 +2218,20 @@ export async function registerRoutes(
           const tenant = await storage.getTenant(tenantId);
           const orderTotal = parseFloat(tab.total);
           const pointsEarned = Math.floor(orderTotal / 1000);
-          const receiptPdfUrl = createPublicReceiptUrl(id, tenantId);
           const fullPhone = `${customer.phoneCountryCode || "57"}${customer.phone.replace(/\D/g, "")}`;
-          sendReceiptNotification(
-            tenantId,
-            fullPhone,
-            updatedTab?.orderNumber || id.slice(0, 8),
-            tab.total,
-            tenant?.name || "Flowp",
-            tenant?.currency || "COP",
-            pointsEarned,
-            receiptPdfUrl,
-            customer.name
-          ).catch(err => console.error("[whatsapp] receipt notification error:", err));
+          generateAndUploadReceiptPdf(id, tenantId).then(receiptPdfUrl => {
+            sendReceiptNotification(
+              tenantId,
+              fullPhone,
+              updatedTab?.orderNumber || id.slice(0, 8),
+              tab.total,
+              tenant?.name || "Flowp",
+              tenant?.currency || "COP",
+              pointsEarned,
+              receiptPdfUrl || undefined,
+              customer.name
+            ).catch(err => console.error("[whatsapp] receipt notification error:", err));
+          }).catch(err => console.error("[whatsapp] receipt PDF generation error:", err));
         }
       }
     } catch (error) {
@@ -2465,19 +2562,20 @@ export async function registerRoutes(
 
           if (customer.phone) {
             const tenantForWa = await storage.getTenant(tenantId);
-            const receiptPdfUrl = createPublicReceiptUrl(order.id, tenantId);
             const fullPhone = `${customer.phoneCountryCode || "57"}${customer.phone.replace(/\D/g, "")}`;
-            sendReceiptNotification(
-              tenantId,
-              fullPhone,
-              order.orderNumber.toString(),
-              order.total,
-              tenantForWa?.name || "Flowp",
-              tenantForWa?.currency || "COP",
-              pointsEarned,
-              receiptPdfUrl,
-              customer.name
-            ).catch(err => console.error("[whatsapp] receipt notification error:", err));
+            generateAndUploadReceiptPdf(order.id, tenantId).then(receiptPdfUrl => {
+              sendReceiptNotification(
+                tenantId,
+                fullPhone,
+                order.orderNumber.toString(),
+                order.total,
+                tenantForWa?.name || "Flowp",
+                tenantForWa?.currency || "COP",
+                pointsEarned,
+                receiptPdfUrl || undefined,
+                customer.name
+              ).catch(err => console.error("[whatsapp] receipt notification error:", err));
+            }).catch(err => console.error("[whatsapp] receipt PDF generation error:", err));
           }
         }
       }
