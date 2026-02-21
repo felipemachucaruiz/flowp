@@ -1,5 +1,10 @@
 import type { Express } from "express";
 import multer from "multer";
+import { execFile } from "child_process";
+import { writeFile, readFile, unlink } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+import { randomUUID } from "crypto";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 
 /**
@@ -110,11 +115,65 @@ export function registerObjectStorageRoutes(app: Express): void {
     limits: { fileSize: 100 * 1024 * 1024 },
   });
 
+  function convertWebmToOgg(inputBuffer: Buffer): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const id = randomUUID();
+      const inputPath = join(tmpdir(), `voice_in_${id}.webm`);
+      const outputPath = join(tmpdir(), `voice_out_${id}.ogg`);
+
+      writeFile(inputPath, inputBuffer)
+        .then(() => {
+          execFile("ffmpeg", [
+            "-i", inputPath,
+            "-c:a", "libopus",
+            "-b:a", "48k",
+            "-vn",
+            "-y",
+            outputPath,
+          ], { timeout: 30000 }, async (error) => {
+            try {
+              if (error) {
+                console.error("[ffmpeg] Conversion error:", error.message);
+                await unlink(inputPath).catch(() => {});
+                await unlink(outputPath).catch(() => {});
+                return reject(error);
+              }
+              const outputBuffer = await readFile(outputPath);
+              await unlink(inputPath).catch(() => {});
+              await unlink(outputPath).catch(() => {});
+              resolve(outputBuffer);
+            } catch (e) {
+              reject(e);
+            }
+          });
+        })
+        .catch(reject);
+    });
+  }
+
   app.post("/api/upload/media", mediaUpload.single("file"), async (req, res) => {
     try {
       const file = req.file;
       if (!file) {
         return res.status(400).json({ error: "No file provided" });
+      }
+
+      let uploadBuffer = file.buffer;
+      let uploadMimeType = file.mimetype || "application/octet-stream";
+      let uploadFilename = file.originalname;
+
+      const isWebmAudio = uploadMimeType.startsWith("audio/webm") ||
+        (uploadFilename?.endsWith(".webm") && uploadMimeType.startsWith("audio/"));
+      if (isWebmAudio) {
+        try {
+          console.log("[Media Upload] Converting WebM audio to OGG Opus for WhatsApp compatibility");
+          uploadBuffer = await convertWebmToOgg(file.buffer);
+          uploadMimeType = "audio/ogg; codecs=opus";
+          uploadFilename = uploadFilename.replace(/\.webm$/, ".ogg");
+        } catch (convErr: any) {
+          console.error("[Media Upload] ffmpeg conversion failed:", convErr.message);
+          return res.status(500).json({ error: "Voice note conversion failed. WhatsApp requires OGG Opus format." });
+        }
       }
 
       const uploadURL = await objectStorageService.getObjectEntityUploadURL();
@@ -123,9 +182,9 @@ export function registerObjectStorageRoutes(app: Express): void {
       const uploadResponse = await fetch(uploadURL, {
         method: "PUT",
         headers: {
-          "Content-Type": file.mimetype || "application/octet-stream",
+          "Content-Type": uploadMimeType,
         },
-        body: file.buffer,
+        body: uploadBuffer,
       });
 
       if (!uploadResponse.ok) {
@@ -141,9 +200,9 @@ export function registerObjectStorageRoutes(app: Express): void {
       res.json({
         url: publicUrl,
         objectPath,
-        filename: file.originalname,
-        contentType: file.mimetype,
-        size: file.size,
+        filename: uploadFilename,
+        contentType: uploadMimeType,
+        size: uploadBuffer.length,
       });
     } catch (error) {
       console.error("Error in media upload:", error);

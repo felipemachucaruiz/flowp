@@ -713,13 +713,13 @@ export default function WhatsAppChatPage() {
             toast({ title: t("common.error"), description: t("whatsapp_chat.upload_failed"), variant: "destructive" });
             return;
           }
-          const { url } = await res.json();
+          const uploadResult = await res.json();
           sendMessageMutation.mutate({
             conversationId: selectedConversation!.id,
             contentType: "audio",
-            mediaUrl: url,
-            mediaMimeType: mimeType,
-            mediaFilename: file.name,
+            mediaUrl: uploadResult.url,
+            mediaMimeType: uploadResult.contentType || mimeType,
+            mediaFilename: uploadResult.filename || file.name,
             caption: "",
           });
         } catch {

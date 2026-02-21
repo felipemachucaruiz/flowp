@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { db } from "../../db";
+import { ObjectStorageService } from "../../replit_integrations/object_storage/objectStorage";
 import {
   tenantWhatsappIntegrations,
   whatsappMessageLogs,
@@ -1527,7 +1528,18 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
     let previewText = "";
 
     let resolvedMediaUrl = mediaUrl || "";
-    if (resolvedMediaUrl && resolvedMediaUrl.startsWith("/")) {
+    if (resolvedMediaUrl && resolvedMediaUrl.startsWith("/objects/")) {
+      try {
+        const objService = new ObjectStorageService();
+        resolvedMediaUrl = await objService.getSignedDownloadUrl(resolvedMediaUrl, 600);
+        console.log(`[WhatsApp Send] Resolved object path to signed GCS URL`);
+      } catch (signErr: any) {
+        console.error(`[WhatsApp Send] Failed to sign URL for ${resolvedMediaUrl}:`, signErr.message);
+        const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+        const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
+        resolvedMediaUrl = `${protocol}://${host}${resolvedMediaUrl}`;
+      }
+    } else if (resolvedMediaUrl && resolvedMediaUrl.startsWith("/")) {
       const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
       const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
       resolvedMediaUrl = `${protocol}://${host}${resolvedMediaUrl}`;
