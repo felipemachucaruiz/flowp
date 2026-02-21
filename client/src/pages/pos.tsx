@@ -1049,7 +1049,7 @@ export default function POSPage() {
                 <X className="w-3.5 h-3.5 mr-1" />
                 {t("pos.clear")}
               </Button>
-              {tenant?.openCashDrawer && (
+              {tenant?.openCashDrawer && !isMobile && (
                 <Button
                   variant="outline"
                   size="sm"
