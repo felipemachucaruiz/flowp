@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -933,13 +934,30 @@ export function WhatsAppSettings() {
                     <Label htmlFor="profile-vertical" data-testid="label-profile-vertical">
                       {t("whatsapp.profileVertical" as any) || "Business Category"}
                     </Label>
-                    <Input
-                      id="profile-vertical"
-                      value={profileVertical}
-                      onChange={(e) => setProfileVertical(e.target.value)}
-                      placeholder={t("whatsapp.profileVerticalPlaceholder" as any) || "e.g., Restaurant, Retail"}
-                      data-testid="input-profile-vertical"
-                    />
+                    <Select value={profileVertical} onValueChange={setProfileVertical}>
+                      <SelectTrigger id="profile-vertical" data-testid="select-profile-vertical">
+                        <SelectValue placeholder={t("whatsapp.profileVerticalPlaceholder" as any) || "Select a category"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="AUTOMOTIVE">{t("whatsapp.verticalAutomotive" as any) || "Automotive"}</SelectItem>
+                        <SelectItem value="BEAUTY">{t("whatsapp.verticalBeauty" as any) || "Beauty, Spa & Salon"}</SelectItem>
+                        <SelectItem value="APPAREL">{t("whatsapp.verticalApparel" as any) || "Clothing & Apparel"}</SelectItem>
+                        <SelectItem value="EDU">{t("whatsapp.verticalEdu" as any) || "Education"}</SelectItem>
+                        <SelectItem value="ENTERTAIN">{t("whatsapp.verticalEntertain" as any) || "Entertainment"}</SelectItem>
+                        <SelectItem value="EVENT_PLAN">{t("whatsapp.verticalEventPlan" as any) || "Event Planning"}</SelectItem>
+                        <SelectItem value="FINANCE">{t("whatsapp.verticalFinance" as any) || "Finance"}</SelectItem>
+                        <SelectItem value="GROCERY">{t("whatsapp.verticalGrocery" as any) || "Grocery"}</SelectItem>
+                        <SelectItem value="GOVT">{t("whatsapp.verticalGovt" as any) || "Government"}</SelectItem>
+                        <SelectItem value="HOTEL">{t("whatsapp.verticalHotel" as any) || "Hotel & Lodging"}</SelectItem>
+                        <SelectItem value="HEALTH">{t("whatsapp.verticalHealth" as any) || "Health & Medical"}</SelectItem>
+                        <SelectItem value="NONPROFIT">{t("whatsapp.verticalNonprofit" as any) || "Non-profit"}</SelectItem>
+                        <SelectItem value="PROF_SERVICES">{t("whatsapp.verticalProfServices" as any) || "Professional Services"}</SelectItem>
+                        <SelectItem value="RETAIL">{t("whatsapp.verticalRetail" as any) || "Retail"}</SelectItem>
+                        <SelectItem value="TRAVEL">{t("whatsapp.verticalTravel" as any) || "Travel & Transportation"}</SelectItem>
+                        <SelectItem value="RESTAURANT">{t("whatsapp.verticalRestaurant" as any) || "Restaurant"}</SelectItem>
+                        <SelectItem value="OTHER">{t("whatsapp.verticalOther" as any) || "Other"}</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div className="space-y-2">
