@@ -43,7 +43,9 @@ import {
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { formatCurrency } from "@/lib/currency";
+import { UserPlus, UserCheck } from "lucide-react";
 
 interface Conversation {
   id: string;
@@ -349,6 +351,11 @@ export default function WhatsAppChatPage() {
   const [productPickerSearch, setProductPickerSearch] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [addCustomerDialog, setAddCustomerDialog] = useState(false);
+  const [addCustomerName, setAddCustomerName] = useState("");
+  const [addCustomerEmail, setAddCustomerEmail] = useState("");
+  const [addCustomerIdType, setAddCustomerIdType] = useState("");
+  const [addCustomerIdNumber, setAddCustomerIdNumber] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialScrollRef = useRef(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -536,6 +543,42 @@ export default function WhatsAppChatPage() {
       setSelectedConversation(data);
       setShowMobileConversation(true);
       queryClient.invalidateQueries({ queryKey: ["/api/whatsapp/chat/conversations"] });
+    },
+    onError: (err: any) => {
+      toast({ title: t("common.error"), description: err.message, variant: "destructive" });
+    },
+  });
+
+  const selectedPhone = selectedConversation?.customerPhone?.replace(/\D/g, "") || "";
+  const { data: matchedCustomer, isLoading: checkingCustomer } = useQuery<any>({
+    queryKey: ["/api/customers/search", "whatsapp-match", selectedPhone],
+    queryFn: async () => {
+      if (!selectedPhone) return null;
+      const phoneDigits = selectedPhone.startsWith("57") ? selectedPhone.slice(2) : selectedPhone;
+      const res = await fetch(`/api/customers/search?q=${encodeURIComponent(phoneDigits)}`, {
+        headers: { "x-tenant-id": tenantId },
+      });
+      if (!res.ok) return null;
+      const customers = await res.json();
+      return customers.find((c: any) => {
+        const cPhone = (c.phone || "").replace(/\D/g, "");
+        return cPhone === phoneDigits || `${c.phoneCountryCode || "57"}${cPhone}` === selectedPhone;
+      }) || null;
+    },
+    enabled: !!tenantId && !!selectedPhone,
+    staleTime: 30000,
+  });
+
+  const addCustomerMutation = useMutation({
+    mutationFn: async (data: { name: string; phone: string; phoneCountryCode: string; email?: string; idType?: string; idNumber?: string }) => {
+      const res = await apiRequest("POST", "/api/customers", { tenantId, ...data });
+      return res.json();
+    },
+    onSuccess: () => {
+      setAddCustomerDialog(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/search", "whatsapp-match", selectedPhone] });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers"] });
+      toast({ title: t("common.success"), description: t("whatsapp_chat.customer_added" as any) });
     },
     onError: (err: any) => {
       toast({ title: t("common.error"), description: err.message, variant: "destructive" });
@@ -1026,6 +1069,40 @@ export default function WhatsAppChatPage() {
                 <p className="text-sm font-medium truncate">{selectedConversation.customerName || selectedConversation.customerPhone}</p>
                 <p className="text-xs text-muted-foreground">{selectedConversation.customerPhone}</p>
               </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    {matchedCustomer ? (
+                      <Button variant="ghost" size="icon" className="text-green-600 dark:text-green-400" data-testid="button-customer-linked">
+                        <UserCheck className="w-4 h-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        data-testid="button-add-customer"
+                        onClick={() => {
+                          const phone = selectedConversation.customerPhone?.replace(/\D/g, "") || "";
+                          const countryCode = phone.length > 10 ? phone.slice(0, phone.length - 10) : "57";
+                          const localPhone = phone.length > 10 ? phone.slice(phone.length - 10) : phone;
+                          setAddCustomerName(selectedConversation.customerName || "");
+                          setAddCustomerEmail("");
+                          setAddCustomerIdType("");
+                          setAddCustomerIdNumber("");
+                          setAddCustomerDialog(true);
+                        }}
+                      >
+                        <UserPlus className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {matchedCustomer
+                      ? `${t("whatsapp_chat.existing_customer" as any)}: ${matchedCustomer.name}`
+                      : t("whatsapp_chat.add_as_customer" as any)}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="ghost" size="icon" data-testid="button-delete-conversation">
@@ -1619,6 +1696,98 @@ export default function WhatsAppChatPage() {
                 <>
                   <Send className="w-4 h-4 mr-2" />
                   {t("whatsapp_chat.send_catalog_button" as any) || `Send ${selectedProductIds.length} Product${selectedProductIds.length !== 1 ? "s" : ""}`}
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addCustomerDialog} onOpenChange={setAddCustomerDialog}>
+        <DialogContent className="max-w-sm" data-testid="dialog-add-customer">
+          <DialogHeader>
+            <DialogTitle>{t("whatsapp_chat.add_as_customer" as any)}</DialogTitle>
+            <DialogDescription>
+              {t("whatsapp_chat.add_customer_description" as any)}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>{t("customers.name" as any)}</Label>
+              <Input
+                value={addCustomerName}
+                onChange={(e) => setAddCustomerName(e.target.value)}
+                placeholder={t("customers.name" as any)}
+                data-testid="input-customer-name"
+              />
+            </div>
+            <div>
+              <Label>{t("customers.phone" as any)}</Label>
+              <Input
+                value={selectedConversation?.customerPhone || ""}
+                disabled
+                className="bg-muted"
+                data-testid="input-customer-phone"
+              />
+            </div>
+            <div>
+              <Label>{t("customers.email" as any)}</Label>
+              <Input
+                value={addCustomerEmail}
+                onChange={(e) => setAddCustomerEmail(e.target.value)}
+                placeholder={t("customers.email_placeholder" as any) || "email@example.com"}
+                type="email"
+                data-testid="input-customer-email"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label>{t("customers.id_type" as any)}</Label>
+                <Input
+                  value={addCustomerIdType}
+                  onChange={(e) => setAddCustomerIdType(e.target.value)}
+                  placeholder={t("customers.id_type" as any)}
+                  data-testid="input-customer-id-type"
+                />
+              </div>
+              <div>
+                <Label>{t("customers.id_number" as any)}</Label>
+                <Input
+                  value={addCustomerIdNumber}
+                  onChange={(e) => setAddCustomerIdNumber(e.target.value)}
+                  placeholder={t("customers.id_number" as any)}
+                  data-testid="input-customer-id-number"
+                />
+              </div>
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => {
+                if (!addCustomerName.trim() || !selectedConversation) return;
+                const phone = selectedConversation.customerPhone?.replace(/\D/g, "") || "";
+                const countryCode = phone.length > 10 ? phone.slice(0, phone.length - 10) : "57";
+                const localPhone = phone.length > 10 ? phone.slice(phone.length - 10) : phone;
+                addCustomerMutation.mutate({
+                  name: addCustomerName.trim(),
+                  phone: localPhone,
+                  phoneCountryCode: countryCode,
+                  email: addCustomerEmail.trim() || undefined,
+                  idType: addCustomerIdType.trim() || undefined,
+                  idNumber: addCustomerIdNumber.trim() || undefined,
+                });
+              }}
+              disabled={!addCustomerName.trim() || addCustomerMutation.isPending}
+              data-testid="button-confirm-add-customer"
+            >
+              {addCustomerMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {t("common.loading")}
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  {t("whatsapp_chat.add_customer_button" as any)}
                 </>
               )}
             </Button>
