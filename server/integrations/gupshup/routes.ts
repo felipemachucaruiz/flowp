@@ -819,6 +819,60 @@ async function getOrCreateConversation(tenantId: string, phone: string, customer
   return conversation;
 }
 
+async function persistMediaToStorage(
+  gupshupUrl: string,
+  apiKey: string,
+  contentType: string,
+  tenantId: string,
+): Promise<string | null> {
+  try {
+    if (!gupshupUrl || !gupshupUrl.startsWith("https://")) return null;
+
+    const response = await fetch(gupshupUrl, {
+      headers: { apikey: apiKey },
+    });
+    if (!response.ok) {
+      console.error(`[WhatsApp Media Persist] Download failed: ${response.status}`);
+      return null;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const fetchedContentType = response.headers.get("content-type") || "application/octet-stream";
+
+    let mimeType = fetchedContentType;
+    if (mimeType === "application/octet-stream") {
+      if (contentType === "audio" || gupshupUrl.toLowerCase().includes("audio") || gupshupUrl.toLowerCase().includes("voice") || gupshupUrl.toLowerCase().includes("ptt")) {
+        mimeType = "audio/ogg";
+      } else if (contentType === "image") {
+        mimeType = "image/jpeg";
+      } else if (contentType === "video") {
+        mimeType = "video/mp4";
+      }
+    }
+
+    const objectStorage = new ObjectStorageService();
+    const uploadURL = await objectStorage.getObjectEntityUploadURL();
+    const objectPath = objectStorage.normalizeObjectEntityPath(uploadURL);
+
+    const uploadResponse = await fetch(uploadURL, {
+      method: "PUT",
+      headers: { "Content-Type": mimeType },
+      body: buffer,
+    });
+
+    if (!uploadResponse.ok) {
+      console.error(`[WhatsApp Media Persist] Upload to storage failed: ${uploadResponse.status}`);
+      return null;
+    }
+
+    console.log(`[WhatsApp Media Persist] Saved ${contentType} (${buffer.length} bytes) to ${objectPath}`);
+    return objectPath;
+  } catch (err: any) {
+    console.error(`[WhatsApp Media Persist] Error:`, err.message);
+    return null;
+  }
+}
+
 function detectContentType(payload: any): { contentType: string; body?: string; mediaUrl?: string; mediaMimeType?: string; mediaFilename?: string; caption?: string } {
   const msgPayload = payload.payload || payload;
   const type = (payload.type || msgPayload.type || "text").toLowerCase();
@@ -945,6 +999,22 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
       console.log(`[WhatsApp Webhook] Detected content: type="${detected.contentType}", mediaUrl="${(detected.mediaUrl || "").substring(0, 80)}", body="${(detected.body || "").substring(0, 60)}"`);
       const messageText = detected.body || "";
 
+      let persistedMediaUrl = detected.mediaUrl || null;
+      if (detected.mediaUrl && ["image", "audio", "video", "sticker", "document"].includes(detected.contentType)) {
+        try {
+          const creds = await getEffectiveGupshupCredentials(config.tenantId);
+          if (creds) {
+            const storedPath = await persistMediaToStorage(detected.mediaUrl, creds.apiKey, detected.contentType, config.tenantId);
+            if (storedPath) {
+              persistedMediaUrl = storedPath;
+              console.log(`[WhatsApp Webhook] Media persisted: ${storedPath}`);
+            }
+          }
+        } catch (persistErr: any) {
+          console.error(`[WhatsApp Webhook] Media persist failed, keeping original URL:`, persistErr.message);
+        }
+      }
+
       await db.insert(whatsappMessageLogs).values({
         tenantId: config.tenantId,
         direction: "inbound",
@@ -962,7 +1032,7 @@ whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
         direction: "inbound",
         contentType: detected.contentType as any,
         body: detected.body || null,
-        mediaUrl: detected.mediaUrl || null,
+        mediaUrl: persistedMediaUrl,
         mediaMimeType: detected.mediaMimeType || null,
         mediaFilename: detected.mediaFilename || null,
         caption: detected.caption || null,
