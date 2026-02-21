@@ -1210,7 +1210,7 @@ export default function POSPage() {
         {/* Products Grid */}
         <div 
           data-tour="pos-products"
-          className="flex-1 overflow-y-auto p-0 sm:p-4 pb-28 sm:pb-4 overscroll-contain touch-scroll"
+          className={`flex-1 overflow-y-auto p-0 sm:p-4 overscroll-contain touch-scroll ${isMobile && cart.length > 0 ? "pb-40" : "pb-4"}`}
         >
           {productsLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-px sm:gap-2 bg-border">
