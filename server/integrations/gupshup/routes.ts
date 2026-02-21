@@ -1708,14 +1708,23 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
       } catch {}
     }
 
-    const publicDomain = process.env.REPLIT_DEPLOYMENT_URL
-      || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
-      || `${req.headers["x-forwarded-proto"] || req.protocol || "https"}://${req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000"}`;
-
     if (objectPath) {
-      resolvedMediaUrl = `${publicDomain}${objectPath}`;
-      console.log(`[WhatsApp Send] Using public server URL for media: ${resolvedMediaUrl}`);
+      try {
+        const objService = new ObjectStorageService();
+        resolvedMediaUrl = await objService.getSignedDownloadUrl(objectPath, 604800);
+        console.log(`[WhatsApp Send] Using signed GCS URL for media (7-day TTL)`);
+      } catch (signErr: any) {
+        console.error(`[WhatsApp Send] Failed to sign URL for ${objectPath}:`, signErr.message);
+        const publicDomain = process.env.REPLIT_DEPLOYMENT_URL
+          || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+          || `${req.headers["x-forwarded-proto"] || req.protocol || "https"}://${req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000"}`;
+        resolvedMediaUrl = `${publicDomain}${objectPath}`;
+        console.log(`[WhatsApp Send] Fallback to public URL: ${resolvedMediaUrl}`);
+      }
     } else if (resolvedMediaUrl && resolvedMediaUrl.startsWith("/")) {
+      const publicDomain = process.env.REPLIT_DEPLOYMENT_URL
+        || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+        || `${req.headers["x-forwarded-proto"] || req.protocol || "https"}://${req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000"}`;
       resolvedMediaUrl = `${publicDomain}${resolvedMediaUrl}`;
       console.log(`[WhatsApp Send] Resolved relative URL to: ${resolvedMediaUrl}`);
     }
