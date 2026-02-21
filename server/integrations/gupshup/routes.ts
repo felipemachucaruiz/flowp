@@ -1711,8 +1711,8 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
     if (objectPath) {
       try {
         const objService = new ObjectStorageService();
-        resolvedMediaUrl = await objService.getSignedDownloadUrl(objectPath, 600);
-        console.log(`[WhatsApp Send] Resolved object path to signed GCS URL`);
+        resolvedMediaUrl = await objService.getSignedDownloadUrl(objectPath, 604800);
+        console.log(`[WhatsApp Send] Resolved object path to signed GCS URL (7-day TTL)`);
       } catch (signErr: any) {
         console.error(`[WhatsApp Send] Failed to sign URL for ${objectPath}:`, signErr.message);
         if (resolvedMediaUrl.startsWith("/")) {
