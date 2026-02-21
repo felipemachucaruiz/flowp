@@ -20,8 +20,9 @@ Flowp utilizes a React + TypeScript frontend and an Express + PostgreSQL backend
 
 **UI/UX Decisions:**
 - **Responsive Design**: Features a collapsible sidebar, responsive cart panel, and dynamic product grid columns.
-- **Mobile App Optimization**: Full-screen support, sidebar navigation, safe area insets, large touch targets, and portrait orientation lock.
-- **Mobile Bottom Navigation**: On mobile (< 768px), sidebar is hidden and replaced with a fixed bottom nav bar (`MobileBottomNav`) with 4 main tabs + "More" sheet with categorized navigation links. AppLayout adds safe-area-aware bottom padding to prevent content overlap.
+- **Mobile App Optimization**: Edge-to-edge display with `viewport-fit=cover`, `overlaysWebView: true` in Capacitor config, and `black-translucent` status bar. Background colors extend behind Dynamic Island and home indicator while content stays in safe zones via `env(safe-area-inset-*)`.
+- **Edge-to-Edge Safe Area Strategy**: AppLayout header uses `safe-area-pt` so bg-card extends behind Dynamic Island. Bottom nav uses `safe-area-pb` so bg extends behind home indicator. Sheet component (`sheet.tsx`) automatically applies safe area top/bottom padding for left/right side sheets. Main content area uses `pb-[calc(72px+env(safe-area-inset-bottom,0px))]` on mobile.
+- **Mobile Bottom Navigation**: On mobile (< 768px), sidebar is hidden and replaced with a fixed bottom nav bar (`MobileBottomNav`, h-[72px]) with 4 main tabs + "More" sheet. Icons are w-7 h-7 with min-w-[80px] touch targets. AppLayout adds safe-area-aware bottom padding to prevent content overlap.
 - **Mobile Components**: Reusable `MobileDataCard`, `MobilePageHeader`, `MobileSearchBar` components in `client/src/components/mobile-data-card.tsx` for consistent mobile patterns.
 - **Mobile CSS Utilities**: `mobile-touch-target`, `mobile-card-list`, `mobile-sticky-actions`, `mobile-full-width-form`, `mobile-page-padding`, `mobile-section-gap` utilities in `index.css` (active only below 768px).
 - **Shadcn components**: Used for reusable UI elements.

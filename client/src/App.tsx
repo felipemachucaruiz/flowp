@@ -216,12 +216,12 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider style={style as React.CSSProperties} defaultOpen={!isMobile && window.innerWidth >= 1280}>
-      <div className="flex h-screen min-h-dvh w-full bg-background safe-area-pt">
+      <div className="flex h-screen min-h-dvh w-full bg-background">
         {!isMobile && <AppSidebar />}
         <div className="flex flex-col flex-1 min-w-0">
           <header className={cn(
             "flex items-center justify-between gap-2 border-b px-3 bg-card shrink-0",
-            isMobile ? "h-11" : "h-10"
+            isMobile ? "min-h-[44px] py-2 safe-area-pt" : "h-10"
           )}>
             {!isMobile && <SidebarTrigger data-testid="button-sidebar-toggle" />}
             {isMobile && <div className="w-1" />}
