@@ -980,13 +980,13 @@ export default function WhatsAppChatPage() {
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium truncate">{conv.customerName || conv.customerPhone}</p>
-                    <span className="text-[10px] text-muted-foreground flex-shrink-0">
+                    <p className={`text-sm truncate ${conv.unreadCount > 0 ? "font-bold text-foreground" : "font-medium"}`}>{conv.customerName || conv.customerPhone}</p>
+                    <span className={`text-[10px] flex-shrink-0 ${conv.unreadCount > 0 ? "text-green-600 dark:text-green-400 font-semibold" : "text-muted-foreground"}`}>
                       {conv.lastMessageAt && formatTime(conv.lastMessageAt)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground truncate">{conv.lastMessagePreview || ""}</p>
+                    <p className={`text-xs truncate ${conv.unreadCount > 0 ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{conv.lastMessagePreview || ""}</p>
                     {conv.unreadCount > 0 && (
                       <Badge className="ml-1 bg-green-500 text-white text-[10px] px-1.5 py-0 h-4 flex-shrink-0">
                         {conv.unreadCount}
