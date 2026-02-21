@@ -1740,6 +1740,7 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
     } else if (msgType === "audio") {
       gupshupMessage = { type: "audio", url: resolvedMediaUrl };
       previewText = "[audio]";
+      console.log(`[WhatsApp Send] Audio URL being sent to Gupshup: ${resolvedMediaUrl.substring(0, 120)}...`);
     } else if (msgType === "document") {
       gupshupMessage = { type: "file", url: resolvedMediaUrl, filename: mediaFilename || "document", caption: caption || "" };
       previewText = `[document] ${mediaFilename || ""}`;
