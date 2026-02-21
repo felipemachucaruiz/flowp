@@ -988,9 +988,9 @@ export default function WhatsAppChatPage() {
                   <div className="flex items-center justify-between">
                     <p className={`text-xs truncate ${conv.unreadCount > 0 ? "text-foreground font-semibold" : "text-muted-foreground"}`}>{conv.lastMessagePreview || ""}</p>
                     {conv.unreadCount > 0 && (
-                      <Badge className="ml-1 bg-green-500 text-white text-[10px] px-1.5 py-0 h-4 flex-shrink-0">
+                      <span className="ml-1 bg-green-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center flex-shrink-0 px-1">
                         {conv.unreadCount}
-                      </Badge>
+                      </span>
                     )}
                   </div>
                 </div>
