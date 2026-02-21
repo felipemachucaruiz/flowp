@@ -126,8 +126,12 @@ export function registerObjectStorageRoutes(app: Express): void {
           execFile("ffmpeg", [
             "-i", inputPath,
             "-c:a", "libopus",
-            "-b:a", "48k",
+            "-b:a", "64k",
+            "-ar", "48000",
+            "-ac", "1",
+            "-application", "voip",
             "-vn",
+            "-f", "ogg",
             "-y",
             outputPath,
           ], { timeout: 30000 }, async (error) => {
@@ -168,7 +172,7 @@ export function registerObjectStorageRoutes(app: Express): void {
         try {
           console.log("[Media Upload] Converting WebM audio to OGG Opus for WhatsApp compatibility");
           uploadBuffer = await convertWebmToOgg(file.buffer);
-          uploadMimeType = "audio/ogg; codecs=opus";
+          uploadMimeType = "audio/ogg";
           uploadFilename = uploadFilename.replace(/\.webm$/, ".ogg");
         } catch (convErr: any) {
           console.error("[Media Upload] ffmpeg conversion failed:", convErr.message);
