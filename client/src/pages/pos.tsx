@@ -881,6 +881,17 @@ export default function POSPage() {
         )}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
+            {isMobile && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 h-8 w-8 -ml-1"
+                onClick={() => setShowMobileCart(false)}
+                data-testid="button-close-mobile-cart"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
             <ShoppingCart className="w-4 h-4 text-primary shrink-0" />
             <h2 className="font-semibold text-sm truncate">{t("pos.current_order")}</h2>
           </div>
