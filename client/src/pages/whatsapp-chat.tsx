@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { formatCurrency } from "@/lib/currency";
 
 interface Conversation {
   id: string;
@@ -200,6 +201,8 @@ export default function WhatsAppChatPage() {
   const [catalogHeader, setCatalogHeader] = useState("");
   const [catalogBody, setCatalogBody] = useState("");
   const [catalogFooter, setCatalogFooter] = useState("");
+  const [productPickerDialog, setProductPickerDialog] = useState(false);
+  const [productPickerSearch, setProductPickerSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -293,7 +296,7 @@ export default function WhatsAppChatPage() {
       const data = await res.json();
       return (Array.isArray(data) ? data : data.products || []).filter((p: Product) => p.isActive);
     },
-    enabled: !!tenantId && catalogDialog,
+    enabled: !!tenantId && (catalogDialog || productPickerDialog),
   });
 
   const { data: catalogCategories } = useQuery<Category[]>({
@@ -305,7 +308,7 @@ export default function WhatsAppChatPage() {
       if (!res.ok) throw new Error("Failed to load categories");
       return res.json();
     },
-    enabled: !!tenantId && catalogDialog,
+    enabled: !!tenantId && (catalogDialog || productPickerDialog),
   });
 
   const { data: messages, isLoading: loadingMessages } = useQuery<ChatMessage[]>({
@@ -885,6 +888,16 @@ export default function WhatsAppChatPage() {
                     <Button variant="ghost" size="icon" className="flex-shrink-0 h-9 w-9" onClick={() => fileInputRef.current?.click()} data-testid="button-attach-file">
                       <Paperclip className="w-5 h-5 text-muted-foreground" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="flex-shrink-0 h-9 w-9"
+                      onClick={() => setProductPickerDialog(true)}
+                      title={t("whatsapp_chat.send_product_info" as any) || "Send Product Info"}
+                      data-testid="button-send-product-info"
+                    >
+                      <Package className="w-5 h-5 text-muted-foreground" />
+                    </Button>
                     {whatsappConfig?.catalogId && (
                       <Button
                         variant="ghost"
@@ -1052,6 +1065,110 @@ export default function WhatsAppChatPage() {
           >
             {t("whatsapp_chat.start_chat")}
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={productPickerDialog} onOpenChange={(open) => {
+        setProductPickerDialog(open);
+        if (!open) setProductPickerSearch("");
+      }}>
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col" data-testid="dialog-product-picker">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5" />
+              {t("whatsapp_chat.send_product_info" as any) || "Send Product Info"}
+            </DialogTitle>
+            <DialogDescription>
+              {t("whatsapp_chat.product_picker_description" as any) || "Select a product to send its details to this conversation."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Input
+            placeholder={t("whatsapp_chat.search_products" as any) || "Search products..."}
+            value={productPickerSearch}
+            onChange={(e) => setProductPickerSearch(e.target.value)}
+            className="h-9"
+            data-testid="input-product-picker-search"
+          />
+
+          <ScrollArea className="flex-1 border rounded-lg min-h-0" style={{ maxHeight: "400px" }}>
+            <div className="p-2 space-y-1">
+              {(() => {
+                const prods = (catalogProducts || []).filter(p => {
+                  if (!productPickerSearch) return true;
+                  const q = productPickerSearch.toLowerCase();
+                  return p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q);
+                });
+                const cats = catalogCategories || [];
+                const catMap = Object.fromEntries(cats.map(c => [c.id, c.name]));
+                const grouped: Record<string, typeof prods> = {};
+                prods.forEach(p => {
+                  const catName = p.categoryId && catMap[p.categoryId] ? catMap[p.categoryId] : (t("whatsapp_chat.uncategorized" as any) || "Uncategorized");
+                  if (!grouped[catName]) grouped[catName] = [];
+                  grouped[catName].push(p);
+                });
+
+                if (prods.length === 0) {
+                  return (
+                    <div className="text-center text-sm text-muted-foreground py-8">
+                      <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>{t("whatsapp_chat.no_products" as any) || "No products found"}</p>
+                    </div>
+                  );
+                }
+
+                return Object.entries(grouped).map(([catName, products]) => (
+                  <div key={catName} className="mb-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">{catName}</p>
+                    {products.map(product => (
+                      <button
+                        key={product.id}
+                        onClick={() => {
+                          if (!selectedConversation) return;
+                          const currency = (tenant as any)?.currency || "COP";
+                          const price = formatCurrency(parseFloat(product.price), currency);
+                          const productText = `*${product.name}*\n${price}${product.description ? `\n${product.description}` : ""}${product.sku ? `\nSKU: ${product.sku}` : ""}`;
+
+                          const mutationPayload = product.image
+                            ? { conversationId: selectedConversation.id, contentType: "image", mediaUrl: product.image, caption: productText }
+                            : { conversationId: selectedConversation.id, contentType: "text", body: productText };
+
+                          sendMessageMutation.mutate(mutationPayload, {
+                            onSuccess: () => {
+                              toast({ title: t("whatsapp_chat.product_sent" as any) || "Product info sent" });
+                            },
+                          });
+                          setProductPickerDialog(false);
+                          setProductPickerSearch("");
+                        }}
+                        disabled={sendMessageMutation.isPending}
+                        className="w-full flex items-center gap-3 p-2 rounded-md transition-colors text-left"
+                        data-testid={`product-picker-item-${product.id}`}
+                      >
+                        {product.image ? (
+                          <img src={product.image} alt={product.name} className="w-10 h-10 rounded object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                            <Package className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{product.name}</p>
+                          {product.sku && <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>}
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            {formatCurrency(parseFloat(product.price), (tenant as any)?.currency || "COP")}
+                          </span>
+                          <Send className="w-3.5 h-3.5 text-green-500" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ));
+              })()}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
