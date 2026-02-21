@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ export default function ProductsPage() {
     barcode: "",
     cost: "",
     image: "",
+    description: "",
     trackInventory: true,
     lowStockThreshold: "10",
   });
@@ -97,7 +99,7 @@ export default function ProductsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setProductDialogOpen(false);
       setEditingProduct(null);
-      setProductForm({ name: "", price: "", categoryId: "", sku: "", barcode: "", cost: "", image: "", trackInventory: true, lowStockThreshold: "10" });
+      setProductForm({ name: "", price: "", categoryId: "", sku: "", barcode: "", cost: "", image: "", description: "", trackInventory: true, lowStockThreshold: "10" });
       setProductFormTouched(false);
       toast({ title: editingProduct ? t("products.updated") : t("products.created") });
     },
@@ -139,12 +141,13 @@ export default function ProductsPage() {
         barcode: product.barcode || "",
         cost: product.cost || "",
         image: product.image || "",
+        description: product.description || "",
         trackInventory: product.trackInventory ?? true,
         lowStockThreshold: String(product.lowStockThreshold ?? 10),
       });
     } else {
       setEditingProduct(null);
-      setProductForm({ name: "", price: "", categoryId: "", sku: "", barcode: "", cost: "", image: "", trackInventory: true, lowStockThreshold: "10" });
+      setProductForm({ name: "", price: "", categoryId: "", sku: "", barcode: "", cost: "", image: "", description: "", trackInventory: true, lowStockThreshold: "10" });
     }
     setProductDialogOpen(true);
   };
@@ -679,6 +682,16 @@ export default function ProductsPage() {
                   </label>
                 </div>
               )}
+            </div>
+            <div className="space-y-2">
+              <Label>{t("products.description")}</Label>
+              <Textarea
+                value={productForm.description}
+                onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+                placeholder={t("products.description_placeholder" as any) || ""}
+                rows={3}
+                data-testid="input-product-description"
+              />
             </div>
             <div className="space-y-4 pt-4 border-t">
               <h4 className="font-medium text-sm">{t("products.stock_configuration")}</h4>
