@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { processPendingDocuments } from "./integrations/matias/documentQueue";
+import { autoCloseExpiredSessions } from "./auto-close-register";
 
 const app = express();
 const httpServer = createServer(app);
@@ -110,6 +111,16 @@ app.use((req, res, next) => {
         }
       }, MATIAS_QUEUE_INTERVAL);
       log("MATIAS document queue processor started (30s interval)", "matias");
+
+      const AUTO_CLOSE_INTERVAL = 60000;
+      setInterval(async () => {
+        try {
+          await autoCloseExpiredSessions();
+        } catch (err) {
+          console.error("[Auto-Close] Error:", err);
+        }
+      }, AUTO_CLOSE_INTERVAL);
+      log("Register auto-close checker started (60s interval)");
     },
   );
 })();

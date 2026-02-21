@@ -4720,26 +4720,40 @@ export default function SettingsPage() {
                 />
               </div>
               {(tenant as any)?.storeHoursEnabled && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>{t("settings.store_open_time")}</Label>
-                    <Input
-                      type="time"
-                      value={(tenant as any)?.storeOpenTime || "08:00"}
-                      onChange={(e) => { autoLockMutation.mutate({ storeOpenTime: e.target.value } as any); }}
-                      data-testid="input-store-open-time"
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>{t("settings.store_open_time")}</Label>
+                      <Input
+                        type="time"
+                        value={(tenant as any)?.storeOpenTime || "08:00"}
+                        onChange={(e) => { autoLockMutation.mutate({ storeOpenTime: e.target.value } as any); }}
+                        data-testid="input-store-open-time"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("settings.store_close_time")}</Label>
+                      <Input
+                        type="time"
+                        value={(tenant as any)?.storeCloseTime || "18:00"}
+                        onChange={(e) => { autoLockMutation.mutate({ storeCloseTime: e.target.value } as any); }}
+                        data-testid="input-store-close-time"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">{t("settings.auto_close_register_label")}</Label>
+                      <p className="text-sm text-muted-foreground">{t("settings.auto_close_register_description")}</p>
+                    </div>
+                    <Switch
+                      checked={(tenant as any)?.autoCloseRegister ?? false}
+                      onCheckedChange={(checked) => { autoLockMutation.mutate({ autoCloseRegister: checked } as any); }}
+                      disabled={autoLockMutation.isPending}
+                      data-testid="switch-auto-close-register"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>{t("settings.store_close_time")}</Label>
-                    <Input
-                      type="time"
-                      value={(tenant as any)?.storeCloseTime || "18:00"}
-                      onChange={(e) => { autoLockMutation.mutate({ storeCloseTime: e.target.value } as any); }}
-                      data-testid="input-store-close-time"
-                    />
-                  </div>
-                </div>
+                </>
               )}
             </CardContent>
           </Card>

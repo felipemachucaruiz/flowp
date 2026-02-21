@@ -75,6 +75,7 @@ export const tenants = pgTable("tenants", {
   storeOpenTime: text("store_open_time"),
   storeCloseTime: text("store_close_time"),
   storeHoursEnabled: boolean("store_hours_enabled").default(false),
+  autoCloseRegister: boolean("auto_close_register").default(false),
   // Auto-lock / standby settings
   autoLockEnabled: boolean("auto_lock_enabled").default(false),
   autoLockTimeout: integer("auto_lock_timeout").default(5),
