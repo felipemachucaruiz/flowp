@@ -824,13 +824,16 @@ function detectContentType(payload: any): { contentType: string; body?: string; 
 
   if (type === "image" || type === "file" || type === "document" || type === "video" || type === "audio" || type === "voice" || type === "sticker") {
     const contentType = type === "file" ? "document" : type === "voice" ? "audio" : type;
+    const textAsUrl = (payload.text && payload.text.startsWith("http")) ? payload.text : "";
+    const url = msgPayload.url || msgPayload.mediaUrl || payload.url || textAsUrl || "";
+    const caption = msgPayload.caption || (msgPayload.text && !msgPayload.text.startsWith("http") ? msgPayload.text : "") || "";
     return {
       contentType,
-      mediaUrl: msgPayload.url || msgPayload.mediaUrl || payload.url || "",
+      mediaUrl: url,
       mediaMimeType: msgPayload.contentType || msgPayload.mimeType || payload.contentType || "",
       mediaFilename: msgPayload.filename || msgPayload.name || "",
-      caption: msgPayload.caption || msgPayload.text || "",
-      body: msgPayload.caption || msgPayload.text || `[${contentType}]`,
+      caption,
+      body: caption || `[${contentType}]`,
     };
   }
 
@@ -856,7 +859,7 @@ function detectContentType(payload: any): { contentType: string; body?: string; 
 whatsappRouter.post("/webhook", async (req: Request, res: Response) => {
   try {
     const payload = req.body;
-    console.log("[WhatsApp Webhook] Received event:", JSON.stringify(payload).substring(0, 500));
+    console.log("[WhatsApp Webhook] Received event:", JSON.stringify(payload).substring(0, 800));
 
     if (payload.type === "message-event") {
       const eventPayload = payload.payload || payload;
@@ -1485,23 +1488,31 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
     let gupshupMessage: any;
     let previewText = "";
 
+    let resolvedMediaUrl = mediaUrl || "";
+    if (resolvedMediaUrl && resolvedMediaUrl.startsWith("/")) {
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+      const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
+      resolvedMediaUrl = `${protocol}://${host}${resolvedMediaUrl}`;
+      console.log(`[WhatsApp Send] Resolved relative URL to: ${resolvedMediaUrl}`);
+    }
+
     if (msgType === "text") {
       gupshupMessage = { isHSM: "false", type: "text", text: body };
       previewText = (body || "").substring(0, 100);
     } else if (msgType === "image") {
-      gupshupMessage = { type: "image", originalUrl: mediaUrl, caption: caption || "" };
+      gupshupMessage = { type: "image", originalUrl: resolvedMediaUrl, caption: caption || "" };
       previewText = `[image] ${(caption || "").substring(0, 80)}`;
     } else if (msgType === "video") {
-      gupshupMessage = { type: "video", url: mediaUrl, caption: caption || "" };
+      gupshupMessage = { type: "video", url: resolvedMediaUrl, caption: caption || "" };
       previewText = `[video] ${(caption || "").substring(0, 80)}`;
     } else if (msgType === "audio") {
-      gupshupMessage = { type: "audio", url: mediaUrl };
+      gupshupMessage = { type: "audio", url: resolvedMediaUrl };
       previewText = "[audio]";
     } else if (msgType === "document") {
-      gupshupMessage = { type: "file", url: mediaUrl, filename: mediaFilename || "document", caption: caption || "" };
+      gupshupMessage = { type: "file", url: resolvedMediaUrl, filename: mediaFilename || "document", caption: caption || "" };
       previewText = `[document] ${mediaFilename || ""}`;
     } else if (msgType === "sticker") {
-      gupshupMessage = { type: "sticker", url: mediaUrl };
+      gupshupMessage = { type: "sticker", url: resolvedMediaUrl };
       previewText = "[sticker]";
     } else {
       return res.status(400).json({ error: `Unsupported content type: ${msgType}` });
@@ -1569,6 +1580,7 @@ whatsappRouter.post("/chat/send", whatsappAddonGate, async (req: Request, res: R
       return res.json({ success: true, message: chatMsg });
     } else {
       const errorMsg = data?.message || JSON.stringify(data);
+      console.error(`[WhatsApp Send] Gupshup rejected: ${JSON.stringify(data)}, mediaUrl sent: ${resolvedMediaUrl}`);
       return res.status(400).json({ error: errorMsg });
     }
   } catch (error: any) {
