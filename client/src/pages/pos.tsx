@@ -12,7 +12,7 @@ import { CurrencyInput } from "@/components/currency-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -1171,11 +1171,12 @@ export default function POSPage() {
             </Button>
           </div>
 
-          <ScrollArea className="w-full">
+          <ScrollArea className="w-full whitespace-nowrap">
             <div className="flex gap-2 pb-2">
               <Button
                 variant={selectedCategory === null ? "default" : "secondary"}
                 size="sm"
+                className="shrink-0"
                 onClick={() => setSelectedCategory(null)}
                 data-testid="button-category-all"
               >
@@ -1193,6 +1194,7 @@ export default function POSPage() {
                     key={category.id}
                     variant={selectedCategory === category.id ? "default" : "secondary"}
                     size="sm"
+                    className="shrink-0"
                     onClick={() => setSelectedCategory(category.id)}
                     data-testid={`button-category-${category.id}`}
                   >
@@ -1201,6 +1203,7 @@ export default function POSPage() {
                 ))
               )}
             </div>
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
 
