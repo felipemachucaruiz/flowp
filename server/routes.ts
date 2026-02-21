@@ -142,37 +142,25 @@ async function generateAndUploadReceiptPdf(orderId: string, tenantId: string): P
       return createPublicReceiptUrl(orderId, tenantId);
     }
 
-    const objectPath = `${privateDir}/receipts/Recibo_${order.orderNumber}_${orderId.slice(0, 8)}.pdf`;
-    const parts = objectPath.startsWith("/") ? objectPath.slice(1).split("/") : objectPath.split("/");
-    const bucketName = parts[0];
-    const objectName = parts.slice(1).join("/");
+    const objectId = crypto.randomUUID();
+    const objectPath = `${privateDir}/uploads/${objectId}`;
+    const pathParts = objectPath.startsWith("/") ? objectPath.slice(1).split("/") : objectPath.split("/");
+    const bucketName = pathParts[0];
+    const objectName = pathParts.slice(1).join("/");
 
     const bucket = objectStorageClient.bucket(bucketName);
     const file = bucket.file(objectName);
     await file.save(Buffer.from(pdfBuffer), {
       metadata: { contentType: "application/pdf" },
     });
+    console.log(`[receipt-pdf] Uploaded receipt PDF to GCS: ${objectPath}`);
 
-    const sidecarUrl = "http://127.0.0.1:1106";
-    const signResponse = await fetch(`${sidecarUrl}/object-storage/signed-object-url`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        bucket_name: bucketName,
-        object_name: objectName,
-        method: "GET",
-        expires_at: new Date(Date.now() + RECEIPT_LINK_TTL_MS).toISOString(),
-      }),
-    });
-
-    if (!signResponse.ok) {
-      console.error("[receipt-pdf] Failed to sign URL:", signResponse.status);
-      return createPublicReceiptUrl(orderId, tenantId);
-    }
-
-    const { signed_url } = await signResponse.json() as { signed_url: string };
-    console.log(`[receipt-pdf] Uploaded and signed receipt PDF for order ${order.orderNumber}`);
-    return signed_url;
+    const publicDomain = process.env.REPLIT_DEPLOYMENT_URL
+      || (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : null)
+      || `https://pos.flowp.app`;
+    const proxyUrl = `${publicDomain}/objects/uploads/${objectId}`;
+    console.log(`[receipt-pdf] Receipt PDF URL for order ${order.orderNumber}: ${proxyUrl}`);
+    return proxyUrl;
   } catch (error) {
     console.error("[receipt-pdf] Error generating/uploading PDF:", error);
     return createPublicReceiptUrl(orderId, tenantId);
